@@ -42,7 +42,6 @@ export function BuyerSidebarNav() {
   const isActive = (path: string) => pathname.startsWith(path);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [isWalletOpen, setIsWalletOpen] = useState(false);
 
   return (
     <SidebarGroup>
@@ -156,50 +155,16 @@ export function BuyerSidebarNav() {
             </CollapsibleContent>
           </SidebarMenuItem>
         </Collapsible>
+        
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')}>
+                <Link href="/buyer/wallet">
+                    <Wallet />
+                    <span>Wallet</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
-        <Collapsible open={isWalletOpen} onOpenChange={setIsWalletOpen} asChild>
-          <SidebarMenuItem>
-            <CollapsibleTrigger asChild>
-              <SidebarMenuButton
-                className="w-full"
-                isActive={isActive('/buyer/wallet')}
-              >
-                <Wallet />
-                <span>Wallet</span>
-                <ChevronDown
-                  className={cn(
-                    'ml-auto h-4 w-4 transition-transform',
-                    isWalletOpen && 'rotate-180'
-                  )}
-                />
-              </SidebarMenuButton>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarMenu className="pl-6">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/buyer/wallet')}
-                  >
-                    <Link href="/buyer/wallet">
-                      <span>Balance</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/buyer/wallet/transactions')}
-                  >
-                    <Link href="/buyer/wallet">
-                      <span>History</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </CollapsibleContent>
-          </SidebarMenuItem>
-        </Collapsible>
       </SidebarMenu>
     </SidebarGroup>
   );
@@ -266,14 +231,6 @@ export function SellerSidebarNav() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}>
-            <Link href="/dashboard/seller/wishlist">
-              <Heart />
-              <span>Wishlist</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
 
         <Collapsible open={isFinanceOpen} onOpenChange={setIsFinanceOpen}>
           <SidebarMenuItem>
@@ -323,6 +280,15 @@ export function SellerSidebarNav() {
             </CollapsibleContent>
           </SidebarMenuItem>
         </Collapsible>
+        
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}>
+                <Link href="/dashboard/seller/wishlist">
+                <Heart />
+                <span>Wishlist</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
         <SidebarMenuItem>
           <SidebarMenuButton
