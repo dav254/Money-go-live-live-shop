@@ -125,13 +125,12 @@ export function SellerSidebarNav() {
             </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<ShoppingBag />} label="Products / Shop" defaultOpen={isActive('/dashboard/products')}>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add" isActive={isActive('/dashboard/products/add')}>Add Product</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/sellers/seller-1" isActive={isActive('/sellers/seller-1')}>My Products</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Categories</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Discounts & Offers</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Product Media</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/products')}>
+                <Link href="/dashboard/products/add">
+                    <ShoppingBag />
+                    <span>Products</span>
+                </Link>
+            </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Package />} label="Orders" defaultOpen={isActive('/dashboard/seller/orders')}>
