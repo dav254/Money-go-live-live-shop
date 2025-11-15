@@ -1,12 +1,13 @@
 
+
 'use client';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { Menu, User } from 'lucide-react';
-import { BuyerSidebarNav, SellerSidebarNav, AccountSidebarNav, ResellerSidebarNav } from './sidebar-nav';
+import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
+import { BuyerSidebarNav, SellerSidebarNav, AccountSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { useUser } from '@/firebase';
@@ -15,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { Input } from '../ui/input';
 
 function UserNav() {
   const { user, isUserLoading } = useUser();
@@ -89,7 +91,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col bg-background">
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
@@ -116,7 +118,29 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <Logo className="h-8 w-auto text-primary" />
             </Link>
           </div>
-          <UserNav />
+
+          <div className="hidden md:flex flex-1 max-w-lg items-center">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search products, orders..." className="pl-9" />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
+            </Button>
+             <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+              <MessageSquare className="h-5 w-5" />
+              <span className="sr-only">Chat</span>
+            </Button>
+             <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+              <Video className="h-5 w-5" />
+              <span className="sr-only">Live</span>
+            </Button>
+            <UserNav />
+          </div>
         </header>
         <div className="flex flex-1">
           <aside className="hidden w-64 flex-col border-r bg-card md:flex">
