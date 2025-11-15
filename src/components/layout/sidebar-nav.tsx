@@ -7,15 +7,8 @@ import {
   SidebarMenuButton,
   SidebarGroup,
   SidebarGroupLabel,
-  useSidebar,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import {
-  Home,
-  LayoutGrid,
-  MessageSquare,
   Heart,
   Wallet,
   User,
@@ -27,17 +20,11 @@ import {
   Banknote,
   Store,
   HelpCircle,
-  Sparkles,
   Users,
-  BookOpen,
-  MailQuestion,
-  ShieldAlert,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
-import { Button } from '../ui/button';
-import { ChevronRight } from 'lucide-react';
 import { useUser } from '@/firebase';
 
 export function BuyerSidebarNav() {
@@ -46,43 +33,8 @@ export function BuyerSidebarNav() {
 
   return (
     <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="#">
-            <Heart />
-            <span>Wishlist</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="#">
-            <Wallet />
-            <span>Wallet</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
     </SidebarMenu>
   );
-}
-
-function SidebarCollapsibleItem({ icon, label, children, defaultOpen = false, isActive = false }: { icon: React.ReactNode, label: string, children: React.ReactNode, defaultOpen?: boolean, isActive?: boolean }) {
-    return (
-        <Collapsible defaultOpen={defaultOpen || isActive}>
-            <CollapsibleTrigger asChild>
-                 <Button variant="ghost" className="w-full justify-start gap-2 px-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:justify-center">
-                    {icon}
-                    <span className="group-data-[collapsible=icon]:hidden">{label}</span>
-                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[collapsible=icon]:hidden [&[data-state=open]]:rotate-90" />
-                </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-                <SidebarMenuSub>
-                    {children}
-                </SidebarMenuSub>
-            </CollapsibleContent>
-        </Collapsible>
-    )
 }
 
 export function SellerSidebarNav() {
@@ -125,6 +77,22 @@ export function SellerSidebarNav() {
                   <span>Live Selling</span>
               </Link>
             </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild>
+            <Link href="#">
+              <Heart />
+              <span>Wishlist</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild>
+            <Link href="#">
+              <Wallet />
+              <span>Wallet</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/messages')}>

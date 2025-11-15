@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
-import { BuyerSidebarNav, SellerSidebarNav, AccountSidebarNav } from './sidebar-nav';
+import { SellerSidebarNav, AccountSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { useUser } from '@/firebase';
@@ -105,7 +105,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <Logo className="h-8 w-auto text-primary" />
                   </Link>
                   <nav className="flex flex-1 flex-col gap-4">
-                    <BuyerSidebarNav />
                     <SellerSidebarNav />
                   </nav>
                   <div className="mt-auto">
@@ -145,7 +144,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1">
           <aside className="hidden w-64 flex-col border-r bg-card md:flex">
             <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
-              <BuyerSidebarNav />
               <SellerSidebarNav />
             </div>
             <div className="p-4">
