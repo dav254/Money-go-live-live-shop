@@ -115,18 +115,14 @@ export function AdminSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <NavCollapsible
-          title="Orders & Transactions"
-          icon={Receipt}
-          basePath="orders"
-          items={[
-            { href: 'all', label: 'All Orders' },
-            { href: 'seller-orders', label: 'Seller Orders' },
-            { href: 'reseller-orders', label: 'Reseller Orders' },
-            { href: 'disputes', label: 'Refunds & Disputes' },
-            { href: 'tracking', label: 'Delivery Tracking' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/orders')}>
+                <Link href="/dashboard/admin/orders/all">
+                    <Receipt />
+                    <span>Orders & Transactions</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         
         <NavCollapsible
           title="Live Shopping Control"
