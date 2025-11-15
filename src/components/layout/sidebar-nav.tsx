@@ -38,6 +38,7 @@ import { usePathname } from 'next/navigation';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { Button } from '../ui/button';
 import { ChevronRight } from 'lucide-react';
+import { useUser } from '@/firebase';
 
 export function BuyerSidebarNav() {
   const pathname = usePathname();
@@ -110,6 +111,7 @@ function SidebarCollapsibleItem({ icon, label, children, defaultOpen = false }: 
 
 export function SellerSidebarNav() {
   const pathname = usePathname();
+  const { user } = useUser();
   const isActive = (path: string) => pathname.startsWith(path);
   
   return (
@@ -117,7 +119,7 @@ export function SellerSidebarNav() {
       <SidebarGroupLabel>Seller Dashboard</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller') && pathname === '/dashboard/seller'}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller')}>
                 <Link href="/dashboard/seller">
                     <AreaChart />
                     <span>Dashboard</span>
@@ -177,6 +179,7 @@ export function SellerSidebarNav() {
         </SidebarMenuItem>
         <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Store />} label="Shop Settings">
+                <SidebarMenuSubItem><SidebarMenuSubButton href={user ? `/sellers/${user.uid}` : "/login"}>View My Shop</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Profile</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Business Location</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Contact & WhatsApp</SidebarMenuSubButton></SidebarMenuSubItem>
