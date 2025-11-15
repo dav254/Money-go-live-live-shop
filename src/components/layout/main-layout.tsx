@@ -87,6 +87,7 @@ function UserNav() {
 }
 
 function SidebarNav({ role }: { role: string | undefined }) {
+  // Explicitly check for admin first to ensure it takes precedence.
   if (role === 'admin') {
     return <AdminSidebarNav />;
   }
@@ -96,7 +97,7 @@ function SidebarNav({ role }: { role: string | undefined }) {
   if (role === 'reseller') {
     return <ResellerSidebarNav />;
   }
-  // Default to buyer
+  // Default to buyer for any other role or if the role is undefined.
   return <BuyerSidebarNav />;
 }
 

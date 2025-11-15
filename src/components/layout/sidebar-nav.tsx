@@ -130,8 +130,8 @@ export function SellerSidebarNav() {
             isActive={isActive('/dashboard/seller') && pathname === '/dashboard/seller'}
           >
             <Link href="/dashboard/seller">
-              <AreaChart />
-              <span>Dashboard</span>
+              <Home />
+              <span>Home</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -529,5 +529,3 @@ export function AccountSidebarNav() {
     </SidebarMenu>
   );
 }
-
-    
