@@ -136,19 +136,20 @@ function SidebarCollapsibleItem({ icon, label, children }: { icon: React.ReactNo
 
 export function SellerSidebarNav() {
   const { state } = useSidebar();
+  const pathname = usePathname();
+  const isActive = (path: string) => pathname.startsWith(path);
   
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Seller Dashboard</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-            <SidebarCollapsibleItem icon={<AreaChart />} label="Dashboard">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller">Analytics</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/earnings">Earnings</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Active Products</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/orders">Pending Orders</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Notifications</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
+             <SidebarMenuButton asChild isActive={isActive('/dashboard/seller')}>
+                <Link href="/dashboard/seller">
+                    <AreaChart />
+                    <span>Dashboard</span>
+                </Link>
+             </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<ShoppingBag />} label="Products / Shop">
@@ -161,7 +162,7 @@ export function SellerSidebarNav() {
         </SidebarMenuItem>
          <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Package />} label="Orders">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">New Orders</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/orders">New Orders</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shipping / Delivery</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Completed</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Cancelled/Returned</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -186,7 +187,7 @@ export function SellerSidebarNav() {
         </SidebarMenuItem>
          <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Banknote />} label="Finances">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Sales & Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/earnings">Sales & Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Revenue Statements</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Tax & Invoice Center</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Payment Accounts</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -266,5 +267,3 @@ export function AccountSidebarNav() {
     </SidebarMenu>
   );
 }
-
-    
