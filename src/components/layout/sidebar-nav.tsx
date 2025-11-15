@@ -234,14 +234,6 @@ export function AccountSidebarNav() {
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="#">
-            <Settings />
-            <span>Settings</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
     </SidebarMenu>
   );
 }
