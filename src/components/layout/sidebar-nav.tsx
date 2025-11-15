@@ -53,6 +53,33 @@ import {
   Lock,
   CreditCard,
   FileText,
+  LayoutGrid,
+  Users2,
+  FileSignature,
+  UserX,
+  SearchIcon,
+  PackageSearch,
+  FileClock,
+  PackageX,
+  GitCompareArrows,
+  History,
+  CircleDotDashed,
+  PieChart,
+  BadgePercent,
+  Landmark,
+  FileBarChart,
+  Image,
+  Presentation,
+  Mail,
+  Locate,
+  Info,
+  DatabaseBackup,
+  LogIn,
+  Network,
+  AlertTriangle,
+  FileCog,
+  BrainCircuit,
+  ScreenShare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -377,7 +404,7 @@ export function AdminSidebarNav() {
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/admin')}>
             <Link href="/dashboard/admin">
-              <Home />
+              <LayoutGrid />
               <span>Dashboard</span>
             </Link>
           </SidebarMenuButton>
@@ -385,7 +412,7 @@ export function AdminSidebarNav() {
 
         <NavCollapsible
           title="User Management"
-          icon={Users}
+          icon={Users2}
           basePath="users"
           items={[
             { href: 'buyers', label: 'Buyers' },
@@ -398,7 +425,7 @@ export function AdminSidebarNav() {
 
         <NavCollapsible
           title="Product Management"
-          icon={ShoppingBag}
+          icon={PackageSearch}
           basePath="products"
           items={[
             { href: 'all', label: 'All Products' },
@@ -411,7 +438,7 @@ export function AdminSidebarNav() {
 
         <NavCollapsible
           title="Orders & Transactions"
-          icon={Package}
+          icon={Receipt}
           basePath="orders"
           items={[
             { href: 'all', label: 'All Orders' },
@@ -424,13 +451,13 @@ export function AdminSidebarNav() {
         
         <NavCollapsible
           title="Live Shopping Control"
-          icon={Video}
+          icon={ScreenShare}
           basePath="live-shopping"
           items={[
-            { href: 'sessions', label: 'Active Live Sessions' },
+            { href: 'sessions', label: 'Live Sessions' },
             { href: 'approved', label: 'Approved Streams' },
             { href: 'flagged', label: 'Flagged Streams' },
-            { href: 'analytics', label: 'Live Stream Analytics' },
+            { href: 'analytics', label: 'Live Analytics' },
           ]}
         />
 
@@ -440,7 +467,7 @@ export function AdminSidebarNav() {
           basePath="finance"
           items={[
             { href: 'analytics', label: 'Sales Analytics' },
-            { href: 'commissions', label: 'Commissions Overview' },
+            { href: 'commissions', label: 'Commissions' },
             { href: 'seller-payouts', label: 'Seller Payouts' },
             { href: 'reseller-payouts', label: 'Reseller Payouts' },
             { href: 'revenue', label: 'Platform Revenue' },
@@ -453,7 +480,7 @@ export function AdminSidebarNav() {
           icon={Megaphone}
           basePath="marketing"
           items={[
-            { href: 'banners', label: 'Banner Manager' },
+            { href: 'banners', label: 'Promo Banners' },
             { href: 'posters', label: 'AI Poster Requests' },
             { href: 'sliders', label: 'Homepage Sliders' },
             { href: 'notifications', label: 'Notification Center' },
@@ -470,7 +497,7 @@ export function AdminSidebarNav() {
             { href: 'tickets', label: 'Support Tickets' },
             { href: 'chat-logs', label: 'Chat Logs' },
             { href: 'complaints', label: 'Resolve Complaints' },
-            { href: 'violations', label: 'Violations & Reports' },
+            { href: 'violations', label: 'Reports & Violations' },
           ]}
         />
 
@@ -491,12 +518,12 @@ export function AdminSidebarNav() {
         
         <NavCollapsible
           title="AI Management"
-          icon={Bot}
+          icon={BrainCircuit}
           basePath="ai"
           items={[
-            { href: 'recommendations', label: 'AI Recommendation Engine' },
-            { href: 'fraud-detection', label: 'AI Fraud Detection' },
-            { href: 'content-moderation', label: 'AI Content Moderation' },
+            { href: 'recommendations', label: 'Recommendation Engine' },
+            { href: 'fraud-detection', label: 'Fraud Detection' },
+            { href: 'content-moderation', label: 'Content Moderation' },
           ]}
         />
 
