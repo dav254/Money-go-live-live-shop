@@ -143,6 +143,14 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive(`/sellers/${user?.uid}`)}>
+            <Link href={user ? `/sellers/${user.uid}` : '/login'}>
+              <Store />
+              <span>View My Shop</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<MessageCircleIcon />} label="Chat & Messaging">
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Inbox</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Live Chat Requests</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -178,8 +186,7 @@ export function SellerSidebarNav() {
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Store />} label="Shop Settings" isActive={isActive(`/sellers/${user?.uid}`)}>
-                <SidebarMenuSubItem><SidebarMenuSubButton href={user ? `/sellers/${user.uid}` : "/login"} isActive={pathname === (user ? `/sellers/${user.uid}`: undefined)}>View My Shop</SidebarMenuSubButton></SidebarMenuSubItem>
+             <SidebarCollapsibleItem icon={<Settings />} label="Shop Settings">
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Profile</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Business Location</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Contact & WhatsApp</SidebarMenuSubButton></SidebarMenuSubItem>
