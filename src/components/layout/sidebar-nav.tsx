@@ -20,43 +20,17 @@ import {
   Wallet,
   User,
   Settings,
-  PlusCircle,
   ShoppingBag,
   AreaChart,
-  DollarSign,
-  Users,
-  Bell,
   Package,
-  List,
-  Tags,
-  Image as ImageIcon,
-  Truck,
-  CheckCircle,
-  XCircle,
   MessageCircleIcon,
   Video,
-  Calendar,
-  Share2,
   Banknote,
-  FileText,
-  CreditCard,
   Megaphone,
-  Target,
-  Share,
-  Bot,
   Store,
-  MapPin,
-  Phone,
-  Palette,
-  ShieldCheck,
-  File,
   HelpCircle,
-  BookOpen,
-  AlertTriangle,
   Sparkles,
   Waypoints,
-  BadgePercent,
-  Box,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -115,7 +89,6 @@ export function BuyerSidebarNav() {
 }
 
 function SidebarCollapsibleItem({ icon, label, children }: { icon: React.ReactNode, label: string, children: React.ReactNode }) {
-    const { state } = useSidebar();
     return (
         <Collapsible>
             <CollapsibleTrigger asChild>
@@ -135,7 +108,6 @@ function SidebarCollapsibleItem({ icon, label, children }: { icon: React.ReactNo
 }
 
 export function SellerSidebarNav() {
-  const { state } = useSidebar();
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
   
