@@ -96,6 +96,19 @@ export function AdminSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        
+        <NavCollapsible
+          title="User Management"
+          icon={Users2}
+          basePath="users"
+          items={[
+            { href: 'buyers', label: 'Buyers' },
+            { href: 'sellers', label: 'Sellers' },
+            { href: 'resellers', label: 'Resellers' },
+            { href: 'verification', label: 'Verification Requests' },
+            { href: 'suspended', label: 'Suspended Accounts' },
+          ]}
+        />
 
         <NavCollapsible
           title="Product Management"
