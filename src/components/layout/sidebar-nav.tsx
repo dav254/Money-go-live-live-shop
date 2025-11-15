@@ -25,6 +25,7 @@ import {
   Home,
   FolderKanban,
   BookOpen,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -277,6 +278,27 @@ export function ResellerSidebarNav() {
             <Link href="/dashboard/seller/help">
               <HelpCircle />
               <span>Support</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
+export function AdminSidebarNav() {
+  const pathname = usePathname();
+  const isActive = (path: string) => pathname.startsWith(path);
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>Admin</SidebarGroupLabel>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/admin')}>
+            <Link href="/dashboard/admin">
+              <Shield />
+              <span>Dashboard</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

@@ -12,7 +12,7 @@ export interface UserProfile {
   username: string;
   email: string;
   joinDate: string;
-  userRole: 'buyer' | 'seller' | 'reseller';
+  userRole: 'buyer' | 'seller' | 'reseller' | 'admin';
 }
 
 // Define the return type for the hook

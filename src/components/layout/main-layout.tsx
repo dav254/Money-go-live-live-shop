@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
-import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav, ResellerSidebarNav } from './sidebar-nav';
+import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav, ResellerSidebarNav, AdminSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { useUser } from '@/firebase/auth/use-user';
@@ -16,7 +16,6 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
-import { Separator } from '../ui/separator';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { Skeleton } from '../ui/skeleton';
 
@@ -88,6 +87,9 @@ function UserNav() {
 }
 
 function SidebarNav({ role }: { role: string | undefined }) {
+  if (role === 'admin') {
+    return <AdminSidebarNav />;
+  }
   if (role === 'seller') {
     return <SellerSidebarNav />;
   }

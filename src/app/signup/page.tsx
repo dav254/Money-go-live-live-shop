@@ -43,7 +43,7 @@ const formSchema = z.object({
   username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['buyer', 'seller', 'reseller'], { required_error: 'You must select a role.' }),
+  role: z.enum(['buyer', 'seller', 'reseller', 'admin'], { required_error: 'You must select a role.' }),
 });
 
 export default function SignupPage() {
@@ -67,21 +67,13 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      const userProfile = {
-        id: user.uid,
-        fullName: values.fullName,
-        username: values.username,
-        email: values.email,
-        joinDate: new Date().toISOString(),
-        userRole: values.role,
-      };
-
       const batch = writeBatch(firestore);
       const userDocRef = doc(firestore, "userProfiles", user.uid);
-      batch.set(userDocRef, userProfile);
       
-      // If the user is the special admin, create an admin entry as well
+      let userRole = values.role;
+      // If the user is the special admin, ensure their role is 'admin'
       if (values.email === 'admin@moneygod.com') {
+        userRole = 'admin';
         const adminDocRef = doc(firestore, 'admins', user.uid);
         batch.set(adminDocRef, {
             uid: user.uid,
@@ -90,22 +82,25 @@ export default function SignupPage() {
             role: 'SuperAdmin',
             lastLogin: new Date().toISOString(),
         });
-        
-        await batch.commit();
-
-        toast({
-          title: 'Admin Account Created!',
-          description: "You've been successfully registered as a SuperAdmin.",
-        });
-
-      } else {
-         await batch.commit();
-
-         toast({
-            title: 'Account Created!',
-            description: "You've successfully signed up.",
-        });
       }
+
+      const userProfile = {
+        id: user.uid,
+        fullName: values.fullName,
+        username: values.username,
+        email: values.email,
+        joinDate: new Date().toISOString(),
+        userRole: userRole,
+      };
+
+      batch.set(userDocRef, userProfile);
+      
+      await batch.commit();
+
+      toast({
+        title: 'Account Created!',
+        description: "You've successfully signed up.",
+      });
 
       router.push('/login');
 

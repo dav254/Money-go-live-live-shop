@@ -24,10 +24,10 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, writeBatch } from 'firebase/firestore';
 import { KeyRound, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
@@ -78,7 +78,7 @@ export default function AdminLoginPage() {
             title: 'Admin Login Successful!',
             description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
           });
-          router.push('/dashboard/seller'); 
+          router.push('/dashboard/admin'); 
 
         } catch (error) {
             const permissionError = new FirestorePermissionError({
@@ -111,9 +111,9 @@ export default function AdminLoginPage() {
 
     try {
         // Try to sign in first
-        const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+        await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         toast({ title: 'Admin Login Successful!' });
-        router.push('/dashboard/seller');
+        router.push('/dashboard/admin');
     } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
             // If user does not exist, create it
@@ -130,7 +130,7 @@ export default function AdminLoginPage() {
                     username: "admin",
                     email: adminEmail,
                     joinDate: new Date().toISOString(),
-                    userRole: "seller",
+                    userRole: "admin",
                 });
                 
                 const adminDocRef = doc(firestore, 'admins', user.uid);
@@ -148,14 +148,12 @@ export default function AdminLoginPage() {
                     title: 'Admin Account Created & Logged In!',
                     description: 'Your admin account has been set up.',
                 });
-                router.push('/dashboard/seller');
+                router.push('/dashboard/admin');
 
             } catch (createError: any) {
                 toast({ variant: 'destructive', title: 'Setup Failed', description: `Could not create admin account: ${createError.message}` });
             }
         } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            // This can happen if the user was created with a different password before.
-            // For this special flow, we can't easily reset it without user interaction.
             toast({
                 variant: 'destructive',
                 title: 'Password Mismatch',
@@ -239,5 +237,3 @@ export default function AdminLoginPage() {
     </AuthLayout>
   );
 }
-
-    
