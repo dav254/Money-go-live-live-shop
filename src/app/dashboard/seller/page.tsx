@@ -1,17 +1,72 @@
 import { MainLayout } from '@/components/layout/main-layout';
-import { AreaChart } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { AreaChart, DollarSign, Package, ClipboardList } from 'lucide-react';
 
 export default function SellerDashboardPage() {
   return (
     <MainLayout>
-      <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-        <div className="rounded-full bg-primary/10 p-4">
-          <AreaChart className="h-12 w-12 text-primary" />
+      <div className="flex-1 space-y-4 p-8 pt-6">
+        <h1 className="font-headline text-3xl font-bold tracking-tight">
+          Dashboard
+        </h1>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Analytics</CardTitle>
+              <AreaChart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">+2,350</div>
+              <p className="text-xs text-muted-foreground">
+                +18.1% from last month
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Revenue
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">KES 45,231.89</div>
+              <p className="text-xs text-muted-foreground">
+                +20.1% from last month
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Products</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">+573</div>
+              <p className="text-xs text-muted-foreground">
+                +19 from last month
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">+12</div>
+              <p className="text-xs text-muted-foreground">
+                +5 since last hour
+              </p>
+            </CardContent>
+          </Card>
         </div>
-        <h1 className="font-headline text-2xl font-bold">Analytics</h1>
-        <p className="max-w-xs text-muted-foreground">
-          Here are your shop's analytics.
-        </p>
       </div>
     </MainLayout>
   );
