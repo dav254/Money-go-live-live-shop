@@ -9,13 +9,14 @@ import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Menu } from 'lucide-react';
 import { BuyerSidebarNav, SellerSidebarNav, AccountSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
+import { Logo } from '../logo';
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col bg-background">
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
@@ -26,7 +27,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </SheetTrigger>
                 <SheetContent side="left" className="flex w-72 flex-col bg-card p-4">
                   <Link href="/" className="mb-6">
-                    <h1 className="font-headline text-2xl font-bold text-primary">MoneyGo</h1>
+                    <Logo className="h-8 w-auto text-primary" />
                   </Link>
                   <nav className="flex flex-1 flex-col gap-4">
                     <BuyerSidebarNav />
@@ -38,12 +39,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </SheetContent>
               </Sheet>
             </div>
-            <Link href="/">
-              <h1 className="hidden font-headline text-2xl font-bold text-primary md:block">MoneyGo</h1>
+            <Link href="/" className="hidden md:block">
+              <Logo className="h-8 w-auto text-primary" />
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" asChild><Link href="/login">Login</Link></Button>
+            <Button variant="ghost" asChild><Link href="/login">Login</Link></Button>
             <Button asChild><Link href="/signup">Sign Up</Link></Button>
           </div>
         </header>

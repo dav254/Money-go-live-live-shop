@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { AuthLayout } from '@/components/layout/auth-layout';
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -22,7 +22,7 @@ import Link from 'next/link';
 
 export default function SignupPage() {
   return (
-    <MainLayout>
+    <AuthLayout>
       <div className="flex items-center justify-center py-12 px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1 text-center">
@@ -67,6 +67,6 @@ export default function SignupPage() {
           </CardFooter>
         </Card>
       </div>
-    </MainLayout>
+    </AuthLayout>
   );
 }

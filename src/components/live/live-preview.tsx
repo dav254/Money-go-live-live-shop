@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { Heart, MessageCircle, Share2, ShoppingBag, Star, Eye } from 'lucide-react';
 import { sellers, products } from '@/lib/placeholder-data';
 import Link from 'next/link';
+import { Logo } from '../logo';
 
 const sampleComments = [{
     id: 1, user: 'John', text: 'Is this available?',
@@ -54,11 +55,11 @@ export function LivePreview() {
 
 
   return (
-    <div className="min-h-screen bg-black text-white font-body">
+    <div className="min-h-screen bg-background text-foreground font-body">
       {/* Header with Login / Signup */}
       <header className="w-full flex items-center justify-between p-3 border-b border-border/20 bg-background/80 fixed top-0 z-40 backdrop-blur-sm">
         <div className="flex items-center gap-4">
-          <div className="text-primary font-headline font-bold text-lg">MoneyGo</div>
+          <Logo className="h-7 w-auto text-primary" />
           <nav className="hidden sm:flex gap-4 text-sm text-muted-foreground">
             <Link href="/" className="hover:text-foreground">Home</Link>
             <Link href="/" className="hover:text-foreground">Live</Link>
@@ -66,7 +67,7 @@ export function LivePreview() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild><Link href="/login">Login</Link></Button>
+          <Button variant="ghost" size="sm" asChild><Link href="/login">Login</Link></Button>
           <Button size="sm" asChild><Link href="/signup">Sign Up</Link></Button>
         </div>
       </header>
@@ -79,9 +80,8 @@ export function LivePreview() {
             <Image 
                 src="https://images.unsplash.com/photo-1642072130544-7cb9796534fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxmYXNoaW9uJTIwdmlkZW98ZW58MHx8fHwxNzYzMTExMjk5fDA&ixlib=rb-4.1.0&q=80&w=1080"
                 alt="Live video placeholder"
-                layout="fill"
-                objectFit="cover"
-                className="opacity-70"
+                fill
+                className="object-cover opacity-70"
                 data-ai-hint="fashion video"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -95,7 +95,7 @@ export function LivePreview() {
               <div className="text-sm">
                 <div className="font-headline font-bold text-white">{seller.name}</div>
                 <div className="text-xs text-gray-200 flex items-center gap-2 mt-1">
-                  <Badge variant="destructive" className="h-5 text-xs font-bold">LIVE</Badge>
+                  <Badge variant="destructive" className="h-5 text-xs font-bold uppercase tracking-wider">LIVE</Badge>
                   <div className="flex items-center gap-1">
                     <Eye className="h-3 w-3" />
                     <span>1.3k</span>
@@ -156,7 +156,7 @@ export function LivePreview() {
                 <div className="mx-3 mb-3 bg-card/90 border-t-2 border-primary backdrop-blur-md rounded-t-2xl p-4">
                   <div className="flex items-start gap-4">
                     <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image src={product.image.imageUrl} alt={product.name} layout="fill" objectFit="cover" data-ai-hint={product.image.imageHint} />
+                        <Image src={product.image.imageUrl} alt={product.name} fill className="object-cover" data-ai-hint={product.image.imageHint} />
                     </div>
                     <div className="flex-1">
                       <h3 className="font-headline font-semibold text-lg">{product.name}</h3>

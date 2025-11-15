@@ -1,18 +1,17 @@
 import type { Metadata } from 'next';
-import { Inter, Poppins } from 'next/font/google';
+import { Manrope, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 
-const fontInter = Inter({
+const fontManrope = Manrope({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-manrope',
 });
 
-const fontPoppins = Poppins({
+const fontSpaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['600', '700'],
-  variable: '--font-poppins',
+  variable: '--font-space-grotesk',
 });
 
 export const metadata: Metadata = {
@@ -30,8 +29,8 @@ export default function RootLayout({
       <body
         className={cn(
           'min-h-screen bg-background font-body antialiased',
-          fontInter.variable,
-          fontPoppins.variable
+          fontManrope.variable,
+          fontSpaceGrotesk.variable
         )}
       >
         {children}
