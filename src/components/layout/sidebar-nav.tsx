@@ -100,36 +100,36 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <Collapsible open={isFinanceOpen} onOpenChange={setIsFinanceOpen} className="w-full">
+        <Collapsible open={isFinanceOpen} onOpenChange={setIsFinanceOpen} asChild>
             <SidebarMenuItem>
-                <CollapsibleTrigger className="w-full">
+                <CollapsibleTrigger asChild>
                     <SidebarMenuButton className="w-full" isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
                         <Banknote />
                         <span>Finances & Payments</span>
                         <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isFinanceOpen && "rotate-180")} />
                     </SidebarMenuButton>
                 </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <SidebarMenu className="pl-6">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wallet')}>
+                                <Link href="/dashboard/seller/wallet">
+                                    <Wallet />
+                                    <span>Wallet</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
+                                <Link href="/dashboard/seller/earnings">
+                                    <Banknote />
+                                    <span>Sales & Payouts</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </CollapsibleContent>
             </SidebarMenuItem>
-            <CollapsibleContent>
-                <SidebarMenu className="pl-6">
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wallet')}>
-                            <Link href="/dashboard/seller/wallet">
-                                <Wallet />
-                                <span>Wallet</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
-                            <Link href="/dashboard/seller/earnings">
-                                <Banknote />
-                                <span>Sales & Payouts</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </CollapsibleContent>
         </Collapsible>
 
 
