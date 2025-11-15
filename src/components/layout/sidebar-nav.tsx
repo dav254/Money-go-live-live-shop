@@ -266,7 +266,7 @@ export function ResellerSidebarNav() {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/academy')}>
-            <Link href="#">
+            <Link href="/dashboard/seller/help">
               <BookOpen />
               <span>MoneyGo Academy</span>
             </Link>
@@ -274,7 +274,7 @@ export function ResellerSidebarNav() {
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/help')}>
-            <Link href="#">
+            <Link href="/dashboard/seller/help">
               <HelpCircle />
               <span>Support</span>
             </Link>
