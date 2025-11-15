@@ -1,0 +1,19 @@
+
+import { MainLayout } from '@/components/layout/main-layout';
+
+export default function AdminBackupPage() {
+  return (
+    <MainLayout>
+      <div className="flex-1 space-y-4 p-8 pt-6">
+        <h1 className="font-headline text-3xl font-bold tracking-tight">
+          System & Settings: Backup Control
+        </h1>
+        <div className="flex h-full flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed p-12">
+            <p className="text-muted-foreground">Database backup and restore controls will be here.</p>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
+
+    
