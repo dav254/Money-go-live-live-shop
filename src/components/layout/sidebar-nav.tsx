@@ -162,20 +162,18 @@ export function SellerSidebarNav() {
           <SidebarMenuButton asChild isActive={isActive('/messages')}>
             <Link href="/messages">
               <MessageSquare />
-              <span>Chat with Buyers</span>
+              <span>Messages</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-            <SidebarCollapsibleItem icon={<Users />} label="Reseller Center" isActive={isActive('/dashboard/seller/reseller')}>
-                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={isActive('/dashboard/seller/reseller/performance')}><Link href="/dashboard/seller/reseller/performance"><LineChart className="mr-2 h-3.5 w-3.5" />Performance</Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={pathname.includes('commissions')}><Link href="/dashboard/seller/reseller/performance?tab=commissions"><BadgePercent className="mr-2 h-3.5 w-3.5" />Commissions</Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={pathname.includes('manage')}><Link href="/dashboard/seller/reseller/performance?tab=manage-resellers"><Users className="mr-2 h-3.5 w-3.5" />Manage Resellers</Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={pathname.includes('payouts')}><Link href="/dashboard/seller/reseller/performance?tab=payouts"><CircleDollarSign className="mr-2 h-3.5 w-3.5" />Payouts</Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={pathname.includes('media')}><Link href="/dashboard/seller/reseller/performance?tab=media-kits"><FolderKanban className="mr-2 h-3.5 w-3.5" />Media Kits</Link></SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={pathname.includes('ai')}><Link href="/dashboard/seller/reseller/performance?tab=ai-autoresell"><Bot className="mr-2 h-3.5 w-3.5" />AI Auto-Resell</Link></SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/reseller')}>
+              <Link href="/dashboard/seller/reseller/performance">
+                  <Users />
+                  <span>Reseller Center</span>
+              </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
 
         <SidebarMenuItem>
