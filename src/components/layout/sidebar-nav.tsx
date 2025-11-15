@@ -224,11 +224,14 @@ export function ResellerSidebarNav() {
 
 
 export function AccountSidebarNav() {
+  const pathname = usePathname();
+  const isActive = (path: string) => pathname.startsWith(path);
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild>
-          <Link href="#">
+        <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
+          <Link href="/dashboard/account">
             <User />
             <span>Account</span>
           </Link>
