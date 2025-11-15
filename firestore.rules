@@ -56,7 +56,7 @@ service cloud.firestore {
       // Allow the admin to delete their own record for password reset purposes
       allow delete: if request.auth != null && request.auth.uid == adminId;
       // Writing to the admins collection should only be managed from a secure backend environment or specific logic.
-      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && request.resource.data.email == 'admin@moneygo.com';
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && request.auth.token.email == 'admin@moneygo.com';
       allow update, list: if false; 
     }
 

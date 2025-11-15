@@ -26,7 +26,7 @@ import { useAuth, useFirestore, errorEmitter, FirestorePermissionError, useUser 
 import { signInWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { KeyRound } from 'lucide-react';
 
 const formSchema = z.object({
@@ -52,12 +52,17 @@ export default function AdminLoginPage() {
   const handleDeleteAccount = async () => {
     if (currentUser && currentUser.email === 'admin@moneygo.com') {
       try {
-        // First delete firestore documents
+        const batch = writeBatch(firestore);
+        
+        // Firestore documents to delete
         const userProfileRef = doc(firestore, 'userProfiles', currentUser.uid);
         const adminRef = doc(firestore, 'admins', currentUser.uid);
-        await deleteDoc(userProfileRef);
-        await deleteDoc(adminRef);
+        
+        batch.delete(userProfileRef);
+        batch.delete(adminRef);
 
+        await batch.commit();
+        
         // Then delete the auth user
         await deleteUser(currentUser);
         
@@ -65,15 +70,22 @@ export default function AdminLoginPage() {
           title: 'Account Deleted',
           description: 'You can now sign up again with the same email.',
         });
-        router.push('/signup');
+        // A full page reload is better here to ensure all state is cleared
+        window.location.href = '/signup';
       } catch (error: any) {
          toast({
           variant: 'destructive',
           title: 'Deletion Failed',
-          description: 'Could not delete account. Please try logging in again to re-authenticate before deleting.',
+          description: error.message || 'Could not delete account. Please try logging in again to re-authenticate before deleting.',
         });
         console.error("Deletion error:", error);
       }
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Not Logged In',
+            description: 'You must be logged in as the admin user to perform this action.',
+        });
     }
   };
 
@@ -101,7 +113,7 @@ export default function AdminLoginPage() {
             title: 'Admin Login Successful!',
             description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
           });
-          router.push('/dashboard/admin');
+          router.push('/dashboard/seller'); // Redirect to a default admin dashboard later
 
         } catch (error) {
            // This catch block specifically handles the getDoc permission error
@@ -176,8 +188,13 @@ export default function AdminLoginPage() {
                 </Button>
                  {currentUser && currentUser.email === 'admin@moneygo.com' && (
                   <Button variant="link" className="text-destructive" onClick={handleDeleteAccount} type="button">
-                    Can't log in? Delete admin account to re-register.
+                    Account issue? Delete and re-register admin.
                   </Button>
+                )}
+                 {!currentUser && (
+                    <p className="text-sm text-center text-muted-foreground">
+                        Forgot password? <Link href="/signup" className="text-primary hover:underline">Re-register here.</Link>
+                    </p>
                 )}
               </CardFooter>
             </form>
