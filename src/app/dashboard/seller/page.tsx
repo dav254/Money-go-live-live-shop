@@ -8,9 +8,9 @@ export default function SellerDashboardPage() {
         <div className="rounded-full bg-primary/10 p-4">
           <AreaChart className="h-12 w-12 text-primary" />
         </div>
-        <h1 className="font-headline text-2xl font-bold">Seller Dashboard</h1>
+        <h1 className="font-headline text-2xl font-bold">Analytics</h1>
         <p className="max-w-xs text-muted-foreground">
-          Welcome to your command center. Manage your products, orders, and sales from here.
+          Here are your shop's analytics.
         </p>
       </div>
     </MainLayout>

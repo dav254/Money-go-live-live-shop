@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -142,10 +143,10 @@ export function SellerSidebarNav() {
       <SidebarMenu>
         <SidebarMenuItem>
             <SidebarCollapsibleItem icon={<AreaChart />} label="Dashboard">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Analytics</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Earnings</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller">Analytics</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/earnings">Earnings</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Active Products</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Pending Orders</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/orders">Pending Orders</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Notifications</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
@@ -265,3 +266,5 @@ export function AccountSidebarNav() {
     </SidebarMenu>
   );
 }
+
+    
