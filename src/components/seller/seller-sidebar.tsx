@@ -20,6 +20,7 @@ import {
   HelpCircle,
   Users,
   Home,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -31,6 +32,7 @@ export function SellerSidebar() {
   const isActive = (path: string) => pathname.startsWith(path);
   
   return (
+    <>
     <SidebarGroup>
       <SidebarGroupLabel>Seller Dashboard</SidebarGroupLabel>
       <SidebarMenu>
@@ -151,5 +153,16 @@ export function SellerSidebar() {
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
+    <SidebarMenu className="mt-auto">
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
+            <Link href="/dashboard/account">
+              <User />
+              <span>Account</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </>
   );
 }

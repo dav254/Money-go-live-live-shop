@@ -20,6 +20,7 @@ import {
   Settings,
   BrainCircuit,
   BarChart,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -83,6 +84,7 @@ export function AdminSidebar() {
   const isActive = (path: string) => pathname === path;
 
   return (
+    <>
     <SidebarGroup>
       <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
       <SidebarMenu>
@@ -224,5 +226,16 @@ export function AdminSidebar() {
         />
       </SidebarMenu>
     </SidebarGroup>
+     <SidebarMenu className="mt-auto">
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
+            <Link href="/dashboard/account">
+              <User />
+              <span>Account</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </>
   );
 }
