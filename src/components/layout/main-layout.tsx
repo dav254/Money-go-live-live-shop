@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -5,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
-import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav } from './sidebar-nav';
+import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav, ResellerSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { useUser } from '@/firebase';
@@ -112,6 +113,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <BuyerSidebarNav />
                     <Separator className="my-4" />
                     <SellerSidebarNav />
+                     <Separator className="my-4" />
+                    <ResellerSidebarNav />
                   </nav>
                   <div className="mt-auto">
                     <AccountSidebarNav />
@@ -157,6 +160,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <BuyerSidebarNav />
               <Separator />
               <SellerSidebarNav />
+               <Separator />
+              <ResellerSidebarNav />
             </div>
             <div className="p-4">
               <AccountSidebarNav />

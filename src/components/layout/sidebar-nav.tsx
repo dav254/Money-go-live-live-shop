@@ -25,6 +25,9 @@ import {
   ChevronDown,
   Home,
   LayoutGrid,
+  Gift,
+  BookOpen,
+  FolderKanban,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -40,14 +43,13 @@ import { useState } from 'react';
 export function BuyerSidebarNav() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
-  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-
+  
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/dashboard')}>
+          <SidebarMenuButton asChild isActive={pathname === '/buyer/dashboard'}>
             <Link href="/buyer/dashboard">
               <Home />
               <span>Home</span>
@@ -64,32 +66,31 @@ export function BuyerSidebarNav() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/buyer/my-orders')}>
-                <Link href="/buyer/my-orders">
-                    <Package />
-                    <span>My Orders</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
-        
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/buyer/wishlist')}>
-                <Link href="/buyer/wishlist">
-                    <Heart />
-                    <span>Wishlist</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
-        
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')}>
-                <Link href="/buyer/wallet">
-                    <Wallet />
-                    <span>Wallet</span>
-                </Link>
-            </SidebarMenuButton>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/my-orders')}>
+            <Link href="/buyer/my-orders">
+              <Package />
+              <span>My Orders</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
 
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/wishlist')}>
+            <Link href="/buyer/wishlist">
+              <Heart />
+              <span>Wishlist</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')}>
+            <Link href="/buyer/wallet">
+              <Wallet />
+              <span>Wallet</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
   );
@@ -270,11 +271,73 @@ export function ResellerSidebarNav() {
   const pathname = usePathname();
   const { user } = useUser();
   const isActive = (path: string) => pathname.startsWith(path);
+  const userRole = (user as any)?.profile?.userRole || 'buyer';
+
+  if (userRole !== 'reseller') {
+    return null;
+  }
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>My Reseller Hub</SidebarGroupLabel>
-      <SidebarMenu></SidebarMenu>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && pathname === '/dashboard/reseller'}>
+            <Link href="/dashboard/reseller">
+              <AreaChart />
+              <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/products')}>
+            <Link href="/dashboard/reseller/products">
+              <ShoppingBag />
+              <span>Products to Resell</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/toolkit')}>
+            <Link href="#">
+              <FolderKanban />
+              <span>Reseller Toolkit</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/earnings')}>
+            <Link href="#">
+              <Banknote />
+              <span>Commissions</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/wallet')}>
+            <Link href="#">
+              <Wallet />
+              <span>Wallet & Payouts</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/academy')}>
+            <Link href="#">
+              <BookOpen />
+              <span>MoneyGo Academy</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/help')}>
+            <Link href="#">
+              <HelpCircle />
+              <span>Support</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
     </SidebarGroup>
   );
 }

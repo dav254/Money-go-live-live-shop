@@ -1,0 +1,158 @@
+
+import { MainLayout } from '@/components/layout/main-layout';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AreaChart, BarChart3, Bot, DollarSign, ExternalLink, Filter, FolderKanban, LinkIcon, TrendingUp, Users, Video } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
+
+const earningsData = [
+  { title: "Today's Earnings", amount: "KES 1,250", icon: DollarSign },
+  { title: "This Week", amount: "KES 8,600", icon: DollarSign },
+  { title: "This Month", amount: "KES 22,300", icon: DollarSign },
+  { title: "Withdrawable", amount: "KES 15,000", icon: DollarSign, isPrimary: true },
+];
+
+const statsData = [
+    { title: "Products Shared", value: "312" },
+    { title: "Total Clicks", value: "1,845" },
+    { title: "Conversions", value: "98" },
+    { title: "Avg. Commission", value: "12%" },
+]
+
+const topProducts = [
+    { name: "Classic Leather Handbag", clicks: 450, orders: 35, commission: 4200 },
+    { name: "Urban Explorer Sneakers", clicks: 310, orders: 22, commission: 2640 },
+    { name: "NextGen Smartphone", clicks: 205, orders: 15, commission: 1800 },
+];
+
+
+export default function ResellerDashboardPage() {
+  return (
+    <MainLayout>
+      <div className="flex-1 space-y-8 p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+            <h1 className="font-headline text-3xl font-bold tracking-tight">
+                Reseller Dashboard
+            </h1>
+            <div className="flex items-center space-x-2">
+                <Button>
+                    <LinkIcon className="mr-2 h-4 w-4" />
+                    Share New Product
+                </Button>
+                <Button variant="secondary">Check Commission Rates</Button>
+            </div>
+        </div>
+
+        {/* Earnings Overview */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {earningsData.map((data) => (
+            <Card key={data.title} className={data.isPrimary ? 'bg-primary/10 border-primary' : ''}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {data.title}
+                </CardTitle>
+                <data.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.amount}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {statsData.map((data) => (
+            <Card key={data.title}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">{data.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+                {/* Performance Graphs */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <TrendingUp />
+                            Performance Overview
+                        </CardTitle>
+                        <CardDescription>Clicks vs. Conversions this month.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-72 flex items-center justify-center bg-muted/50 rounded-md">
+                        <BarChart3 className="h-16 w-16 text-muted-foreground/50" />
+                        <p className="text-muted-foreground ml-4">Earnings & Clicks chart will be here.</p>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="space-y-8">
+                 {/* Reseller Toolkit */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Reseller Toolkit</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3">
+                        <Button variant="outline" className="justify-start"><Bot className="mr-2" /> AI Poster & Video Maker</Button>
+                        <Button variant="outline" className="justify-start"><LinkIcon className="mr-2" /> Link Shortener</Button>
+                        <Link href="/dashboard/reseller/products">
+                             <Button variant="secondary" className="w-full justify-start"><ExternalLink className="mr-2" /> Find More Products</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+
+        {/* Top Performing Products */}
+        <Card>
+            <CardHeader>
+                <CardTitle>Top Performing Products</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>Clicks</TableHead>
+                        <TableHead>Orders</TableHead>
+                        <TableHead className="text-right">Commission Earned (KES)</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {topProducts.map((p) => (
+                        <TableRow key={p.name}>
+                            <TableCell className="font-medium">{p.name}</TableCell>
+                            <TableCell>{p.clicks}</TableCell>
+                            <TableCell>{p.orders}</TableCell>
+                            <TableCell className="text-right">{p.commission.toLocaleString()}</TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+        
+      </div>
+    </MainLayout>
+  );
+}
