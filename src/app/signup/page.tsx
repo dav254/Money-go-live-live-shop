@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -36,7 +37,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc, writeBatch } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -104,7 +104,10 @@ export default function SignupPage() {
 
       } else {
         // For regular users, just set the user profile
-         setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+         const batch = writeBatch(firestore);
+         batch.set(userDocRef, userProfile);
+         await batch.commit();
+
          toast({
             title: 'Account Created!',
             description: "You've successfully signed up.",
@@ -115,10 +118,18 @@ export default function SignupPage() {
 
     } catch (error: any) {
       console.error('Signup Error:', error);
+      
+      let description = 'Could not create your account. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'This email is already registered. Please log in instead.';
+      } else if (error.message) {
+        description = error.message;
+      }
+      
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: error.message || 'Could not create your account.',
+        title: 'Signup Failed',
+        description: description,
       });
     }
   }
@@ -210,8 +221,8 @@ export default function SignupPage() {
                 />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit">
-                  Create Account
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
                   Already have an account?{' '}
