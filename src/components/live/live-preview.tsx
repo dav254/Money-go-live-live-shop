@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Heart, MessageCircle, Share2, ShoppingBag, Star, Eye } from 'lucide-react';
 import { sellers, products } from '@/lib/placeholder-data';
+import Link from 'next/link';
 
 const sampleComments = [{
     id: 1, user: 'John', text: 'Is this available?',
@@ -58,14 +60,14 @@ export function LivePreview() {
         <div className="flex items-center gap-4">
           <div className="text-primary font-headline font-bold text-lg">MoneyGo</div>
           <nav className="hidden sm:flex gap-4 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-foreground">Home</a>
-            <a href="#" className="hover:text-foreground">Live</a>
-            <a href="#" className="hover:text-foreground">Categories</a>
+            <Link href="/" className="hover:text-foreground">Home</Link>
+            <Link href="/" className="hover:text-foreground">Live</Link>
+            <Link href="/categories" className="hover:text-foreground">Categories</Link>
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">Login</Button>
-          <Button size="sm">Sign Up</Button>
+          <Button variant="outline" size="sm" asChild><Link href="/login">Login</Link></Button>
+          <Button size="sm" asChild><Link href="/signup">Sign Up</Link></Button>
         </div>
       </header>
 

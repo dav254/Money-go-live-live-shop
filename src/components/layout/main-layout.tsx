@@ -1,3 +1,4 @@
+
 import {
   Sidebar,
   SidebarProvider,
@@ -42,8 +43,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline">Login</Button>
-            <Button>Sign Up</Button>
+            <Button variant="outline" asChild><Link href="/login">Login</Link></Button>
+            <Button asChild><Link href="/signup">Sign Up</Link></Button>
           </div>
         </header>
         <div className="flex flex-1">
