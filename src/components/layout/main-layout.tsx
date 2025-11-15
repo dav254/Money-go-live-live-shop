@@ -5,37 +5,14 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
-import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav, ResellerSidebarNav, AdminSidebarNav } from './sidebar-nav';
+import { Menu, Bell, MessageSquare, Video, Search } from 'lucide-react';
+import { AccountSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
-import { useUser } from '@/firebase/auth/use-user';
 import { Input } from '../ui/input';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { Skeleton } from '../ui/skeleton';
 import { UserNav } from './user-nav';
 
-function SidebarNav({ role }: { role: string | undefined }) {
-  // Explicitly check for admin first to ensure it takes precedence.
-  if (role === 'admin') {
-    return <AdminSidebarNav />;
-  }
-  if (role === 'seller') {
-    return <SellerSidebarNav />;
-  }
-  if (role === 'reseller') {
-    return <ResellerSidebarNav />;
-  }
-  // Default to buyer for any other role or if the role is undefined.
-  return <BuyerSidebarNav />;
-}
-
-
-export function MainLayout({ children }: { children: React.ReactNode }) {
-    const { user } = useUser();
-    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-    const userRole = userProfile?.userRole;
-
+export function MainLayout({ children, sidebar }: { children: React.ReactNode, sidebar: React.ReactNode }) {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col bg-background">
@@ -54,11 +31,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <Logo className="h-8 w-auto text-primary" />
                   </Link>
                   <nav className="flex flex-1 flex-col gap-4">
-                    {isProfileLoading ? (
-                      <p>Loading...</p>
-                    ) : (
-                      <SidebarNav role={userRole} />
-                    )}
+                    {sidebar}
                   </nav>
                   <div className="mt-auto">
                     <AccountSidebarNav />
@@ -101,11 +74,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1">
           <aside className="hidden w-64 flex-col border-r bg-card md:flex">
             <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
-              {isProfileLoading ? (
-                <p className="p-4">Loading navigation...</p>
-              ) : (
-                <SidebarNav role={userRole} />
-              )}
+              {sidebar}
             </div>
             <div className="p-4">
               <AccountSidebarNav />

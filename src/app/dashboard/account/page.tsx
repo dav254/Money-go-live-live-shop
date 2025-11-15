@@ -1,4 +1,6 @@
 
+'use client';
+
 import { MainLayout } from '@/components/layout/main-layout';
 import {
   Card,
@@ -22,10 +24,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useUser } from '@/firebase';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { AdminSidebar } from '@/components/admin/admin-sidebar';
+import { SellerSidebar } from '@/components/seller/seller-sidebar';
+import { ResellerSidebar } from '@/components/reseller/reseller-sidebar';
+import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
+import React from 'react';
+
+
+function SidebarNav({ role }: { role: string | undefined }) {
+  // Explicitly check for admin first to ensure it takes precedence.
+  if (role === 'admin') {
+    return <AdminSidebar />;
+  }
+  if (role === 'seller') {
+    return <SellerSidebar />;
+  }
+  if (role === 'reseller') {
+    return <ResellerSidebar />;
+  }
+  // Default to buyer for any other role or if the role is undefined.
+  return <BuyerSidebar />;
+}
+
 
 export default function AccountSettingsPage() {
+    const { user } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+
   return (
-    <MainLayout>
+    <MainLayout sidebar={isProfileLoading ? <p>Loading...</p> : <SidebarNav role={userProfile?.userRole} />}>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Account & Settings

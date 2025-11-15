@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { AdminLayout } from '@/components/layout/admin-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
     DollarSign, 
@@ -30,7 +30,7 @@ const stats = [
 
 export default function AdminDashboardPage() {
   return (
-    <MainLayout>
+    <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Admin Dashboard
@@ -69,8 +69,6 @@ export default function AdminDashboardPage() {
             </Card>
         </div>
       </div>
-    </MainLayout>
+    </AdminLayout>
   );
 }
-
-    

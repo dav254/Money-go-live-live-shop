@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { ProductCard } from '@/components/seller/product-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,7 +44,7 @@ const shortcuts = [
 
 export default function BuyerDashboardPage() {
   return (
-    <MainLayout>
+    <BuyerLayout>
       <div className="flex-1 space-y-8 p-4 pt-6 md:p-8">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -162,6 +162,6 @@ export default function BuyerDashboardPage() {
           </Carousel>
         </div>
       </div>
-    </MainLayout>
+    </BuyerLayout>
   );
 }

@@ -1,6 +1,7 @@
+
 'use client';
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { products as placeholderProducts } from '@/lib/placeholder-data';
 import Image from 'next/image';
@@ -38,7 +39,7 @@ const products = [
 
 export default function SellerDashboardPage() {
   return (
-    <MainLayout>
+    <SellerLayout>
       <div className="p-4 bg-background min-h-full">
         {/* Seller Header */}
         <div className="flex items-center justify-between mb-6">
@@ -128,6 +129,6 @@ export default function SellerDashboardPage() {
           ))}
         </div>
       </div>
-    </MainLayout>
+    </SellerLayout>
   );
 }
