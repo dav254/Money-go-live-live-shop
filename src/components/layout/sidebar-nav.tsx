@@ -225,7 +225,7 @@ export function ResellerSidebarNav() {
       <SidebarGroupLabel>Reseller Hub</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products')}>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit')}>
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
@@ -242,7 +242,7 @@ export function ResellerSidebarNav() {
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/toolkit')}>
-            <Link href="#">
+            <Link href="/dashboard/reseller/toolkit">
               <FolderKanban />
               <span>Reseller Toolkit</span>
             </Link>
