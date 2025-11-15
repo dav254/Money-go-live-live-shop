@@ -34,6 +34,12 @@ import {
   Link2,
   DollarSign,
   Share2,
+  Users,
+  BadgePercent,
+  LineChart,
+  CircleDollarSign,
+  FolderKanban,
+  Bot,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -121,12 +127,12 @@ export function SellerSidebarNav() {
       <SidebarGroupLabel>Seller Dashboard</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller') && pathname === '/dashboard/seller'}>
-                <Link href="/dashboard/seller">
-                    <AreaChart />
-                    <span>Dashboard</span>
-                </Link>
-            </SidebarMenuButton>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller') && pathname === '/dashboard/seller'}>
+              <Link href="/dashboard/seller">
+                  <AreaChart />
+                  <span>Dashboard</span>
+              </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/dashboard/products')}>
@@ -144,14 +150,43 @@ export function SellerSidebarNav() {
               </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/live/start')}>
+              <Link href="/dashboard/live/start">
+                  <Video />
+                  <span>Live Selling</span>
+              </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/messages')}>
             <Link href="/messages">
               <MessageSquare />
-              <span>Messages</span>
+              <span>Chat with Buyers</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+
+        <SidebarMenuItem>
+            <SidebarCollapsibleItem icon={<Users />} label="Reseller Center" isActive={isActive('/dashboard/seller/reseller')}>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/performance')}><LineChart className="mr-2 h-3.5 w-3.5" />Performance</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/commissions')}><BadgePercent className="mr-2 h-3.5 w-3.5" />Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/manage')}><Users className="mr-2 h-3.5 w-3.5" />Manage Resellers</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/payouts')}><CircleDollarSign className="mr-2 h-3.5 w-3.5" />Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/media')}><FolderKanban className="mr-2 h-3.5 w-3.5" />Media Kits</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/ai')}><Bot className="mr-2 h-3.5 w-3.5" />AI Auto-Resell</SidebarMenuSubButton></SidebarMenuSubItem>
+            </SidebarCollapsibleItem>
+        </SidebarMenuItem>
+
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
+              <Link href="/dashboard/seller/earnings">
+                  <Banknote />
+                  <span>Sales & Payouts</span>
+              </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive(`/sellers/${user?.uid}`)}>
             <Link href={user ? `/sellers/${user.uid}` : '/login'}>
@@ -160,23 +195,8 @@ export function SellerSidebarNav() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/live/start')}>
-            <Link href="/dashboard/live/start">
-                <Video />
-                <span>Live Selling</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
-              <Link href="/dashboard/seller/earnings">
-                  <Banknote />
-                  <span>Sales & Payouts</span>
-              </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-         <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Settings />} label="Shop Settings">
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Profile</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Business Location</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -195,15 +215,16 @@ export function SellerSidebarNav() {
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
       </SidebarMenu>
-       <SidebarGroupLabel className="mt-4">Reseller Center</SidebarGroupLabel>
+      
+      <SidebarGroupLabel className="mt-4">My Reseller Hub</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem>
-                <SidebarCollapsibleItem icon={<Waypoints />} label="Reseller Hub" isActive={isActive('/dashboard/reseller')} defaultOpen>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/find-products" isActive={isActive('/dashboard/reseller/find-products')}><Search className="mr-2 h-3.5 w-3.5" />Find Products</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/promotions" isActive={isActive('/dashboard/reseller/promotions')}><Link2 className="mr-2 h-3.5 w-3.5" />My Promotions</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/commissions" isActive={isActive('/dashboard/reseller/commissions')}><DollarSign className="mr-2 h-3.5 w-3.5" />My Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/tools" isActive={isActive('/dashboard/reseller/tools')}><Sparkles className="mr-2 h-3.5 w-3.5" />Promo Tools</SidebarMenuSubButton></SidebarMenuSubItem>
-                     <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/share" isActive={isActive('/dashboard/reseller/share')}><Share2 className="mr-2 h-3.5 w-3.5" />Share Center</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarCollapsibleItem icon={<Waypoints />} label="Reseller Tools" isActive={isActive('/dashboard/reseller')} defaultOpen>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/find-products')}><Search className="mr-2 h-3.5 w-3.5" />Find Products</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/promotions')}><Link2 className="mr-2 h-3.5 w-3.5" />My Promotions</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/commissions')}><DollarSign className="mr-2 h-3.5 w-3.5" />My Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/tools')}><Sparkles className="mr-2 h-3.5 w-3.5" />Promo Tools</SidebarMenuSubButton></SidebarMenuSubItem>
+                     <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/share')}><Share2 className="mr-2 h-3.5 w-3.5" />Share Center</SidebarMenuSubButton></SidebarMenuSubItem>
                 </SidebarCollapsibleItem>
             </SidebarMenuItem>
         </SidebarMenu>
