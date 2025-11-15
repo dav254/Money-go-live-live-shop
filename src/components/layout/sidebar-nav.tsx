@@ -40,6 +40,9 @@ import {
   CircleDollarSign,
   FolderKanban,
   Bot,
+  BookOpen,
+  MailQuestion,
+  ShieldAlert,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -204,12 +207,12 @@ export function SellerSidebarNav() {
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Policies</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
-         <SidebarMenuItem>
+        <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<HelpCircle />} label="Support & Help">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Help Center</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Contact Support</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Report an Issue</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">MoneyGo Academy</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><BookOpen className="mr-2 h-3.5 w-3.5" />Help Center</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><MailQuestion className="mr-2 h-3.5 w-3.5" />Contact Support</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><ShieldAlert className="mr-2 h-3.5 w-3.5" />Report an Issue</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><Sparkles className="mr-2 h-3.5 w-3.5" />MoneyGo Academy</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
       </SidebarMenu>

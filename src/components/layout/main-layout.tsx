@@ -105,7 +105,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                   <nav className="flex flex-1 flex-col gap-4">
                     <BuyerSidebarNav />
                     <SellerSidebarNav />
-                    <ResellerSidebarNav />
                   </nav>
                   <div className="mt-auto">
                     <AccountSidebarNav />
@@ -124,7 +123,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
               <BuyerSidebarNav />
               <SellerSidebarNav />
-               <ResellerSidebarNav />
             </div>
             <div className="p-4">
               <AccountSidebarNav />
