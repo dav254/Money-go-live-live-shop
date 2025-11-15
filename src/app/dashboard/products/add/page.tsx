@@ -13,7 +13,6 @@ export default function ProductsPage() {
           <TabsList>
             <TabsTrigger value="my-products">My Products</TabsTrigger>
             <TabsTrigger value="add-new">Add New</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
           </TabsList>
           <TabsContent value="my-products" className="space-y-4">
@@ -23,11 +22,6 @@ export default function ProductsPage() {
           </TabsContent>
           <TabsContent value="add-new" className="space-y-4">
             <ProductUploadForm />
-          </TabsContent>
-          <TabsContent value="categories" className="space-y-4">
-            <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">Manage your product categories here.</p>
-            </div>
           </TabsContent>
           <TabsContent value="discounts" className="space-y-4">
              <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
