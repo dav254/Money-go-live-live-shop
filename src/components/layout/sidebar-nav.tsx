@@ -198,10 +198,6 @@ export function SellerSidebarNav() {
         </SidebarMenuItem>
         <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<HelpCircle />} label="Support & Help">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><BookOpen /> Help Center</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><MailQuestion /> Contact Support</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><ShieldAlert /> Report an Issue</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#"><Sparkles /> MoneyGo Academy</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
       </SidebarMenu>
