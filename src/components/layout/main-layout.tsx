@@ -9,7 +9,7 @@ import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
 import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav, ResellerSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
-import { useUser } from '@/firebase';
+import { useUser } from '@/firebase/auth/use-user';
 import { getAuth, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -17,9 +17,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Separator } from '../ui/separator';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { Skeleton } from '../ui/skeleton';
 
 function UserNav() {
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const auth = getAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -43,7 +45,7 @@ function UserNav() {
   };
 
   if (isUserLoading) {
-    return <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />;
+    return <Skeleton className="h-10 w-10 rounded-full" />;
   }
   
   if (!user) {
@@ -60,7 +62,7 @@ function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || ''} />
+            <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} alt={user.displayName || user.email || ''} />
             <AvatarFallback>
                 <User />
             </AvatarFallback>
@@ -85,12 +87,22 @@ function UserNav() {
   );
 }
 
+function SidebarNav({ role }: { role: string | undefined }) {
+  if (role === 'seller') {
+    return <SellerSidebarNav />;
+  }
+  if (role === 'reseller') {
+    return <ResellerSidebarNav />;
+  }
+  // Default to buyer
+  return <BuyerSidebarNav />;
+}
+
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
     const { user } = useUser();
-    // This is a placeholder for role detection.
-    // In a real app, this would come from your user object from Firestore or JWT claims.
-    const userRole = (user as any)?.profile?.userRole || 'buyer';
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+    const userRole = userProfile?.userRole;
 
   return (
     <SidebarProvider>
@@ -110,11 +122,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <Logo className="h-8 w-auto text-primary" />
                   </Link>
                   <nav className="flex flex-1 flex-col gap-4">
-                    <BuyerSidebarNav />
-                    <Separator className="my-4" />
-                    <SellerSidebarNav />
-                     <Separator className="my-4" />
-                    <ResellerSidebarNav />
+                    {isProfileLoading ? (
+                      <p>Loading...</p>
+                    ) : (
+                      <SidebarNav role={userRole} />
+                    )}
                   </nav>
                   <div className="mt-auto">
                     <AccountSidebarNav />
@@ -157,11 +169,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1">
           <aside className="hidden w-64 flex-col border-r bg-card md:flex">
             <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
-              <BuyerSidebarNav />
-              <Separator />
-              <SellerSidebarNav />
-               <Separator />
-              <ResellerSidebarNav />
+              {isProfileLoading ? (
+                <p className="p-4">Loading navigation...</p>
+              ) : (
+                <SidebarNav role={userRole} />
+              )}
             </div>
             <div className="p-4">
               <AccountSidebarNav />
