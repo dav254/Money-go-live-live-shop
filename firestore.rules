@@ -50,7 +50,9 @@ service cloud.firestore {
      * @path /admins/{adminId}
      */
     match /admins/{adminId} {
-      allow get: if isAdmin() && request.auth.uid == adminId;
+      // A user trying to log in as an admin must be able to check if their own admin record exists.
+      // We can't use isAdmin() here, as that creates a circular dependency.
+      allow get: if request.auth != null && request.auth.uid == adminId;
       // Writing to the admins collection should only be managed from a secure backend environment.
       allow create, update, delete, list: if false; 
     }
@@ -240,3 +242,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
