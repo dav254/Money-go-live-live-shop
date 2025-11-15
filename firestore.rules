@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Firestore Security Rules for the MoneyGo platform.
  *
@@ -50,10 +51,8 @@ service cloud.firestore {
      */
     match /admins/{adminId} {
       allow get: if isAdmin() && request.auth.uid == adminId;
-      // Allow creation only if the user's email is the special admin email during signup.
-      // This is a more controlled way for initial setup. The request.auth will be the newly created user.
-      allow create: if request.auth != null && request.auth.token.email == 'admin@moneygo.com' && request.auth.uid == adminId;
-      allow list, update, delete: if false; // Should only be managed from a secure backend
+      // Writing to the admins collection should only be managed from a secure backend environment.
+      allow create, update, delete, list: if false; 
     }
 
     /**
