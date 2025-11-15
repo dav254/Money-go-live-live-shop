@@ -213,22 +213,33 @@ export function SellerSidebarNav() {
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
       </SidebarMenu>
-      
-      <SidebarGroupLabel className="mt-4">My Reseller Hub</SidebarGroupLabel>
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <SidebarCollapsibleItem icon={<Waypoints />} label="Reseller Tools" isActive={isActive('/dashboard/reseller')} defaultOpen>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/find-products')}><Search className="mr-2 h-3.5 w-3.5" />Find Products</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/promotions')}><Link2 className="mr-2 h-3.5 w-3.5" />My Promotions</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/commissions')}><DollarSign className="mr-2 h-3.5 w-3.5" />My Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/tools')}><Sparkles className="mr-2 h-3.5 w-3.5" />Promo Tools</SidebarMenuSubButton></SidebarMenuSubItem>
-                     <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/share')}><Share2 className="mr-2 h-3.5 w-3.5" />Share Center</SidebarMenuSubButton></SidebarMenuSubItem>
-                </SidebarCollapsibleItem>
-            </SidebarMenuItem>
-        </SidebarMenu>
     </SidebarGroup>
   );
 }
+
+export function ResellerSidebarNav() {
+  const pathname = usePathname();
+  const { user } = useUser();
+  const isActive = (path: string) => pathname.startsWith(path);
+  
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>My Reseller Hub</SidebarGroupLabel>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarCollapsibleItem icon={<Waypoints />} label="Reseller Tools" isActive={isActive('/dashboard/reseller')} defaultOpen>
+            <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/find-products')}><Search className="mr-2 h-3.5 w-3.5" />Find Products</SidebarMenuSubButton></SidebarMenuSubItem>
+            <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/promotions')}><Link2 className="mr-2 h-3.5 w-3.5" />My Promotions</SidebarMenuSubButton></SidebarMenuSubItem>
+            <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/commissions')}><DollarSign className="mr-2 h-3.5 w-3.5" />My Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
+            <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/tools')}><Sparkles className="mr-2 h-3.5 w-3.5" />Promo Tools</SidebarMenuSubButton></SidebarMenuSubItem>
+            <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/reseller/share')}><Share2 className="mr-2 h-3.5 w-3.5" />Share Center</SidebarMenuSubButton></SidebarMenuSubItem>
+          </SidebarCollapsibleItem>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
 
 export function AccountSidebarNav() {
   return (
