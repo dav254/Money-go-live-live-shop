@@ -159,13 +159,12 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Video />} label="Live Selling" isActive={isActive('/dashboard/live')}>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/live/start" isActive={isActive('/dashboard/live/start')}>Start Live Selling</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Upload New Video</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Schedule Live Session</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Button Config</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Share Live Link</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/live/start')}>
+            <Link href="/dashboard/live/start">
+                <Video />
+                <span>Live Selling</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Banknote />} label="Finances" isActive={isActive('/dashboard/seller/earnings')}>
