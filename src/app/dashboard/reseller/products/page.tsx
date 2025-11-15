@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { ProductCard } from '@/components/seller/product-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ const ResellerProductCard = ({ product }: { product: typeof products[0] }) => (
 
 export default function ResellerProductsPage() {
   return (
-    <MainLayout>
+    <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Products to Resell
@@ -77,6 +77,6 @@ export default function ResellerProductsPage() {
 
         </Tabs>
       </div>
-    </MainLayout>
+    </ResellerLayout>
   );
 }

@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
   CardContent,
@@ -46,7 +46,7 @@ const transactions = [
 
 export default function ResellerWalletPage() {
   return (
-    <MainLayout>
+    <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -146,6 +146,6 @@ export default function ResellerWalletPage() {
         </div>
 
       </div>
-    </MainLayout>
+    </ResellerLayout>
   );
 }
