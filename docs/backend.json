@@ -409,6 +409,57 @@
         "timestamp",
         "readStatus"
       ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a notification for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the notification."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who this notification is for."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of notification (e.g., 'new-order', 'message', 'commission')."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the notification."
+        },
+        "message": {
+          "type": "string",
+          "description": "The main content of the notification."
+        },
+        "link": {
+          "type": "string",
+          "description": "A URL to navigate to when the notification is clicked.",
+          "format": "uri"
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the notification ('read' or 'unread')."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Date and time when the notification was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "title",
+        "message",
+        "status",
+        "timestamp"
+      ]
     }
   },
   "auth": {
@@ -559,6 +610,22 @@
             {
               "name": "chatMessageId",
               "description": "The unique identifier for the chat message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Stores notifications for all users, queryable by userId.",
+          "params": [
+            {
+              "name": "notificationId",
+              "description": "The unique identifier for the notification."
             }
           ]
         }

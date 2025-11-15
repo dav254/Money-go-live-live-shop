@@ -2,7 +2,6 @@
 'use client';
 
 import { LivePreview } from '@/components/live/live-preview';
-import { MainLayout } from '@/components/layout/main-layout';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
@@ -28,9 +27,15 @@ export default function HomePage() {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="hidden md:inline-flex">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex relative" asChild>
+                <Link href="/notifications">
+                    <Bell className="h-5 w-5" />
+                    <span className="sr-only">Notifications</span>
+                    <span className="absolute top-1 right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                    </span>
+                </Link>
             </Button>
              <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
                 <Link href="/messages">
