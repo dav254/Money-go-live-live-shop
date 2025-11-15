@@ -22,10 +22,14 @@ import {
   HelpCircle,
   Users,
   MessageSquare,
+  ChevronDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@/firebase';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 export function BuyerSidebarNav() {
   const pathname = usePathname();
@@ -41,6 +45,7 @@ export function SellerSidebarNav() {
   const pathname = usePathname();
   const { user } = useUser();
   const isActive = (path: string) => pathname.startsWith(path);
+  const [isFinanceOpen, setIsFinanceOpen] = useState(true);
   
   return (
     <SidebarGroup>
@@ -78,19 +83,11 @@ export function SellerSidebarNav() {
               </Link>
             </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
+         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}>
             <Link href="/dashboard/seller/wishlist">
               <Heart />
               <span>Wishlist</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild>
-            <Link href="#">
-              <Wallet />
-              <span>Wallet</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -103,20 +100,44 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
 
+        <Collapsible open={isFinanceOpen} onOpenChange={setIsFinanceOpen} className="w-full">
+            <SidebarMenuItem>
+                <CollapsibleTrigger className="w-full">
+                    <SidebarMenuButton className="w-full" isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
+                        <Banknote />
+                        <span>Finances & Payments</span>
+                        <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isFinanceOpen && "rotate-180")} />
+                    </SidebarMenuButton>
+                </CollapsibleTrigger>
+            </SidebarMenuItem>
+            <CollapsibleContent>
+                <SidebarMenu className="pl-6">
+                     <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wallet')}>
+                            <Link href="/dashboard/seller/wallet">
+                                <Wallet />
+                                <span>Wallet</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
+                            <Link href="/dashboard/seller/earnings">
+                                <Banknote />
+                                <span>Sales & Payouts</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </CollapsibleContent>
+        </Collapsible>
+
+
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/reseller')}>
               <Link href="/dashboard/seller/reseller/performance">
                   <Users />
                   <span>Reseller Center</span>
-              </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
-              <Link href="/dashboard/seller/earnings">
-                  <Banknote />
-                  <span>Sales & Payouts</span>
               </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
