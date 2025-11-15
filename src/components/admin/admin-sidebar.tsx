@@ -106,18 +106,14 @@ export function AdminSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <NavCollapsible
-          title="Product Management"
-          icon={PackageSearch}
-          basePath="products"
-          items={[
-            { href: 'all', label: 'All Products' },
-            { href: 'pending', label: 'Pending Approval' },
-            { href: 'reported', label: 'Reported Products' },
-            { href: 'categories', label: 'Categories' },
-            { href: 'tags', label: 'Tags' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/products')}>
+                <Link href="/dashboard/admin/products/all">
+                    <PackageSearch />
+                    <span>Product Management</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
         <NavCollapsible
           title="Orders & Transactions"
