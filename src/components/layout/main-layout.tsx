@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Menu, User, Bell, MessageSquare, Video, Search } from 'lucide-react';
-import { SellerSidebarNav, AccountSidebarNav } from './sidebar-nav';
+import { SellerSidebarNav, AccountSidebarNav, BuyerSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { useUser } from '@/firebase';
@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
+import { Separator } from '../ui/separator';
 
 function UserNav() {
   const { user, isUserLoading } = useUser();
@@ -87,6 +88,11 @@ function UserNav() {
 
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
+    const { user } = useUser();
+    // This is a placeholder for role detection.
+    // In a real app, this would come from your user object from Firestore or JWT claims.
+    const userRole = (user as any)?.profile?.userRole || 'buyer';
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full flex-col bg-background">
@@ -105,6 +111,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                     <Logo className="h-8 w-auto text-primary" />
                   </Link>
                   <nav className="flex flex-1 flex-col gap-4">
+                    <BuyerSidebarNav />
+                    <Separator className="my-4" />
                     <SellerSidebarNav />
                   </nav>
                   <div className="mt-auto">
@@ -130,13 +138,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <Bell className="h-5 w-5" />
               <span className="sr-only">Notifications</span>
             </Button>
-             <Button variant="ghost" size="icon" className="hidden md:inline-flex">
-              <MessageSquare className="h-5 w-5" />
-              <span className="sr-only">Chat</span>
+             <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
+                <Link href="/messages">
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="sr-only">Chat</span>
+                </Link>
             </Button>
-             <Button variant="ghost" size="icon" className="hidden md:inline-flex">
-              <Video className="h-5 w-5" />
-              <span className="sr-only">Live</span>
+             <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
+                <Link href="/dashboard/live/start">
+                    <Video className="h-5 w-5" />
+                    <span className="sr-only">Live</span>
+                </Link>
             </Button>
             <UserNav />
           </div>
@@ -144,6 +156,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1">
           <aside className="hidden w-64 flex-col border-r bg-card md:flex">
             <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
+              <BuyerSidebarNav />
+              <Separator />
               <SellerSidebarNav />
             </div>
             <div className="p-4">

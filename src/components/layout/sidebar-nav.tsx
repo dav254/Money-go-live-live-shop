@@ -23,6 +23,8 @@ import {
   Users,
   MessageSquare,
   ChevronDown,
+  Home,
+  LayoutGrid,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -34,10 +36,137 @@ import { useState } from 'react';
 export function BuyerSidebarNav() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname === path;
+  const [isOrdersOpen, setIsOrdersOpen] = useState(true);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
 
   return (
-    <SidebarMenu>
-    </SidebarMenu>
+     <SidebarGroup>
+        <SidebarGroupLabel>Menu</SidebarGroupLabel>
+        <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/')}>
+                    <Link href="/">
+                        <Home />
+                        <span>Home</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/categories')}>
+                    <Link href="/categories">
+                        <LayoutGrid />
+                        <span>Categories</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/messages')}>
+                    <Link href="/messages">
+                        <MessageSquare />
+                        <span>Messages</span>
+                    </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+
+             <Collapsible open={isOrdersOpen} onOpenChange={setIsOrdersOpen} asChild>
+                <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className="w-full" isActive={pathname.startsWith('/orders')}>
+                            <Package />
+                            <span>My Orders</span>
+                            <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isOrdersOpen && "rotate-180")} />
+                        </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <SidebarMenu className="pl-6">
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/orders/current')}>
+                                    <Link href="#">
+                                        <span>Current Orders</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/orders/delivered')}>
+                                    <Link href="#">
+                                        <span>Delivered</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/orders/returns')}>
+                                    <Link href="#">
+                                        <span>Returns & Refunds</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </CollapsibleContent>
+                </SidebarMenuItem>
+            </Collapsible>
+            
+            <Collapsible open={isWishlistOpen} onOpenChange={setIsWishlistOpen} asChild>
+                <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className="w-full" isActive={pathname.startsWith('/wishlist')}>
+                            <Heart />
+                            <span>Wishlist</span>
+                            <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isWishlistOpen && "rotate-180")} />
+                        </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <SidebarMenu className="pl-6">
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/wishlist/products')}>
+                                    <Link href="#">
+                                        <span>My Wishlist</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/wishlist/shops')}>
+                                    <Link href="#">
+                                        <span>Saved Shops</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </CollapsibleContent>
+                </SidebarMenuItem>
+            </Collapsible>
+
+            <Collapsible open={isWalletOpen} onOpenChange={setIsWalletOpen} asChild>
+                <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className="w-full" isActive={pathname.startsWith('/wallet')}>
+                            <Wallet />
+                            <span>Wallet</span>
+                            <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isWalletOpen && "rotate-180")} />
+                        </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <SidebarMenu className="pl-6">
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/wallet/balance')}>
+                                    <Link href="#">
+                                        <span>Balance</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={isActive('/wallet/transactions')}>
+                                    <Link href="#">
+                                        <span>History</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </CollapsibleContent>
+                </SidebarMenuItem>
+            </Collapsible>
+        </SidebarMenu>
+     </SidebarGroup>
   );
 }
 
@@ -46,6 +175,16 @@ export function SellerSidebarNav() {
   const { user } = useUser();
   const isActive = (path: string) => pathname.startsWith(path);
   const [isFinanceOpen, setIsFinanceOpen] = useState(true);
+  
+  // This is a placeholder logic. Replace with your actual user role detection.
+  // For demonstration, we assume a user might have a role property.
+  // In a real app, this would come from your user object from Firestore or JWT claims.
+  const userRole = (user as any)?.profile?.userRole || 'buyer';
+
+  // Only render this for sellers
+  if (userRole !== 'seller') {
+      return null;
+  }
   
   return (
     <SidebarGroup>
@@ -91,19 +230,11 @@ export function SellerSidebarNav() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/messages')}>
-            <Link href="/messages">
-              <MessageSquare />
-              <span>Messages</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
 
         <Collapsible open={isFinanceOpen} onOpenChange={setIsFinanceOpen} asChild>
             <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                    <SidebarMenuButton className="w-full" isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
+                     <SidebarMenuButton className="w-full" isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
                         <Banknote />
                         <span>Finances & Payments</span>
                         <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", isFinanceOpen && "rotate-180")} />
