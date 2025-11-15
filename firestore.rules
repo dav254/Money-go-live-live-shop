@@ -53,8 +53,11 @@ service cloud.firestore {
       // A user trying to log in as an admin must be able to check if their own admin record exists.
       // We can't use isAdmin() here, as that creates a circular dependency.
       allow get: if request.auth != null && request.auth.uid == adminId;
-      // Writing to the admins collection should only be managed from a secure backend environment.
-      allow create, update, delete, list: if false; 
+      // Allow the admin to delete their own record for password reset purposes
+      allow delete: if request.auth != null && request.auth.uid == adminId;
+      // Writing to the admins collection should only be managed from a secure backend environment or specific logic.
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid && request.resource.data.email == 'admin@moneygo.com';
+      allow update, list: if false; 
     }
 
     /**
@@ -79,7 +82,8 @@ service cloud.firestore {
       allow list: if isAdmin(); // Allow admins to list users
       allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      // Allow user to delete their own profile, or if they are the special admin for reset purposes
+      allow delete: if isExistingOwner(userId) || (request.auth != null && request.auth.uid == userId && request.auth.token.email == 'admin@moneygo.com');
     }
 
     /**
@@ -242,5 +246,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

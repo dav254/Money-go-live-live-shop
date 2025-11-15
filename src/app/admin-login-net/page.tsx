@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -23,11 +22,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
+import { signInWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { KeyRound } from 'lucide-react';
 
 const formSchema = z.object({
@@ -38,6 +37,7 @@ const formSchema = z.object({
 export default function AdminLoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
+  const { user: currentUser } = useUser();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -48,6 +48,34 @@ export default function AdminLoginPage() {
       password: '',
     },
   });
+
+  const handleDeleteAccount = async () => {
+    if (currentUser && currentUser.email === 'admin@moneygo.com') {
+      try {
+        // First delete firestore documents
+        const userProfileRef = doc(firestore, 'userProfiles', currentUser.uid);
+        const adminRef = doc(firestore, 'admins', currentUser.uid);
+        await deleteDoc(userProfileRef);
+        await deleteDoc(adminRef);
+
+        // Then delete the auth user
+        await deleteUser(currentUser);
+        
+        toast({
+          title: 'Account Deleted',
+          description: 'You can now sign up again with the same email.',
+        });
+        router.push('/signup');
+      } catch (error: any) {
+         toast({
+          variant: 'destructive',
+          title: 'Deletion Failed',
+          description: 'Could not delete account. Please try logging in again to re-authenticate before deleting.',
+        });
+        console.error("Deletion error:", error);
+      }
+    }
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     signInWithEmailAndPassword(auth, values.email, values.password)
@@ -146,6 +174,11 @@ export default function AdminLoginPage() {
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? 'Authenticating...' : 'Secure Login'}
                 </Button>
+                 {currentUser && currentUser.email === 'admin@moneygo.com' && (
+                  <Button variant="link" className="text-destructive" onClick={handleDeleteAccount} type="button">
+                    Can't log in? Delete admin account to re-register.
+                  </Button>
+                )}
               </CardFooter>
             </form>
           </Form>
