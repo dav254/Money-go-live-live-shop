@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -22,7 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -49,46 +50,53 @@ export default function AdminLoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      // 1. Authenticate the user first
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
+    signInWithEmailAndPassword(auth, values.email, values.password)
+      .then(async (userCredential) => {
+        const user = userCredential.user;
+        const adminDocRef = doc(firestore, 'admins', user.uid);
+        
+        try {
+          const adminDocSnap = await getDoc(adminDocRef);
 
-      // 2. Check if the user is a designated admin in Firestore
-      const adminDocRef = doc(firestore, 'admins', user.uid);
-      const adminDocSnap = await getDoc(adminDocRef);
+          if (!adminDocSnap.exists()) {
+            await auth.signOut();
+            toast({
+              variant: 'destructive',
+              title: 'Access Denied',
+              description: 'You do not have admin privileges.',
+            });
+            return;
+          }
 
-      if (!adminDocSnap.exists()) {
-        // Not an admin, sign them out and show an error
-        await auth.signOut();
-        throw new Error('Access Denied. You do not have admin privileges.');
-      }
-      
-      const adminData = adminDocSnap.data();
+          const adminData = adminDocSnap.data();
+          toast({
+            title: 'Admin Login Successful!',
+            description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
+          });
+          router.push('/dashboard/admin');
 
-      toast({
-        title: 'Admin Login Successful!',
-        description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
+        } catch (error) {
+           // This catch block specifically handles the getDoc permission error
+            const permissionError = new FirestorePermissionError({
+              path: adminDocRef.path,
+              operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+      })
+      .catch((error: any) => {
+        console.error('Admin Login Error:', error);
+        let description = 'Could not sign you in. Please try again.';
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = 'Invalid email or password.';
+        }
+        
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: description,
+        });
       });
-      
-      // 3. Redirect to the admin dashboard
-      router.push('/dashboard/admin');
-
-    } catch (error: any) {
-      console.error('Admin Login Error:', error);
-      let description = 'Could not sign you in. Please try again.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Invalid email or password.';
-      } else if (error.message.includes('Access Denied')) {
-        description = error.message;
-      }
-      
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: description,
-      });
-    }
   }
 
   return (
