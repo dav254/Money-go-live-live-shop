@@ -1,11 +1,14 @@
 
-import { LivePreview } from '@/components/live/live-preview';
+import { VideoFeed } from '@/components/feed/video-feed';
 import { MainLayout } from '@/components/layout/main-layout';
+import { feedItems } from '@/lib/placeholder-data';
 
 export default function HomePage() {
   return (
     <MainLayout>
-      <LivePreview />
+      <div className="h-[calc(100vh-4rem)]">
+        <VideoFeed items={feedItems} />
+      </div>
     </MainLayout>
   );
 }

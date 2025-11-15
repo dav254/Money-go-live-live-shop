@@ -7,6 +7,7 @@ import { VideoInfo } from './video-info';
 import { VideoActions } from './video-actions';
 import { ProductDrawer } from './product-drawer';
 import { Button } from '../ui/button';
+import Link from 'next/link';
 
 interface VideoCardProps {
   item: VideoFeedItem;
@@ -30,8 +31,10 @@ export function VideoCard({ item }: VideoCardProps) {
       <VideoInfo seller={item.seller} viewers={item.viewers} />
 
       <div className="absolute bottom-4 left-4 z-20">
-         <Button variant="secondary" className="bg-black/50 hover:bg-black/70">
-            View Shop
+         <Button variant="secondary" className="bg-black/50 hover:bg-black/70" asChild>
+            <Link href={`/sellers/${item.seller.id}`}>
+                View Shop
+            </Link>
           </Button>
       </div>
 
