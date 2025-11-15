@@ -1,9 +1,10 @@
-import { MainLayout } from '@/components/layout/main-layout';
+
+import { SellerLayout } from '@/components/layout/seller-layout';
 import { Package } from 'lucide-react';
 
 export default function SellerOrdersPage() {
   return (
-    <MainLayout>
+    <SellerLayout>
       <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
         <div className="rounded-full bg-primary/10 p-4">
           <Package className="h-12 w-12 text-primary" />
@@ -13,6 +14,6 @@ export default function SellerOrdersPage() {
           Manage your incoming orders here.
         </p>
       </div>
-    </MainLayout>
+    </SellerLayout>
   );
 }

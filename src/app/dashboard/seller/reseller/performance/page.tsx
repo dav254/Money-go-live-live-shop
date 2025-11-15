@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
   CardContent,
@@ -11,7 +11,7 @@ import { DollarSign, LineChart, Users, BarChart, BadgePercent, CircleDollarSign,
 
 export default function ResellerPerformancePage() {
   return (
-    <MainLayout>
+    <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Reseller Center
@@ -166,6 +166,6 @@ export default function ResellerPerformancePage() {
             </TabsContent>
         </Tabs>
       </div>
-    </MainLayout>
+    </SellerLayout>
   );
 }

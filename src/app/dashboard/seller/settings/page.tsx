@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
   CardContent,
@@ -27,7 +27,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function SellerSettingsPage() {
   return (
-    <MainLayout>
+    <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Shop Settings
@@ -252,6 +252,6 @@ export default function SellerSettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </MainLayout>
+    </SellerLayout>
   );
 }

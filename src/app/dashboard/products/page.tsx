@@ -1,12 +1,12 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ProductsPage() {
   return (
-    <MainLayout>
+    <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Products
@@ -30,6 +30,6 @@ export default function ProductsPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </MainLayout>
+    </SellerLayout>
   );
 }

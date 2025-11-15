@@ -1,5 +1,5 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Accordion,
   AccordionContent,
@@ -47,7 +47,7 @@ const academyCourses = [
 
 export default function SellerHelpPage() {
     return (
-        <MainLayout>
+        <SellerLayout>
             <div className="flex-1 space-y-8 p-8 pt-6">
                  <div className="flex items-center justify-between space-y-2">
                     <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -174,6 +174,6 @@ export default function SellerHelpPage() {
                     </div>
                  </div>
             </div>
-        </MainLayout>
+        </SellerLayout>
     );
 }

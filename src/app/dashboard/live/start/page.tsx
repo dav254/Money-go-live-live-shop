@@ -1,13 +1,13 @@
 
 import { LivePreview } from '@/components/live/live-preview';
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 
 export default function StartLivePage() {
   return (
-    <MainLayout>
+    <SellerLayout>
         <div className="h-[calc(100vh-4rem)]">
          <LivePreview />
         </div>
-    </MainLayout>
+    </SellerLayout>
   );
 }
