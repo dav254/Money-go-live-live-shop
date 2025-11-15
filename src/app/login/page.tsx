@@ -69,11 +69,11 @@ export default function LoginPage() {
         } else if (userProfile.userRole === 'reseller') {
           router.push('/dashboard/reseller');
         } else {
-          router.push('/');
+          router.push('/buyer/dashboard');
         }
       } else {
         console.warn("No user profile found for UID:", user.uid);
-        router.push('/'); // Default redirect if profile doesn't exist
+        router.push('/buyer/dashboard'); // Default redirect to buyer dashboard
       }
 
     } catch (error: any) {
