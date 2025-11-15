@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Languages, Lock, Bell, Palette, User } from 'lucide-react';
+import { Camera, Languages, Lock, Bell, Palette, User, Settings } from 'lucide-react';
 import {
   Select,
   SelectContent,
