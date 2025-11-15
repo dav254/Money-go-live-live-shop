@@ -54,7 +54,7 @@ type ProductRow = Product & {
 const data: ProductRow[] = placeholderProducts.map((p, i) => ({
     ...p,
     status: (['active', 'draft', 'out-of-stock'] as const)[i % 3],
-    sales: Math.floor(Math.random() * 5000) + 100,
+    sales: (p.price * (i + 1) * 3) + 500, // Use deterministic sales data instead of Math.random()
 }));
 
 
