@@ -7,8 +7,6 @@ import {
   SidebarMenuButton,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import {
   Heart,
@@ -28,13 +26,19 @@ import {
   FolderKanban,
   BookOpen,
   Shield,
-  ShieldCheck,
-  ShieldX,
+  KeyRound,
+  Server,
+  Palette,
+  Bot,
+  BarChart,
+  Activity,
+  LineChart,
   FileCheck,
-  FileText,
+  ShieldX,
+  ShieldAlert,
+  Folder,
   Tags,
   Truck,
-  LineChart,
   CircleDollarSign,
   Receipt,
   Megaphone,
@@ -42,13 +46,13 @@ import {
   Bell,
   Target,
   LifeBuoy,
-  FileSignature,
-  KeyRound,
-  Server,
-  Palette,
-  Bot,
-  BarChart,
-  Activity,
+  Database,
+  Search,
+  Clock,
+  Ticket,
+  Lock,
+  CreditCard,
+  FileText,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -413,20 +417,20 @@ export function AdminSidebarNav() {
             { href: 'all', label: 'All Orders' },
             { href: 'seller-orders', label: 'Seller Orders' },
             { href: 'reseller-orders', label: 'Reseller Orders' },
-            { href: 'disputes', label: 'Refund & Disputes' },
+            { href: 'disputes', label: 'Refunds & Disputes' },
             { href: 'tracking', label: 'Delivery Tracking' },
           ]}
         />
         
         <NavCollapsible
-          title="Live Shopping"
+          title="Live Shopping Control"
           icon={Video}
           basePath="live-shopping"
           items={[
-            { href: 'sessions', label: 'Live Sessions' },
+            { href: 'sessions', label: 'Active Live Sessions' },
             { href: 'approved', label: 'Approved Streams' },
             { href: 'flagged', label: 'Flagged Streams' },
-            { href: 'analytics', label: 'Live Analytics' },
+            { href: 'analytics', label: 'Live Stream Analytics' },
           ]}
         />
 
@@ -436,7 +440,7 @@ export function AdminSidebarNav() {
           basePath="finance"
           items={[
             { href: 'analytics', label: 'Sales Analytics' },
-            { href: 'commissions', label: 'Commissions' },
+            { href: 'commissions', label: 'Commissions Overview' },
             { href: 'seller-payouts', label: 'Seller Payouts' },
             { href: 'reseller-payouts', label: 'Reseller Payouts' },
             { href: 'revenue', label: 'Platform Revenue' },
@@ -449,7 +453,7 @@ export function AdminSidebarNav() {
           icon={Megaphone}
           basePath="marketing"
           items={[
-            { href: 'banners', label: 'Promo Banners' },
+            { href: 'banners', label: 'Banner Manager' },
             { href: 'posters', label: 'AI Poster Requests' },
             { href: 'sliders', label: 'Homepage Sliders' },
             { href: 'notifications', label: 'Notification Center' },
@@ -465,8 +469,8 @@ export function AdminSidebarNav() {
             { href: 'help-center', label: 'Help Center Manager' },
             { href: 'tickets', label: 'Support Tickets' },
             { href: 'chat-logs', label: 'Chat Logs' },
-            { href: 'complaints', label: 'Complaints' },
-            { href: 'violations', label: 'Violations' },
+            { href: 'complaints', label: 'Resolve Complaints' },
+            { href: 'violations', label: 'Violations & Reports' },
           ]}
         />
 
@@ -478,7 +482,7 @@ export function AdminSidebarNav() {
             { href: 'roles', label: 'Roles & Permissions' },
             { href: 'security', label: 'Security & 2FA' },
             { href: 'gateways', label: 'Payment Gateways' },
-            { href: 'backup', label: 'Backup Control' },
+            { href: 'backup', label: 'Backup & Restore' },
             { href: 'api-keys', label: 'API Keys' },
             { href: 'theme', label: 'Themes' },
             { href: 'server-status', label: 'Server Status' },
@@ -490,9 +494,9 @@ export function AdminSidebarNav() {
           icon={Bot}
           basePath="ai"
           items={[
-            { href: 'recommendations', label: 'Recommendation Engine' },
-            { href: 'fraud-detection', label: 'Fraud Detection' },
-            { href: 'content-moderation', label: 'Content Moderation' },
+            { href: 'recommendations', label: 'AI Recommendation Engine' },
+            { href: 'fraud-detection', label: 'AI Fraud Detection' },
+            { href: 'content-moderation', label: 'AI Content Moderation' },
           ]}
         />
 
@@ -502,11 +506,10 @@ export function AdminSidebarNav() {
           basePath="analytics"
           items={[
             { href: 'revenue', label: 'Revenue Charts' },
-            { href: 'activity', label: 'User Activity Logs' },
-            { href: 'errors', label: 'Errors & Stability' },
+            { href: 'activity', label: 'Activity Logs' },
+            { href: 'errors', label: 'Error Logs' },
           ]}
         />
-
       </SidebarMenu>
     </SidebarGroup>
   );

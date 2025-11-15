@@ -6,7 +6,7 @@ export default function AdminComplaintsPage() {
     <MainLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Support & Moderation: Seller/Buyer Complaints
+          Support & Moderation: Resolve Complaints
         </h1>
         <div className="flex h-full flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed p-12">
             <p className="text-muted-foreground">Complaint management system will be here.</p>
@@ -15,5 +15,3 @@ export default function AdminComplaintsPage() {
     </MainLayout>
   );
 }
-
-    
