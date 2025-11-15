@@ -1,5 +1,34 @@
 {
   "entities": {
+    "AdminUser": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminUser",
+      "type": "object",
+      "description": "Represents an administrator with special privileges.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The Firebase Auth UID of the admin user."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The admin's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Specific role of the admin, e.g., 'SuperAdmin', 'ContentModerator'."
+        },
+        "lastLogin": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "email", "role"]
+    },
     "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
@@ -390,6 +419,22 @@
   },
   "firestore": {
     "structure": [
+      {
+        "path": "/admins/{adminId}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/AdminUser"
+          },
+          "description": "Stores a list of users who have admin privileges. The adminId is the user's Firebase Auth UID.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The user's Firebase Auth UID."
+            }
+          ]
+        }
+      },
       {
         "path": "/userProfiles/{userId}",
         "definition": {

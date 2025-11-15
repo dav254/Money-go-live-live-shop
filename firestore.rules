@@ -6,8 +6,10 @@
  * Orders and payments are accessible to both the buyer and the seller involved in the transaction.
  * AI-generated descriptions and categories are publicly readable but writable only with proper authorization.
  * Chat messages are only accessible to sender and receiver.
+ * Admin users have special access defined in the 'admins' collection.
  *
  * Data Structure:
+ * - /admins/{adminId}: Stores a list of admin user UIDs.
  * - /userProfiles/{userId}: Stores user profile data.
  * - /products/{productId}: Stores product data, including the sellerId.
  * - /orders/{orderId}: Stores order data, including buyerId, sellerId, and productId.
@@ -29,16 +31,34 @@
  *
  * Structural Segregation:
  * - User profiles are stored in a dedicated collection to enforce ownership and privacy.
+ * - The 'admins' collection is separate and highly restricted.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    /**
+     * @description Check if the requesting user is an admin.
+     * @returns boolean
+     */
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    /**
+     * @description Admin user data. Only readable by admins themselves. Writing is disallowed from the client.
+     * @path /admins/{adminId}
+     */
+    match /admins/{adminId} {
+      allow get: if isAdmin() && request.auth.uid == adminId;
+      allow list, create, update, delete: if false; // Should only be managed from a secure backend
+    }
 
     /**
-     * @description Secure user profile data. Only the user can read and write their own profile.
+     * @description Secure user profile data. Only the user can read and write their own profile. Admins can read any profile.
      * @path /userProfiles/{userId}
      * @allow (create) User with ID 'user123' creates their profile.
      * @allow (get) User with ID 'user123' reads their profile.
+     * @allow (get) An admin reads any user's profile.
      * @allow (update) User with ID 'user123' updates their profile.
      * @allow (delete) User with ID 'user123' deletes their profile.
      * @deny (create) User with ID 'user123' tries to create profile for 'user456'.
@@ -51,15 +71,15 @@ service cloud.firestore {
       function isExistingOwner(userId) {
         return isOwner(userId) && resource != null;
       }
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // Allow admins to list users
       allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Secure product data. Anyone can read product data, but only the seller can create, update, and delete.
+     * @description Secure product data. Anyone can read product data, but only the seller can create, update, and delete. Admins can also delete.
      * @path /products/{productId}
      * @allow (get) Any user can read any product.
      * @allow (create) Seller with ID 'seller123' creates a product with sellerId 'seller123'.
@@ -80,11 +100,11 @@ service cloud.firestore {
       allow list: if true;
       allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
       allow update: if isExistingOwner(resource.data.sellerId);
-      allow delete: if isExistingOwner(resource.data.sellerId);
+      allow delete: if isExistingOwner(resource.data.sellerId) || isAdmin();
     }
 
     /**
-     * @description Secure order data. Only the buyer and seller involved in the order can read and write order data.
+     * @description Secure order data. Only the buyer and seller involved in the order can read and write order data. Admins can read any order.
      * @path /orders/{orderId}
      * @allow (get) Buyer with ID 'buyer123' reads an order they placed (buyerId 'buyer123').
      * @allow (get) Seller with ID 'seller456' reads an order for their product (sellerId 'seller456').
@@ -101,15 +121,15 @@ service cloud.firestore {
        function isExistingBuyerOrSeller(buyerId, sellerId) {
         return isBuyerOrSeller(buyerId, sellerId) && resource != null;
       }
-      allow get: if isBuyerOrSeller(resource.data.buyerId, resource.data.sellerId);
-      allow list: if false;
+      allow get: if isBuyerOrSeller(resource.data.buyerId, resource.data.sellerId) || isAdmin();
+      allow list: if isAdmin();
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
-      allow update: if isExistingBuyerOrSeller(resource.data.buyerId, resource.data.sellerId);
-      allow delete: if isExistingBuyerOrSeller(resource.data.buyerId, resource.data.sellerId);
+      allow update: if isExistingBuyerOrSeller(resource.data.buyerId, resource.data.sellerId) || isAdmin();
+      allow delete: if isExistingBuyerOrSeller(resource.data.buyerId, resource.data.sellerId) || isAdmin();
     }
 
     /**
-     * @description Secure payment data. Only accessible to parties involved in the order.
+     * @description Secure payment data. Only accessible to parties involved in the order. Admins can read.
      * @path /payments/{paymentId}
      * @allow (get) Buyer/Seller reads a payment for their order.
      * @allow (create) Buyer creates a payment associated with their order.
@@ -126,8 +146,8 @@ service cloud.firestore {
        function isExistingBuyerOrSellerByOrderId(orderId) {
         return isBuyerOrSellerByOrderId(orderId) && resource != null;
       }
-      allow get: if request.auth != null && isBuyerOrSellerByOrderId(resource.data.orderId);
-      allow list: if false;
+      allow get: if (request.auth != null && isBuyerOrSellerByOrderId(resource.data.orderId)) || isAdmin();
+      allow list: if isAdmin();
       allow create: if request.auth != null && isBuyerOrSellerByOrderId(request.resource.data.orderId);
       allow update: if request.auth != null && isExistingBuyerOrSellerByOrderId(resource.data.orderId);
       allow delete: if request.auth != null && isExistingBuyerOrSellerByOrderId(resource.data.orderId);
@@ -158,19 +178,19 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allow public read access to categories, but restrict write access.
+     * @description Allow public read access to categories, but restrict write access to admins.
      * @path /categories/{categoryId}
      * @allow (get) Any user can read category information.
-     * @principle Allows public read access. Write access is not defined and should be secured.
+     * @principle Allows public read access. Write access is secured for admins.
      */
     match /categories/{categoryId} {
       allow get: if true;
       allow list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Secure seller shop data. Only the seller can create, update, and delete their shop.
+     * @description Secure seller shop data. Only the seller can create, update, and delete their shop. Admins can also manage.
      * @path /sellerShops/{sellerShopId}
      * @allow (get) Any user can read seller shops.
      * @allow (create) Seller creates their shop.
@@ -189,12 +209,12 @@ service cloud.firestore {
       allow get: if true;
       allow list: if true;
       allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.sellerId);
-      allow delete: if isExistingOwner(resource.data.sellerId);
+      allow update: if isExistingOwner(resource.data.sellerId) || isAdmin();
+      allow delete: if isExistingOwner(resource.data.sellerId) || isAdmin();
     }
 
     /**
-     * @description Secure chat messages. Only the sender and receiver can access the message.
+     * @description Secure chat messages. Only the sender and receiver can access the message. Admins can read messages.
      * @path /chatMessages/{chatMessageId}
      * @allow (get) Sender/Receiver reads a message.
      * @allow (create) Sender creates a message.
@@ -210,7 +230,7 @@ service cloud.firestore {
       function isExistingSenderOrReceiver(senderId, receiverId) {
         return isSenderOrReceiver(senderId, receiverId) && resource != null;
       }
-      allow get: if isSenderOrReceiver(resource.data.senderId, resource.data.receiverId);
+      allow get: if isSenderOrReceiver(resource.data.senderId, resource.data.receiverId) || isAdmin();
       allow list: if false;
       allow create: if request.auth != null && (request.resource.data.senderId == request.auth.uid || request.resource.data.receiverId == request.auth.uid);
       allow update: if isExistingSenderOrReceiver(resource.data.senderId, resource.data.receiverId);
