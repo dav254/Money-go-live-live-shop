@@ -142,6 +142,14 @@ export function SellerSidebarNav() {
               </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/messages')}>
+            <Link href="/messages">
+              <MessageCircleIcon />
+              <span>Messages</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive(`/sellers/${user?.uid}`)}>
             <Link href={user ? `/sellers/${user.uid}` : '/login'}>
@@ -149,14 +157,6 @@ export function SellerSidebarNav() {
               <span>View My Shop</span>
             </Link>
           </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<MessageCircleIcon />} label="Chat & Messaging">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Inbox</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Live Chat Requests</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Order Chats</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Media</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
         </SidebarMenuItem>
         <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Video />} label="Live Selling">
