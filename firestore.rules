@@ -50,7 +50,9 @@ service cloud.firestore {
      */
     match /admins/{adminId} {
       allow get: if isAdmin() && request.auth.uid == adminId;
-      allow list, create, update, delete: if false; // Should only be managed from a secure backend
+      // TEMPORARY RULE: Allow a user to add themselves as an admin.
+      allow create: if request.auth != null && request.auth.uid == adminId;
+      allow list, update, delete: if false; // Should only be managed from a secure backend
     }
 
     /**
