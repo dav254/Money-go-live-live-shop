@@ -76,16 +76,12 @@ export default function SignupPage() {
         userRole: values.role,
       };
 
+      const batch = writeBatch(firestore);
       const userDocRef = doc(firestore, "userProfiles", user.uid);
+      batch.set(userDocRef, userProfile);
       
-      // If the user is the special admin, create an admin entry as well in a batch
-      if (values.email === 'admin@moneygo.com') {
-        const batch = writeBatch(firestore);
-        
-        // 1. Set the user profile document
-        batch.set(userDocRef, userProfile);
-        
-        // 2. Set the admin document
+      // If the user is the special admin, create an admin entry as well
+      if (values.email === 'admin@moneygod.com') {
         const adminDocRef = doc(firestore, 'admins', user.uid);
         batch.set(adminDocRef, {
             uid: user.uid,
@@ -103,9 +99,6 @@ export default function SignupPage() {
         });
 
       } else {
-        // For regular users, just set the user profile
-         const batch = writeBatch(firestore);
-         batch.set(userDocRef, userProfile);
          await batch.commit();
 
          toast({

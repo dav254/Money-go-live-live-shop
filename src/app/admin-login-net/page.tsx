@@ -23,11 +23,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, deleteUser } from 'firebase/auth';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
@@ -39,7 +39,6 @@ const formSchema = z.object({
 export default function AdminLoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user: currentUser } = useUser();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -50,67 +49,6 @@ export default function AdminLoginPage() {
       password: '',
     },
   });
-
-  const handleDeleteAccount = async () => {
-    if (!currentUser) {
-       toast({
-        variant: 'destructive',
-        title: 'Not Logged In',
-        description: 'You must be logged in to perform this action.',
-      });
-      return;
-    }
-    
-    // We can only delete the special admin user this way
-    if (currentUser.email !== 'admin@moneygo.com') {
-      toast({
-        variant: 'destructive',
-        title: 'Action Not Allowed',
-        description: 'This function is reserved for admin account management.',
-      });
-      return;
-    }
-
-    try {
-      // Re-authentication is required for sensitive operations like deleting an account.
-      // This is a security measure. We will just sign them in again.
-      const userCredential = await signInWithEmailAndPassword(auth, form.getValues('email'), form.getValues('password'));
-      const user = userCredential.user;
-
-      const batch = writeBatch(firestore);
-      
-      // Firestore documents to delete
-      const userProfileRef = doc(firestore, 'userProfiles', user.uid);
-      const adminRef = doc(firestore, 'admins', user.uid);
-      
-      batch.delete(userProfileRef);
-      batch.delete(adminRef);
-
-      await batch.commit();
-      
-      // Then delete the auth user
-      await deleteUser(user);
-      
-      toast({
-        title: 'Admin Account Deleted',
-        description: 'You can now sign up again with the same email.',
-      });
-      // A full page reload is better here to ensure all state is cleared
-      router.push('/signup');
-
-    } catch (error: any) {
-       let description = error.message || 'Could not delete account.';
-       if (error.code === 'auth/invalid-credential') {
-          description = "Invalid password. Please enter your current password to confirm deletion.";
-       }
-       toast({
-        variant: 'destructive',
-        title: 'Deletion Failed',
-        description: description,
-      });
-      console.error("Deletion error:", error);
-    }
-  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     signInWithEmailAndPassword(auth, values.email, values.password)
@@ -136,10 +74,9 @@ export default function AdminLoginPage() {
             title: 'Admin Login Successful!',
             description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
           });
-          router.push('/dashboard/seller'); // Redirect to a default admin dashboard later
+          router.push('/dashboard/seller'); 
 
         } catch (error) {
-           // This catch block specifically handles the getDoc permission error
             const permissionError = new FirestorePermissionError({
               path: adminDocRef.path,
               operation: 'get',
@@ -153,10 +90,6 @@ export default function AdminLoginPage() {
 
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           description = 'Invalid email or password.';
-          // Special handling for the admin user to guide them
-          if (values.email === 'admin@moneygo.com') {
-             description += " If you've forgotten your password, use the link below to delete and re-register your admin account."
-          }
         }
         
         toast({
@@ -190,7 +123,7 @@ export default function AdminLoginPage() {
                     <FormItem>
                       <FormLabel>Admin Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@moneygo.com" {...field} />
+                        <Input type="email" placeholder="admin@moneygod.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -215,15 +148,9 @@ export default function AdminLoginPage() {
                   {form.formState.isSubmitting ? 'Authenticating...' : 'Secure Login'}
                 </Button>
                 
-                <Button variant="link" className="text-destructive" onClick={handleDeleteAccount} type="button">
-                    Can't log in? Delete admin account to re-register.
-                </Button>
-                
-                 {!currentUser && (
-                    <p className="text-sm text-center text-muted-foreground">
-                        Not an admin? <Link href="/login" className="text-primary hover:underline">Go to regular login.</Link>
-                    </p>
-                )}
+                <p className="text-sm text-center text-muted-foreground">
+                    Not an admin? <Link href="/login" className="text-primary hover:underline">Go to regular login.</Link>
+                </p>
               </CardFooter>
             </form>
           </Form>
