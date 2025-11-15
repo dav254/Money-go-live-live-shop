@@ -132,7 +132,7 @@ export function SellerSidebarNav() {
                 </Link>
             </SidebarMenuButton>
         </SidebarMenuItem>
-         <SidebarMenuItem>
+        <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Package />} label="Orders" defaultOpen={isActive('/dashboard/seller/orders')}>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/orders" isActive={isActive('/dashboard/seller/orders')}>New Orders</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shipping / Delivery</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -198,7 +198,7 @@ export function SellerSidebarNav() {
         <SidebarMenu>
             <SidebarMenuItem>
                 <SidebarCollapsibleItem icon={<Sparkles />} label="AI Tools">
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add" isActive={isActive('/dashboard/products/add')}>AI Description Writer</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products" isActive={isActive('/dashboard/products')}>AI Description Writer</SidebarMenuSubButton></SidebarMenuSubItem>
                     <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Image Enhancer</SidebarMenuSubButton></SidebarMenuSubItem>
                     <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Pricing Advisor</SidebarMenuSubButton></SidebarMenuSubItem>
                     <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Keyword Suggestion</SidebarMenuSubButton></SidebarMenuSubItem>
