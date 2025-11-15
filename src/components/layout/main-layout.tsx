@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -32,7 +30,7 @@ function UserNav() {
         title: "Signed Out",
         description: "You have been successfully signed out.",
       });
-      router.push('/');
+      router.push('/login');
     } catch (error) {
       console.error("Sign out error", error);
       toast({
