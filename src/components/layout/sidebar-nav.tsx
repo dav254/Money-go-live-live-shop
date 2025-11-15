@@ -225,7 +225,7 @@ export function ResellerSidebarNav() {
       <SidebarGroupLabel>Reseller Hub</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit')}>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit') && !isActive('/dashboard/reseller/commissions')}>
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
@@ -249,8 +249,8 @@ export function ResellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/earnings')}>
-            <Link href="#">
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/commissions')}>
+            <Link href="/dashboard/reseller/commissions">
               <Banknote />
               <span>Commissions</span>
             </Link>
