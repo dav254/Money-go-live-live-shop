@@ -30,29 +30,69 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import Link from 'next/link';
+import { useAuth } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+  username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
   role: z.enum(['buyer', 'seller', 'reseller'], { required_error: 'You must select a role.' }),
 });
 
 export default function SignupPage() {
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       fullName: '',
+      username: '',
       email: '',
       password: '',
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // This is where you would call your backend to create a user.
-    // For now, we'll just log the values to the console.
-    console.log('Form submitted:', values);
-    // You could show a success toast here
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      const userProfile = {
+        id: user.uid,
+        fullName: values.fullName,
+        username: values.username,
+        email: values.email,
+        joinDate: new Date().toISOString(),
+        userRole: values.role,
+      };
+
+      const userDocRef = doc(firestore, "userProfiles", user.uid);
+      setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+
+
+      toast({
+        title: 'Account Created!',
+        description: "You've successfully signed up.",
+      });
+      router.push('/');
+    } catch (error: any) {
+      console.error('Signup Error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
+        description: error.message || 'Could not create your account.',
+      });
+    }
   }
 
   return (
@@ -74,6 +114,19 @@ export default function SignupPage() {
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
                         <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input placeholder="johndoe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
