@@ -79,8 +79,8 @@ export function SellerSidebarNav() {
             </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild>
-            <Link href="#">
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}>
+            <Link href="/dashboard/seller/wishlist">
               <Heart />
               <span>Wishlist</span>
             </Link>
