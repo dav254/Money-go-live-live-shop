@@ -159,8 +159,8 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Video />} label="Live Selling">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Start Live Selling</SidebarMenuSubButton></SidebarMenuSubItem>
+             <SidebarCollapsibleItem icon={<Video />} label="Live Selling" isActive={isActive('/dashboard/live')}>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/live/start" isActive={isActive('/dashboard/live/start')}>Start Live Selling</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Upload New Video</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Schedule Live Session</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Button Config</SidebarMenuSubButton></SidebarMenuSubItem>
