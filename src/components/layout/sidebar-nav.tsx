@@ -187,14 +187,12 @@ export function SellerSidebarNav() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Settings />} label="Shop Settings">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Profile</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Business Location</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Contact & WhatsApp</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Theme Customization</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Security & 2FA</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Policies</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
+          <SidebarMenuButton asChild>
+            <Link href="#">
+              <Settings />
+              <span>Shop Settings</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/help')}>
