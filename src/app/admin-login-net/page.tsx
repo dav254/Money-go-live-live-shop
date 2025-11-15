@@ -52,42 +52,63 @@ export default function AdminLoginPage() {
   });
 
   const handleDeleteAccount = async () => {
-    if (currentUser && currentUser.email === 'admin@moneygo.com') {
-      try {
-        const batch = writeBatch(firestore);
-        
-        // Firestore documents to delete
-        const userProfileRef = doc(firestore, 'userProfiles', currentUser.uid);
-        const adminRef = doc(firestore, 'admins', currentUser.uid);
-        
-        batch.delete(userProfileRef);
-        batch.delete(adminRef);
+    if (!currentUser) {
+       toast({
+        variant: 'destructive',
+        title: 'Not Logged In',
+        description: 'You must be logged in to perform this action.',
+      });
+      return;
+    }
+    
+    // We can only delete the special admin user this way
+    if (currentUser.email !== 'admin@moneygo.com') {
+      toast({
+        variant: 'destructive',
+        title: 'Action Not Allowed',
+        description: 'This function is reserved for admin account management.',
+      });
+      return;
+    }
 
-        await batch.commit();
-        
-        // Then delete the auth user
-        await deleteUser(currentUser);
-        
-        toast({
-          title: 'Account Deleted',
-          description: 'You can now sign up again with the same email.',
-        });
-        // A full page reload is better here to ensure all state is cleared
-        window.location.href = '/signup';
-      } catch (error: any) {
-         toast({
-          variant: 'destructive',
-          title: 'Deletion Failed',
-          description: error.message || 'Could not delete account. Please try logging in again to re-authenticate before deleting.',
-        });
-        console.error("Deletion error:", error);
-      }
-    } else {
-        toast({
-            variant: 'destructive',
-            title: 'Not Logged In',
-            description: 'You must be logged in as the admin user to perform this action.',
-        });
+    try {
+      // Re-authentication is required for sensitive operations like deleting an account.
+      // This is a security measure. We will just sign them in again.
+      const userCredential = await signInWithEmailAndPassword(auth, form.getValues('email'), form.getValues('password'));
+      const user = userCredential.user;
+
+      const batch = writeBatch(firestore);
+      
+      // Firestore documents to delete
+      const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+      const adminRef = doc(firestore, 'admins', user.uid);
+      
+      batch.delete(userProfileRef);
+      batch.delete(adminRef);
+
+      await batch.commit();
+      
+      // Then delete the auth user
+      await deleteUser(user);
+      
+      toast({
+        title: 'Admin Account Deleted',
+        description: 'You can now sign up again with the same email.',
+      });
+      // A full page reload is better here to ensure all state is cleared
+      router.push('/signup');
+
+    } catch (error: any) {
+       let description = error.message || 'Could not delete account.';
+       if (error.code === 'auth/invalid-credential') {
+          description = "Invalid password. Please enter your current password to confirm deletion.";
+       }
+       toast({
+        variant: 'destructive',
+        title: 'Deletion Failed',
+        description: description,
+      });
+      console.error("Deletion error:", error);
     }
   };
 
@@ -129,8 +150,13 @@ export default function AdminLoginPage() {
       .catch((error: any) => {
         console.error('Admin Login Error:', error);
         let description = 'Could not sign you in. Please try again.';
+
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           description = 'Invalid email or password.';
+          // Special handling for the admin user to guide them
+          if (values.email === 'admin@moneygo.com') {
+             description += " If you've forgotten your password, use the link below to delete and re-register your admin account."
+          }
         }
         
         toast({
@@ -152,7 +178,7 @@ export default function AdminLoginPage() {
                 </div>
             </div>
             <CardTitle className="font-headline text-2xl">Admin Access</CardTitle>
-            <CardDescription>This area is restricted to authorized personnel only.</CardDescription>
+            <CardDescription>Enter your admin credentials to continue.</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -177,7 +203,7 @@ export default function AdminLoginPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input type="password" placeholder="Enter your password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -188,14 +214,14 @@ export default function AdminLoginPage() {
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? 'Authenticating...' : 'Secure Login'}
                 </Button>
-                 {currentUser && currentUser.email === 'admin@moneygo.com' && (
-                  <Button variant="link" className="text-destructive" onClick={handleDeleteAccount} type="button">
-                    Account issue? Delete and re-register admin.
-                  </Button>
-                )}
+                
+                <Button variant="link" className="text-destructive" onClick={handleDeleteAccount} type="button">
+                    Can't log in? Delete admin account to re-register.
+                </Button>
+                
                  {!currentUser && (
                     <p className="text-sm text-center text-muted-foreground">
-                        Forgot password? <Link href="/signup" className="text-primary hover:underline">Re-register here.</Link>
+                        Not an admin? <Link href="/login" className="text-primary hover:underline">Go to regular login.</Link>
                     </p>
                 )}
               </CardFooter>
