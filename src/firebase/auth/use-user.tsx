@@ -18,35 +18,36 @@ export interface UserHookResult {
  */
 export const useUser = (): UserHookResult => {
   const auth = useAuth();
-  const [userState, setUserState] = useState<UserHookResult>({
-    user: auth.currentUser, // Initialize with the current user, if any
-    isLoading: !auth.currentUser, // If no user, we are likely loading
-    error: null,
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     // If there's no auth instance, we can't do anything.
     if (!auth) {
-      setUserState({ user: null, isLoading: false, error: new Error("Auth service not available.") });
+      setUser(null);
+      setIsLoading(false);
+      setError(new Error("Auth service not available."));
       return;
     }
-
-    // Set initial loading state
-    setUserState({ user: auth.currentUser, isLoading: true, error: null });
 
     const unsubscribe = onAuthStateChanged(
       auth,
       (user) => {
-        setUserState({ user, isLoading: false, error: null });
+        setUser(user);
+        setIsLoading(false);
+        setError(null);
       },
       (error) => {
         console.error("useUser: onAuthStateChanged error:", error);
-        setUserState({ user: null, isLoading: false, error });
+        setUser(null);
+        setIsLoading(false);
+        setError(error);
       }
     );
 
     return () => unsubscribe();
   }, [auth]);
 
-  return userState;
+  return { user, isLoading, error };
 };
