@@ -47,30 +47,6 @@ export function BuyerSidebarNav() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={isActive('/')}>
-          <Link href="/">
-            <Home />
-            <span>Home</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={isActive('/categories')}>
-          <Link href="/categories">
-            <LayoutGrid />
-            <span>Categories</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={isActive('/messages')}>
-          <Link href="/messages">
-            <MessageSquare />
-            <span>Messages</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      <SidebarMenuItem>
         <SidebarMenuButton asChild>
           <Link href="#">
             <Heart />
