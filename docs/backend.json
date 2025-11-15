@@ -1,0 +1,524 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile on the MoneyGo platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile."
+        },
+        "username": {
+          "type": "string",
+          "description": "The user's username."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "profilePictureUrl": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "bio": {
+          "type": "string",
+          "description": "A short biography of the user."
+        },
+        "location": {
+          "type": "string",
+          "description": "The user's location."
+        },
+        "joinDate": {
+          "type": "string",
+          "description": "Date when the user joined the platform.",
+          "format": "date-time"
+        },
+        "userRole": {
+          "type": "string",
+          "description": "The role of the user (e.g., buyer, seller, admin)."
+        },
+        "socialLinks": {
+          "type": "array",
+          "description": "array of social links",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "fullName",
+        "joinDate",
+        "userRole"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product listed for sale on the MoneyGo platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the product."
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the seller who listed the product. (Relationship: UserProfile 1:N Product)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the product. "
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the product."
+        },
+        "wasPrice": {
+          "type": "number",
+          "description": "The original price of the product."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category the product belongs to."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the product's image.",
+          "format": "uri"
+        },
+        "videoUrl": {
+          "type": "string",
+          "description": "URL of the product's video (optional).",
+          "format": "uri"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date when the product was uploaded.",
+          "format": "date-time"
+        },
+        "location": {
+          "type": "string",
+          "description": "location of product"
+        }
+      },
+      "required": [
+        "id",
+        "sellerId",
+        "name",
+        "description",
+        "price",
+        "category",
+        "imageUrl",
+        "uploadDate"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order placed by a buyer on the MoneyGo platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "buyerId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the buyer who placed the order. (Relationship: UserProfile 1:N Order)"
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the seller who is fulfilling the order. (Relationship: UserProfile 1:N Order)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. The ID of the product that was ordered. (Relationship: Product 1:N Order)"
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "Date when the order was placed.",
+          "format": "date-time"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount of the order."
+        },
+        "shippingAddress": {
+          "type": "string",
+          "description": "The shipping address for the order."
+        },
+        "orderStatus": {
+          "type": "string",
+          "description": "The current status of the order (e.g., pending, shipped, delivered)."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "payment method used to place order"
+        }
+      },
+      "required": [
+        "id",
+        "buyerId",
+        "sellerId",
+        "productId",
+        "orderDate",
+        "totalAmount",
+        "shippingAddress",
+        "orderStatus"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment transaction on the MoneyGo platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the payment."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. The ID of the order associated with this payment. (Relationship: Order 1:1 Payment)"
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Date when the payment was made.",
+          "format": "date-time"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "The method used for the payment (e.g., M-Pesa, PayPal, Card)."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the payment."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The status of the payment (e.g., pending, completed, failed)."
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "paymentDate",
+        "paymentMethod",
+        "amount",
+        "paymentStatus"
+      ]
+    },
+    "AIProductDescription": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AIProductDescription",
+      "type": "object",
+      "description": "Represents an AI-generated product description.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AI-generated description."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. The ID of the product the description is for. (Relationship: Product 1:1 AIProductDescription)"
+        },
+        "description": {
+          "type": "string",
+          "description": "The AI-generated description text."
+        },
+        "generationDate": {
+          "type": "string",
+          "description": "Date when the description was generated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "productId",
+        "description",
+        "generationDate"
+      ]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a product category.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the category."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the category."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the category."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the category image.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description"
+      ]
+    },
+    "SellerShop": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SellerShop",
+      "type": "object",
+      "description": "Represents a seller's shop on the MoneyGo platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the seller's shop."
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the seller who owns the shop. (Relationship: UserProfile 1:1 SellerShop)"
+        },
+        "shopName": {
+          "type": "string",
+          "description": "The name of the seller's shop."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the seller's shop."
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL of the shop's logo.",
+          "format": "uri"
+        },
+        "bannerUrl": {
+          "type": "string",
+          "description": "URL of the shop's banner image.",
+          "format": "uri"
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the seller's shop."
+        },
+        "contactEmail": {
+          "type": "string",
+          "description": "contact email for the seller"
+        },
+        "contactWhatsapp": {
+          "type": "string",
+          "description": "contact whatsapp number for the seller"
+        }
+      },
+      "required": [
+        "id",
+        "sellerId",
+        "shopName",
+        "description"
+      ]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Represents a single message exchanged between a buyer and seller.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the message."
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the user who sent the message. (Relationship: UserProfile 1:N ChatMessage)"
+        },
+        "receiverId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the user who received the message. (Relationship: UserProfile 1:N ChatMessage)"
+        },
+        "messageText": {
+          "type": "string",
+          "description": "The text content of the message."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Date and time when the message was sent.",
+          "format": "date-time"
+        },
+        "readStatus": {
+          "type": "boolean",
+          "description": "Indicates whether the message has been read by the receiver."
+        }
+      },
+      "required": [
+        "id",
+        "senderId",
+        "receiverId",
+        "messageText",
+        "timestamp",
+        "readStatus"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information.  The userId is the firebase auth uid.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information, including the sellerId for authorization.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "The unique identifier for the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores order information, including buyerId, sellerId, and productId for relationship mapping.",
+          "params": [
+            {
+              "name": "orderId",
+              "description": "The unique identifier for the order."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/payments/{paymentId}",
+        "definition": {
+          "entityName": "Payment",
+          "schema": {
+            "$ref": "#/backend/entities/Payment"
+          },
+          "description": "Stores payment information, linked to the orderId.",
+          "params": [
+            {
+              "name": "paymentId",
+              "description": "The unique identifier for the payment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/aiProductDescriptions/{aiProductDescriptionId}",
+        "definition": {
+          "entityName": "AIProductDescription",
+          "schema": {
+            "$ref": "#/backend/entities/AIProductDescription"
+          },
+          "description": "Stores AI-generated product descriptions, linked to the productId.",
+          "params": [
+            {
+              "name": "aiProductDescriptionId",
+              "description": "The unique identifier for the AI-generated description."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Stores product category information.",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "The unique identifier for the category."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sellerShops/{sellerShopId}",
+        "definition": {
+          "entityName": "SellerShop",
+          "schema": {
+            "$ref": "#/backend/entities/SellerShop"
+          },
+          "description": "Stores seller shop information, linked to the sellerId (UserProfile).",
+          "params": [
+            {
+              "name": "sellerShopId",
+              "description": "The unique identifier for the seller's shop."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/chatMessages/{chatMessageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": {
+            "$ref": "#/backend/entities/ChatMessage"
+          },
+          "description": "Stores chat messages between buyers and sellers, indexed by senderId and receiverId.",
+          "params": [
+            {
+              "name": "chatMessageId",
+              "description": "The unique identifier for the chat message."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support MoneyGo's core features, including user profiles, product listings, orders, and payments. It prioritizes authorization independence and efficient data retrieval while maintaining security.  Each user has a dedicated profile document within the `userProfiles` collection. Products are stored in a `products` collection, and each product document includes the `sellerId` for easy association with the seller's profile. Orders are stored in the `orders` collection, and each order document includes `buyerId`, `sellerId`, and `productId` for relationship mapping. Payments are stored in the `payments` collection, linked to the `orderId`. AI-generated descriptions are linked to the products via the `aiProductDescriptions` collection. Categories are managed in a `categories` collection, and seller shops are linked to user profiles via the `sellerShops` collection. Chat messages between buyers and sellers are stored in a `chatMessages` collection, indexed by sender and receiver IDs.  This structure achieves Authorization Independence by embedding authorization context directly into the documents, eliminating the need for `get()` calls in security rules. For instance, product documents include the `sellerId`, enabling direct access control based on user ID. It also supports QAPs through structural segregation, ensuring that data with different access needs are stored in separate collections. The use of path-based ownership (`/users/{userId}/...`) for private data ensures secure listing operations. The membership model is implemented implicitly through the relationships between users and their products, orders, and shops, enabling efficient access control based on these relationships."
+  }
+}
