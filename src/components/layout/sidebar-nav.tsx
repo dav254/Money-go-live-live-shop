@@ -23,15 +23,17 @@ import {
   ShoppingBag,
   AreaChart,
   Package,
-  MessageCircleIcon,
   Video,
   Banknote,
-  Megaphone,
   Store,
   HelpCircle,
   Sparkles,
   Waypoints,
   Bell,
+  Search,
+  Link2,
+  DollarSign,
+  Share2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -145,7 +147,7 @@ export function SellerSidebarNav() {
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/messages')}>
             <Link href="/messages">
-              <MessageCircleIcon />
+              <MessageSquare />
               <span>Messages</span>
             </Link>
           </SidebarMenuButton>
@@ -175,16 +177,6 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Megaphone />} label="Marketing Tools">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Promote Product</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Target by Location</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Target by Interests</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Share to Socials</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Poster Creator</SidebarMenuSubButton></SidebarMenuSubItem>
-                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Add Music to Video</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Settings />} label="Shop Settings">
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shop Profile</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Business Location</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -203,22 +195,15 @@ export function SellerSidebarNav() {
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
       </SidebarMenu>
-       <SidebarGroupLabel className="mt-4">Power Features</SidebarGroupLabel>
+       <SidebarGroupLabel className="mt-4">Reseller Center</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem>
-                <SidebarCollapsibleItem icon={<Sparkles />} label="AI Tools" isActive={isActive('/dashboard/products')}>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products" isActive={isActive('/dashboard/products')}>AI Description Writer</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Image Enhancer</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Pricing Advisor</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Keyword Suggestion</SidebarMenuSubButton></SidebarMenuSubItem>
-                </SidebarCollapsibleItem>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <SidebarCollapsibleItem icon={<Waypoints />} label="Advanced Shop">
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">Inventory Auto-Tracker</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">GPS Delivery Tracking</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">Instant Flash Sales</SidebarMenuSubButton></SidebarMenuSubItem>
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="#">Bundle Creator</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarCollapsibleItem icon={<Waypoints />} label="Reseller Hub" isActive={isActive('/dashboard/reseller')} defaultOpen>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/find-products" isActive={isActive('/dashboard/reseller/find-products')}><Search className="mr-2 h-3.5 w-3.5" />Find Products</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/promotions" isActive={isActive('/dashboard/reseller/promotions')}><Link2 className="mr-2 h-3.5 w-3.5" />My Promotions</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/commissions" isActive={isActive('/dashboard/reseller/commissions')}><DollarSign className="mr-2 h-3.5 w-3.5" />My Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/tools" isActive={isActive('/dashboard/reseller/tools')}><Sparkles className="mr-2 h-3.5 w-3.5" />Promo Tools</SidebarMenuSubButton></SidebarMenuSubItem>
+                     <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/reseller/share" isActive={isActive('/dashboard/reseller/share')}><Share2 className="mr-2 h-3.5 w-3.5" />Share Center</SidebarMenuSubButton></SidebarMenuSubItem>
                 </SidebarCollapsibleItem>
             </SidebarMenuItem>
         </SidebarMenu>
