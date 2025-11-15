@@ -1,4 +1,4 @@
-import { MainLayout } from '@/components/layout/main-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -84,7 +84,7 @@ const OrderCard = ({ order }: { order: typeof orders[0] }) => (
 
 export default function MyOrdersPage() {
   return (
-    <MainLayout>
+    <BuyerLayout>
       <div className="container mx-auto max-w-7xl py-8">
         <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
         <Tabs defaultValue="all">
@@ -116,6 +116,6 @@ export default function MyOrdersPage() {
 
         </Tabs>
       </div>
-    </MainLayout>
+    </BuyerLayout>
   );
 }

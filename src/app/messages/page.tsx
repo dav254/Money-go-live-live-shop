@@ -1,7 +1,7 @@
 
 'use client';
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -92,7 +92,7 @@ export default function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState(conversations[0]);
 
   return (
-    <MainLayout>
+    <BuyerLayout>
       <div className="flex h-[calc(100vh-4rem)] border-t">
         {/* Left Side: Conversation List */}
         <div className="hidden h-full w-full max-w-xs flex-col border-r bg-muted/20 md:flex">
@@ -195,6 +195,6 @@ export default function MessagesPage() {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </BuyerLayout>
   );
 }

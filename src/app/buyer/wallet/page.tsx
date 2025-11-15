@@ -1,4 +1,4 @@
-import { MainLayout } from '@/components/layout/main-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +25,7 @@ const paymentMethods = [
 
 export default function BuyerWalletPage() {
   return (
-    <MainLayout>
+    <BuyerLayout>
       <div className="container mx-auto max-w-7xl py-8">
         <h1 className="font-headline text-3xl font-bold mb-8">Wallet & Payments</h1>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -125,6 +125,6 @@ export default function BuyerWalletPage() {
             </div>
         </div>
       </div>
-    </MainLayout>
+    </BuyerLayout>
   );
 }

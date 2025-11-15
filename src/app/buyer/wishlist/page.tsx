@@ -1,4 +1,4 @@
-import { MainLayout } from '@/components/layout/main-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { ProductCard } from '@/components/seller/product-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ const favoriteShops = [sellers[0], sellers[1]];
 
 export default function BuyerWishlistPage() {
   return (
-    <MainLayout>
+    <BuyerLayout>
       <div className="container mx-auto max-w-7xl py-8">
         <h1 className="font-headline text-3xl font-bold mb-8">My Wishlist</h1>
         <Tabs defaultValue="products">
@@ -64,6 +64,6 @@ export default function BuyerWishlistPage() {
 
         </Tabs>
       </div>
-    </MainLayout>
+    </BuyerLayout>
   );
 }
