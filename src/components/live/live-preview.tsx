@@ -22,80 +22,6 @@ const sampleComments = [{
     id: 2, user: 'Amina', text: 'How much for delivery to CBD?',
 }];
 
-function LiveHeader() {
-  const { user, isUserLoading } = useUser();
-  const auth = getAuth();
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      toast({
-        title: "Signed Out",
-        description: "You have been successfully signed out.",
-      });
-      router.push('/');
-    } catch (error) {
-      console.error("Sign out error", error);
-      toast({
-        variant: "destructive",
-        title: "Error signing out",
-        description: "There was a problem signing you out. Please try again.",
-      });
-    }
-  };
-
-  return (
-     <header className="w-full flex items-center justify-between p-3 border-b border-border/20 bg-background/80 fixed top-0 z-40 backdrop-blur-sm">
-        <div className="flex items-center gap-4">
-          <Logo className="h-7 w-auto text-primary" />
-          <nav className="hidden sm:flex gap-4 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground">Home</Link>
-            <Link href="/" className="hover:text-foreground">Live</Link>
-            <Link href="/categories" className="hover:text-foreground">Categories</Link>
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          {isUserLoading ? (
-             <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
-          ) : !user ? (
-            <>
-              <Button variant="ghost" size="sm" asChild><Link href="/login">Login</Link></Button>
-              <Button size="sm" asChild><Link href="/signup">Sign Up</Link></Button>
-            </>
-          ) : (
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || ''} />
-                      <AvatarFallback>
-                          <User />
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-          )}
-        </div>
-      </header>
-  )
-}
 
 export function LivePreview() {
   const [showProduct, setShowProduct] = useState(false);
@@ -135,11 +61,10 @@ export function LivePreview() {
 
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-body">
-      <LiveHeader />
+    <div className="h-full bg-background text-foreground font-body">
 
       {/* Main live area */}
-      <main className="pt-14 h-screen flex items-stretch">
+      <main className="h-full flex items-stretch">
         <div className="relative w-full h-full">
           {/* Video / Placeholder */}
           <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden">
@@ -153,7 +78,7 @@ export function LivePreview() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
             {/* Top-left seller info */}
-            <div className="absolute left-4 top-16 md:top-20 flex items-center gap-3 bg-black/40 p-2 rounded-xl backdrop-blur-sm">
+            <div className="absolute left-4 top-4 md:top-4 flex items-center gap-3 bg-black/40 p-2 rounded-xl backdrop-blur-sm z-30">
               <Avatar className="h-10 w-10 border-2 border-white">
                 <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} data-ai-hint={seller.avatar.imageHint} />
                 <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
