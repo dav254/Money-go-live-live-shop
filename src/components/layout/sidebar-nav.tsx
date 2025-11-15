@@ -153,7 +153,7 @@ export function SellerSidebarNav() {
              <SidebarCollapsibleItem icon={<ShoppingBag />} label="Products / Shop">
                 <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add">Add Product</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="/sellers/seller-1">My Products</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Categories</SidebarMenuSubButton></SidebarMenuSubAtem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Categories</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Discounts & Offers</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Product Media</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
@@ -207,7 +207,7 @@ export function SellerSidebarNav() {
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Business Location</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Contact & WhatsApp</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Theme Customization</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Security & 2FA</SidebarMenuDutton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Security & 2FA</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Policies</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
@@ -265,5 +265,3 @@ export function AccountSidebarNav() {
     </SidebarMenu>
   );
 }
-
-    
