@@ -65,9 +65,11 @@ export default function LoginPage() {
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data();
         if (userProfile.userRole === 'seller') {
-          router.push('/dashboard/seller'); // Redirect sellers to their dashboard
+          router.push('/dashboard/seller');
+        } else if (userProfile.userRole === 'reseller') {
+          router.push('/dashboard/reseller');
         } else {
-          router.push('/'); // Redirect other roles to homepage
+          router.push('/');
         }
       } else {
         console.warn("No user profile found for UID:", user.uid);
