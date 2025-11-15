@@ -187,8 +187,8 @@ export function SellerSidebarNav() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-          <SidebarMenuButton asChild>
-            <Link href="#">
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/settings')}>
+            <Link href="/dashboard/seller/settings">
               <Settings />
               <span>Shop Settings</span>
             </Link>
