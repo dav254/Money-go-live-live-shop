@@ -24,6 +24,7 @@ import {
   MessageSquare,
   ChevronDown,
   Home,
+  LayoutGrid,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -38,23 +39,22 @@ import { useState } from 'react';
 
 export function BuyerSidebarNav() {
   const pathname = usePathname();
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname.startsWith(path);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
-  const [isHomeOpen, setIsHomeOpen] = useState(false);
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/buyer/dashboard')}>
-                <Link href="/buyer/dashboard">
-                    <Home />
-                    <span>Home</span>
-                </Link>
-            </SidebarMenuButton>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/dashboard')}>
+            <Link href="/buyer/dashboard">
+              <Home />
+              <span>Home</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/messages')}>
@@ -70,7 +70,7 @@ export function BuyerSidebarNav() {
             <CollapsibleTrigger asChild>
               <SidebarMenuButton
                 className="w-full"
-                isActive={pathname.startsWith('/orders')}
+                isActive={isActive('/buyer/my-orders')}
               >
                 <Package />
                 <span>My Orders</span>
@@ -87,9 +87,9 @@ export function BuyerSidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive('/orders/current')}
+                    isActive={isActive('/buyer/my-orders')}
                   >
-                    <Link href="#">
+                    <Link href="/buyer/my-orders">
                       <span>Current Orders</span>
                     </Link>
                   </SidebarMenuButton>
@@ -97,20 +97,10 @@ export function BuyerSidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive('/orders/delivered')}
+                    isActive={isActive('/buyer/my-orders/delivered')}
                   >
-                    <Link href="#">
+                    <Link href="/buyer/my-orders">
                       <span>Delivered</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/orders/returns')}
-                  >
-                    <Link href="#">
-                      <span>Returns & Refunds</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -128,7 +118,7 @@ export function BuyerSidebarNav() {
             <CollapsibleTrigger asChild>
               <SidebarMenuButton
                 className="w-full"
-                isActive={pathname.startsWith('/wishlist')}
+                isActive={isActive('/buyer/wishlist')}
               >
                 <Heart />
                 <span>Wishlist</span>
@@ -145,9 +135,9 @@ export function BuyerSidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive('/wishlist/products')}
+                    isActive={isActive('/buyer/wishlist')}
                   >
-                    <Link href="#">
+                    <Link href="/buyer/wishlist">
                       <span>My Wishlist</span>
                     </Link>
                   </SidebarMenuButton>
@@ -155,9 +145,9 @@ export function BuyerSidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive('/wishlist/shops')}
+                    isActive={isActive('/buyer/wishlist/shops')}
                   >
-                    <Link href="#">
+                    <Link href="/buyer/wishlist">
                       <span>Saved Shops</span>
                     </Link>
                   </SidebarMenuButton>
@@ -172,7 +162,7 @@ export function BuyerSidebarNav() {
             <CollapsibleTrigger asChild>
               <SidebarMenuButton
                 className="w-full"
-                isActive={pathname.startsWith('/wallet')}
+                isActive={isActive('/buyer/wallet')}
               >
                 <Wallet />
                 <span>Wallet</span>
@@ -189,9 +179,9 @@ export function BuyerSidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive('/wallet/balance')}
+                    isActive={isActive('/buyer/wallet')}
                   >
-                    <Link href="#">
+                    <Link href="/buyer/wallet">
                       <span>Balance</span>
                     </Link>
                   </SidebarMenuButton>
@@ -199,9 +189,9 @@ export function BuyerSidebarNav() {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={isActive('/wallet/transactions')}
+                    isActive={isActive('/buyer/wallet/transactions')}
                   >
-                    <Link href="#">
+                    <Link href="/buyer/wallet">
                       <span>History</span>
                     </Link>
                   </SidebarMenuButton>
@@ -276,7 +266,7 @@ export function SellerSidebarNav() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-         <SidebarMenuItem>
+        <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}>
             <Link href="/dashboard/seller/wishlist">
               <Heart />
