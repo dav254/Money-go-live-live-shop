@@ -1,3 +1,4 @@
+
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,9 +23,9 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
       </div>
-      <div className="relative -mt-16 px-4 md:px-8">
+      <div className="relative -mt-12 px-4 md:px-8">
         <div className="flex flex-col items-center text-center md:flex-row md:items-end md:text-left">
-          <Avatar className="h-24 w-24 border-4 border-background md:h-32 md:w-32">
+          <Avatar className="h-20 w-20 border-4 border-background md:h-28 md:w-28">
             <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} data-ai-hint={seller.avatar.imageHint} />
             <AvatarFallback>{seller.name.slice(0, 2)}</AvatarFallback>
           </Avatar>

@@ -92,7 +92,7 @@ export default function BuyerDashboardPage() {
               {products.slice(0, 5).map((product) => (
                 <CarouselItem
                   key={product.id}
-                  className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                  className="md:basis-1/2 lg:basis-1/4 xl:basis-1/5"
                 >
                   <div className="p-1">
                     <ProductCard product={product} />
@@ -113,7 +113,7 @@ export default function BuyerDashboardPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {sellers.map((seller) => (
               <Link href="#" key={seller.id}>
-                <Card className="group relative h-64 overflow-hidden">
+                <Card className="group relative h-52 overflow-hidden">
                   <Image
                     src={seller.banner.imageUrl}
                     alt={seller.name}

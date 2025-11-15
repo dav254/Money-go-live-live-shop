@@ -117,7 +117,7 @@ export default function MessagesPage() {
                     selectedConversation.id === convo.id && 'bg-accent'
                   )}
                 >
-                  <Avatar className="h-10 w-10 border">
+                  <Avatar className="h-8 w-8 border">
                     <AvatarImage src={convo.avatar} alt={convo.name} />
                     <AvatarFallback>{convo.name.charAt(0)}</AvatarFallback>
                   </Avatar>
@@ -144,7 +144,7 @@ export default function MessagesPage() {
           {/* Chat Header */}
           <div className="flex items-center justify-between border-b p-3">
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 border">
+              <Avatar className="h-8 w-8 border">
                 <AvatarImage src={selectedConversation.avatar} alt={selectedConversation.name} />
                 <AvatarFallback>{selectedConversation.name.charAt(0)}</AvatarFallback>
               </Avatar>
