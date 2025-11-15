@@ -31,7 +31,7 @@ export function ResellerSidebar() {
       <SidebarGroupLabel>Reseller Hub</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit') && !isActive('/dashboard/reseller/commissions') && !isActive('/dashboard/reseller/wallet')}>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit') && !isActive('/dashboard/reseller/commissions') && !isActive('/dashboard/reseller/wallet') && !isActive('/dashboard/reseller/support')}>
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
@@ -70,19 +70,11 @@ export function ResellerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/academy')}>
-            <Link href="/dashboard/seller/help">
-              <BookOpen />
-              <span>MoneyGo Academy</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/help')}>
-            <Link href="/dashboard/seller/help">
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/support')}>
+            <Link href="/dashboard/reseller/support/help-center">
               <HelpCircle />
-              <span>Support</span>
+              <span>Support & Help</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
