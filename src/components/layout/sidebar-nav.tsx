@@ -31,6 +31,7 @@ import {
   HelpCircle,
   Sparkles,
   Waypoints,
+  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -88,9 +89,9 @@ export function BuyerSidebarNav() {
   );
 }
 
-function SidebarCollapsibleItem({ icon, label, children }: { icon: React.ReactNode, label: string, children: React.ReactNode }) {
+function SidebarCollapsibleItem({ icon, label, children, defaultOpen = false }: { icon: React.ReactNode, label: string, children: React.ReactNode, defaultOpen?: boolean }) {
     return (
-        <Collapsible>
+        <Collapsible defaultOpen={defaultOpen}>
             <CollapsibleTrigger asChild>
                  <Button variant="ghost" className="w-full justify-start gap-2 px-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:justify-center">
                     {icon}
@@ -116,25 +117,25 @@ export function SellerSidebarNav() {
       <SidebarGroupLabel>Seller Dashboard</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-             <SidebarMenuButton asChild isActive={isActive('/dashboard/seller')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller') && pathname === '/dashboard/seller'}>
                 <Link href="/dashboard/seller">
                     <AreaChart />
                     <span>Dashboard</span>
                 </Link>
-             </SidebarMenuButton>
+            </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<ShoppingBag />} label="Products / Shop">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add">Add Product</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/sellers/seller-1">My Products</SidebarMenuSubButton></SidebarMenuSubItem>
+             <SidebarCollapsibleItem icon={<ShoppingBag />} label="Products / Shop" defaultOpen={isActive('/dashboard/products')}>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add" isActive={isActive('/dashboard/products/add')}>Add Product</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/sellers/seller-1" isActive={isActive('/sellers/seller-1')}>My Products</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Categories</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Discounts & Offers</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Product Media</SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
          <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Package />} label="Orders">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/orders">New Orders</SidebarMenuSubButton></SidebarMenuSubItem>
+             <SidebarCollapsibleItem icon={<Package />} label="Orders" defaultOpen={isActive('/dashboard/seller/orders')}>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/orders" isActive={isActive('/dashboard/seller/orders')}>New Orders</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Shipping / Delivery</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Completed</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Cancelled/Returned</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -158,8 +159,8 @@ export function SellerSidebarNav() {
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
          <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Banknote />} label="Finances">
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/earnings">Sales & Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
+             <SidebarCollapsibleItem icon={<Banknote />} label="Finances" defaultOpen={isActive('/dashboard/seller/earnings')}>
+                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/earnings" isActive={isActive('/dashboard/seller/earnings')}>Sales & Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Revenue Statements</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Tax & Invoice Center</SidebarMenuSubButton></SidebarMenuSubItem>
                 <SidebarMenuSubItem><SidebarMenuSubButton href="#">Payment Accounts</SidebarMenuSubButton></SidebarMenuSubItem>
@@ -198,7 +199,7 @@ export function SellerSidebarNav() {
         <SidebarMenu>
             <SidebarMenuItem>
                 <SidebarCollapsibleItem icon={<Sparkles />} label="AI Tools">
-                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add">AI Description Writer</SidebarMenuSubButton></SidebarMenuSubItem>
+                    <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/products/add" isActive={isActive('/dashboard/products/add')}>AI Description Writer</SidebarMenuSubButton></SidebarMenuSubItem>
                     <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Image Enhancer</SidebarMenuSubButton></SidebarMenuSubItem>
                     <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Pricing Advisor</SidebarMenuSubButton></SidebarMenuSubItem>
                     <SidebarMenuSubItem><SidebarMenuSubButton href="#">AI Keyword Suggestion</SidebarMenuSubButton></SidebarMenuSubItem>

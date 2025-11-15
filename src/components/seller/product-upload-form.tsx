@@ -1,0 +1,292 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import {
+  UploadCloud,
+  File,
+  X,
+  Plus,
+  GripVertical,
+  Pencil,
+  Trash2,
+  Sparkles,
+} from 'lucide-react';
+import Image from 'next/image';
+import { Progress } from '@/components/ui/progress';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
+
+const formSchema = z.object({
+  productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
+  category: z.string().min(1, { message: 'Please select a category.' }),
+  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+  salePrice: z.coerce.number().optional(),
+  stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
+  tags: z.string().optional(),
+  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+});
+
+export function ProductUploadForm() {
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [isUploading, setIsUploading] = useState(false);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      productName: '',
+      category: '',
+      price: 0,
+      stock: 0,
+      tags: '',
+      description: '',
+    },
+  });
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+      setFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFileRemove = (fileName: string) => {
+    setFiles((prev) => prev.filter((file) => file.name !== fileName));
+  };
+  
+  // Dummy upload function
+  const handleUpload = (values: z.infer<typeof formSchema>) => {
+    setIsUploading(true);
+    const newProgress: Record<string, number> = {};
+    files.forEach(file => {
+      newProgress[file.name] = 0;
+    });
+
+    setUploadProgress(newProgress);
+    
+    const timers = files.map(file => {
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          const currentProgress = prev[file.name] || 0;
+          if (currentProgress >= 100) {
+            clearInterval(interval);
+            return prev;
+          }
+          return { ...prev, [file.name]: currentProgress + 10 };
+        });
+      }, 200);
+      return interval;
+    });
+
+    setTimeout(() => {
+        timers.forEach(clearInterval);
+        setIsUploading(false);
+    }, 2500);
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleUpload)} className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">Add New Product</CardTitle>
+            <CardDescription>Upload media and fill in the details for your new product.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            {/* Media Upload Section */}
+            <div>
+              <FormLabel>Media (Images & Videos)</FormLabel>
+              <div className="mt-2 flex justify-center rounded-lg border border-dashed border-input px-6 py-10">
+                <div className="text-center">
+                  <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="mt-4 flex text-sm leading-6 text-gray-600">
+                    <label
+                      htmlFor="file-upload"
+                      className="relative cursor-pointer rounded-md bg-background font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
+                    >
+                      <span>Upload files</span>
+                      <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs leading-5 text-gray-500">PNG, JPG, GIF, MP4, MOV up to 50MB</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview Gallery Section */}
+            {files.length > 0 && (
+              <div className="space-y-4">
+                <FormLabel>Uploaded Media Preview</FormLabel>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {files.map((file) => (
+                    <div key={file.name} className="relative group aspect-square rounded-md overflow-hidden border">
+                      {file.type.startsWith('image/') ? (
+                        <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover" />
+                      ) : (
+                        <video src={URL.createObjectURL(file)} className="h-full w-full object-cover" />
+                      )}
+                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white"><Pencil size={16} /></Button>
+                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleFileRemove(file.name)}><Trash2 size={16} /></Button>
+                        </div>
+                      {uploadProgress[file.name] !== undefined && uploadProgress[file.name] < 100 && (
+                        <div className="absolute bottom-0 left-0 right-0 p-2">
+                           <Progress value={uploadProgress[file.name]} className="h-2" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Product Information Section */}
+            <div className="space-y-6 pt-8 border-t">
+               <h3 className="text-lg font-medium leading-6 text-foreground">Product Information</h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <FormField
+                    control={form.control}
+                    name="productName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Product Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Summer Vibes T-Shirt" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Apparel" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Price (KES)</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 1500" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="salePrice"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Sale Price (Optional)</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 1200" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="stock"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Stock Quantity</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 50" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Description / Features</FormLabel>
+                        <FormControl>
+                            <Textarea rows={4} placeholder="Describe your product..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Tags / Hashtags</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., #summer, #tshirt, #fashion" {...field} />
+                        </FormControl>
+                         <FormDescription>Separate tags with commas.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <div>
+                    <Button type="button" variant="outline" size="sm"><Plus className="mr-2 h-4 w-4" /> Add Variation (Color, Size)</Button>
+                </div>
+            </div>
+
+            {/* Live Session Ready Section */}
+            <div className="space-y-4 pt-8 border-t">
+                <h3 className="text-lg font-medium leading-6 text-foreground">Live Session Options</h3>
+                <div className="flex items-center space-x-2">
+                    <Switch id="live-ready" />
+                    <Label htmlFor="live-ready">Add this product to a live session</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">You can manage the order and pin products from the "Live Selling" screen.</p>
+            </div>
+            
+          </CardContent>
+          <CardFooter className="flex justify-end gap-2">
+            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="submit" disabled={isUploading}>
+              {isUploading ? 'Uploading...' : 'Publish Product'}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+    </Form>
+  );
+}
