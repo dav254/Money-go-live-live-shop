@@ -23,10 +23,11 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -35,6 +36,7 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -48,12 +50,30 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Fetch user profile from Firestore
+      const userDocRef = doc(firestore, 'userProfiles', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
       toast({
         title: 'Login Successful!',
         description: "Welcome back.",
       });
-      router.push('/');
+
+      if (userDocSnap.exists()) {
+        const userProfile = userDocSnap.data();
+        if (userProfile.userRole === 'seller') {
+          router.push('/dashboard/seller'); // Redirect sellers to their dashboard
+        } else {
+          router.push('/'); // Redirect other roles to homepage
+        }
+      } else {
+        console.warn("No user profile found for UID:", user.uid);
+        router.push('/'); // Default redirect if profile doesn't exist
+      }
+
     } catch (error: any) {
       console.error('Login Error:', error);
       let description = 'Could not sign you in. Please check your credentials.';
