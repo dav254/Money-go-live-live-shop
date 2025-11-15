@@ -1,15 +1,88 @@
 
-import {
-  Sidebar,
-  SidebarProvider,
-} from '@/components/ui/sidebar';
+'use client';
+
+import { SidebarProvider } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { Menu } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import { BuyerSidebarNav, SellerSidebarNav, AccountSidebarNav } from './sidebar-nav';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
+import { useUser } from '@/firebase';
+import { getAuth, signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+
+function UserNav() {
+  const { user, isUserLoading } = useUser();
+  const auth = getAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+      router.push('/');
+    } catch (error) {
+      console.error("Sign out error", error);
+      toast({
+        variant: "destructive",
+        title: "Error signing out",
+        description: "There was a problem signing you out. Please try again.",
+      });
+    }
+  };
+
+  if (isUserLoading) {
+    return <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />;
+  }
+  
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" asChild><Link href="/login">Login</Link></Button>
+        <Button asChild><Link href="/signup">Sign Up</Link></Button>
+      </div>
+    );
+  }
+
+  return (
+     <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || ''} />
+            <AvatarFallback>
+                <User />
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSignOut}>
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -43,10 +116,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <Logo className="h-8 w-auto text-primary" />
             </Link>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild><Link href="/login">Login</Link></Button>
-            <Button asChild><Link href="/signup">Sign Up</Link></Button>
-          </div>
+          <UserNav />
         </header>
         <div className="flex flex-1">
           <aside className="hidden w-64 flex-col border-r bg-card md:flex">
