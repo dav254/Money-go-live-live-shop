@@ -24,7 +24,6 @@ import {
   MessageSquare,
   ChevronDown,
   Home,
-  LayoutGrid,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -56,14 +55,6 @@ export function BuyerSidebarNav() {
                     <span>Home</span>
                 </Link>
             </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/categories')}>
-            <Link href="/categories">
-              <LayoutGrid />
-              <span>Categories</span>
-            </Link>
-          </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/messages')}>
