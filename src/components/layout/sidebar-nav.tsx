@@ -63,49 +63,14 @@ export function BuyerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <Collapsible open={isOrdersOpen} onOpenChange={setIsOrdersOpen} asChild>
-          <SidebarMenuItem>
-            <CollapsibleTrigger asChild>
-              <SidebarMenuButton
-                className="w-full"
-                isActive={isActive('/buyer/my-orders')}
-              >
-                <Package />
-                <span>My Orders</span>
-                <ChevronDown
-                  className={cn(
-                    'ml-auto h-4 w-4 transition-transform',
-                    isOrdersOpen && 'rotate-180'
-                  )}
-                />
-              </SidebarMenuButton>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarMenu className="pl-6">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/buyer/my-orders')}
-                  >
-                    <Link href="/buyer/my-orders">
-                      <span>Current Orders</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/buyer/my-orders/delivered')}
-                  >
-                    <Link href="/buyer/my-orders">
-                      <span>Delivered</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </CollapsibleContent>
-          </SidebarMenuItem>
-        </Collapsible>
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/buyer/my-orders')}>
+                <Link href="/buyer/my-orders">
+                    <Package />
+                    <span>My Orders</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         
         <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/buyer/wishlist')}>
