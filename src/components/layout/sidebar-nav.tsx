@@ -169,12 +169,12 @@ export function SellerSidebarNav() {
 
         <SidebarMenuItem>
             <SidebarCollapsibleItem icon={<Users />} label="Reseller Center" isActive={isActive('/dashboard/seller/reseller')}>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/performance')}><LineChart className="mr-2 h-3.5 w-3.5" />Performance</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/commissions')}><BadgePercent className="mr-2 h-3.5 w-3.5" />Commissions</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/manage')}><Users className="mr-2 h-3.5 w-3.5" />Manage Resellers</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/payouts')}><CircleDollarSign className="mr-2 h-3.5 w-3.5" />Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/media')}><FolderKanban className="mr-2 h-3.5 w-3.5" />Media Kits</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#" isActive={isActive('/dashboard/seller/reseller/ai')}><Bot className="mr-2 h-3.5 w-3.5" />AI Auto-Resell</SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/performance" isActive={isActive('/dashboard/seller/reseller/performance')}><Link href="/dashboard/seller/reseller/performance"><LineChart className="mr-2 h-3.5 w-3.5" />Performance</Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/commissions" isActive={isActive('/dashboard/seller/reseller/commissions')}><Link href="/dashboard/seller/reseller/commissions"><BadgePercent className="mr-2 h-3.5 w-3.5" />Commissions</Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/manage" isActive={isActive('/dashboard/seller/reseller/manage')}><Link href="/dashboard/seller/reseller/manage"><Users className="mr-2 h-3.5 w-3.5" />Manage Resellers</Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/payouts" isActive={isActive('/dashboard/seller/reseller/payouts')}><Link href="/dashboard/seller/reseller/payouts"><CircleDollarSign className="mr-2 h-3.5 w-3.5" />Payouts</Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/media" isActive={isActive('/dashboard/seller/reseller/media')}><Link href="/dashboard/seller/reseller/media"><FolderKanban className="mr-2 h-3.5 w-3.5" />Media Kits</Link></SidebarMenuSubButton></SidebarMenuSubItem>
+                <SidebarMenuSubItem><SidebarMenuSubButton asChild href="/dashboard/seller/reseller/ai" isActive={isActive('/dashboard/seller/reseller/ai')}><Link href="/dashboard/seller/reseller/ai"><Bot className="mr-2 h-3.5 w-3.5" />AI Auto-Resell</Link></SidebarMenuSubButton></SidebarMenuSubItem>
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
 
