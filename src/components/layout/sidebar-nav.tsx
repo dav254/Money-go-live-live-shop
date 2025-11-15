@@ -197,8 +197,12 @@ export function SellerSidebarNav() {
             </SidebarCollapsibleItem>
         </SidebarMenuItem>
         <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<HelpCircle />} label="Support & Help">
-            </SidebarCollapsibleItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/help')}>
+            <Link href="/dashboard/seller/help">
+              <HelpCircle />
+              <span>Support & Help</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
