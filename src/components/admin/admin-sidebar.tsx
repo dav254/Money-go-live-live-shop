@@ -81,7 +81,7 @@ const NavCollapsible = ({
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => pathname.startsWith(path);
 
   return (
     <>
@@ -89,7 +89,7 @@ export function AdminSidebar() {
       <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/admin')}>
+          <SidebarMenuButton asChild isActive={pathname === '/dashboard/admin'}>
             <Link href="/dashboard/admin">
               <LayoutGrid />
               <span>Dashboard</span>
@@ -97,18 +97,14 @@ export function AdminSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         
-        <NavCollapsible
-          title="User Management"
-          icon={Users2}
-          basePath="users"
-          items={[
-            { href: 'buyers', label: 'Buyers' },
-            { href: 'sellers', label: 'Sellers' },
-            { href: 'resellers', label: 'Resellers' },
-            { href: 'verification', label: 'Verification Requests' },
-            { href: 'suspended', label: 'Suspended Accounts' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/users')}>
+                <Link href="/dashboard/admin/users/buyers">
+                    <Users2 />
+                    <span>User Management</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
         <NavCollapsible
           title="Product Management"
