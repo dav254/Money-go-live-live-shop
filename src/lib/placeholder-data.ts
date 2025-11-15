@@ -13,7 +13,7 @@ const getImage = (id: string) => {
 
 export const sellers: Seller[] = [
   {
-    id: 'seller-1',
+    id: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
     name: "Aisha's Handbags",
     avatar: getImage('seller-avatar-1'),
     isVerified: true,
@@ -61,7 +61,7 @@ export const products: Product[] = [
     originalPrice: 1000,
     image: getImage('product-handbag'),
     stock: 3,
-    sellerId: 'seller-1',
+    sellerId: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
   },
   {
     id: 'prod-2',
@@ -86,7 +86,7 @@ export const products: Product[] = [
     price: 120,
     image: getImage('product-sneakers'),
     stock: 25,
-    sellerId: 'seller-1',
+    sellerId: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
   },
   {
     id: 'prod-5',
