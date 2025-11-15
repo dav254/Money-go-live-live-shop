@@ -92,7 +92,7 @@ export default function BuyerDashboardPage() {
               {products.slice(0, 5).map((product) => (
                 <CarouselItem
                   key={product.id}
-                  className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5"
+                  className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4"
                 >
                   <div className="p-1">
                     <ProductCard product={product} />
