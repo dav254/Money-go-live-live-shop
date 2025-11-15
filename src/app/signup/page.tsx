@@ -34,7 +34,7 @@ import { useAuth } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -77,14 +77,42 @@ export default function SignupPage() {
       };
 
       const userDocRef = doc(firestore, "userProfiles", user.uid);
-      setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+      
+      // If the user is the special admin, create an admin entry as well in a batch
+      if (values.email === 'admin@moneygo.com') {
+        const batch = writeBatch(firestore);
+        
+        // 1. Set the user profile document
+        batch.set(userDocRef, userProfile);
+        
+        // 2. Set the admin document
+        const adminDocRef = doc(firestore, 'admins', user.uid);
+        batch.set(adminDocRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: values.fullName,
+            role: 'SuperAdmin',
+            lastLogin: new Date().toISOString(),
+        });
+        
+        await batch.commit();
 
+        toast({
+          title: 'Admin Account Created!',
+          description: "You've been successfully registered as a SuperAdmin.",
+        });
 
-      toast({
-        title: 'Account Created!',
-        description: "You've successfully signed up.",
-      });
-      router.push('/');
+      } else {
+        // For regular users, just set the user profile
+         setDocumentNonBlocking(userDocRef, userProfile, { merge: true });
+         toast({
+            title: 'Account Created!',
+            description: "You've successfully signed up.",
+        });
+      }
+
+      router.push('/login');
+
     } catch (error: any) {
       console.error('Signup Error:', error);
       toast({
@@ -182,7 +210,7 @@ export default function SignupPage() {
                 />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full">
+                <Button type="submit">
                   Create Account
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
