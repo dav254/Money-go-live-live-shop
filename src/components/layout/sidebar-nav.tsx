@@ -167,12 +167,12 @@ export function SellerSidebarNav() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-             <SidebarCollapsibleItem icon={<Banknote />} label="Finances" isActive={isActive('/dashboard/seller/earnings')}>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="/dashboard/seller/earnings" isActive={isActive('/dashboard/seller/earnings')}>Sales & Payouts</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Revenue Statements</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Tax & Invoice Center</SidebarMenuSubButton></SidebarMenuSubItem>
-                <SidebarMenuSubItem><SidebarMenuSubButton href="#">Payment Accounts</SidebarMenuSubButton></SidebarMenuSubItem>
-            </SidebarCollapsibleItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings')}>
+              <Link href="/dashboard/seller/earnings">
+                  <Banknote />
+                  <span>Sales & Payouts</span>
+              </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
              <SidebarCollapsibleItem icon={<Megaphone />} label="Marketing Tools">
