@@ -41,7 +41,6 @@ export function BuyerSidebarNav() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
-  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
 
   return (
     <SidebarGroup>
@@ -107,54 +106,15 @@ export function BuyerSidebarNav() {
             </CollapsibleContent>
           </SidebarMenuItem>
         </Collapsible>
-
-        <Collapsible
-          open={isWishlistOpen}
-          onOpenChange={setIsWishlistOpen}
-          asChild
-        >
-          <SidebarMenuItem>
-            <CollapsibleTrigger asChild>
-              <SidebarMenuButton
-                className="w-full"
-                isActive={isActive('/buyer/wishlist')}
-              >
-                <Heart />
-                <span>Wishlist</span>
-                <ChevronDown
-                  className={cn(
-                    'ml-auto h-4 w-4 transition-transform',
-                    isWishlistOpen && 'rotate-180'
-                  )}
-                />
-              </SidebarMenuButton>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarMenu className="pl-6">
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/buyer/wishlist')}
-                  >
-                    <Link href="/buyer/wishlist">
-                      <span>My Wishlist</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive('/buyer/wishlist/shops')}
-                  >
-                    <Link href="/buyer/wishlist">
-                      <span>Saved Shops</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </CollapsibleContent>
-          </SidebarMenuItem>
-        </Collapsible>
+        
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/buyer/wishlist')}>
+                <Link href="/buyer/wishlist">
+                    <Heart />
+                    <span>Wishlist</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         
         <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')}>
