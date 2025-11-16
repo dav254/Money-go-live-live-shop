@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- NEW: Seller profiles are now publicly readable. ---
+    // --- MODIFIED: Seller profiles are now publicly readable. ---
     // Writes are restricted to the seller or an admin.
     match /sellers/{sellerId} {
       allow read: if true;
