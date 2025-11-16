@@ -22,10 +22,11 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
   // Combine all product images and videos into a single playlist
   const mediaPlaylist = (products || []).flatMap(p => {
     const media = [];
-    if (p.imageUrl) {
+    // Ensure product and its properties exist before adding to playlist
+    if (p && p.imageUrl) {
       media.push({ type: 'image', url: p.imageUrl, product: p });
     }
-    if (p.videoUrl) {
+    if (p && p.videoUrl) {
       media.push({ type: 'video', url: p.videoUrl, product: p });
     }
     return media;
@@ -89,7 +90,7 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
             ) : (
                 <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground p-8 text-center">
                   <p>
-                    No products found for this store. Go to the "Products" tab to upload your first item and see it here!
+                    No products with media found for this store. Go to the "Products" tab to upload your first item and see it here!
                   </p>
                 </div>
             )}
@@ -97,7 +98,7 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
             {/* Top-left seller info */}
-            {seller && (
+            {seller && seller.avatar && (
               <div className="absolute left-4 top-4 flex items-center gap-3 bg-black/40 p-2 rounded-xl">
                 <img src={seller.avatar.imageUrl} alt={seller.name} className="w-10 h-10 rounded-full border-2 border-white" />
                 <div>
@@ -144,10 +145,10 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
                 <div className={`absolute left-0 right-0 bottom-0 transition-transform duration-300 z-50 ${showProductDrawer ? 'translate-y-0' : 'translate-y-full'}`}>
                   <div className="mx-2 mb-2 bg-background/80 backdrop-blur-lg rounded-t-xl p-4 border-t border-border">
                     <div className="flex items-center gap-3">
-                      <img src={activeProduct.imageUrl} alt={activeProduct.name} className="w-20 h-20 object-cover rounded-lg" />
+                      {activeProduct.imageUrl && <img src={activeProduct.imageUrl} alt={activeProduct.name} className="w-20 h-20 object-cover rounded-lg" />}
                       <div className="flex-1">
                         <div className="font-bold text-lg">{activeProduct.name}</div>
-                        <div className="text-sm text-primary font-semibold">{activeProduct.price?.toLocaleString()} {activeProduct.wasPrice && <span className="text-xs text-muted-foreground line-through ml-2">{active-product.wasPrice.toLocaleString()}</span>}</div>
+                        <div className="text-sm text-primary font-semibold">{activeProduct.price?.toLocaleString()} {activeProduct.wasPrice && <span className="text-xs text-muted-foreground line-through ml-2">{activeProduct.wasPrice.toLocaleString()}</span>}</div>
                         <div className="mt-2 flex gap-2">
                           <Button size="sm" className="font-semibold">Buy Now</Button>
                           <Button size="sm" variant="secondary">Add to Cart</Button>

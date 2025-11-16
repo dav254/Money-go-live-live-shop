@@ -96,9 +96,10 @@ export function ProductUploadForm() {
             setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
             // In a real scenario, this would be the URL from a service like Cloudinary or Firebase Storage
             const isVideo = file.type.startsWith('video/');
+            // Corrected placeholder URL logic
             const placeholderUrl = isVideo
-              ? `https://placehold.co/600x400.mp4?text=${encodeURIComponent(file.name)}`
-              : `https://placehold.co/600x400/EEE/31343C.png?text=${encodeURIComponent(file.name)}`;
+              ? `https://picsum.photos/seed/${Math.random()}/600/400` // Use a generic image for video thumbnail
+              : URL.createObjectURL(file); // Use the actual image blob URL for preview
             resolve(placeholderUrl); 
         }, 1000);
     });
@@ -116,11 +117,29 @@ export function ProductUploadForm() {
 
     setIsUploading(true);
 
-    const uploadPromises = files.map(file => uploadFile(file));
-    const uploadedUrls = await Promise.all(uploadPromises);
+    // This is a simulation. In a real app, you'd upload to a service like Firebase Storage.
+    const getCloudUrl = (file: File) => {
+        const isVideo = file.type.startsWith('video/');
+        // Create a more realistic placeholder URL for the "saved" URL
+        return isVideo
+            ? `https://storage.googleapis.com/web-dev-assets/video-test.mp4` // A real video URL for testing
+            : `https://picsum.photos/seed/${file.name}/600/400`;
+    };
 
-    const imageUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('image/')).map(f => f.url);
-    const videoUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('video/')).map(f => f.url);
+    const uploadPromises = files.map(file => {
+        return new Promise<{url: string, type: string}>(resolve => {
+            setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+            setTimeout(() => {
+                setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+                resolve({ url: getCloudUrl(file), type: file.type });
+            }, 1000);
+        });
+    });
+
+    const uploadedMedia = await Promise.all(uploadPromises);
+
+    const imageUrls = uploadedMedia.filter(m => m.type.startsWith('image/')).map(m => m.url);
+    const videoUrls = uploadedMedia.filter(m => m.type.startsWith('video/')).map(m => m.url);
 
     const productData: any = {
         productName: values.productName,

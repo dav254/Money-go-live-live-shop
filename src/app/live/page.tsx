@@ -48,7 +48,7 @@ export default function LiveFeedPage() {
         </div>
         
         {/* Scroll Buttons */}
-        <div className="absolute right-3 bottom-1/2 translate-y-1/2 flex flex-col items-center gap-20 z-20">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-20 z-20">
             <Button 
                 size="icon" 
                 variant="ghost" 
