@@ -42,21 +42,25 @@ const NavCollapsible = ({
   basePath: string;
 }) => {
   const pathname = usePathname();
-  const isActive = items.some((item) => pathname === `/dashboard/admin/${basePath}/${item.href}`);
+  const isActive = items.some((item) => pathname.startsWith(`/dashboard/admin/${basePath}/${item.href}`));
+  const isBaseActive = pathname.startsWith(`/dashboard/admin/${basePath}`);
 
   return (
-    <Collapsible>
-      <CollapsibleTrigger
-        className={cn(
-          'group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
-          isActive && 'bg-accent text-accent-foreground'
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4" />
-          <span>{title}</span>
-        </div>
-        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+    <Collapsible defaultOpen={isBaseActive}>
+      <CollapsibleTrigger asChild>
+        <Link 
+            href={`/dashboard/admin/${basePath}/${items[0].href}`}
+            className={cn(
+                'group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
+                isBaseActive && 'bg-accent text-accent-foreground'
+            )}
+        >
+          <div className="flex items-center gap-2">
+            <Icon className="h-4 w-4" />
+            <span>{title}</span>
+          </div>
+          <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+        </Link>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="flex flex-col gap-1 py-1 pl-8">
@@ -97,95 +101,133 @@ export function AdminSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/users')}>
-                <Link href="/dashboard/admin/users/buyers">
-                    <Users2 />
-                    <span>User Management</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible 
+            title="User Management"
+            icon={Users2}
+            basePath="users"
+            items={[
+                { href: 'buyers', label: 'Buyers' },
+                { href: 'sellers', label: 'Sellers' },
+                { href: 'resellers', label: 'Resellers' },
+                { href: 'suspended', label: 'Suspended' },
+                { href: 'verification', label: 'Verification' },
+            ]}
+        />
 
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/products')}>
-                <Link href="/dashboard/admin/products/all">
-                    <PackageSearch />
-                    <span>Product Management</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible 
+            title="Product Management"
+            icon={PackageSearch}
+            basePath="products"
+            items={[
+                { href: 'all', label: 'All Products' },
+                { href: 'pending', label: 'Pending Approval' },
+                { href: 'reported', label: 'Reported' },
+                { href: 'categories', label: 'Categories' },
+                { href: 'tags', label: 'Tags' },
+            ]}
+        />
 
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/orders')}>
-                <Link href="/dashboard/admin/orders/all">
-                    <Receipt />
-                    <span>Orders & Transactions</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible
+          title="Orders & Transactions"
+          icon={Receipt}
+          basePath="orders"
+          items={[
+            { href: 'all', label: 'All Orders' },
+            { href: 'seller-orders', label: 'Seller Orders' },
+            { href: 'reseller-orders', label: 'Reseller Orders' },
+            { href: 'disputes', label: 'Refunds & Disputes' },
+            { href: 'tracking', label: 'Delivery Tracking' },
+          ]}
+        />
         
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/live-shopping')}>
-                <Link href="/dashboard/admin/live-shopping/sessions">
-                    <ScreenShare />
-                    <span>Live Shopping Control</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible
+          title="Live Shopping Control"
+          icon={ScreenShare}
+          basePath="live-shopping"
+          items={[
+            { href: 'sessions', label: 'Live Sessions' },
+            { href: 'approved', label: 'Approved Streams' },
+            { href: 'flagged', label: 'Flagged Streams' },
+            { href: 'analytics', label: 'Live Analytics' },
+          ]}
+        />
 
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/finance')}>
-                <Link href="/dashboard/admin/finance/analytics">
-                    <CircleDollarSign />
-                    <span>Finance Management</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
-
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/marketing')}>
-                <Link href="/dashboard/admin/marketing/banners">
-                    <Megaphone />
-                    <span>Marketing & Growth</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible
+          title="Finance Management"
+          icon={CircleDollarSign}
+          basePath="finance"
+          items={[
+            { href: 'analytics', label: 'Sales Analytics' },
+            { href: 'revenue', label: 'Platform Revenue' },
+            { href: 'commissions', label: 'Commissions' },
+            { href: 'seller-payouts', label: 'Seller Payouts' },
+            { href: 'reseller-payouts', label: 'Reseller Payouts' },
+            { href: 'tax', label: 'Tax Center' },
+          ]}
+        />
         
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/support')}>
-                <Link href="/dashboard/admin/support/help-center">
-                    <LifeBuoy />
-                    <span>Support & Moderation</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
-
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/system')}>
-                <Link href="/dashboard/admin/system/roles">
-                    <Settings />
-                    <span>System & Settings</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible
+          title="Marketing & Growth"
+          icon={Megaphone}
+          basePath="marketing"
+          items={[
+            { href: 'banners', label: 'Promo Banners' },
+            { href: 'posters', label: 'AI Poster Requests' },
+            { href: 'sliders', label: 'Homepage Sliders' },
+            { href: 'notifications', label: 'Notification Center' },
+            { href: 'ads', label: 'Ads Manager' },
+          ]}
+        />
         
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/ai')}>
-                <Link href="/dashboard/admin/ai/recommendations">
-                    <BrainCircuit />
-                    <span>AI Management</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible
+          title="Support & Moderation"
+          icon={LifeBuoy}
+          basePath="support"
+          items={[
+            { href: 'help-center', label: 'Help Center Manager' },
+            { href: 'tickets', label: 'Support Tickets' },
+            { href: 'chat-logs', label: 'Chat Logs' },
+            { href: 'complaints', label: 'Resolve Complaints' },
+            { href: 'violations', label: 'Reports & Violations' },
+          ]}
+        />
 
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/analytics')}>
-                <Link href="/dashboard/admin/analytics/revenue">
-                    <BarChart />
-                    <span>Logs & Analytics</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+        <NavCollapsible
+          title="System & Settings"
+          icon={Settings}
+          basePath="system"
+          items={[
+            { href: 'roles', label: 'Roles & Permissions' },
+            { href: 'security', label: 'Security & 2FA' },
+            { href: 'gateways', label: 'Payment Gateways' },
+            { href: 'backup', label: 'Backup & Restore' },
+            { href: 'api-keys', label: 'API Keys' },
+            { href: 'theme', label: 'Themes' },
+            { href: 'server-status', label: 'Server Status' },
+          ]}
+        />
+        
+        <NavCollapsible
+          title="AI Management"
+          icon={BrainCircuit}
+          basePath="ai"
+          items={[
+            { href: 'recommendations', label: 'Recommendation Engine' },
+            { href: 'fraud-detection', label: 'Fraud Detection' },
+            { href: 'content-moderation', label: 'Content Moderation' },
+          ]}
+        />
+
+        <NavCollapsible
+          title="Logs & Analytics"
+          icon={BarChart}
+          basePath="analytics"
+          items={[
+            { href: 'revenue', label: 'Revenue Charts' },
+            { href: 'activity', label: 'User Activity Logs' },
+            { href: 'errors', label: 'Error Logs' },
+          ]}
+        />
       </SidebarMenu>
     </SidebarGroup>
      <SidebarMenu className="mt-auto">
