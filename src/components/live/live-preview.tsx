@@ -4,63 +4,23 @@
 import React, { useEffect, useState, useRef } from 'react';
 import type { Seller, Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { useAuth, useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 interface LivePreviewProps {
+  seller?: Seller;
+  products?: Product[];
 }
 
 // A single-file React component for a mobile-first live shopping UI preview.
-export function LivePreview({}: LivePreviewProps) {
+export function LivePreview({ seller, products = [] }: LivePreviewProps) {
   const [showProductDrawer, setShowProductDrawer] = useState(false);
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [likeCount, setLikeCount] = useState(124);
   const heartsRef = useRef<any[]>([]);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const auth = useAuth();
-  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
-  const [seller, setSeller] = useState<Seller | null>(null);
-
-  // Fetch seller's products when user is available
-  useEffect(() => {
-    if (user && firestore) {
-      const fetchProducts = async () => {
-        const productsRef = collection(firestore, 'products');
-        // Fetch the most recent product uploaded by this seller
-        const q = query(productsRef, where('sellerId', '==', user.uid), orderBy('uploadDate', 'desc'), limit(10));
-        const querySnapshot = await getDocs(q);
-
-        const products: Product[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-        setSellerProducts(products);
-
-        // Fetch seller profile based on user.uid to get seller name, avatar etc.
-        // For now, we'll use a placeholder if we have products
-        if (products.length > 0) {
-            setSeller({
-                id: user.uid,
-                name: user.displayName || "Seller Store",
-                avatar: { imageUrl: user.photoURL || 'https://picsum.photos/seed/avatar/50/50', imageHint: "seller avatar", id: 'avatar', description: 'seller avatar' },
-                isVerified: true,
-                rating: 5,
-                reviewsCount: 0,
-                followers: 0,
-                location: "Online",
-                joinedDate: new Date().toISOString(),
-                bio: "A seller on MoneyGo.",
-                banner: { imageUrl: 'https://picsum.photos/seed/banner/1200/400', imageHint: "store banner", id: 'banner', description: 'store banner' },
-            });
-        }
-      };
-      fetchProducts();
-    }
-  }, [user, firestore]);
 
   // Combine all product images and videos into a single playlist
-  const mediaPlaylist = sellerProducts.flatMap(p => 
+  const mediaPlaylist = products.flatMap(p => 
     (p.imageUrl ? [{ type: 'image', url: p.imageUrl, product: p }] : [])
   );
 
@@ -122,7 +82,7 @@ export function LivePreview({}: LivePreviewProps) {
             ) : (
                 <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground p-8 text-center">
                   <p>
-                    No products found for your store. Go to the "Products" tab to upload your first item and see it here!
+                    No products found for this store. Go to the "Products" tab to upload your first item and see it here!
                   </p>
                 </div>
             )}
@@ -180,7 +140,7 @@ export function LivePreview({}: LivePreviewProps) {
                       <img src={activeProduct.imageUrl} alt={activeProduct.name} className="w-20 h-20 object-cover rounded-lg" />
                       <div className="flex-1">
                         <div className="font-bold text-lg">{activeProduct.name}</div>
-                        <div className="text-sm text-primary font-semibold">{activeProduct.price} {activeProduct.wasPrice && <span className="text-xs text-muted-foreground line-through ml-2">{activeProduct.wasPrice}</span>}</div>
+                        <div className="text-sm text-primary font-semibold">{activeProduct.price?.toLocaleString()} {activeProduct.wasPrice && <span className="text-xs text-muted-foreground line-through ml-2">{activeProduct.wasPrice.toLocaleString()}</span>}</div>
                         <div className="mt-2 flex gap-2">
                           <Button size="sm" className="font-semibold">Buy Now</Button>
                           <Button size="sm" variant="secondary">Add to Cart</Button>
@@ -220,4 +180,3 @@ export function LivePreview({}: LivePreviewProps) {
     </div>
   );
 }
-
