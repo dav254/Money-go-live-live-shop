@@ -9,10 +9,10 @@ service cloud.firestore {
       allow create: if request.auth.uid != null;
     }
 
-    // Products are publicly readable.
-    // Only users with a 'seller' or 'admin' role can create/update/delete products.
+    // Products are publicly readable by any authenticated user.
+    // Writing products is restricted.
     match /products/{productId} {
-      allow read: if true;
+      allow read, list: if request.auth != null;
       allow write: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'seller' || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin');
     }
 
