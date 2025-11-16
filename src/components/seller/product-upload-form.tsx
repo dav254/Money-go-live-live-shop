@@ -97,8 +97,8 @@ export function ProductUploadForm() {
             // In a real scenario, this would be the URL from a service like Cloudinary or Firebase Storage
             const isVideo = file.type.startsWith('video/');
             const placeholderUrl = isVideo
-              ? `https://placehold.co/600x400/000000/FFFFFF?text=${encodeURIComponent(file.name)}`
-              : `https://placehold.co/600x400/EEE/31343C?text=${encodeURIComponent(file.name)}`;
+              ? `https://placehold.co/600x400.mp4?text=${encodeURIComponent(file.name)}`
+              : `https://placehold.co/600x400/EEE/31343C.png?text=${encodeURIComponent(file.name)}`;
             resolve(placeholderUrl); 
         }, 1000);
     });
