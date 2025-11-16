@@ -133,32 +133,23 @@ export function AdminSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <NavCollapsible
-          title="Finance Management"
-          icon={CircleDollarSign}
-          basePath="finance"
-          items={[
-            { href: 'analytics', label: 'Sales Analytics' },
-            { href: 'commissions', label: 'Commissions' },
-            { href: 'seller-payouts', label: 'Seller Payouts' },
-            { href: 'reseller-payouts', label: 'Reseller Payouts' },
-            { href: 'revenue', label: 'Platform Revenue' },
-            { href: 'tax', label: 'Tax Center' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/finance')}>
+                <Link href="/dashboard/admin/finance/analytics">
+                    <CircleDollarSign />
+                    <span>Finance Management</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
-        <NavCollapsible
-          title="Marketing & Growth"
-          icon={Megaphone}
-          basePath="marketing"
-          items={[
-            { href: 'banners', label: 'Promo Banners' },
-            { href: 'posters', label: 'AI Poster Requests' },
-            { href: 'sliders', label: 'Homepage Sliders' },
-            { href: 'notifications', label: 'Notification Center' },
-            { href: 'ads', label: 'Ads Manager' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/marketing')}>
+                <Link href="/dashboard/admin/marketing/banners">
+                    <Megaphone />
+                    <span>Marketing & Growth</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         
         <NavCollapsible
           title="Support & Moderation"
