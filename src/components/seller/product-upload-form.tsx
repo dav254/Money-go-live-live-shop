@@ -38,7 +38,7 @@ import {
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -116,48 +116,54 @@ export function ProductUploadForm() {
 
     setIsUploading(true);
 
-    try {
-        const uploadPromises = files.map(file => uploadFile(file));
-        const uploadedUrls = await Promise.all(uploadPromises);
+    const uploadPromises = files.map(file => uploadFile(file));
+    const uploadedUrls = await Promise.all(uploadPromises);
 
-        const imageUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('image/')).map(f => f.url);
-        const videoUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('video/')).map(f => f.url);
+    const imageUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('image/')).map(f => f.url);
+    const videoUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('video/')).map(f => f.url);
 
-        const productData: any = {
-            productName: values.productName,
-            category: values.category,
-            stock: values.stock,
-            tags: values.tags || '',
-            description: values.description,
-            location: values.location,
-            deliveryOptions: values.deliveryOptions,
-            sellerId: user.uid,
-            imageUrl: imageUrls[0] || '', // Use first image as primary
-            videoUrl: videoUrls[0] || '', // Use first video
-            uploadDate: serverTimestamp(),
-        };
+    const productData: any = {
+        productName: values.productName,
+        category: values.category,
+        stock: values.stock,
+        tags: values.tags || '',
+        description: values.description,
+        location: values.location,
+        deliveryOptions: values.deliveryOptions,
+        sellerId: user.uid,
+        imageUrl: imageUrls[0] || '', // Use first image as primary
+        videoUrl: videoUrls[0] || '', // Use first video
+        uploadDate: serverTimestamp(),
+    };
 
-        if (values.enableDiscount && values.salePrice && values.salePrice < values.price) {
-            productData.price = values.salePrice;
-            productData.wasPrice = values.price;
-        } else {
-            productData.price = values.price;
-            productData.wasPrice = null;
-        }
+    if (values.enableDiscount && values.salePrice && values.salePrice < values.price) {
+        productData.price = values.salePrice;
+        productData.wasPrice = values.price;
+    } else {
+        productData.price = values.price;
+        productData.wasPrice = null;
+    }
 
-        const docRef = await addDoc(collection(firestore, 'products'), productData);
-        
+    const productsCollectionRef = collection(firestore, 'products');
+
+    addDoc(productsCollectionRef, productData)
+      .then(() => {
         toast({ title: 'Success!', description: 'Your product has been published.' });
         form.reset();
         setFiles([]);
         setUploadProgress({});
-
-    } catch (error) {
-        console.error("Error uploading product:", error);
-        toast({ variant: 'destructive', title: 'Upload Failed', description: 'There was an error saving your product.' });
-    } finally {
+      })
+      .catch(error => {
+        const permissionError = new FirestorePermissionError({
+          path: productsCollectionRef.path,
+          operation: 'create',
+          requestResourceData: productData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
         setIsUploading(false);
-    }
+      });
   };
   
   const enableDiscount = form.watch('enableDiscount');
@@ -412,3 +418,5 @@ export function ProductUploadForm() {
     </Form>
   );
 }
+
+    
