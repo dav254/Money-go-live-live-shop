@@ -98,7 +98,7 @@ export function AdminSidebar() {
         </SidebarMenuItem>
         
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/users/buyers')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/users')}>
                 <Link href="/dashboard/admin/users/buyers">
                     <Users2 />
                     <span>User Management</span>
@@ -107,7 +107,7 @@ export function AdminSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/products/all')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/products')}>
                 <Link href="/dashboard/admin/products/all">
                     <PackageSearch />
                     <span>Product Management</span>
@@ -116,7 +116,7 @@ export function AdminSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/orders/all')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/orders')}>
                 <Link href="/dashboard/admin/orders/all">
                     <Receipt />
                     <span>Orders & Transactions</span>
@@ -151,18 +151,14 @@ export function AdminSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
         
-        <NavCollapsible
-          title="Support & Moderation"
-          icon={LifeBuoy}
-          basePath="support"
-          items={[
-            { href: 'help-center', label: 'Help Center Manager' },
-            { href: 'tickets', label: 'Support Tickets' },
-            { href: 'chat-logs', label: 'Chat Logs' },
-            { href: 'complaints', label: 'Resolve Complaints' },
-            { href: 'violations', label: 'Reports & Violations' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/support')}>
+                <Link href="/dashboard/admin/support/help-center">
+                    <LifeBuoy />
+                    <span>Support & Moderation</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
         <NavCollapsible
           title="System & Settings"
