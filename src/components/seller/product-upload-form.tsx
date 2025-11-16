@@ -115,19 +115,30 @@ export function ProductUploadForm() {
     setIsUploading(true);
 
     try {
-        // NOTE: The new implementation will call a serverless function to upload to Cloudinary.
-        // For now, we simulate the upload.
         const fileUrl = await uploadFile(files[0]);
         
-        const productData = {
-            ...values,
+        // Conditionally build the product data to avoid undefined fields
+        const productData: any = {
+            productName: values.productName,
+            category: values.category,
+            stock: values.stock,
+            tags: values.tags || '',
+            description: values.description,
+            location: values.location,
+            deliveryOptions: values.deliveryOptions,
             sellerId: user.uid,
             imageUrl: fileUrl,
             videoUrl: '', // Add video logic later
             uploadDate: serverTimestamp(),
-            wasPrice: values.enableDiscount ? values.price : null,
-            price: values.enableDiscount && values.salePrice ? values.salePrice : values.price,
         };
+
+        if (values.enableDiscount && values.salePrice && values.salePrice < values.price) {
+            productData.price = values.salePrice;
+            productData.wasPrice = values.price;
+        } else {
+            productData.price = values.price;
+            productData.wasPrice = null;
+        }
 
         const docRef = await addDoc(collection(firestore, 'products'), productData);
         
@@ -388,7 +399,7 @@ export function ProductUploadForm() {
           <CardFooter className="flex justify-end gap-2">
             <Button type="button" variant="outline">Save as Draft</Button>
             <Button type="submit" disabled={isUploading}>
-              {isUploading ? 'Uploading...' : 'Publish Product'}
+              {isUploading ? 'Publishing...' : 'Publish Product'}
             </Button>
           </CardFooter>
         </Card>
