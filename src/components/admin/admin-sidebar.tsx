@@ -98,7 +98,7 @@ export function AdminSidebar() {
         </SidebarMenuItem>
         
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/users')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/users/buyers')}>
                 <Link href="/dashboard/admin/users/buyers">
                     <Users2 />
                     <span>User Management</span>
@@ -107,7 +107,7 @@ export function AdminSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/products')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/products/all')}>
                 <Link href="/dashboard/admin/products/all">
                     <PackageSearch />
                     <span>Product Management</span>
@@ -116,7 +116,7 @@ export function AdminSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/orders')}>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/orders/all')}>
                 <Link href="/dashboard/admin/orders/all">
                     <Receipt />
                     <span>Orders & Transactions</span>
