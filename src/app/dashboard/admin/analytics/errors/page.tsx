@@ -1,9 +1,9 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { AdminLayout } from '@/components/layout/admin-layout';
 
 export default function AdminErrorLogsPage() {
   return (
-    <MainLayout>
+    <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Logs & Analytics: Error Logs
@@ -12,6 +12,6 @@ export default function AdminErrorLogsPage() {
             <p className="text-muted-foreground">Error and stability logs will be here.</p>
         </div>
       </div>
-    </MainLayout>
+    </AdminLayout>
   );
 }

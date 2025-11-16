@@ -1,9 +1,9 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { AdminLayout } from '@/components/layout/admin-layout';
 
 export default function AdminBannersPage() {
   return (
-    <MainLayout>
+    <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Marketing & Growth: Promo Banners
@@ -12,7 +12,7 @@ export default function AdminBannersPage() {
             <p className="text-muted-foreground">Promo banners management will be here.</p>
         </div>
       </div>
-    </MainLayout>
+    </AdminLayout>
   );
 }
 

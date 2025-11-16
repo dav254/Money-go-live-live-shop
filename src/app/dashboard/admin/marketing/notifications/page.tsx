@@ -1,9 +1,9 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { AdminLayout } from '@/components/layout/admin-layout';
 
 export default function AdminNotificationsPage() {
   return (
-    <MainLayout>
+    <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Marketing & Growth: Notification Center
@@ -12,7 +12,7 @@ export default function AdminNotificationsPage() {
             <p className="text-muted-foreground">Push message and notification composer will be here.</p>
         </div>
       </div>
-    </MainLayout>
+    </AdminLayout>
   );
 }
 

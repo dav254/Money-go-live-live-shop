@@ -1,9 +1,9 @@
 
-import { MainLayout } from '@/components/layout/main-layout';
+import { AdminLayout } from '@/components/layout/admin-layout';
 
 export default function AdminSellerOrdersPage() {
   return (
-    <MainLayout>
+    <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Orders & Transactions: Seller Orders
@@ -12,7 +12,7 @@ export default function AdminSellerOrdersPage() {
             <p className="text-muted-foreground">Seller orders table will be here.</p>
         </div>
       </div>
-    </MainLayout>
+    </AdminLayout>
   );
 }
 
