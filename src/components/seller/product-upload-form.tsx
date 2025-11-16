@@ -40,7 +40,6 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const formSchema = z.object({
@@ -63,7 +62,6 @@ export function ProductUploadForm() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const storage = getStorage();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -91,30 +89,16 @@ export function ProductUploadForm() {
     setFiles((prev) => prev.filter((file) => file.name !== fileName));
   };
   
-  const uploadFile = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      if (!user) {
-        reject('User not authenticated');
-        return;
-      }
-      const storageRef = ref(storage, `products/${user.uid}/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-        },
-        (error) => {
-          console.error('Upload error:', error);
-          reject(error);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            resolve(downloadURL);
-          });
-        }
-      );
+  // This function will be replaced with a server-side Cloudinary upload
+  const uploadFile = async (file: File): Promise<string> => {
+    // Simulate upload for now
+    return new Promise((resolve) => {
+        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+        setTimeout(() => {
+            setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+            // In a real scenario, this would be the URL from Cloudinary
+            resolve(`https://placehold.co/600x400/EEE/31343C?text=${encodeURIComponent(file.name)}`); 
+        }, 1000);
     });
   };
   
@@ -131,6 +115,8 @@ export function ProductUploadForm() {
     setIsUploading(true);
 
     try {
+        // NOTE: The new implementation will call a serverless function to upload to Cloudinary.
+        // For now, we simulate the upload.
         const fileUrl = await uploadFile(files[0]);
         
         const productData = {
