@@ -27,22 +27,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import {
   UploadCloud,
-  File,
   X,
   Plus,
-  GripVertical,
   Pencil,
   Trash2,
   Sparkles,
-  Percent,
   MapPin,
   Truck,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
-import { Label } from '../ui/label';
-import { Separator } from '../ui/separator';
+import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -61,6 +60,10 @@ export function ProductUploadForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const storage = getStorage();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,7 +83,7 @@ export function ProductUploadForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const newFiles = Array.from(event.target.files);
-      setFiles((prev) => [...prev, ...newFiles]);
+      setFiles((prev) => [...prev, ...newFiles].slice(0, 1)); // Limit to one file for now
     }
   };
 
@@ -88,41 +91,78 @@ export function ProductUploadForm() {
     setFiles((prev) => prev.filter((file) => file.name !== fileName));
   };
   
-  // Dummy upload function
-  const handleUpload = (values: z.infer<typeof formSchema>) => {
+  const uploadFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (!user) {
+        reject('User not authenticated');
+        return;
+      }
+      const storageRef = ref(storage, `products/${user.uid}/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+        },
+        (error) => {
+          console.error('Upload error:', error);
+          reject(error);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            resolve(downloadURL);
+          });
+        }
+      );
+    });
+  };
+  
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to upload products.' });
+        return;
+    }
+    if (files.length === 0) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Please upload at least one image or video.' });
+        return;
+    }
+
     setIsUploading(true);
-    const newProgress: Record<string, number> = {};
-    files.forEach(file => {
-      newProgress[file.name] = 0;
-    });
 
-    setUploadProgress(newProgress);
-    
-    const timers = files.map(file => {
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          const currentProgress = prev[file.name] || 0;
-          if (currentProgress >= 100) {
-            clearInterval(interval);
-            return prev;
-          }
-          return { ...prev, [file.name]: currentProgress + 10 };
-        });
-      }, 200);
-      return interval;
-    });
+    try {
+        const fileUrl = await uploadFile(files[0]);
+        
+        const productData = {
+            ...values,
+            sellerId: user.uid,
+            imageUrl: fileUrl,
+            videoUrl: '', // Add video logic later
+            uploadDate: serverTimestamp(),
+            wasPrice: values.enableDiscount ? values.price : null,
+            price: values.enableDiscount && values.salePrice ? values.salePrice : values.price,
+        };
 
-    setTimeout(() => {
-        timers.forEach(clearInterval);
+        const docRef = await addDoc(collection(firestore, 'products'), productData);
+        
+        toast({ title: 'Success!', description: 'Your product has been published.' });
+        form.reset();
+        setFiles([]);
+        setUploadProgress({});
+
+    } catch (error) {
+        console.error("Error uploading product:", error);
+        toast({ variant: 'destructive', title: 'Upload Failed', description: 'There was an error saving your product.' });
+    } finally {
         setIsUploading(false);
-    }, 2500);
+    }
   };
   
   const enableDiscount = form.watch('enableDiscount');
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleUpload)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Add New Product</CardTitle>
@@ -141,7 +181,7 @@ export function ProductUploadForm() {
                       className="relative cursor-pointer rounded-md bg-background font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
                     >
                       <span>Upload files</span>
-                      <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
+                      <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} accept="image/*,video/*" />
                     </label>
                     <p className="pl-1">or drag and drop</p>
                   </div>

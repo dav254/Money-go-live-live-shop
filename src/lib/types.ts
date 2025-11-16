@@ -1,3 +1,4 @@
+
 import type { ImagePlaceholder } from './placeholder-images';
 
 export interface Seller {
@@ -27,11 +28,19 @@ export interface Product {
   id: string;
   name: string;
   price: number;
+  wasPrice?: number;
   originalPrice?: number;
-  image: ImagePlaceholder;
+  image?: ImagePlaceholder;
+  imageUrl: string;
   stock: number;
   sellerId: string;
+  description: string;
+  category: string;
+  tags?: string;
+  location: string;
+  deliveryOptions: string;
 }
+
 
 export interface VideoFeedItem {
   id: string;
