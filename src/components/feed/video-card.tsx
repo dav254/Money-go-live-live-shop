@@ -11,9 +11,10 @@ import Link from 'next/link';
 
 interface VideoCardProps {
   item: VideoFeedItem;
+  onScroll: (direction: 'up' | 'down') => void;
 }
 
-export function VideoCard({ item }: VideoCardProps) {
+export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
@@ -41,6 +42,7 @@ export function VideoCard({ item }: VideoCardProps) {
       <VideoActions 
         initialLikes={item.likes}
         onProductClick={() => setIsDrawerOpen(true)}
+        onScroll={onScroll}
       />
 
       <ProductDrawer 

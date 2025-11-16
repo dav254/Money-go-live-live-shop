@@ -5,12 +5,13 @@ import { LivePreview } from '@/components/live/live-preview';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
-import { Bell, ChevronDown, ChevronUp, MessageSquare, Search, Video } from 'lucide-react';
+import { Bell, Search, Video } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
 import { useCallback, useRef } from 'react';
 import { feedItems } from '@/lib/placeholder-data';
 import { VideoCard } from '@/components/feed/video-card';
+import { MessageSquare } from 'lucide-react';
 
 export default function HomePage() {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -86,31 +87,9 @@ export default function HomePage() {
             >
             {feedItems.map((item, index) => (
                 <div key={item.id} className="h-full w-full snap-start flex-shrink-0">
-                <VideoCard item={item} />
+                <VideoCard item={item} onScroll={handleScroll} />
                 </div>
             ))}
-            </div>
-            
-            {/* Scroll Buttons */}
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-20 z-20">
-                <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70"
-                    onClick={() => handleScroll('up')}
-                    aria-label="Scroll Up"
-                >
-                    <ChevronUp className="h-6 w-6 text-white" />
-                </Button>
-                <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70"
-                    onClick={() => handleScroll('down')}
-                    aria-label="Scroll Down"
-                >
-                    <ChevronDown className="h-6 w-6 text-white" />
-                </Button>
             </div>
       </div>
     </div>
