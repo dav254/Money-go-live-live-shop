@@ -72,7 +72,7 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
       setShowProductDrawer(true);
   }
 
-  const currentMedia = mediaPlaylist[currentMediaIndex];
+  const currentMedia = mediaPlaylist.length > 0 ? mediaPlaylist[currentMediaIndex] : null;
 
   return (
     <div className="h-full bg-background text-foreground font-sans">
@@ -147,7 +147,7 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
                       <img src={activeProduct.imageUrl} alt={activeProduct.name} className="w-20 h-20 object-cover rounded-lg" />
                       <div className="flex-1">
                         <div className="font-bold text-lg">{activeProduct.name}</div>
-                        <div className="text-sm text-primary font-semibold">{activeProduct.price?.toLocaleString()} {activeProduct.wasPrice && <span className="text-xs text-muted-foreground line-through ml-2">{activeProduct.wasPrice.toLocaleString()}</span>}</div>
+                        <div className="text-sm text-primary font-semibold">{activeProduct.price?.toLocaleString()} {activeProduct.wasPrice && <span className="text-xs text-muted-foreground line-through ml-2">{active-product.wasPrice.toLocaleString()}</span>}</div>
                         <div className="mt-2 flex gap-2">
                           <Button size="sm" className="font-semibold">Buy Now</Button>
                           <Button size="sm" variant="secondary">Add to Cart</Button>
