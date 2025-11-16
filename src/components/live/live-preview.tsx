@@ -8,8 +8,6 @@ import { useAuth, useFirestore, useUser } from '@/firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
 interface LivePreviewProps {
-  // seller: Seller | null; // This was from before, now we fetch inside
-  // products: Product[]; // This was from before, now we fetch inside
 }
 
 // A single-file React component for a mobile-first live shopping UI preview.
@@ -23,8 +21,9 @@ export function LivePreview({}: LivePreviewProps) {
   
   const { user } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
   const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
-  const [seller, setSeller] = useState<Seller | null>(null); // We need seller info too
+  const [seller, setSeller] = useState<Seller | null>(null);
 
   // Fetch seller's products when user is available
   useEffect(() => {
@@ -38,7 +37,7 @@ export function LivePreview({}: LivePreviewProps) {
         const products: Product[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setSellerProducts(products);
 
-        // TODO: Fetch seller profile based on user.uid to get seller name, avatar etc.
+        // Fetch seller profile based on user.uid to get seller name, avatar etc.
         // For now, we'll use a placeholder if we have products
         if (products.length > 0) {
             setSeller({
@@ -196,7 +195,6 @@ export function LivePreview({}: LivePreviewProps) {
 
                     {/* small nav area below drawer to simulate app nav */}
                     <div className="h-16 bg-background/90 backdrop-blur-sm" />
-                </div>
                 </div>
             )}
 
