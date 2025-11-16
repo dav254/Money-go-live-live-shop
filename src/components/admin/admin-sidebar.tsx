@@ -160,42 +160,32 @@ export function AdminSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
 
-        <NavCollapsible
-          title="System & Settings"
-          icon={Settings}
-          basePath="system"
-          items={[
-            { href: 'roles', label: 'Roles & Permissions' },
-            { href: 'security', label: 'Security & 2FA' },
-            { href: 'gateways', label: 'Payment Gateways' },
-            { href: 'backup', label: 'Backup & Restore' },
-            { href: 'api-keys', label: 'API Keys' },
-            { href: 'theme', label: 'Themes' },
-            { href: 'server-status', label: 'Server Status' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/system')}>
+                <Link href="/dashboard/admin/system/roles">
+                    <Settings />
+                    <span>System & Settings</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         
-        <NavCollapsible
-          title="AI Management"
-          icon={BrainCircuit}
-          basePath="ai"
-          items={[
-            { href: 'recommendations', label: 'Recommendation Engine' },
-            { href: 'fraud-detection', label: 'Fraud Detection' },
-            { href: 'content-moderation', label: 'Content Moderation' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/ai')}>
+                <Link href="/dashboard/admin/ai/recommendations">
+                    <BrainCircuit />
+                    <span>AI Management</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
-        <NavCollapsible
-          title="Logs & Analytics"
-          icon={BarChart}
-          basePath="analytics"
-          items={[
-            { href: 'revenue', label: 'Revenue Charts' },
-            { href: 'activity', label: 'Activity Logs' },
-            { href: 'errors', label: 'Error Logs' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/analytics')}>
+                <Link href="/dashboard/admin/analytics/revenue">
+                    <BarChart />
+                    <span>Logs & Analytics</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
      <SidebarMenu className="mt-auto">
