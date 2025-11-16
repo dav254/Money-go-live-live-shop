@@ -112,7 +112,7 @@ export const columns: ColumnDef<Seller>[] = [
   { accessorKey: 'phone', header: 'Phone' },
   {
     accessorKey: 'totalSales',
-    header: () => <div className="text-right">Total Sales (KES)</div>,
+    header: () => <div className="text-right">Total Sales</div>,
     cell: ({ row }) => <div className="text-right font-medium">{row.original.totalSales.toLocaleString()}</div>,
   },
   {

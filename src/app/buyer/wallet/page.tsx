@@ -1,3 +1,4 @@
+
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ export default function BuyerWalletPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">KES {walletData.balance.toLocaleString()}</p>
+                            <p className="text-4xl font-bold">{walletData.balance.toLocaleString()}</p>
                             <Button className="mt-4 w-full">Top Up Wallet</Button>
                         </CardContent>
                     </Card>
@@ -72,7 +73,7 @@ export default function BuyerWalletPage() {
                                     <TableHead>Date</TableHead>
                                     <TableHead>Description</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Amount (KES)</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

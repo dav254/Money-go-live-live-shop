@@ -152,9 +152,9 @@ export function LivePreview() {
                     <div className="flex-1">
                       <h3 className="font-headline font-semibold text-lg">{product.name}</h3>
                       <div className="text-xl font-bold text-primary mt-1">
-                        KES {product.price.toLocaleString()}
+                        {product.price.toLocaleString()}
                         {product.originalPrice && (
-                            <span className="text-sm text-muted-foreground line-through ml-2">KES {product.originalPrice.toLocaleString()}</span>
+                            <span className="text-sm text-muted-foreground line-through ml-2">{product.originalPrice.toLocaleString()}</span>
                         )}
                       </div>
                       <div className="mt-2 flex gap-2">

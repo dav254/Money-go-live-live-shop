@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -33,10 +34,10 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
               <div className="flex-1">
                 <h3 className="font-headline text-lg font-semibold">{product.name}</h3>
                 <div className="text-xl font-bold text-primary mt-1">
-                  KES {product.price.toLocaleString()}
+                  {product.price.toLocaleString()}
                   {product.originalPrice && (
                     <span className="ml-2 text-sm text-muted-foreground line-through">
-                      KES {product.originalPrice.toLocaleString()}
+                      {product.originalPrice.toLocaleString()}
                     </span>
                   )}
                 </div>

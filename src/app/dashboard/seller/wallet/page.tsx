@@ -64,7 +64,7 @@ export default function SellerWalletPage() {
               <Wallet className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary">KES {walletData.available.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-primary">{walletData.available.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Ready for withdrawal or promotions.</p>
             </CardContent>
           </Card>
@@ -74,7 +74,7 @@ export default function SellerWalletPage() {
               <Clock className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">KES {walletData.pending.toLocaleString()}</div>
+              <div className="text-3xl font-bold">{walletData.pending.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">From orders awaiting completion.</p>
             </CardContent>
           </Card>
@@ -84,7 +84,7 @@ export default function SellerWalletPage() {
               <Gift className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">KES {walletData.bonus.toLocaleString()}</div>
+              <div className="text-3xl font-bold">{walletData.bonus.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Promotional credits for boosting sales.</p>
             </CardContent>
           </Card>
@@ -105,7 +105,7 @@ export default function SellerWalletPage() {
                           <TableHead>Date & Time</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
-                          <TableHead className="text-right">Amount (KES)</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
                           <TableHead className="text-right">New Balance</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -126,7 +126,7 @@ export default function SellerWalletPage() {
                             </TableCell>
                             <TableCell className="font-medium">{tx.description}</TableCell>
                             <TableCell className={`text-right font-semibold ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {tx.amount.toLocaleString(undefined, { style: 'currency', currency: 'KES', minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('KES', '')}
+                                {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </TableCell>
                              <TableCell className="text-right">{tx.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                           </TableRow>

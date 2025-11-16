@@ -1,3 +1,4 @@
+
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -69,7 +70,7 @@ const OrderCard = ({ order }: { order: typeof orders[0] }) => (
                 <div className="flex-1">
                     <p className="font-semibold">{order.product.name}</p>
                     <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
-                    <p className="text-lg font-bold text-primary">KES {order.total.toLocaleString()}</p>
+                    <p className="text-lg font-bold text-primary">{order.total.toLocaleString()}</p>
                 </div>
             </div>
         </CardContent>

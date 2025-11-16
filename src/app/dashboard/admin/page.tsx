@@ -20,9 +20,9 @@ const stats = [
     { title: 'Total Resellers', value: '5,678', icon: Users },
     { title: 'Total Products', value: '54,321', icon: ShoppingBag },
     { title: 'Live Users Online', value: '1,890', icon: Video, color: 'text-red-500' },
-    { title: 'Today\'s Revenue', value: 'KES 89,210', icon: DollarSign, color: 'text-green-500' },
-    { title: 'Commission Paid', value: 'KES 22,500', icon: CircleDollarSign, color: 'text-green-500' },
-    { title: 'Pending Payouts', value: 'KES 45,120', icon: Clock, color: 'text-yellow-500' },
+    { title: 'Today\'s Revenue', value: '89,210', icon: DollarSign, color: 'text-green-500' },
+    { title: 'Commission Paid', value: '22,500', icon: CircleDollarSign, color: 'text-green-500' },
+    { title: 'Pending Payouts', value: '45,120', icon: Clock, color: 'text-yellow-500' },
     { title: 'Daily Orders', value: '1,203', icon: Package },
     { title: 'Flagged Issues', value: '12', icon: ShieldAlert, color: 'text-red-500' },
 ]

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -268,7 +269,7 @@ export function ProductUploadForm() {
                         name="price"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Original Price (KES)</FormLabel>
+                            <FormLabel>Original Price</FormLabel>
                             <FormControl>
                             <Input type="number" placeholder="e.g., 1500" {...field} />
                             </FormControl>
@@ -281,7 +282,7 @@ export function ProductUploadForm() {
                         name="salePrice"
                         render={({ field }) => (
                         <FormItem className={!enableDiscount ? 'hidden' : ''}>
-                            <FormLabel>Sale Price (KES)</FormLabel>
+                            <FormLabel>Sale Price</FormLabel>
                             <FormControl>
                             <Input type="number" placeholder="e.g., 1200" {...field} />
                             </FormControl>

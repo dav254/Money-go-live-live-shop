@@ -115,7 +115,7 @@ export const columns: ColumnDef<Buyer>[] = [
     header: ({ column }) => (
         <div className="text-right">
             <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-                Wallet (KES)
+                Wallet Balance
                 <CaretSortIcon className="ml-2 h-4 w-4" />
             </Button>
         </div>

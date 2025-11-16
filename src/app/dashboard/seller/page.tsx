@@ -54,7 +54,7 @@ export default function SellerDashboardPage() {
             />
             <div>
               <h2 className="text-lg font-bold font-headline">Seller Store</h2>
-              <p className="text-sm text-muted-foreground">Wallet: KSh 4,200</p>
+              <p className="text-sm text-muted-foreground">Wallet: 4,200</p>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export default function SellerDashboardPage() {
 
               <div className="flex-1">
                 <h3 className="font-bold font-headline">{p.name}</h3>
-                <p className="font-semibold text-primary">KSh {p.price.toLocaleString()}</p>
+                <p className="font-semibold text-primary">{p.price.toLocaleString()}</p>
 
                 <div className="text-sm text-muted-foreground mt-1 flex gap-4">
                     <span>Stock: {p.stock}</span>

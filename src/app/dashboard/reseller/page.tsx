@@ -21,10 +21,10 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 const earningsData = [
-  { title: "Today's Earnings", amount: "KES 1,250", icon: DollarSign },
-  { title: "This Week", amount: "KES 8,600", icon: DollarSign },
-  { title: "This Month", amount: "KES 22,300", icon: DollarSign },
-  { title: "Withdrawable", amount: "KES 15,000", icon: DollarSign, isPrimary: true },
+  { title: "Today's Earnings", amount: "1,250", icon: DollarSign },
+  { title: "This Week", amount: "8,600", icon: DollarSign },
+  { title: "This Month", amount: "22,300", icon: DollarSign },
+  { title: "Withdrawable", amount: "15,000", icon: DollarSign, isPrimary: true },
 ];
 
 const statsData = [
@@ -135,7 +135,7 @@ export default function ResellerDashboardPage() {
                         <TableHead>Product</TableHead>
                         <TableHead>Clicks</TableHead>
                         <TableHead>Orders</TableHead>
-                        <TableHead className="text-right">Commission Earned (KES)</TableHead>
+                        <TableHead className="text-right">Commission Earned</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

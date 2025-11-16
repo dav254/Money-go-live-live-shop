@@ -30,25 +30,25 @@ import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 const commissionData = [
   {
     title: 'Total Commission Earned',
-    amount: 'KES 22,300',
+    amount: '22,300',
     icon: CircleDollarSign,
     description: 'Lifetime earnings from all sales.',
   },
   {
     title: 'Pending Commission',
-    amount: 'KES 3,100',
+    amount: '3,100',
     icon: Clock,
     description: 'From orders not yet delivered.',
   },
   {
     title: 'Paid Out Commission',
-    amount: 'KES 15,000',
+    amount: '15,000',
     icon: CheckCircle,
     description: 'Successfully sent to your account.',
   },
    {
     title: 'Ready for Payout',
-    amount: 'KES 4,200',
+    amount: '4,200',
     icon: Wallet,
     description: 'Available for withdrawal now.',
     isPrimary: true,
@@ -114,7 +114,7 @@ export default function ResellerCommissionsPage() {
                 <TableRow>
                   <TableHead>Order ID</TableHead>
                   <TableHead>Product</TableHead>
-                  <TableHead>Commission (KES)</TableHead>
+                  <TableHead>Commission</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>

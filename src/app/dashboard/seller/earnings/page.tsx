@@ -31,25 +31,25 @@ import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 const analyticsData = [
   {
     title: 'Total Revenue',
-    amount: 'KES 32,450',
+    amount: '32,450',
     icon: DollarSign,
     description: '+20.1% from last month',
   },
   {
     title: 'Pending Payouts',
-    amount: 'KES 12,300',
+    amount: '12,300',
     icon: Wallet,
     description: 'Awaiting clearance',
   },
   {
     title: 'Completed Payouts',
-    amount: 'KES 20,150',
+    amount: '20,150',
     icon: Banknote,
     description: 'In your account',
   },
   {
     title: 'Live Sales Today',
-    amount: 'KES 2,040',
+    amount: '2,040',
     icon: Package,
     description: 'From 12 orders',
   },
@@ -137,7 +137,7 @@ export default function SellerEarningsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Order ID</TableHead>
-                  <TableHead>Amount (KES)</TableHead>
+                  <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Payment Method</TableHead>
                   <TableHead>Date</TableHead>

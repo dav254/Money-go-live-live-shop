@@ -128,10 +128,7 @@ export const columns: ColumnDef<ProductRow>[] = [
     },
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue('price'));
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'KES',
-      }).format(amount);
+      const formatted = new Intl.NumberFormat('en-US').format(amount);
 
       return <div className="text-right font-medium">{formatted}</div>;
     },
@@ -150,10 +147,7 @@ export const columns: ColumnDef<ProductRow>[] = [
     ),
     cell: ({ row }) => {
         const amount = parseFloat(row.getValue('sales'));
-        const formatted = new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'KES',
-        }).format(amount);
+        const formatted = new Intl.NumberFormat('en-US').format(amount);
         return <div className="text-right">{formatted}</div>;
     },
   },

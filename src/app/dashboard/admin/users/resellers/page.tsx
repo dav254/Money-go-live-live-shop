@@ -99,12 +99,12 @@ export const columns: ColumnDef<Reseller>[] = [
   { accessorKey: 'phone', header: 'Phone' },
   {
     accessorKey: 'totalCommissions',
-    header: () => <div className="text-right">Total Commissions (KES)</div>,
+    header: () => <div className="text-right">Total Commissions</div>,
     cell: ({ row }) => <div className="text-right font-medium">{row.original.totalCommissions.toLocaleString()}</div>,
   },
   {
     accessorKey: 'payoutsCompleted',
-    header: () => <div className="text-right">Payouts (KES)</div>,
+    header: () => <div className="text-right">Payouts</div>,
     cell: ({ row }) => <div className="text-right">{row.original.payoutsCompleted.toLocaleString()}</div>,
   },
   {

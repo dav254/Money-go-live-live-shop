@@ -65,7 +65,7 @@ export default function ResellerWalletPage() {
               <Wallet className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary">KES {walletData.available.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+              <div className="text-3xl font-bold text-primary">{walletData.available.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
               <p className="text-xs text-muted-foreground">Ready for immediate withdrawal.</p>
             </CardContent>
           </Card>
@@ -75,7 +75,7 @@ export default function ResellerWalletPage() {
               <Clock className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">KES {walletData.pending.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+              <div className="text-3xl font-bold">{walletData.pending.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
               <p className="text-xs text-muted-foreground">From orders awaiting completion.</p>
             </CardContent>
           </Card>
@@ -85,7 +85,7 @@ export default function ResellerWalletPage() {
               <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">KES {walletData.totalEarned.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+              <div className="text-3xl font-bold">{walletData.totalEarned.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
               <p className="text-xs text-muted-foreground">All commissions earned to date.</p>
             </CardContent>
           </Card>
@@ -106,7 +106,7 @@ export default function ResellerWalletPage() {
                           <TableHead>Date</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
-                          <TableHead className="text-right">Amount (KES)</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

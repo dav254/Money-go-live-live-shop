@@ -26,9 +26,9 @@ export function ProductCard({ product }: ProductCardProps) {
           <h3 className="font-headline font-semibold truncate text-sm">{product.name}</h3>
           <div className="mt-1 flex items-baseline justify-between">
             <div>
-                <p className="text-base font-bold text-primary">KES {product.price.toLocaleString()}</p>
+                <p className="text-base font-bold text-primary">{product.price.toLocaleString()}</p>
                 {product.originalPrice && (
-                    <p className="text-xs text-muted-foreground line-through">KES {product.originalPrice.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground line-through">{product.originalPrice.toLocaleString()}</p>
                 )}
             </div>
             <Button size="icon" variant="ghost">

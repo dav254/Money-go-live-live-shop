@@ -62,7 +62,7 @@ export default function SellerWishlistPage() {
                     </h3>
                     <div className="mt-2 flex items-center justify-between">
                       <p className="text-lg font-bold text-primary">
-                        KES {product.price.toLocaleString()}
+                        {product.price.toLocaleString()}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {product.stock} in stock
