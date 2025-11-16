@@ -33,11 +33,15 @@ import {
   Pencil,
   Trash2,
   Sparkles,
+  Percent,
+  MapPin,
+  Truck,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
+import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -47,6 +51,9 @@ const formSchema = z.object({
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
   tags: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+  location: z.string().min(2, { message: 'Location is required.' }),
+  deliveryOptions: z.string().min(5, { message: 'Please describe delivery options.' }),
+  enableDiscount: z.boolean().default(false),
 });
 
 export function ProductUploadForm() {
@@ -63,6 +70,9 @@ export function ProductUploadForm() {
       stock: 0,
       tags: '',
       description: '',
+      location: '',
+      deliveryOptions: '',
+      enableDiscount: false,
     },
   });
 
@@ -106,6 +116,8 @@ export function ProductUploadForm() {
         setIsUploading(false);
     }, 2500);
   };
+  
+  const enableDiscount = form.watch('enableDiscount');
 
   return (
     <Form {...form}>
@@ -195,47 +207,6 @@ export function ProductUploadForm() {
                     )}
                   />
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField
-                        control={form.control}
-                        name="price"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Price (KES)</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="e.g., 1500" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="salePrice"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Sale Price (Optional)</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="e.g., 1200" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="stock"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Stock Quantity</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="e.g., 50" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
                 <FormField
                     control={form.control}
                     name="description"
@@ -268,19 +239,127 @@ export function ProductUploadForm() {
                 </div>
             </div>
 
-            {/* Live Session Ready Section */}
-            <div className="space-y-4 pt-8 border-t">
-                <h3 className="text-lg font-medium leading-6 text-foreground">Live Session Options</h3>
-                <div className="flex items-center space-x-2">
-                    <Switch id="live-ready" />
-                    <Label htmlFor="live-ready">Add this product to a live session</Label>
+            {/* Pricing & Inventory Section */}
+            <div className="space-y-6 pt-8 border-t">
+                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Discounts</h3>
+                 <FormField
+                    control={form.control}
+                    name="enableDiscount"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base">Enable Discount</FormLabel>
+                                <FormDescription>
+                                Create a sale by setting a lower sale price.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                    />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Original Price (KES)</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 1500" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="salePrice"
+                        render={({ field }) => (
+                        <FormItem className={!enableDiscount ? 'hidden' : ''}>
+                            <FormLabel>Sale Price (KES)</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 1200" {...field} />
+                            </FormControl>
+                             <FormDescription>Must be lower than original price.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="stock"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Stock Quantity</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 50" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                 </div>
-                <p className="text-sm text-muted-foreground">You can manage the order and pin products from the "Live Selling" screen.</p>
+                 {enableDiscount && (
+                    <Card className="bg-primary/10 border-primary/20">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base text-primary">
+                        <Sparkles className="h-5 w-5" />
+                        AI-Powered Discount (Optional)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground mb-4">
+                        Let AI suggest the optimal sale price based on market trends and your sales history to maximize profit.
+                        </p>
+                        <Button type="button" variant="secondary">
+                        Suggest Discount
+                        </Button>
+                    </CardContent>
+                    </Card>
+                )}
+            </div>
+
+            {/* Logistics Section */}
+            <div className="space-y-6 pt-8 border-t">
+                <h3 className="text-lg font-medium leading-6 text-foreground">Logistics & Delivery</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="location"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Product Location</FormLabel>
+                            <FormControl>
+                            <Input placeholder="e.g., Nairobi CBD, Kenya" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+                <FormField
+                    control={form.control}
+                    name="deliveryOptions"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel className="flex items-center gap-2"><Truck className="h-4 w-4" /> Delivery Options</FormLabel>
+                        <FormControl>
+                            <Textarea rows={3} placeholder="e.g., Same-day delivery within Nairobi for KES 300. Nationwide delivery via G4S (2-3 days)." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
             </div>
             
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
-            <Button type="button" variant="outline">Cancel</Button>
+            <Button type="button" variant="outline">Save as Draft</Button>
             <Button type="submit" disabled={isUploading}>
               {isUploading ? 'Uploading...' : 'Publish Product'}
             </Button>
