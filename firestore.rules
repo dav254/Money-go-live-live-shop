@@ -3,43 +3,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow users to read their own profile and admins to read any profile
+    // Users can read and update their own profile.
     match /userProfiles/{userId} {
-      allow read: if request.auth.uid == userId || get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'SuperAdmin';
-      allow write: if request.auth.uid == userId;
+      allow read, update: if request.auth.uid == userId;
+      allow create: if request.auth.uid != null;
     }
 
-    // Allow admins to read/write admin documents
-    match /admins/{adminId} {
-      allow read, write: if get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'SuperAdmin';
+    // Products are publicly readable.
+    // Only users with a 'seller' or 'admin' role can create/update/delete products.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'seller' || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    // Orders can be read by the buyer and by admins.
+    // Buyers can create orders.
+    // This assumes the order document has a 'buyerId' field.
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (resource.data.buyerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null;
+      // Add update/delete rules as needed, e.g., only for admins
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Categories are publicly readable
+    match /categories/{categoryId} {
+        allow read: if true;
+        // Writing to categories is restricted to admins
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Secure chat messages
-    match /chats/{chatId} {
-      // Allow read/write access to chat metadata only if the user is a participant
-      allow read, write: if request.auth.uid in resource.data.participantIds;
-      
-      match /messages/{messageId} {
-        // Allow read/write access to messages only if the user is a participant of the parent chat
-        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
-      }
-    }
-
-    // WARNING: These rules are insecure for some collections and for temporary development only.
-    // We MUST restore proper security rules before going live.
-    match /products/{productId} {
-      allow read, write, list: if request.auth != null;
-    }
-    match /orders/{orderId} {
-      allow read, write: if request.auth != null;
-    }
+    // Other collections from the original file, keeping them restricted to authenticated users for now.
+    // We can refine these later.
     match /payments/{paymentId} {
       allow read, write: if request.auth != null;
     }
     match /aiProductDescriptions/{descId} {
-      allow read, write: if request.auth != null;
-    }
-    match /categories/{categoryId} {
       allow read, write: if request.auth != null;
     }
     match /sellerShops/{shopId} {
@@ -47,6 +46,16 @@ service cloud.firestore {
     }
     match /notifications/{notificationId} {
       allow read, write: if request.auth != null;
+    }
+    match /admins/{adminId} {
+      allow read, write: if get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'SuperAdmin';
+    }
+    match /chats/{chatId} {
+      allow read, write: if request.auth.uid in resource.data.participantIds;
+      
+      match /messages/{messageId} {
+        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      }
     }
   }
 }
