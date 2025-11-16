@@ -124,17 +124,14 @@ export function AdminSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
         
-        <NavCollapsible
-          title="Live Shopping Control"
-          icon={ScreenShare}
-          basePath="live-shopping"
-          items={[
-            { href: 'sessions', label: 'Live Sessions' },
-            { href: 'approved', label: 'Approved Streams' },
-            { href: 'flagged', label: 'Flagged Streams' },
-            { href: 'analytics', label: 'Live Analytics' },
-          ]}
-        />
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/live-shopping')}>
+                <Link href="/dashboard/admin/live-shopping/sessions">
+                    <ScreenShare />
+                    <span>Live Shopping Control</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
 
         <NavCollapsible
           title="Finance Management"
