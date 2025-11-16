@@ -60,7 +60,7 @@ export default function GoLivePage() {
 
           // Fetch seller products
           const productsRef = collection(firestore, 'products');
-          const q = query(productsRef, where('sellerId', '==', user.uid), orderBy('productName'));
+          const q = query(productsRef, where('sellerId', '==', user.uid));
           const querySnapshot = await getDocs(q);
           
           const fetchedProducts = querySnapshot.docs.map(doc => {
