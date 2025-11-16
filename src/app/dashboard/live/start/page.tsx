@@ -70,7 +70,7 @@ export default function GoLivePage() {
                   id: doc.id,
                   name: data.productName || 'Unnamed Product', // Match field from upload form
                   price: data.price || 0,
-                  originalPrice: data.wasPrice, // Match field from upload form
+                  originalPrice: data.wasPrice,
                   image: { imageUrl: data.imageUrl || getPlaceholderImage(), imageHint: `Image of ${data.name}` },
                   stock: data.stock !== undefined ? data.stock : 1,
                   sellerId: data.sellerId,
