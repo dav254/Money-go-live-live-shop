@@ -81,7 +81,7 @@ export function ProductUploadForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const newFiles = Array.from(event.target.files);
-      setFiles((prev) => [...prev, ...newFiles].slice(0, 1)); // Limit to one file for now
+      setFiles((prev) => [...prev, ...newFiles].slice(0, 5)); // Allow up to 5 files
     }
   };
 
@@ -89,15 +89,17 @@ export function ProductUploadForm() {
     setFiles((prev) => prev.filter((file) => file.name !== fileName));
   };
   
-  // This function will be replaced with a server-side Cloudinary upload
   const uploadFile = async (file: File): Promise<string> => {
-    // Simulate upload for now
     return new Promise((resolve) => {
         setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
         setTimeout(() => {
             setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-            // In a real scenario, this would be the URL from Cloudinary
-            resolve(`https://placehold.co/600x400/EEE/31343C?text=${encodeURIComponent(file.name)}`); 
+            // In a real scenario, this would be the URL from a service like Cloudinary or Firebase Storage
+            const isVideo = file.type.startsWith('video/');
+            const placeholderUrl = isVideo
+              ? `https://placehold.co/600x400/000000/FFFFFF?text=${encodeURIComponent(file.name)}`
+              : `https://placehold.co/600x400/EEE/31343C?text=${encodeURIComponent(file.name)}`;
+            resolve(placeholderUrl); 
         }, 1000);
     });
   };
@@ -115,9 +117,12 @@ export function ProductUploadForm() {
     setIsUploading(true);
 
     try {
-        const fileUrl = await uploadFile(files[0]);
-        
-        // Conditionally build the product data to avoid undefined fields
+        const uploadPromises = files.map(file => uploadFile(file));
+        const uploadedUrls = await Promise.all(uploadPromises);
+
+        const imageUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('image/')).map(f => f.url);
+        const videoUrls = files.map((file, index) => ({ file, url: uploadedUrls[index] })).filter(f => f.file.type.startsWith('video/')).map(f => f.url);
+
         const productData: any = {
             productName: values.productName,
             category: values.category,
@@ -127,8 +132,8 @@ export function ProductUploadForm() {
             location: values.location,
             deliveryOptions: values.deliveryOptions,
             sellerId: user.uid,
-            imageUrl: fileUrl,
-            videoUrl: '', // Add video logic later
+            imageUrl: imageUrls[0] || '', // Use first image as primary
+            videoUrl: videoUrls[0] || '', // Use first video
             uploadDate: serverTimestamp(),
         };
 

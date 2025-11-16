@@ -20,9 +20,16 @@ export function LivePreview({ seller, products = [] }: LivePreviewProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   // Combine all product images and videos into a single playlist
-  const mediaPlaylist = products.flatMap(p => 
-    (p.imageUrl ? [{ type: 'image', url: p.imageUrl, product: p }] : [])
-  );
+  const mediaPlaylist = (products || []).flatMap(p => {
+    const media = [];
+    if (p.imageUrl) {
+      media.push({ type: 'image', url: p.imageUrl, product: p });
+    }
+    if (p.videoUrl) {
+      media.push({ type: 'video', url: p.videoUrl, product: p });
+    }
+    return media;
+  });
 
   useEffect(() => {
     // Simulate incoming comments

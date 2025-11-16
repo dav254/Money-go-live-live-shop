@@ -32,6 +32,7 @@ export interface Product {
   originalPrice?: number;
   image?: ImagePlaceholder;
   imageUrl: string;
+  videoUrl?: string;
   stock: number;
   sellerId: string;
   description: string;
