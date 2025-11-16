@@ -42,25 +42,21 @@ const NavCollapsible = ({
   basePath: string;
 }) => {
   const pathname = usePathname();
-  const isActive = items.some((item) => pathname.startsWith(`/dashboard/admin/${basePath}/${item.href}`));
   const isBaseActive = pathname.startsWith(`/dashboard/admin/${basePath}`);
 
   return (
     <Collapsible defaultOpen={isBaseActive}>
-      <CollapsibleTrigger asChild>
-        <Link 
-            href={`/dashboard/admin/${basePath}/${items[0].href}`}
-            className={cn(
-                'group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
-                isBaseActive && 'bg-accent text-accent-foreground'
-            )}
-        >
-          <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4" />
-            <span>{title}</span>
-          </div>
-          <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-        </Link>
+      <CollapsibleTrigger
+        className={cn(
+          'group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
+          isBaseActive && 'bg-accent text-accent-foreground'
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4" />
+          <span>{title}</span>
+        </div>
+        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="flex flex-col gap-1 py-1 pl-8">
@@ -232,8 +228,8 @@ export function AdminSidebar() {
     </SidebarGroup>
      <SidebarMenu className="mt-auto">
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
-            <Link href="/dashboard/account">
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/account')}>
+            <Link href="/dashboard/admin/account">
               <User />
               <span>Account</span>
             </Link>

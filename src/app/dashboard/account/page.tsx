@@ -84,29 +84,29 @@ export default function AccountSettingsPage() {
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-6">
                     <Avatar className="h-20 w-20">
-                        <AvatarImage src="https://picsum.photos/seed/user-avatar/100/100" />
-                        <AvatarFallback>U</AvatarFallback>
+                        <AvatarImage src={userProfile?.profilePictureUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
+                        <AvatarFallback>{userProfile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <Button variant="outline"><Camera className="mr-2 h-4 w-4" /> Change Picture</Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label htmlFor="username">Username</Label>
-                        <Input id="username" defaultValue="johndoe" />
+                        <Input id="username" defaultValue={userProfile?.username} />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="display-name">Display Name</Label>
-                        <Input id="display-name" defaultValue="John Doe" />
+                        <Input id="display-name" defaultValue={userProfile?.fullName} />
                     </div>
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" defaultValue="j.doe@example.com" />
+                        <Input id="email" type="email" defaultValue={userProfile?.email} readOnly />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" type="tel" defaultValue="+254 712 345 678" />
+                        <Input id="phone" type="tel" defaultValue={userProfile?.phoneNumber} />
                     </div>
                 </div>
                 <Button>Save Changes</Button>
