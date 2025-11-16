@@ -3,38 +3,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- NEW: Seller profiles are now publicly readable. ---
+    // Writes are restricted to the seller or an admin.
+    match /sellers/{sellerId} {
+      allow read: if true;
+      allow write: if request.auth.uid == sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
     // Users can read and update their own profile.
     match /userProfiles/{userId} {
       allow read, update: if request.auth.uid == userId;
       allow create: if request.auth.uid != null;
     }
 
-    // Products are publicly readable by any authenticated user.
-    // Writing products is restricted.
+    // --- MODIFIED: Products are now publicly readable. ---
+    // Writing products remains restricted to sellers and admins.
     match /products/{productId} {
-      allow read, list: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'seller' || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin');
     }
 
     // Orders can be read by the buyer and by admins.
     // Buyers can create orders.
-    // This assumes the order document has a 'buyerId' field.
     match /orders/{orderId} {
       allow read: if request.auth != null && (resource.data.buyerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin');
       allow create: if request.auth != null;
-      // Add update/delete rules as needed, e.g., only for admins
       allow update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Categories are publicly readable
     match /categories/{categoryId} {
         allow read: if true;
-        // Writing to categories is restricted to admins
         allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Other collections from the original file, keeping them restricted to authenticated users for now.
-    // We can refine these later.
+    // Other collections, keeping them restricted.
     match /payments/{paymentId} {
       allow read, write: if request.auth != null;
     }
