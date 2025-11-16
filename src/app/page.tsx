@@ -5,11 +5,38 @@ import { LivePreview } from '@/components/live/live-preview';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Search, Video } from 'lucide-react';
+import { Bell, ChevronDown, ChevronUp, MessageSquare, Search, Video } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
+import { useCallback, useRef } from 'react';
+import { feedItems } from '@/lib/placeholder-data';
+import { VideoCard } from '@/components/feed/video-card';
 
 export default function HomePage() {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const handleScroll = useCallback((direction: 'up' | 'down') => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const scrollAmount = container.clientHeight;
+        const currentScroll = container.scrollTop;
+
+        let targetScroll;
+        if (direction === 'down') {
+        targetScroll = currentScroll + scrollAmount;
+        } else {
+        targetScroll = currentScroll - scrollAmount;
+        }
+        
+        container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth',
+        });
+
+    }, []);
+
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
        <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
@@ -52,8 +79,39 @@ export default function HomePage() {
             <UserNav />
           </div>
         </header>
-      <div className="h-[calc(100vh-4rem)]">
-        <LivePreview />
+        <div className="relative h-[calc(100vh-4rem)]">
+            <div 
+            ref={scrollContainerRef}
+            className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
+            >
+            {feedItems.map((item, index) => (
+                <div key={item.id} className="h-full w-full snap-start flex-shrink-0">
+                <VideoCard item={item} />
+                </div>
+            ))}
+            </div>
+            
+            {/* Scroll Buttons */}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-20 z-20">
+                <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70"
+                    onClick={() => handleScroll('up')}
+                    aria-label="Scroll Up"
+                >
+                    <ChevronUp className="h-6 w-6 text-white" />
+                </Button>
+                <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70"
+                    onClick={() => handleScroll('down')}
+                    aria-label="Scroll Down"
+                >
+                    <ChevronDown className="h-6 w-6 text-white" />
+                </Button>
+            </div>
       </div>
     </div>
   );

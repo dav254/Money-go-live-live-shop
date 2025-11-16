@@ -3,11 +3,12 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { LivePreview } from '@/components/live/live-preview';
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import type { Seller, Product } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { doc, getDoc } from 'firebase/firestore';
 
 
 // --- The Page Component ---
@@ -67,18 +68,17 @@ export default function GoLivePage() {
               const data = doc.data();
               return {
                   id: doc.id,
-                  name: data.productName || 'Unnamed Product', // Match field from upload form
-                  price: data.price || 0,
+                  name: data.productName,
+                  price: data.price,
                   originalPrice: data.wasPrice,
-                  image: { imageUrl: data.imageUrl || getPlaceholderImage(), imageHint: `Image of ${data.name}` },
                   stock: data.stock !== undefined ? data.stock : 1,
                   sellerId: data.sellerId,
-                  description: data.description || '',
-                  category: data.category || '',
-                  location: data.location || '',
-                  deliveryOptions: data.deliveryOptions || '',
-                  imageUrl: data.imageUrl || '',
-                  videoUrl: data.videoUrl || '',
+                  description: data.description,
+                  category: data.category,
+                  location: data.location,
+                  deliveryOptions: data.deliveryOptions,
+                  imageUrl: data.imageUrl, // Directly use the URL
+                  videoUrl: data.videoUrl, // Directly use the URL
               } as Product;
           });
           setProducts(fetchedProducts);
