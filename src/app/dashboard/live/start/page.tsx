@@ -60,7 +60,8 @@ export default function GoLivePage() {
 
           // Fetch seller products
           const productsRef = collection(firestore, 'products');
-          const q = query(productsRef, where('sellerId', '==', user.uid), orderBy('uploadDate', 'desc'));
+          // REMOVED ORDERBY TO PREVENT INDEXING ERROR
+          const q = query(productsRef, where('sellerId', '==', user.uid));
           const querySnapshot = await getDocs(q);
           
           const fetchedProducts = querySnapshot.docs.map(doc => {
@@ -78,6 +79,7 @@ export default function GoLivePage() {
                   location: data.location || '',
                   deliveryOptions: data.deliveryOptions || '',
                   imageUrl: data.imageUrl || '',
+                  videoUrl: data.videoUrl || '',
               } as Product;
           });
           setProducts(fetchedProducts);
