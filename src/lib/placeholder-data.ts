@@ -14,7 +14,7 @@ const getImage = (id: string) => {
 
 export const sellers: Seller[] = [
   {
-    id: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
+    id: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
     name: "Aisha's Handbags",
     avatar: getImage('seller-avatar-1'),
     isVerified: true,
@@ -71,7 +71,7 @@ export const products: Product[] = [
     originalPrice: 1000,
     image: getImage('product-handbag'),
     stock: 3,
-    sellerId: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
+    sellerId: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
   },
   {
     id: 'prod-2',
@@ -96,7 +96,7 @@ export const products: Product[] = [
     price: 120,
     image: getImage('product-sneakers'),
     stock: 0, // Out of stock example
-    sellerId: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
+    sellerId: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
   },
   {
     id: 'prod-5',
