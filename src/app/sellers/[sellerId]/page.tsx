@@ -28,8 +28,7 @@ async function getSellerStoryHighlights(sellerId: string): Promise<StoryHighligh
 }
 
 export default async function SellerShopPage({ params }: { params: { sellerId: string } }) {
-  const { sellerId } = params;
-  const seller = await getSellerData(sellerId);
+  const seller = await getSellerData(params.sellerId);
   
   if (!seller) {
     return (
@@ -43,9 +42,9 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
 
   // Fetch all data in parallel
   const [sellerProducts, sellerReviews, sellerHighlights] = await Promise.all([
-    getSellerProducts(sellerId),
-    getSellerReviews(sellerId),
-    getSellerStoryHighlights(sellerId),
+    getSellerProducts(params.sellerId),
+    getSellerReviews(params.sellerId),
+    getSellerStoryHighlights(params.sellerId),
   ]);
 
   return (
