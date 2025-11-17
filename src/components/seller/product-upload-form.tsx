@@ -88,20 +88,54 @@ export function ProductUploadForm() {
   const handleFileRemove = (fileName: string) => {
     setFiles((prev) => prev.filter((file) => file.name !== fileName));
   };
-  
-  const uploadFile = async (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
-        setTimeout(() => {
-            setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-            // In a real scenario, this would be the URL from a service like Cloudinary or Firebase Storage
-            const isVideo = file.type.startsWith('video/');
-            // Corrected placeholder URL logic
-            const placeholderUrl = isVideo
-              ? `https://picsum.photos/seed/${Math.random()}/600/400` // Use a generic image for video thumbnail
-              : URL.createObjectURL(file); // Use the actual image blob URL for preview
-            resolve(placeholderUrl); 
-        }, 1000);
+
+  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
+    const timestamp = Math.round((new Date()).getTime() / 1000);
+    const paramsToSign = { timestamp };
+    
+    // 1. Get signature from our API
+    const signatureResponse = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paramsToSign }),
+    });
+    const { signature } = await signatureResponse.json();
+
+    // 2. Upload file directly to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+    
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', uploadUrl, true);
+
+        xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+                const progress = (event.loaded / event.total) * 100;
+                setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+            }
+        };
+
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const uploadedData = JSON.parse(xhr.responseText);
+                resolve({ url: uploadedData.secure_url, type: file.type });
+            } else {
+                reject(new Error(`Cloudinary upload failed: ${xhr.statusText}`));
+            }
+        };
+
+        xhr.onerror = () => {
+            reject(new Error('Network error during upload.'));
+        };
+
+        xhr.send(formData);
     });
   };
   
@@ -116,73 +150,56 @@ export function ProductUploadForm() {
     }
 
     setIsUploading(true);
+    toast({ title: 'Starting Uploads', description: 'Your files are being uploaded to the cloud.' });
 
-    // This is a simulation. In a real app, you'd upload to a service like Firebase Storage.
-    const getCloudUrl = (file: File) => {
-        const isVideo = file.type.startsWith('video/');
-        // Create a more realistic placeholder URL for the "saved" URL
-        return isVideo
-            ? `https://storage.googleapis.com/web-dev-assets/video-test.mp4` // A real video URL for testing
-            : `https://picsum.photos/seed/${file.name}/600/400`;
-    };
+    try {
+      const uploadPromises = files.map(file => uploadToCloudinary(file));
+      const uploadedMedia = await Promise.all(uploadPromises);
 
-    const uploadPromises = files.map(file => {
-        return new Promise<{url: string, type: string}>(resolve => {
-            setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
-            setTimeout(() => {
-                setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-                resolve({ url: getCloudUrl(file), type: file.type });
-            }, 1000);
-        });
-    });
+      const imageUrls = uploadedMedia.filter(m => m.type.startsWith('image/')).map(m => m.url);
+      const videoUrls = uploadedMedia.filter(m => m.type.startsWith('video/')).map(m => m.url);
 
-    const uploadedMedia = await Promise.all(uploadPromises);
+      const productData: any = {
+          productName: values.productName,
+          category: values.category,
+          stock: values.stock,
+          tags: values.tags || '',
+          description: values.description,
+          location: values.location,
+          deliveryOptions: values.deliveryOptions,
+          sellerId: user.uid,
+          imageUrl: imageUrls[0] || '',
+          videoUrl: videoUrls[0] || '',
+          imageUrls: imageUrls,
+          videoUrls: videoUrls,
+          uploadDate: serverTimestamp(),
+      };
 
-    const imageUrls = uploadedMedia.filter(m => m.type.startsWith('image/')).map(m => m.url);
-    const videoUrls = uploadedMedia.filter(m => m.type.startsWith('video/')).map(m => m.url);
+      if (values.enableDiscount && values.salePrice && values.salePrice < values.price) {
+          productData.price = values.salePrice;
+          productData.wasPrice = values.price;
+      } else {
+          productData.price = values.price;
+          productData.wasPrice = null;
+      }
 
-    const productData: any = {
-        productName: values.productName,
-        category: values.category,
-        stock: values.stock,
-        tags: values.tags || '',
-        description: values.description,
-        location: values.location,
-        deliveryOptions: values.deliveryOptions,
-        sellerId: user.uid,
-        imageUrl: imageUrls[0] || '', // Use first image as primary
-        videoUrl: videoUrls[0] || '', // Use first video
-        uploadDate: serverTimestamp(),
-    };
+      const productsCollectionRef = collection(firestore, 'products');
+      await addDoc(productsCollectionRef, productData);
 
-    if (values.enableDiscount && values.salePrice && values.salePrice < values.price) {
-        productData.price = values.salePrice;
-        productData.wasPrice = values.price;
-    } else {
-        productData.price = values.price;
-        productData.wasPrice = null;
+      toast({ title: 'Success!', description: 'Your product has been published with Cloudinary media.' });
+      form.reset();
+      setFiles([]);
+      setUploadProgress({});
+
+    } catch (error) {
+        console.error('Error during product submission:', error);
+        toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your media. Please try again.' });
+        if (error instanceof FirestorePermissionError) {
+            errorEmitter.emit('permission-error', error);
+        }
+    } finally {
+      setIsUploading(false);
     }
-
-    const productsCollectionRef = collection(firestore, 'products');
-
-    addDoc(productsCollectionRef, productData)
-      .then(() => {
-        toast({ title: 'Success!', description: 'Your product has been published.' });
-        form.reset();
-        setFiles([]);
-        setUploadProgress({});
-      })
-      .catch(error => {
-        const permissionError = new FirestorePermissionError({
-          path: productsCollectionRef.path,
-          operation: 'create',
-          requestResourceData: productData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsUploading(false);
-      });
   };
   
   const enableDiscount = form.watch('enableDiscount');
@@ -193,7 +210,7 @@ export function ProductUploadForm() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Add New Product</CardTitle>
-            <CardDescription>Upload media and fill in the details for your new product.</CardDescription>
+            <CardDescription>Upload media to Cloudinary and fill in the details.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             {/* Media Upload Section */}
@@ -212,7 +229,7 @@ export function ProductUploadForm() {
                     </label>
                     <p className="pl-1">or drag and drop</p>
                   </div>
-                  <p className="text-xs leading-5 text-gray-500">PNG, JPG, GIF, MP4, MOV up to 50MB</p>
+                  <p className="text-xs leading-5 text-gray-500">PNG, JPG, GIF, MP4, MOV up to 100MB</p>
                 </div>
               </div>
             </div>
@@ -227,15 +244,15 @@ export function ProductUploadForm() {
                       {file.type.startsWith('image/') ? (
                         <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover" />
                       ) : (
-                        <video src={URL.createObjectURL(file)} className="h-full w-full object-cover" />
+                        <video src={URL.createObjectURL(file)} className="h-full w-full object-cover" muted loop autoPlay />
                       )}
                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white"><Pencil size={16} /></Button>
                             <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleFileRemove(file.name)}><Trash2 size={16} /></Button>
                         </div>
-                      {uploadProgress[file.name] !== undefined && uploadProgress[file.name] < 100 && (
+                      {isUploading && uploadProgress[file.name] !== undefined && (
                         <div className="absolute bottom-0 left-0 right-0 p-2">
-                           <Progress value={uploadProgress[file.name]} className="h-2" />
+                           <Progress value={uploadProgress[file.name]} className="h-2 bg-white/30 backdrop-blur-sm" />
+                           <p className="text-xs text-white text-center mt-1">{Math.round(uploadProgress[file.name])}%</p>
                         </div>
                       )}
                     </div>
@@ -302,14 +319,11 @@ export function ProductUploadForm() {
                         </FormItem>
                     )}
                 />
-                 <div>
-                    <Button type="button" variant="outline" size="sm"><Plus className="mr-2 h-4 w-4" /> Add Variation (Color, Size)</Button>
-                </div>
             </div>
 
             {/* Pricing & Inventory Section */}
             <div className="space-y-6 pt-8 border-t">
-                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Discounts</h3>
+                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Inventory</h3>
                  <FormField
                     control={form.control}
                     name="enableDiscount"
@@ -372,24 +386,6 @@ export function ProductUploadForm() {
                         )}
                     />
                 </div>
-                 {enableDiscount && (
-                    <Card className="bg-primary/10 border-primary/20">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-base text-primary">
-                        <Sparkles className="h-5 w-5" />
-                        AI-Powered Discount (Optional)
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground mb-4">
-                        Let AI suggest the optimal sale price based on market trends and your sales history to maximize profit.
-                        </p>
-                        <Button type="button" variant="secondary">
-                        Suggest Discount
-                        </Button>
-                    </CardContent>
-                    </Card>
-                )}
             </div>
 
             {/* Logistics Section */}
@@ -417,7 +413,7 @@ export function ProductUploadForm() {
                         <FormItem>
                         <FormLabel className="flex items-center gap-2"><Truck className="h-4 w-4" /> Delivery Options</FormLabel>
                         <FormControl>
-                            <Textarea rows={3} placeholder="e.g., Same-day delivery within Nairobi for KES 300. Nationwide delivery via G4S (2-3 days)." {...field} />
+                            <Textarea rows={3} placeholder="e.g., Same-day delivery within Nairobi for KES 300." {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -437,5 +433,3 @@ export function ProductUploadForm() {
     </Form>
   );
 }
-
-    
