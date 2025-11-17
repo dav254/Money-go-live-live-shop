@@ -3,27 +3,103 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader } from '@/components/seller/seller-header';
 import { ShopStoryHighlights } from '@/components/seller/shop-story-highlights';
 import { SellerTabs } from '@/components/seller/seller-tabs';
-import { sellers, products, reviews, storyHighlights } from '@/lib/placeholder-data';
+import { db } from '@/firebase/server';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import type { Seller, Product, Review, StoryHighlight } from '@/lib/types';
+import { sellers, products, reviews, storyHighlights } from '@/lib/placeholder-data';
 
-// This is a mock data fetching function.
-// In a real app, this would fetch data from Firebase based on the sellerId.
+
 async function getSellerData(sellerId: string): Promise<Seller | null> {
-  const seller = sellers.find(s => s.id === sellerId);
-  return seller || null;
+  // In a real app, you'd fetch from multiple documents and combine them.
+  // For now, we'll use the existing placeholder data structure.
+  const sellerDocRef = doc(db, 'sellerShops', sellerId);
+  const sellerDocSnap = await getDoc(sellerDocRef);
+
+  if (!sellerDocSnap.exists()) {
+    // Fallback to userProfile if sellerShop doesn't exist
+    const userProfileRef = doc(db, 'userProfiles', sellerId);
+    const userProfileSnap = await getDoc(userProfileRef);
+    if (!userProfileSnap.exists()) {
+        return null;
+    }
+     const userProfile = userProfileSnap.data();
+     return {
+        id: userProfileSnap.id,
+        name: userProfile.shopName || userProfile.fullName || 'Seller',
+        avatar: { id: 'avatar', imageUrl: userProfile.profilePictureUrl || `https://picsum.photos/seed/${sellerId}/200`, description: 'Seller Avatar', imageHint: 'seller avatar' },
+        isVerified: false,
+        rating: 0,
+        reviewsCount: 0,
+        followers: 0,
+        location: userProfile.location || 'Unknown',
+        joinedDate: userProfile.joinDate,
+        bio: userProfile.bio || 'Welcome to my shop!',
+        banner: { id: 'banner', imageUrl: `https://picsum.photos/seed/${sellerId}/1200/400`, description: 'Shop Banner', imageHint: 'shop banner' }
+    };
+  }
+
+  const sellerData = sellerDocSnap.data();
+
+  // Also fetch user profile for additional details
+  const userProfileRef = doc(db, 'userProfiles', sellerId);
+  const userProfileSnap = await getDoc(userProfileRef);
+  const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : {};
+
+  // Combine data from sellerShops and userProfiles
+  return {
+    id: sellerDocSnap.id,
+    sellerId: sellerData.sellerId,
+    name: sellerData.shopName,
+    description: sellerData.description,
+    avatar: { id: 'logo', imageUrl: sellerData.logoUrl || `https://picsum.photos/seed/${sellerId}/200`, description: 'Shop Logo', imageHint: 'shop logo' },
+    banner: { id: 'banner', imageUrl: sellerData.bannerUrl || `https://picsum.photos/seed/${sellerId}/1200/400`, description: 'Shop Banner', imageHint: 'shop banner' },
+    location: sellerData.location,
+    contactEmail: sellerData.contactEmail,
+    contactWhatsapp: sellerData.contactWhatsapp,
+    isVerified: true, // Assuming verified if they have a shop
+    rating: 4.8, // Placeholder
+    reviewsCount: 150, // Placeholder
+    followers: 2300, // Placeholder
+    joinedDate: userProfile.joinDate || new Date().toISOString(),
+    bio: sellerData.description || userProfile.bio || 'Welcome to my shop!',
+  };
 }
 
 async function getSellerProducts(sellerId: string): Promise<Product[]> {
-  return products.filter(p => p.sellerId === sellerId);
+  const productsRef = collection(db, 'products');
+  const q = query(productsRef, where('sellerId', '==', sellerId));
+  const querySnapshot = await getDocs(q);
+  
+  if (querySnapshot.empty) {
+    return [];
+  }
+  
+  return querySnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      name: data.name,
+      price: data.price,
+      originalPrice: data.wasPrice,
+      image: { 
+          id: doc.id, 
+          imageUrl: data.imageUrl || `https://picsum.photos/seed/${doc.id}/400/300`, 
+          description: data.name, 
+          imageHint: 'product' 
+      },
+      stock: data.stock || 0,
+      sellerId: data.sellerId,
+    } as Product;
+  });
 }
 
 async function getSellerReviews(sellerId: string): Promise<Review[]> {
-  // Mock: return reviews if seller is the first one
-  return sellerId === sellers[0].id ? reviews : [];
+  // Placeholder: Firestore schema doesn't have reviews yet.
+  return reviews;
 }
 
 async function getSellerStoryHighlights(sellerId: string): Promise<StoryHighlight[]> {
-  // Mock: return highlights for all sellers for now
+  // Placeholder: Firestore schema doesn't have story highlights yet.
   return storyHighlights;
 }
 

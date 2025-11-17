@@ -3,16 +3,20 @@ import type { ImagePlaceholder } from './placeholder-images';
 
 export interface Seller {
   id: string;
+  sellerId: string;
   name: string;
+  description: string;
   avatar: ImagePlaceholder;
+  banner: ImagePlaceholder;
+  location: string;
+  contactEmail?: string;
+  contactWhatsapp?: string;
   isVerified: boolean;
   rating: number;
   reviewsCount: number;
   followers: number;
-  location: string;
   joinedDate: string | Date;
   bio: string;
-  banner: ImagePlaceholder;
   returnPolicy?: string;
   deliveryPolicy?: string;
   storeHours?: string;
