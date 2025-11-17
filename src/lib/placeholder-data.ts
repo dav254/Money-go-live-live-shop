@@ -1,4 +1,5 @@
-import type { Seller, Product, VideoFeedItem, Comment, Category } from './types';
+
+import type { Seller, Product, VideoFeedItem, Comment, Category, Review, StoryHighlight } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
 const getImage = (id: string) => {
@@ -22,8 +23,12 @@ export const sellers: Seller[] = [
     followers: 12500,
     location: "Nairobi, Kenya",
     joinedDate: "2022-08-15",
-    bio: "Curated collection of handcrafted leather bags and accessories. Made with love, built to last.",
+    bio: "Curated collection of handcrafted leather bags and accessories. Made with love, built to last. We believe in sustainable fashion and timeless design.",
     banner: getImage('seller-banner-1'),
+    returnPolicy: "30-day returns. Item must be in original condition. Buyer pays return shipping.",
+    deliveryPolicy: "Ships nationwide in 2-3 business days via Wells Fargo. Free shipping on orders over KES 5,000.",
+    storeHours: "Mon-Fri: 9am - 6pm, Sat: 10am - 4pm",
+    deliversFast: true,
   },
   {
     id: 'seller-2',
@@ -35,8 +40,12 @@ export const sellers: Seller[] = [
     followers: 55000,
     location: "Mombasa, Kenya",
     joinedDate: "2021-01-20",
-    bio: "Your one-stop shop for the latest gadgets and tech accessories. Unbox the future.",
+    bio: "Your one-stop shop for the latest gadgets and tech accessories. Unbox the future. All products come with a 1-year warranty.",
     banner: getImage('seller-banner-2'),
+    returnPolicy: "14-day returns for defective items. Please contact us for troubleshooting before returning.",
+    deliveryPolicy: "Next-day delivery available in Mombasa. 3-5 days for other regions.",
+    storeHours: "Online 24/7. Support available during business hours.",
+    deliversFast: false,
   },
    {
     id: 'seller-3',
@@ -47,9 +56,10 @@ export const sellers: Seller[] = [
     reviewsCount: 890,
     followers: 8200,
     location: "Kisumu, Kenya",
-    joinedDate: "2023-03-10",
+    joinedDate: new Date(new Date().setDate(new Date().getDate() - 20)).toISOString(), // New seller
     bio: "Bringing you the finest ingredients and gourmet food kits for a five-star home cooking experience.",
     banner: { id: 'seller-banner-3', description: 'Food banner', imageUrl: 'https://picsum.photos/seed/403/1200/400', imageHint: 'gourmet food' },
+    deliversFast: true,
   },
 ];
 
@@ -85,7 +95,7 @@ export const products: Product[] = [
     name: 'Urban Explorer Sneakers',
     price: 120,
     image: getImage('product-sneakers'),
-    stock: 25,
+    stock: 0, // Out of stock example
     sellerId: 'z7x4SUxWO8RYeFxPdDjWU6JY28x1',
   },
   {
@@ -162,4 +172,32 @@ export const categories: Category[] = [
     { id: 'home', name: 'Home Goods', image: getImage('category-home') },
     { id: 'beauty', name: 'Beauty', image: getImage('category-beauty') },
     { id: 'art', name: 'Art & Collectibles', image: getImage('category-art') },
+];
+
+
+export const reviews: Review[] = [
+    {
+        id: 'review-1',
+        author: 'Jane D.',
+        avatar: '/avatars/jane.png',
+        rating: 5,
+        comment: 'Absolutely love my new handbag! The quality is amazing and it arrived so quickly. Highly recommend this seller!',
+        date: '2024-08-10'
+    },
+    {
+        id: 'review-2',
+        author: 'Mike K.',
+        avatar: '/avatars/mike.png',
+        rating: 4,
+        comment: 'Great product and fast shipping. The bag is slightly smaller than I expected, but still beautiful.',
+        date: '2024-08-05'
+    }
+];
+
+export const storyHighlights: StoryHighlight[] = [
+    { id: 'sh-1', title: 'New Drops', imageUrl: 'https://picsum.photos/seed/story1/200/200' },
+    { id: 'sh-2', title: 'On Sale', imageUrl: 'https://picsum.photos/seed/story2/200/200' },
+    { id: 'sh-3', title: 'Best Sellers', imageUrl: 'https://picsum.photos/seed/story3/200/200' },
+    { id: 'sh-4', title: 'Flash Deals', imageUrl: 'https://picsum.photos/seed/story4/200/200' },
+    { id: 'sh-5', title: 'Re-stocked', imageUrl: 'https://picsum.photos/seed/story5/200/200' },
 ];

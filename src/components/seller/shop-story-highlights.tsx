@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { StoryHighlight } from '@/lib/types';
@@ -7,11 +8,11 @@ interface ShopStoryHighlightsProps {
 }
 
 const defaultHighlights: StoryHighlight[] = [
-  { id: '1', title: 'New Arrivals', imageUrl: '/placeholder.svg' },
-  { id: '2', title: 'Offers', imageUrl: '/placeholder.svg' },
-  { id: '3', title: 'Trending', imageUrl: '/placeholder.svg' },
-  { id: '4', title: 'Best Sellers', imageUrl: '/placeholder.svg' },
-  { id: '5', title: 'Live Replay', imageUrl: '/placeholder.svg' },
+  { id: '1', title: 'New Arrivals', imageUrl: 'https://picsum.photos/seed/hl1/200' },
+  { id: '2', title: 'Offers', imageUrl: 'https://picsum.photos/seed/hl2/200' },
+  { id: '3', title: 'Trending', imageUrl: 'https://picsum.photos/seed/hl3/200' },
+  { id: '4', title: 'Best Sellers', imageUrl: 'https://picsum.photos/seed/hl4/200' },
+  { id: '5', title: 'Live Replay', imageUrl: 'https://picsum.photos/seed/hl5/200' },
 ];
 
 export function ShopStoryHighlights({ highlights = defaultHighlights }: ShopStoryHighlightsProps) {

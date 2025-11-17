@@ -10,9 +10,28 @@ export interface Seller {
   reviewsCount: number;
   followers: number;
   location: string;
-  joinedDate: string;
+  joinedDate: string | Date;
   bio: string;
   banner: ImagePlaceholder;
+  returnPolicy?: string;
+  deliveryPolicy?: string;
+  storeHours?: string;
+  deliversFast?: boolean;
+}
+
+export interface Review {
+    id: string;
+    author: string;
+    avatar: string;
+    rating: number;
+    comment: string;
+    date: string;
+}
+
+export interface StoryHighlight {
+    id: string;
+    title: string;
+    imageUrl: string;
 }
 
 export interface Comment {
@@ -31,15 +50,19 @@ export interface Product {
   wasPrice?: number;
   originalPrice?: number;
   image?: ImagePlaceholder;
-  imageUrl: string;
+  imageUrl?: string; // Optional for cases where it's not a placeholder object
+  imageUrls?: string[];
   videoUrl?: string;
+  videoUrls?: string[];
   stock: number;
   sellerId: string;
-  description: string;
-  category: string;
+  description?: string;
+  category?: string;
   tags?: string;
-  location: string;
-  deliveryOptions: string;
+  location?: string;
+  deliveryOptions?: string;
+  rating?: number; // Added for product-level rating
+  likes?: number; // Added for product likes
 }
 
 
