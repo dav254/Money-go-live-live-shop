@@ -1,20 +1,21 @@
 
 'use client';
 
-import { SellerLayout } from '@/components/layout/seller-layout';
-import { LivePreview } from '@/components/live/live-preview';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useFirebaseApp } from '@/firebase';
 import type { Seller, Product } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { doc, getDoc } from 'firebase/firestore';
+import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { LivePreview } from '@/components/live/live-preview';
+import { SellerLayout } from '@/components/layout/seller-layout';
 
 
 // --- The Page Component ---
 export default function GoLivePage() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
+  const app = useFirebaseApp();
   const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,19 +31,19 @@ export default function GoLivePage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch seller data from userProfiles collection
+        const storage = getStorage(app);
+
+        // Fetch seller data
         const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         const userProfileSnap = await getDoc(userProfileRef);
 
         if (userProfileSnap.exists() && userProfileSnap.data().userRole === 'seller') {
           const profileData = userProfileSnap.data();
-          
-          // Attempt to fetch more detailed seller data if it exists in a 'sellers' collection
           let sellerData = null;
           const sellerRef = doc(firestore, 'sellers', user.uid);
           const sellerSnap = await getDoc(sellerRef);
           if (sellerSnap.exists()) {
-             sellerData = sellerSnap.data();
+            sellerData = sellerSnap.data();
           }
 
           setSeller({
@@ -63,26 +64,44 @@ export default function GoLivePage() {
           const productsRef = collection(firestore, 'products');
           const q = query(productsRef, where('sellerId', '==', user.uid));
           const querySnapshot = await getDocs(q);
-          
-          const fetchedProducts = querySnapshot.docs.map(doc => {
-              const data = doc.data();
-              return {
-                  id: doc.id,
-                  name: data.productName,
-                  price: data.price,
-                  originalPrice: data.wasPrice,
-                  stock: data.stock !== undefined ? data.stock : 1,
-                  sellerId: data.sellerId,
-                  description: data.description,
-                  category: data.category,
-                  location: data.location,
-                  deliveryOptions: data.deliveryOptions,
-                  imageUrl: data.imageUrl, // Directly use the URL
-                  videoUrl: data.videoUrl, // Directly use the URL
-              } as Product;
-          });
-          setProducts(fetchedProducts);
 
+          const fetchedProducts = await Promise.all(querySnapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            let imageUrl = getPlaceholderImage();
+            let videoUrl = '';
+
+            try {
+              if (data.imageUrl) {
+                const imageRef = ref(storage, data.imageUrl);
+                imageUrl = await getDownloadURL(imageRef);
+              }
+              if (data.videoUrl) {
+                const videoRef = ref(storage, data.videoUrl);
+                videoUrl = await getDownloadURL(videoRef);
+              }
+            } catch (urlError) {
+                // If a URL fails, we'll log it but continue with the placeholder
+                console.error(`Failed to get download URL for product ${doc.id}:`, urlError);
+            }
+
+            return {
+              id: doc.id,
+              name: data.productName,
+              price: data.price,
+              originalPrice: data.wasPrice,
+              stock: data.stock !== undefined ? data.stock : 1,
+              sellerId: data.sellerId,
+              description: data.description,
+              category: data.category,
+              location: data.location,
+              deliveryOptions: data.deliveryOptions,
+              imageUrl: imageUrl,
+              videoUrl: videoUrl,
+              image: { imageUrl: imageUrl, imageHint: 'product image', id: doc.id, description: 'product image' },
+            } as Product;
+          }));
+
+          setProducts(fetchedProducts);
         }
       } catch (error) {
         console.error("Error fetching seller data for live preview:", error);
@@ -92,8 +111,7 @@ export default function GoLivePage() {
     };
 
     fetchData();
-
-  }, [user, firestore, isUserLoading]);
+  }, [user, firestore, isUserLoading, app]);
 
 
   if (isLoading || isUserLoading) {
@@ -118,9 +136,8 @@ export default function GoLivePage() {
   }
 
   return (
-    // We use a simplified layout for the fullscreen live experience
     <div className="h-screen w-screen bg-black">
-       <LivePreview seller={seller} products={products} />
+      <LivePreview seller={seller} products={products} />
     </div>
   );
 }

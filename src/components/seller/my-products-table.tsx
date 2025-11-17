@@ -44,6 +44,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { products as placeholderProducts } from '@/lib/placeholder-data';
 import type { Product } from '@/lib/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ProductUploadForm } from './product-upload-form';
 
 
 type ProductRow = Product & {
@@ -158,26 +160,36 @@ export const columns: ColumnDef<ProductRow>[] = [
       const product = row.original;
 
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <DotsHorizontalIcon className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(product.id)}
-            >
-              Copy product ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View product page</DropdownMenuItem>
-            <DropdownMenuItem>Edit product</DropdownMenuItem>
-             <DropdownMenuItem className="text-destructive">Delete product</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Dialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <DotsHorizontalIcon className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(product.id)}
+              >
+                Copy product ID
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>View product page</DropdownMenuItem>
+              <DialogTrigger asChild>
+                <DropdownMenuItem>Edit product</DropdownMenuItem>
+              </DialogTrigger>
+              <DropdownMenuItem className="text-destructive">Delete product</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DialogContent className="sm:max-w-[800px]">
+            <DialogHeader>
+              <DialogTitle>Edit Product</DialogTitle>
+            </DialogHeader>
+            <ProductUploadForm />
+          </DialogContent>
+        </Dialog>
       );
     },
   },
