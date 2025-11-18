@@ -24,6 +24,7 @@ import {
   Mail,
   MapPin,
   Store,
+  UploadCloud,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -32,7 +33,8 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import type { SellerShop } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 
 type AccentColor = 'red' | 'blue' | 'purple' | 'gold' | 'pink';
 type ButtonStyle = 'rounded' | 'square' | 'soft';
@@ -41,6 +43,8 @@ export default function SellerSettingsPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const sellerShopRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -49,41 +53,112 @@ export default function SellerSettingsPage() {
 
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
 
+  // Profile State
+  const [shopName, setShopName] = useState('');
+  const [shopDescription, setShopDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [bannerUrl, setBannerUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState<'logo' | 'banner' | null>(null);
+
+  // Theme State
   const [darkMode, setDarkMode] = useState(true);
   const [accentColor, setAccentColor] = useState<AccentColor>('red');
   const [buttonStyle, setButtonStyle] = useState<ButtonStyle>('rounded');
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    if (shopData?.themeSettings) {
-        setDarkMode(shopData.themeSettings.darkMode ?? true);
-        setAccentColor(shopData.themeSettings.accentColor ?? 'red');
-        setButtonStyle(shopData.themeSettings.buttonStyle ?? 'rounded');
+    if (shopData) {
+        setShopName(shopData.shopName || '');
+        setShopDescription(shopData.description || '');
+        setLogoUrl(shopData.logoUrl || null);
+        setBannerUrl(shopData.bannerUrl || null);
+
+        if (shopData.themeSettings) {
+            setDarkMode(shopData.themeSettings.darkMode ?? true);
+            setAccentColor(shopData.themeSettings.accentColor ?? 'red');
+            setButtonStyle(shopData.themeSettings.buttonStyle ?? 'rounded');
+        }
     }
   }, [shopData]);
+
+
+  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
+    const timestamp = Math.round((new Date()).getTime() / 1000);
+    const paramsToSign = { timestamp };
+    
+    const signatureResponse = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paramsToSign }),
+    });
+    const { signature } = await signatureResponse.json();
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+    
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+
+    const response = await fetch(uploadUrl, { method: 'POST', body: formData });
+    if (!response.ok) {
+        throw new Error('Cloudinary upload failed.');
+    }
+    const uploadedData = await response.json();
+    return { url: uploadedData.secure_url, type: file.type };
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setIsUploading(type);
+      try {
+          const { url } = await uploadToCloudinary(file);
+          if (type === 'logo') {
+              setLogoUrl(url);
+          } else {
+              setBannerUrl(url);
+          }
+          toast({ title: `${type === 'logo' ? 'Logo' : 'Banner'} uploaded!` });
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Upload failed', description: 'Could not upload your image.' });
+      } finally {
+          setIsUploading(null);
+      }
+  };
+
 
   const handleSaveChanges = async () => {
     if (!sellerShopRef) return;
     setIsSaving(true);
     
-    const themeSettings = {
-        darkMode,
-        accentColor,
-        buttonStyle
+    const dataToSave: Partial<SellerShop> = {
+        shopName,
+        description: shopDescription,
+        logoUrl: logoUrl || '',
+        bannerUrl: bannerUrl || '',
+        themeSettings: {
+            darkMode,
+            accentColor,
+            buttonStyle
+        }
     };
 
     try {
-        await setDoc(sellerShopRef, { themeSettings }, { merge: true });
+        await setDoc(sellerShopRef, dataToSave, { merge: true });
         toast({
-            title: 'Theme Saved!',
-            description: 'Your shop theme has been updated successfully.',
+            title: 'Settings Saved!',
+            description: 'Your shop settings have been updated.',
         });
     } catch (error) {
-        console.error('Error saving theme:', error);
+        console.error('Error saving settings:', error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Could not save your theme settings. Please try again.',
+            description: 'Could not save your settings. Please try again.',
         });
     } finally {
         setIsSaving(false);
@@ -93,9 +168,14 @@ export default function SellerSettingsPage() {
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Shop Settings
-        </h1>
+        <div className="flex items-center justify-between">
+            <h1 className="font-headline text-3xl font-bold tracking-tight">
+            Shop Settings
+            </h1>
+            <Button onClick={handleSaveChanges} disabled={isSaving || isUploading !== null}>
+                {isSaving ? 'Saving...' : 'Save All Changes'}
+            </Button>
+        </div>
         <Tabs defaultValue="profile" className="space-y-4">
           <TabsList>
             <TabsTrigger value="profile">
@@ -130,20 +210,40 @@ export default function SellerSettingsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="shop-name">Shop Name</Label>
-                  <Input id="shop-name" placeholder="e.g., Aisha's Handbags" />
+                  <Input id="shop-name" placeholder="e.g., Aisha's Handbags" value={shopName} onChange={(e) => setShopName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="shop-description">Shop Description</Label>
-                  <Textarea id="shop-description" placeholder="Tell customers about your shop..." />
+                  <Textarea id="shop-description" placeholder="Tell customers about your shop..." value={shopDescription} onChange={(e) => setShopDescription(e.target.value)} />
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Shop Logo (1:1 ratio)</Label>
-                        <Button variant="outline" className="w-full">Upload Logo</Button>
+                        <input type="file" ref={logoInputRef} onChange={(e) => handleFileChange(e, 'logo')} accept="image/*" className="hidden" />
+                        {logoUrl ? (
+                            <div className="relative w-48 h-48 rounded-md overflow-hidden">
+                                <Image src={logoUrl} alt="Logo preview" fill className="object-cover" />
+                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={() => setLogoUrl(null)}>Remove</Button>
+                            </div>
+                        ) : (
+                             <Button variant="outline" className="w-full h-32 border-dashed" onClick={() => logoInputRef.current?.click()} disabled={isUploading === 'logo'}>
+                                {isUploading === 'logo' ? 'Uploading...' : <><UploadCloud className="mr-2" /> Upload Logo</>}
+                            </Button>
+                        )}
                     </div>
                      <div className="space-y-2">
                         <Label>Shop Banner (3:1 ratio)</Label>
-                        <Button variant="outline" className="w-full">Upload Banner</Button>
+                        <input type="file" ref={bannerInputRef} onChange={(e) => handleFileChange(e, 'banner')} accept="image/*" className="hidden" />
+                        {bannerUrl ? (
+                             <div className="relative w-full aspect-[3/1] rounded-md overflow-hidden">
+                                <Image src={bannerUrl} alt="Banner preview" fill className="object-cover" />
+                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={() => setBannerUrl(null)}>Remove</Button>
+                            </div>
+                        ) : (
+                            <Button variant="outline" className="w-full h-32 border-dashed" onClick={() => bannerInputRef.current?.click()} disabled={isUploading === 'banner'}>
+                                {isUploading === 'banner' ? 'Uploading...' : <><UploadCloud className="mr-2" /> Upload Banner</>}
+                            </Button>
+                        )}
                     </div>
                 </div>
               </CardContent>
@@ -250,11 +350,6 @@ export default function SellerSettingsPage() {
                     </RadioGroup>
                 </div>
               </CardContent>
-              <CardFooter>
-                 <Button onClick={handleSaveChanges} disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </CardFooter>
             </Card>
           </TabsContent>
 
