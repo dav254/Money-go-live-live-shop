@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useUser, useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, increment, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -66,7 +66,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     });
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
      if (!user) {
       toast({
         title: 'Please log in',
@@ -92,21 +92,31 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
         quantity: 1, // Assuming quantity of 1 for "Buy Now"
     };
 
-    addDocumentNonBlocking(ordersCollectionRef, newOrderData)
-      .then(() => {
-        toast({
-          title: 'Order Placed!',
-          description: 'Your order is pending. Please proceed to payment.',
-        });
-        // In a real app, you would redirect to a payment page here.
-        // For now, we just close the drawer.
-        onOpenChange(false);
-      })
-      .catch((err) => {
-        // The error is already handled by the global emitter in addDocumentNonBlocking,
-        // but you could add specific UI feedback here if needed.
-        console.error("Failed to place order:", err);
+    try {
+      const newOrderRef = await addDoc(ordersCollectionRef, newOrderData);
+
+      // Now add the ID to the document itself
+      const orderDocRef = doc(firestore, "orders", newOrderRef.id);
+      const batch = writeBatch(firestore);
+      batch.update(orderDocRef, { id: newOrderRef.id });
+      await batch.commit();
+
+      toast({
+        title: 'Order Created!',
+        description: 'Redirecting you to checkout...',
       });
+      
+      router.push(`/checkout/${newOrderRef.id}`);
+
+    } catch (error) {
+       console.error("Failed to place order:", error);
+       const permissionError = new FirestorePermissionError({
+          path: ordersCollectionRef.path,
+          operation: 'create',
+          requestResourceData: newOrderData
+       });
+       errorEmitter.emit('permission-error', permissionError);
+    }
   };
 
   return (
