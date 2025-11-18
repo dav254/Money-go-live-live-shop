@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, serverTimestamp, increment, writeBatch, addDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, increment, writeBatch, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -64,9 +64,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
 
     // Also increment the inCartCount on the product itself
     const productRef = doc(firestore, 'products', product.id);
-    updateDoc(productRef, {
-        inCartCount: increment(1)
-    }).catch(error => {
+    setDoc(productRef, { inCartCount: increment(1) }, { merge: true }).catch(error => {
          errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -99,7 +97,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     // Create a new document reference with an auto-generated ID
     const newOrderRef = doc(ordersCollectionRef);
     const shippingCost = product.shippingCost || 0;
-    const productPrice = product.price;
+    const productPrice = product.price || 0;
 
     const newOrderData = {
         id: newOrderRef.id, // Store the ID within the document
@@ -184,5 +182,3 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     </Sheet>
   );
 }
-
-    
