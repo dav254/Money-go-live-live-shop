@@ -1,9 +1,12 @@
 
+'use client';
+
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -24,8 +27,69 @@ import {
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import type { SellerShop } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
+
+type AccentColor = 'red' | 'blue' | 'purple' | 'gold' | 'pink';
+type ButtonStyle = 'rounded' | 'square' | 'soft';
 
 export default function SellerSettingsPage() {
+  const { user, isLoading: isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const sellerShopRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'sellerShops', user.uid);
+  }, [firestore, user]);
+
+  const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
+
+  const [darkMode, setDarkMode] = useState(true);
+  const [accentColor, setAccentColor] = useState<AccentColor>('red');
+  const [buttonStyle, setButtonStyle] = useState<ButtonStyle>('rounded');
+  const [isSaving, setIsSaving] = useState(false);
+  
+  useEffect(() => {
+    if (shopData?.themeSettings) {
+        setDarkMode(shopData.themeSettings.darkMode ?? true);
+        setAccentColor(shopData.themeSettings.accentColor ?? 'red');
+        setButtonStyle(shopData.themeSettings.buttonStyle ?? 'rounded');
+    }
+  }, [shopData]);
+
+  const handleSaveChanges = async () => {
+    if (!sellerShopRef) return;
+    setIsSaving(true);
+    
+    const themeSettings = {
+        darkMode,
+        accentColor,
+        buttonStyle
+    };
+
+    try {
+        await setDoc(sellerShopRef, { themeSettings }, { merge: true });
+        toast({
+            title: 'Theme Saved!',
+            description: 'Your shop theme has been updated successfully.',
+        });
+    } catch (error) {
+        console.error('Error saving theme:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not save your theme settings. Please try again.',
+        });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -164,36 +228,33 @@ export default function SellerSettingsPage() {
               <CardContent className="space-y-6">
                 <div className="flex items-center space-x-2">
                     <Label htmlFor="dark-mode">Dark Mode</Label>
-                    <Switch id="dark-mode" defaultChecked />
+                    <Switch id="dark-mode" checked={darkMode} onCheckedChange={setDarkMode} />
                 </div>
                  <div>
                   <Label>Accent Color</Label>
                   <div className="flex flex-wrap gap-2 pt-2">
-                    <Button variant="outline" className="border-red-500 text-red-500">Red</Button>
-                    <Button variant="outline">Blue</Button>
-                    <Button variant="outline">Purple</Button>
-                    <Button variant="outline">Gold</Button>
-                    <Button variant="outline">Pink</Button>
+                    {(['red', 'blue', 'purple', 'gold', 'pink'] as AccentColor[]).map(color => (
+                         <Button key={color} variant={accentColor === color ? 'default' : 'outline'} onClick={() => setAccentColor(color)} className="capitalize">{color}</Button>
+                    ))}
                   </div>
                 </div>
                  <div>
                   <Label>Button Style</Label>
-                    <RadioGroup defaultValue="rounded" className="flex gap-4 pt-2">
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="rounded" id="r1" />
-                            <Label htmlFor="r1">Rounded</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="square" id="r2" />
-                            <Label htmlFor="r2">Square</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="soft" id="r3" />
-                            <Label htmlFor="r3">Soft</Label>
-                        </div>
+                    <RadioGroup value={buttonStyle} onValueChange={(val) => setButtonStyle(val as ButtonStyle)} className="flex gap-4 pt-2">
+                        {(['rounded', 'square', 'soft'] as ButtonStyle[]).map(style => (
+                            <div key={style} className="flex items-center space-x-2">
+                                <RadioGroupItem value={style} id={style} />
+                                <Label htmlFor={style} className="capitalize">{style}</Label>
+                            </div>
+                        ))}
                     </RadioGroup>
                 </div>
               </CardContent>
+              <CardFooter>
+                 <Button onClick={handleSaveChanges} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </CardFooter>
             </Card>
           </TabsContent>
 
@@ -233,7 +294,7 @@ export default function SellerSettingsPage() {
                     <Textarea 
                         id="return-policy" 
                         rows={6} 
-                        placeholder="e.g., We accept returns within 7 days for a full refund. Items must be unused and in original packaging. Buyer pays for return shipping." 
+                        defaultValue="We accept returns within 7 days for a full refund. Items must be unused and in original packaging. Buyer pays for return shipping." 
                     />
                 </div>
                 <div className="space-y-2">
@@ -241,7 +302,7 @@ export default function SellerSettingsPage() {
                     <Textarea 
                         id="shipping-policy" 
                         rows={4} 
-                        placeholder="e.g., We ship nationwide via G4S within 2-3 business days. Same-day delivery available in Nairobi for KES 300 via local riders." 
+                        defaultValue="We ship nationwide via G4S within 2-3 business days. Same-day delivery available in Nairobi for KES 300 via local riders." 
                     />
                 </div>
               </CardContent>

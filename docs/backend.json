@@ -361,6 +361,26 @@
         "contactWhatsapp": {
           "type": "string",
           "description": "contact whatsapp number for the seller"
+        },
+        "themeSettings": {
+            "type": "object",
+            "description": "Custom theme settings for the seller's shop page.",
+            "properties": {
+                "darkMode": {
+                    "type": "boolean",
+                    "description": "Whether to enable dark mode for the shop page."
+                },
+                "accentColor": {
+                    "type": "string",
+                    "enum": ["red", "blue", "purple", "gold", "pink"],
+                    "description": "The accent color for the shop page."
+                },
+                "buttonStyle": {
+                    "type": "string",
+                    "enum": ["rounded", "square", "soft"],
+                    "description": "The style of buttons on the shop page."
+                }
+            }
         }
       },
       "required": [

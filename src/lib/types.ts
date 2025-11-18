@@ -2,6 +2,28 @@
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
+export type AccentColor = 'red' | 'blue' | 'purple' | 'gold' | 'pink';
+export type ButtonStyle = 'rounded' | 'square' | 'soft';
+
+export interface ThemeSettings {
+  darkMode?: boolean;
+  accentColor?: AccentColor;
+  buttonStyle?: ButtonStyle;
+}
+
+export interface SellerShop {
+  id: string;
+  sellerId: string;
+  shopName: string;
+  description: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  location?: string;
+  contactEmail?: string;
+  contactWhatsapp?: string;
+  themeSettings?: ThemeSettings;
+}
+
 export interface Seller {
   id: string;
   sellerId: string;
@@ -25,6 +47,7 @@ export interface Seller {
   shopName?: string;
   logoUrl?: string;
   bannerUrl?: string;
+  themeSettings?: ThemeSettings;
 }
 
 export interface Review {
