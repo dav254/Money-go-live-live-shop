@@ -9,6 +9,11 @@ service cloud.firestore {
       allow read: if true;
       allow update: if request.auth.uid == userId;
       allow create: if request.auth.uid != null;
+      
+      // A user can only read and write to their own cart.
+      match /cart/{productId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
     
     // SellerShops are now publicly readable.

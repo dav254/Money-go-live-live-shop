@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { doc, serverTimestamp, increment } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface ProductDrawerProps {
   product: Product;
@@ -17,6 +21,40 @@ interface ProductDrawerProps {
 export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerProps) {
   const imageUrl = product.image?.imageUrl || product.imageUrl || getPlaceholderImage();
   const imageHint = product.image?.imageHint || 'product image';
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
+
+
+  const handleAddToCart = () => {
+    if (!user) {
+      toast({
+        title: 'Please log in',
+        description: 'You need to be logged in to add items to your cart.',
+        action: <Button onClick={() => router.push('/login')}>Login</Button>,
+      });
+      return;
+    }
+
+    const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
+    
+    const cartItemData = {
+      productId: product.id,
+      quantity: increment(1), // Atomically increment quantity
+      price: product.price,
+      name: product.name,
+      imageUrl: imageUrl,
+      addedAt: serverTimestamp(),
+    };
+
+    setDocumentNonBlocking(cartItemRef, cartItemData, { merge: true });
+
+    toast({
+      title: 'Added to Cart',
+      description: `${product.name} has been added to your cart.`,
+    });
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -52,7 +90,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
             </div>
             <div className="mt-6 flex flex-col gap-3">
                <Button size="lg" className="w-full font-bold text-lg">Buy Now</Button>
-               <Button size="lg" variant="secondary" className="w-full font-bold text-lg">Add to Cart</Button>
+               <Button size="lg" variant="secondary" className="w-full font-bold text-lg" onClick={handleAddToCart}>Add to Cart</Button>
                <Button size="lg" variant="link" asChild>
                   <Link href={`/sellers/${product.sellerId}`}>Visit Shop</Link>
                 </Button>

@@ -168,6 +168,40 @@
         "uploadDate"
       ]
     },
+    "CartItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CartItem",
+      "type": "object",
+      "description": "Represents a single item in a user's shopping cart.",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "The ID of the product in the cart."
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the product at the time it was added to the cart."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "The image URL of the product."
+        },
+        "addedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the item was added to the cart."
+        }
+      },
+      "required": ["productId", "quantity", "price", "name", "addedAt"]
+    },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
@@ -529,6 +563,24 @@
             {
               "name": "userId",
               "description": "The unique identifier for the user."
+            }
+          ],
+          "subcollections": [
+            {
+              "path": "cart/{productId}",
+              "definition": {
+                "entityName": "CartItem",
+                "schema": {
+                  "$ref": "#/backend/entities/CartItem"
+                },
+                "description": "A subcollection containing items in the user's shopping cart.",
+                "params": [
+                  {
+                    "name": "productId",
+                    "description": "The unique identifier for a product in the cart."
+                  }
+                ]
+              }
             }
           ]
         }
