@@ -19,27 +19,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Wallet,
-  Clock,
-  Gift,
   ArrowRight,
   Download,
   Settings,
   ShieldCheck,
   CreditCard,
   History,
+  CircleDollarSign,
 } from 'lucide-react';
 
 const walletData = {
-  available: 4200.50,
-  pending: 1850.00,
-  bonus: 300.00,
+  totalRevenue: 52600.0,
+  payouts: 48400.0,
+  platformFees: 4200.00,
 };
 
 const transactions = [
+  { type: 'payout', amount: -15000.00, date: '2024-08-25 18:00', balance: 3400.50, description: 'Withdrawal to M-Pesa' },
   { type: 'sale', amount: 950.00, date: '2024-08-26 14:30', balance: 4200.50, description: 'Order #ORD-001' },
-  { type: 'promo', amount: -150.00, date: '2024-08-26 10:15', balance: 3250.50, description: 'Boost for "Classic Handbag"' },
-  { type: 'payout', amount: -5000.00, date: '2024-08-25 18:00', balance: 3400.50, description: 'Withdrawal to M-Pesa' },
-  { type: 'bonus', amount: 300.00, date: '2024-08-25 09:00', balance: 8400.50, description: 'New Seller Welcome Bonus' },
   { type: 'sale', amount: 1200.00, date: '2024-08-24 11:45', balance: 8100.50, description: 'Order #ORD-002' },
 ];
 
@@ -60,32 +57,32 @@ export default function SellerWalletPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="bg-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+              <CardTitle className="text-sm font-medium">Available for Payout</CardTitle>
               <Wallet className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary">{walletData.available.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Ready for withdrawal or promotions.</p>
+              <div className="text-3xl font-bold text-primary">{walletData.totalRevenue.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">This is your total earned revenue.</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Balance</CardTitle>
-              <Clock className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total Paid Out</CardTitle>
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{walletData.pending.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">From orders awaiting completion.</p>
+              <div className="text-3xl font-bold">{walletData.payouts.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Funds successfully sent to you.</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Bonus / Credits</CardTitle>
-              <Gift className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total Platform Fees</CardTitle>
+              <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{walletData.bonus.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Promotional credits for boosting sales.</p>
+              <div className="text-3xl font-bold">{walletData.platformFees.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Commission paid to MoneyGo.</p>
             </CardContent>
           </Card>
         </div>
@@ -95,7 +92,7 @@ export default function SellerWalletPage() {
                 {/* Transaction History */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><History /> Transaction History</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><History /> Payout History</CardTitle>
                     <CardDescription>A record of all your wallet activities.</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -114,13 +111,7 @@ export default function SellerWalletPage() {
                           <TableRow key={i}>
                             <TableCell className="text-muted-foreground">{tx.date}</TableCell>
                             <TableCell>
-                              <Badge variant={
-                                tx.type === 'sale' ? 'default' :
-                                tx.type === 'bonus' ? 'default' :
-                                'secondary'
-                                } className={
-                                tx.amount > 0 ? 'bg-green-600/80' : 'bg-yellow-500/80'
-                                }>
+                              <Badge variant={ tx.type === 'payout' ? 'destructive' : 'secondary'}>
                                 {tx.type}
                               </Badge>
                             </TableCell>
@@ -138,17 +129,6 @@ export default function SellerWalletPage() {
                 </Card>
             </div>
             <div className="space-y-8">
-                {/* Quick Actions */}
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Quick Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-3">
-                        <Button variant="secondary" size="lg" className="justify-start text-base"><ArrowRight className="mr-3"/> Send to Promo</Button>
-                         <Button variant="outline" size="lg" className="justify-start text-base"><Download className="mr-3"/> Download Statement</Button>
-                    </CardContent>
-                </Card>
-
                  {/* Security & Settings */}
                  <Card>
                     <CardHeader>
@@ -157,6 +137,7 @@ export default function SellerWalletPage() {
                     <CardContent className="space-y-4">
                         <Button variant="outline" className="w-full justify-start gap-2"><CreditCard /> Manage Payout Accounts</Button>
                         <Button variant="outline" className="w-full justify-start gap-2"><ShieldCheck /> Withdrawal Security (2FA)</Button>
+                        <Button variant="outline" className="w-full justify-start gap-2"><Download /> Download Payout Reports</Button>
                         <Button variant="outline" className="w-full justify-start gap-2"><Settings /> Notification Settings</Button>
                     </CardContent>
                 </Card>

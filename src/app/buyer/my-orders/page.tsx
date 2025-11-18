@@ -8,19 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Truck } from 'lucide-react';
+import { Truck, MessageSquare } from 'lucide-react';
 import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const OrderCard = ({ order }: { order: Order }) => {
     const firestore = useFirestore();
 
     const sellerShopRef = useMemoFirebase(() => {
         if (!firestore) return null;
-        // Correctly reference sellerShops collection with the sellerId from the order
         return doc(firestore, 'sellerShops', order.sellerId);
     }, [firestore, order.sellerId]);
 
@@ -47,13 +47,13 @@ const OrderCard = ({ order }: { order: Order }) => {
                             <Skeleton className="h-4 w-24" />
                         </>
                     ) : (
-                        <>
-                        <Avatar className="h-6 w-6">
-                            <AvatarImage src={seller?.logoUrl} />
-                            <AvatarFallback>{seller?.shopName?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-semibold">{seller?.shopName}</span>
-                        </>
+                        <Link href={`/sellers/${order.sellerId}`} className="flex items-center gap-3 hover:underline">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={seller?.logoUrl} />
+                                <AvatarFallback>{seller?.shopName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-semibold">{seller?.shopName}</span>
+                        </Link>
                     )}
                 </div>
                  <Badge variant="default" className={getStatusClass(order.orderStatus)}>
@@ -75,9 +75,9 @@ const OrderCard = ({ order }: { order: Order }) => {
             </CardContent>
             <Separator />
             <div className="flex items-center justify-end p-3 gap-2">
-                <Button variant="ghost">View Details</Button>
+                <Button variant="ghost"><MessageSquare className="mr-2 h-4 w-4" /> Chat with Seller</Button>
                 {order.orderStatus === 'shipped' && <Button><Truck className="mr-2 h-4 w-4" /> Track Order</Button>}
-                {order.orderStatus === 'delivered' && <Button variant="secondary">Request Return</Button>}
+                {order.orderStatus === 'delivered' && <Button variant="secondary">Leave a Review</Button>}
                  {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
             </div>
         </Card>

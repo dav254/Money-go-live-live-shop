@@ -5,6 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -19,14 +20,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  ArrowDownToLine,
   ArrowRight,
   Banknote,
-  CircleHelp,
-  CreditCard,
+  CircleDollarSign,
   DollarSign,
   Package,
-  Wallet,
 } from 'lucide-react';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import Link from 'next/link';
@@ -34,19 +32,13 @@ import Link from 'next/link';
 const analyticsData = [
   {
     title: 'Total Revenue',
-    amount: '32,450',
+    amount: '52,600',
     icon: DollarSign,
     description: '+20.1% from last month',
   },
   {
-    title: 'Pending Payouts',
-    amount: '12,300',
-    icon: Wallet,
-    description: 'Awaiting clearance (7-day window)',
-  },
-  {
-    title: 'Completed Payouts',
-    amount: '20,150',
+    title: 'Total Payouts',
+    amount: '48,400',
     icon: Banknote,
     description: 'Successfully sent to your account.',
   },
@@ -56,41 +48,47 @@ const analyticsData = [
     icon: Package,
     description: 'From 12 orders today',
   },
+  {
+    title: 'Platform Fees',
+    amount: '4,200',
+    icon: CircleDollarSign,
+    description: 'Total commission paid to MoneyGo.',
+  },
 ];
 
 const transactions = [
   {
     orderId: '#ORD-001',
     amount: 950.0,
-    status: 'cleared',
+    status: 'paid',
     method: 'M-Pesa',
     date: '2024-08-18',
   },
   {
     orderId: '#ORD-002',
     amount: 1200.0,
-    status: 'pending',
+    status: 'paid',
     method: 'Card',
     date: '2024-08-25',
   },
   {
     orderId: '#ORD-003',
     amount: 450.0,
-    status: 'cleared',
+    status: 'paid',
     method: 'M-Pesa',
     date: '2024-08-17',
   },
   {
     orderId: '#ORD-004',
     amount: 2500.0,
-    status: 'pending',
+    status: 'paid',
     method: 'Bank Transfer',
     date: '2024-08-23',
   },
     {
     orderId: '#ORD-005',
     amount: 85.0,
-    status: 'pending',
+    status: 'paid',
     method: 'M-Pesa',
     date: '2024-08-23',
   },
@@ -135,7 +133,8 @@ export default function SellerEarningsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
+            <CardTitle>Recent Sales Transactions</CardTitle>
+            <CardDescription>This history reflects completed sales where payment has been processed.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -155,14 +154,14 @@ export default function SellerEarningsPage() {
                     <TableCell className="font-medium">{tx.orderId}</TableCell>
                     <TableCell>{tx.amount.toLocaleString()}</TableCell>
                     <TableCell>
-                       <Badge variant={tx.status === 'cleared' ? 'default' : 'secondary'} className={tx.status === 'cleared' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>
+                       <Badge variant={'default'} className={'bg-green-600/80'}>
                         {tx.status}
                       </Badge>
                     </TableCell>
                     <TableCell>{tx.method}</TableCell>
                     <TableCell>{tx.date}</TableCell>
                     <TableCell className="text-right">
-                       <Button variant="ghost" size="sm">View Details</Button>
+                       <Button variant="ghost" size="sm">View Order</Button>
                     </TableCell>
                   </TableRow>
                 ))}

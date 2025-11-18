@@ -1,9 +1,10 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { InCartsTable } from '@/components/seller/in-carts-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, CircleDot, XCircle, ListOrdered } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -48,7 +49,7 @@ const AllOrdersTable = () => {
     const { toast } = useToast();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
     }, [firestore, user]);
 
@@ -137,11 +138,13 @@ const AllOrdersTable = () => {
                                         <Button variant="outline" size="sm">Manage</Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
+                                        <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
                                         {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
                                         {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
                                         {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
                                         <DropdownMenuSeparator />
-                                        {order.orderStatus !== 'cancelled' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
+                                        {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
