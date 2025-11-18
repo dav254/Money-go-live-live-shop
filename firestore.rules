@@ -25,14 +25,19 @@ service cloud.firestore {
     }
 
     // Products are publicly readable.
-    // Sellers can create/update their own products.
     match /products/{productId} {
       allow read: if true;
       allow list: if request.auth != null;
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
-      // Allow update/delete if the existing document's sellerId matches the user's UID.
-      allow update, delete: if resource.data.sellerId == request.auth.uid;
+      
+      // Allow a product owner to update any field.
+      // Allow any authenticated user to ONLY update the 'inCartCount'.
+      allow update: if (resource.data.sellerId == request.auth.uid) ||
+                    (request.auth != null && request.resource.data.keys().hasOnly(['inCartCount']));
+                    
+      // Allow delete only by the product owner.
+      allow delete: if resource.data.sellerId == request.auth.uid;
     }
 
     // Orders can be read by the buyer and by admins.
