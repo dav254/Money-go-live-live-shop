@@ -230,11 +230,19 @@ export default function SellerSettingsPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="return-policy">Return & Refund Policy</Label>
-                    <Textarea id="return-policy" rows={6} placeholder="e.g., We accept returns within 7 days of purchase..." />
+                    <Textarea 
+                        id="return-policy" 
+                        rows={6} 
+                        placeholder="e.g., We accept returns within 7 days for a full refund. Items must be unused and in original packaging. Buyer pays for return shipping." 
+                    />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="shipping-policy">Delivery & Shipping Policy</Label>
-                    <Textarea id="shipping-policy" rows={4} placeholder="e.g., We ship nationwide within 2-3 business days..." />
+                    <Textarea 
+                        id="shipping-policy" 
+                        rows={4} 
+                        placeholder="e.g., We ship nationwide via G4S within 2-3 business days. Same-day delivery available in Nairobi for KES 300 via local riders." 
+                    />
                 </div>
               </CardContent>
             </Card>
