@@ -58,7 +58,10 @@ service cloud.firestore {
       allow read, write: if get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'SuperAdmin';
     }
     match /chats/{chatId} {
-      allow read, write: if request.auth.uid in resource.data.participantIds;
+      // Allow create if the user is one of the two participants in the new chat.
+      allow create: if request.auth != null && request.resource.data.participantIds.size() == 2 && request.auth.uid in request.resource.data.participantIds;
+      // Allow read/update if the user is a participant in the existing chat.
+      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
       
       match /messages/{messageId} {
         allow read, write: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
