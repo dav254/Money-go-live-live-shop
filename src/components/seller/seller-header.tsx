@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SellerBadges } from './seller-badges';
 import { Star, Share2, MessageCircle } from 'lucide-react';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -35,38 +35,48 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
         return;
     }
 
-    try {
-      const chatsRef = collection(firestore, 'chats');
-      
-      // Check for existing chat (Firestore doesn't support array-contains-all for different orders)
-      const q1 = query(chatsRef, where('participantIds', '==', [user.uid, seller.id]));
-      const q2 = query(chatsRef, where('participantIds', '==', [seller.id, user.uid]));
+    const chatsRef = collection(firestore, 'chats');
+    
+    // Check for existing chat
+    const q1 = query(chatsRef, where('participantIds', '==', [user.uid, seller.id]));
+    const q2 = query(chatsRef, where('participantIds', '==', [seller.id, user.uid]));
 
-      const [querySnapshot1, querySnapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-      
-      const existingChat = [...querySnapshot1.docs, ...querySnapshot2.docs];
+    const [querySnapshot1, querySnapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    const existingChat = [...querySnapshot1.docs, ...querySnapshot2.docs];
 
-      if (existingChat.length > 0) {
-        // Chat already exists, redirect to messages page
-        router.push('/messages');
-      } else {
-        // Create a new chat
-        const newChatRef = await addDoc(chatsRef, {
-          participantIds: [user.uid, seller.id],
-          lastMessage: `Started a chat with ${seller.name}`,
-          lastMessageTimestamp: serverTimestamp(),
+    if (existingChat.length > 0) {
+      // Chat already exists, redirect to messages page
+      router.push('/messages');
+    } else {
+      // Create a new chat document
+      const newChatData = {
+        participantIds: [user.uid, seller.id],
+        lastMessage: `Started a chat with ${seller.name}`,
+        lastMessageTimestamp: serverTimestamp(),
+      };
+
+      // Non-blocking write with contextual error handling
+      addDoc(chatsRef, newChatData)
+        .then(async (newChatRef) => {
+            // Also update the chat document with its own ID for easier reference
+            const chatDocRef = doc(firestore, "chats", newChatRef.id);
+            const batch = writeBatch(firestore);
+            batch.update(chatDocRef, { id: newChatRef.id });
+            await batch.commit();
+
+            toast({ title: 'Chat started!', description: `You can now message ${seller.name}.`});
+            router.push('/messages');
+        })
+        .catch((error) => {
+            console.error('Error starting chat:', error);
+            const permissionError = new FirestorePermissionError({
+                path: chatsRef.path,
+                operation: 'create',
+                requestResourceData: newChatData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            // We don't toast here because the global listener will throw.
         });
-        
-        // Also update the chat document with its own ID for easier reference
-        const chatDocRef = doc(firestore, "chats", newChatRef.id);
-        await writeBatch(firestore).update(chatDocRef, { id: newChatRef.id }).commit();
-        
-        toast({ title: 'Chat started!', description: `You can now message ${seller.name}.`});
-        router.push('/messages');
-      }
-    } catch (error) {
-      console.error('Error starting chat:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not start the chat. Please try again.' });
     }
   };
 
