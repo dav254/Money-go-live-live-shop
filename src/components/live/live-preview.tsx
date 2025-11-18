@@ -7,6 +7,7 @@ import { VideoInfo } from '@/components/feed/video-info';
 import { VideoActions } from '@/components/feed/video-actions';
 import { ProductInfo } from './product-info';
 import { ProductDrawer } from '@/components/feed/product-drawer';
+import Image from 'next/image';
 
 // --- Floating Hearts Animation --- //
 interface Heart {
@@ -23,14 +24,6 @@ interface Comment {
     time: string;
 }
 
-// --- Header Component --- //
-const LiveHeader = () => (
-    <header className="w-full flex items-center justify-between px-4 bg-black/90 fixed top-0 z-50 h-14">
-        <div className="text-red-500 font-bold text-lg">MoneyGo</div>
-    </header>
-);
-
-// --- Live Preview Component --- //
 interface LivePreviewProps {
   seller: Seller;
   products: Product[];
@@ -56,10 +49,10 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
     const media: MediaItem[] = [];
     products.forEach(product => {
       if (product.videoUrls && product.videoUrls.length > 0) {
-        media.push({ url: product.videoUrls[0], type: 'video', productId: product.id });
+        product.videoUrls.forEach(url => media.push({ url, type: 'video', productId: product.id }));
       }
       if (product.imageUrls && product.imageUrls.length > 0) {
-        media.push({ url: product.imageUrls[0], type: 'image', productId: product.id });
+        product.imageUrls.forEach(url => media.push({ url, type: 'image', productId: product.id }));
       }
     });
     return media;
@@ -123,8 +116,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
   }, [products]);
 
   return (
-    <div className="h-screen w-screen fixed inset-0 bg-black text-white font-sans">
-      <LiveHeader />
+    <div className="relative h-full w-full bg-black text-white font-sans">
       
       {/* Hearts Animation */}
       <div className="pointer-events-none absolute inset-0 z-50">
@@ -141,7 +133,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
               currentMedia.type === 'video' ? (
                   <video className="w-full h-full object-contain" src={currentMedia.url} poster="" autoPlay muted loop playsInline key={currentMedia.url}></video>
               ) : (
-                  <img src={currentMedia.url} alt="Product" className="w-full h-full object-contain" key={currentMedia.url} />
+                  <Image src={currentMedia.url} alt="Product" fill className="object-contain" key={currentMedia.url} unoptimized />
               )
               ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground p-8 text-center">
@@ -153,7 +145,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
           {/* --- OVERLAYS --- */}
           
           {/* Top Overlay: Seller Info */}
-          <div className="absolute top-16 left-4 z-10 pointer-events-auto">
+          <div className="absolute top-4 left-4 z-10 pointer-events-auto">
               <VideoInfo seller={seller} viewers={1234} />
           </div>
 
@@ -192,15 +184,6 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
               onOpenChange={setIsDrawerOpen} 
           />
       )}
-
-      <style>{`
-          @keyframes pop {
-          0% { transform: translateY(0) scale(0.6); opacity: 0.9 }
-          50% { transform: translateY(-50px) scale(1.05); opacity: 1 }
-          100% { transform: translateY(-120px) scale(0.8); opacity: 0 }
-          }
-          .animate-pop { animation: pop 1.2s linear forwards }
-      `}</style>
     </div>
   );
 }

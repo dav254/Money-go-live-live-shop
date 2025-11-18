@@ -160,7 +160,7 @@ export function ProductUploadForm() {
       const videoUrls = uploadedMedia.filter(m => m.type.startsWith('video/')).map(m => m.url);
 
       const productData: any = {
-          productName: values.productName,
+          name: values.productName,
           category: values.category,
           stock: values.stock,
           tags: values.tags || '',
@@ -184,7 +184,14 @@ export function ProductUploadForm() {
       }
 
       const productsCollectionRef = collection(firestore, 'products');
-      await addDoc(productsCollectionRef, productData);
+      addDoc(productsCollectionRef, productData).catch(error => {
+          const permissionError = new FirestorePermissionError({
+              path: productsCollectionRef.path,
+              operation: 'create',
+              requestResourceData: productData
+          });
+          errorEmitter.emit('permission-error', permissionError);
+      });
 
       toast({ title: 'Success!', description: 'Your product has been published with Cloudinary media.' });
       form.reset();
@@ -194,9 +201,6 @@ export function ProductUploadForm() {
     } catch (error) {
         console.error('Error during product submission:', error);
         toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your media. Please try again.' });
-        if (error instanceof FirestorePermissionError) {
-            errorEmitter.emit('permission-error', error);
-        }
     } finally {
       setIsUploading(false);
     }
