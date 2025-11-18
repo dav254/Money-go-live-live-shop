@@ -1,16 +1,75 @@
 
+'use client';
+
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { SellerBadges } from './seller-badges'; // Import the new badges component
-import { Star, Share2, MessageCircle, CheckCircle } from 'lucide-react';
+import { SellerBadges } from './seller-badges';
+import { Star, Share2, MessageCircle } from 'lucide-react';
+import { useUser, useFirestore } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 interface SellerHeaderProps {
   seller: Seller;
 }
 
 export function SellerHeader({ seller }: SellerHeaderProps) {
+  const { user, isLoading } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleChat = async () => {
+    if (isLoading) return;
+
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    
+    if (user.uid === seller.id) {
+        toast({ title: "This is your own shop", description: "You cannot start a chat with yourself." });
+        return;
+    }
+
+    try {
+      const chatsRef = collection(firestore, 'chats');
+      
+      // Check for existing chat (Firestore doesn't support array-contains-all for different orders)
+      const q1 = query(chatsRef, where('participantIds', '==', [user.uid, seller.id]));
+      const q2 = query(chatsRef, where('participantIds', '==', [seller.id, user.uid]));
+
+      const [querySnapshot1, querySnapshot2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      
+      const existingChat = [...querySnapshot1.docs, ...querySnapshot2.docs];
+
+      if (existingChat.length > 0) {
+        // Chat already exists, redirect to messages page
+        router.push('/messages');
+      } else {
+        // Create a new chat
+        const newChatRef = await addDoc(chatsRef, {
+          participantIds: [user.uid, seller.id],
+          lastMessage: `Started a chat with ${seller.name}`,
+          lastMessageTimestamp: serverTimestamp(),
+        });
+        
+        // Also update the chat document with its own ID for easier reference
+        const chatDocRef = doc(firestore, "chats", newChatRef.id);
+        await writeBatch(firestore).update(chatDocRef, { id: newChatRef.id }).commit();
+        
+        toast({ title: 'Chat started!', description: `You can now message ${seller.name}.`});
+        router.push('/messages');
+      }
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not start the chat. Please try again.' });
+    }
+  };
+
   return (
     <div className="relative w-full text-white">
       {/* Banner Image */}
@@ -54,7 +113,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           {/* Action Buttons */}
           <div className="mt-6 flex w-full flex-wrap justify-center gap-2 md:ml-auto md:mt-0 md:w-auto md:flex-nowrap">
             <Button className="flex-1 bg-white text-black hover:bg-neutral-200 md:flex-initial font-bold">Follow</Button>
-            <Button variant="outline" className="flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold">
+            <Button onClick={handleChat} variant="outline" className="flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold">
               <MessageCircle className="mr-2 h-4 w-4" /> Chat
             </Button>
             <Button variant="ghost" size="icon" className="hover:bg-neutral-800">
