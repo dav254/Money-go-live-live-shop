@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2, PlusCircle, History, Send } from 'lucide-react';
+import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
@@ -72,6 +72,55 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
     );
 };
 
+const MediaMessage = ({ message }: { message: ChatMessage }) => {
+  if (!message.mediaUrl || !message.mediaMetadata) return null;
+
+  const { name, type } = message.mediaMetadata;
+  const isImage = type.startsWith('image/');
+  const isVideo = type.startsWith('video/');
+
+  if (isImage) {
+    return (
+      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer">
+        <Image
+          src={message.mediaUrl}
+          alt={name}
+          width={200}
+          height={200}
+          className="max-w-xs rounded-lg border object-cover"
+        />
+      </a>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <video
+        src={message.mediaUrl}
+        controls
+        className="max-w-xs rounded-lg border"
+        style={{ maxWidth: '250px' }}
+      />
+    );
+  }
+
+  return (
+    <a
+      href={message.mediaUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex max-w-xs items-center gap-3 rounded-lg border bg-background p-3 shadow-sm hover:bg-muted"
+    >
+      <File className="h-8 w-8 flex-shrink-0 text-muted-foreground" />
+      <div className="overflow-hidden">
+        <p className="truncate font-semibold">{name}</p>
+        <p className="text-xs text-muted-foreground">{(message.mediaMetadata.size / 1024).toFixed(2)} KB</p>
+      </div>
+      <Download className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+    </a>
+  );
+};
+
 
 const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: (productId: string) => void }) => {
     const firestore = useFirestore();
@@ -94,7 +143,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || "Product Image"} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product image'} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
@@ -116,6 +165,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const [newMessage, setNewMessage] = useState('');
   const firestore = useFirestore();
   const { userProfile } = useUserProfile(currentUser?.uid);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!chat) return null;
@@ -160,6 +210,36 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
           productId: productId,
       });
   };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // TODO: Implement actual Cloudinary upload here
+    // For now, we'll simulate the upload and message sending
+    console.log("Simulating upload for:", file.name);
+
+    // After a successful (simulated) upload, you would get a URL
+    const simulatedUrl = "https://picsum.photos/seed/attachment/300/200";
+    
+    await sendMessage({
+        messageText: '',
+        messageType: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
+        mediaUrl: simulatedUrl,
+        mediaMetadata: {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+        }
+    });
+
+    // Reset file input
+    if(fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  };
+
+  const triggerFileSelect = () => fileInputRef.current?.click();
   
   const handleDeleteChat = async () => {
     if (!chat || !currentUser) return;
@@ -171,7 +251,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
       onChatDeleted?.();
     } catch (error) {
       console.error("Error deleting chat:", error);
-      // Optionally show a toast notification on failure
     }
   };
 
@@ -189,7 +268,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
 
   return (
     <div className="flex h-full flex-1 flex-col">
-      {/* Chat Header */}
       <div className="flex items-center justify-between border-b p-3">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8 border">
@@ -234,62 +312,66 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
         </AlertDialog>
       </div>
 
-      {/* Messages Area */}
       <ScrollArea className="flex-1 bg-muted/10">
         <div className="p-4 space-y-6">
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
             <div key={msg.id} className={cn("flex", msg.senderId === currentUser.uid ? "justify-end" : "justify-start")}>
-                {msg.messageType === 'product' && msg.productId ? (
-                   <SharedProductCard productId={msg.productId} />
-                ) : (
-                  msg.messageText && (
-                    <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
-                      <div className={cn(
+                <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
+                    {msg.messageType === 'product' && msg.productId ? (
+                        <SharedProductCard productId={msg.productId} />
+                    ) : msg.messageType === 'image' || msg.messageType === 'video' || msg.messageType === 'file' ? (
+                        <MediaMessage message={msg} />
+                    ) : msg.messageText ? (
+                        <div className={cn(
                         "rounded-xl p-3 text-sm shadow-sm",
                         msg.senderId === currentUser.uid
-                          ? "bg-primary text-primary-foreground rounded-br-none"
-                          : "bg-card border rounded-bl-none"
-                      )}>
+                            ? "bg-primary text-primary-foreground rounded-br-none"
+                            : "bg-card border rounded-bl-none"
+                        )}>
                         <p>{msg.messageText}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
+                        </div>
+                    ) : null}
+                    <span className="text-xs text-muted-foreground">
                         {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  )
-                )}
+                    </span>
+                </div>
             </div>
           ))}
         </div>
       </ScrollArea>
 
-      {/* Message Input */}
       <div className="border-t bg-background p-3">
         <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative">
-             {isSeller && (
-                <Dialog>
-                    <DialogTrigger asChild>
-                         <Button type="button" size="icon" variant="ghost" className="absolute left-1 top-1/2 -translate-y-1/2">
-                            <Package className="h-5 w-5" />
-                        </Button>
-                    </DialogTrigger>
-                    <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                </Dialog>
-             )}
+            <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center">
+                 <Button type="button" size="icon" variant="ghost" onClick={triggerFileSelect}>
+                    <PlusCircle className="h-5 w-5" />
+                 </Button>
+                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+                {isSeller && (
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button type="button" size="icon" variant="ghost">
+                                <Package className="h-5 w-5" />
+                            </Button>
+                        </DialogTrigger>
+                        <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                    </Dialog>
+                )}
+            </div>
           <Input
             placeholder="Type your message..."
-            className={cn("pr-12", isSeller ? "pl-12" : "pl-4")}
+            className={cn("pr-12", isSeller ? "pl-24" : "pl-12")}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-            <Button type="submit" size="sm">Send</Button>
+            <Button type="submit" size="icon" variant="ghost">
+                <Send className="h-5 w-5" />
+            </Button>
           </div>
         </form>
       </div>
     </div>
   );
 }
-
-    

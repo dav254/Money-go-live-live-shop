@@ -68,8 +68,14 @@ export interface ChatMessage {
   senderId: string;
   messageText: string;
   timestamp: Timestamp;
-  messageType?: 'text' | 'product';
+  messageType?: 'text' | 'product' | 'image' | 'video' | 'file';
   productId?: string;
+  mediaUrl?: string;
+  mediaMetadata?: {
+    name: string;
+    size: number;
+    type: string;
+  };
 }
 
 
