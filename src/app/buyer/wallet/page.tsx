@@ -10,14 +10,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2 } from 'lucide-react';
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import type { PaymentMethod } from '@/lib/types';
-import { collection, addDoc } from 'firebase/firestore';
+import type { PaymentMethod, Order } from '@/lib/types';
+import { collection, addDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -25,13 +25,6 @@ const walletData = {
   balance: 1250.75,
   coupons: 3,
 };
-
-const transactions = [
-    { id: 'TX001', date: '2024-08-26', description: 'Purchase from Aisha\'s Handbags', amount: -850.00, status: 'Completed' },
-    { id: 'TX002', date: '2024-08-25', description: 'Top-up via M-Pesa', amount: 2000.00, status: 'Completed' },
-    { id: 'TX003', date: '2024-08-24', description: 'Refund for returned item', amount: 120.75, status: 'Completed' },
-    { id: 'TX004', date: '2024-08-22', description: 'Purchase from TechUnboxed', amount: -1200.00, status: 'Completed' },
-];
 
 const cardFormSchema = z.object({
   cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
@@ -51,7 +44,7 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     });
 
     const handleSaveCard = async (values: z.infer<typeof cardFormSchema>) => {
-        if (!user) return;
+        if (!user || !firestore) return;
         setIsSaving(true);
         try {
             const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
@@ -72,7 +65,7 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     };
     
     const handleLinkPayPal = async () => {
-        if (!user) return;
+        if (!user || !firestore) return;
         setIsSaving(true);
          try {
             const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
@@ -139,17 +132,50 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     );
 };
 
+const TransactionTableSkeleton = () => (
+    <Table>
+        <TableHeader>
+            <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount (USD)</TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            {[...Array(3)].map((_, i) => (
+                <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                </TableRow>
+            ))}
+        </TableBody>
+    </Table>
+);
+
+
 export default function BuyerWalletPage() {
-    const { user } = useUser();
+    const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
 
     const paymentMethodsQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
     }, [firestore, user]);
 
-    const { data: paymentMethods, isLoading } = useCollection<PaymentMethod>(paymentMethodsQuery);
+    const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(collection(firestore, 'orders'), where('buyerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+
+    const isLoading = isUserLoading || isLoadingMethods || isLoadingOrders;
 
   return (
     <BuyerLayout>
@@ -165,6 +191,7 @@ export default function BuyerWalletPage() {
                                 <Wallet />
                                 Wallet Balance
                             </CardTitle>
+                             <CardDescription>This is a placeholder. Payments are made directly at checkout.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <p className="text-4xl font-bold">${walletData.balance.toLocaleString()}</p>
@@ -177,11 +204,11 @@ export default function BuyerWalletPage() {
                                 <Gift />
                                 Coupons & Rewards
                             </CardTitle>
+                             <CardDescription>This feature is coming soon!</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <p className="text-4xl font-bold">{walletData.coupons}</p>
-                            <p className="text-muted-foreground">Available coupons</p>
-                            <Button variant="outline" className="mt-4 w-full">View Coupons</Button>
+                            <Button variant="outline" className="mt-4 w-full" disabled>View Coupons</Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -189,37 +216,43 @@ export default function BuyerWalletPage() {
                 {/* Transaction History */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Transaction History</CardTitle>
-                        <CardDescription>A record of your recent wallet activity.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><History /> Purchase History</CardTitle>
+                        <CardDescription>A record of your recent purchases.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Amount (USD)</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {transactions.map(tx => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell>{tx.date}</TableCell>
-                                        <TableCell>{tx.description}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={tx.status === 'Completed' ? 'default' : 'secondary'} className={tx.status === 'Completed' ? 'bg-green-600/80' : ''}>
-                                                {tx.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className={`text-right font-semibold ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                            {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </TableCell>
+                        {isLoading ? <TransactionTableSkeleton /> : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Amount (USD)</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                         <Button variant="link" className="mt-4 px-0">View all transactions</Button>
+                                </TableHeader>
+                                <TableBody>
+                                    {orders && orders.length > 0 ? orders.slice(0, 5).map(order => (
+                                        <TableRow key={order.id}>
+                                            <TableCell>{order.orderDate.toDate().toLocaleDateString()}</TableCell>
+                                            <TableCell>{order.productName}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={order.orderStatus === 'delivered' ? 'default' : 'secondary'} className={order.orderStatus === 'delivered' ? 'bg-green-600/80' : ''}>
+                                                    {order.orderStatus}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right font-semibold">
+                                                ${order.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="h-24 text-center">You have no purchase history yet.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
+                         <Button variant="link" className="mt-4 px-0">View all purchases</Button>
                     </CardContent>
                 </Card>
             </div>
@@ -232,7 +265,7 @@ export default function BuyerWalletPage() {
                         <CardDescription>Manage your saved payment options for faster checkout.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {isLoading ? (
+                        {isLoadingMethods ? (
                             <>
                                 <Skeleton className="h-16 w-full rounded-lg" />
                                 <Skeleton className="h-16 w-full rounded-lg" />
@@ -270,5 +303,3 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
-
-    
