@@ -10,6 +10,7 @@ import { ProductDrawer } from './product-drawer';
 import { Button } from '../ui/button';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
+import { ProductInfo } from '../live/product-info';
 
 interface VideoCardProps {
   item: VideoFeedItem;
@@ -48,13 +49,10 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
       
       <VideoInfo seller={item.seller} viewers={item.viewers} />
 
-      <div className="absolute bottom-4 left-4 z-20">
-         <Button variant="secondary" className="bg-black/50 hover:bg-black/70" asChild>
-            <Link href={`/sellers/${item.seller.id}`}>
-                View Shop
-            </Link>
-          </Button>
-      </div>
+       {/* Product Info (Bottom Center) */}
+       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
+            {item.product && <ProductInfo product={item.product} />}
+       </div>
 
       <VideoActions 
         initialLikes={item.likes}
