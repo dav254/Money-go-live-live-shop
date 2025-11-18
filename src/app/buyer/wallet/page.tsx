@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History } from 'lucide-react';
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
@@ -20,11 +20,6 @@ import type { PaymentMethod, Order } from '@/lib/types';
 import { collection, addDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const walletData = {
-  balance: 1250.75,
-  coupons: 3,
-};
 
 const cardFormSchema = z.object({
   cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
@@ -177,6 +172,13 @@ export default function BuyerWalletPage() {
 
     const isLoading = isUserLoading || isLoadingMethods || isLoadingOrders;
 
+    const totalSpent = useMemo(() => {
+        if (!orders) return 0;
+        return orders
+            .filter(order => order.orderStatus === 'delivered')
+            .reduce((sum, order) => sum + order.totalAmount, 0);
+    }, [orders]);
+
   return (
     <BuyerLayout>
       <div className="container mx-auto max-w-7xl py-8">
@@ -188,14 +190,17 @@ export default function BuyerWalletPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-primary">
-                                <Wallet />
-                                Wallet Balance
+                                <ShoppingBag />
+                                Lifetime Purchase Value
                             </CardTitle>
-                             <CardDescription>This is a placeholder. Payments are made directly at checkout.</CardDescription>
+                             <CardDescription>The total value of all your completed purchases.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">${walletData.balance.toLocaleString()}</p>
-                            <Button className="mt-4 w-full" disabled>Top Up Wallet</Button>
+                            {isLoading ? (
+                                <Skeleton className="h-10 w-3/4" />
+                            ) : (
+                                <p className="text-4xl font-bold">${totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            )}
                         </CardContent>
                     </Card>
                     <Card>
@@ -207,7 +212,7 @@ export default function BuyerWalletPage() {
                              <CardDescription>This feature is coming soon!</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">{walletData.coupons}</p>
+                            <p className="text-4xl font-bold">0</p>
                             <Button variant="outline" className="mt-4 w-full" disabled>View Coupons</Button>
                         </CardContent>
                     </Card>
@@ -303,3 +308,5 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
+
+    
