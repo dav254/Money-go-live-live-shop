@@ -166,6 +166,14 @@ export interface Product {
   inCartCount?: number;
 }
 
+export interface PaymentMethod {
+  id: string;
+  type: 'card' | 'paypal';
+  details: string; // e.g., 'Visa **** 4242' or 'user@example.com'
+  isDefault?: boolean;
+  providerToken?: string; // a token from Paystack/PayPal
+}
+
 
 export interface VideoFeedItem {
   id: string;
@@ -182,5 +190,7 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    
 
     

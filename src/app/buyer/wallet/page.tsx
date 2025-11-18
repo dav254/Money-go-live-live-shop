@@ -1,26 +1,25 @@
 
 'use client';
 
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot } from 'lucide-react';
-import Image from 'next/image';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import type { PaymentMethod } from '@/lib/types';
+import { collection, addDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const walletData = {
   balance: 1250.75,
@@ -34,12 +33,124 @@ const transactions = [
     { id: 'TX004', date: '2024-08-22', description: 'Purchase from TechUnboxed', amount: -1200.00, status: 'Completed' },
 ];
 
-const paymentMethods = [
-    { id: 'pm1', type: 'mpesa', details: '**** **** **78', logo: '/mpesa-logo.png' },
-    { id: 'pm2', type: 'visa', details: '**** **** **** 4242', logo: '/visa-logo.png' },
-];
+const cardFormSchema = z.object({
+  cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
+  expiry: z.string().regex(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, "Invalid expiry date. Use MM/YY format."),
+  cvc: z.string().min(3, "CVC must be 3 digits.").max(3, "CVC must be 3 digits."),
+});
+
+const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+
+    const form = useForm<z.infer<typeof cardFormSchema>>({
+        resolver: zodResolver(cardFormSchema),
+        defaultValues: { cardNumber: '', expiry: '', cvc: '' },
+    });
+
+    const handleSaveCard = async (values: z.infer<typeof cardFormSchema>) => {
+        if (!user) return;
+        setIsSaving(true);
+        try {
+            const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+            await addDoc(paymentMethodsRef, {
+                type: 'card',
+                details: `Visa **** ${values.cardNumber.slice(-4)}`,
+                isDefault: false,
+                providerToken: `tok_${Math.random().toString(36).substring(2)}` // Dummy token
+            });
+            toast({ title: "Success", description: "Payment method saved." });
+            onMethodAdded();
+        } catch (error) {
+            console.error("Error saving payment method:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not save payment method." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleLinkPayPal = async () => {
+        if (!user) return;
+        setIsSaving(true);
+         try {
+            const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+            await addDoc(paymentMethodsRef, {
+                type: 'paypal',
+                details: user.email, // Use user's email as placeholder
+                isDefault: false,
+            });
+            toast({ title: "Success", description: "PayPal linked successfully." });
+            onMethodAdded();
+        } catch (error) {
+            console.error("Error linking PayPal:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not link PayPal account." });
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return (
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+                <DialogTitle>Add a Payment Method</DialogTitle>
+                <DialogDescription>Securely add a new way to pay.</DialogDescription>
+            </DialogHeader>
+            <Tabs defaultValue="card" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="card">Card (Paystack)</TabsTrigger>
+                    <TabsTrigger value="paypal">PayPal</TabsTrigger>
+                </TabsList>
+                <TabsContent value="card">
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(handleSaveCard)} className="space-y-4 py-4">
+                            <FormField control={form.control} name="cardNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Card Number</FormLabel><FormControl><Input placeholder="**** **** **** 1234" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={form.control} name="expiry" render={({ field }) => (
+                                    <FormItem><FormLabel>Expiry</FormLabel><FormControl><Input placeholder="MM/YY" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="cvc" render={({ field }) => (
+                                    <FormItem><FormLabel>CVC</FormLabel><FormControl><Input placeholder="123" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+                             <DialogFooter>
+                                <Button type="submit" className="w-full" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Card
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </TabsContent>
+                <TabsContent value="paypal">
+                    <div className="py-4 text-center">
+                        <p className="text-sm text-muted-foreground mb-4">You will be redirected to PayPal to securely link your account.</p>
+                        <Button type="button" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" onClick={handleLinkPayPal} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
+                            Continue with PayPal
+                        </Button>
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </DialogContent>
+    );
+};
 
 export default function BuyerWalletPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+
+    const paymentMethodsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+    }, [firestore, user]);
+
+    const { data: paymentMethods, isLoading } = useCollection<PaymentMethod>(paymentMethodsQuery);
+
   return (
     <BuyerLayout>
       <div className="container mx-auto max-w-7xl py-8">
@@ -56,8 +167,8 @@ export default function BuyerWalletPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">{walletData.balance.toLocaleString()}</p>
-                            <Button className="mt-4 w-full">Top Up Wallet</Button>
+                            <p className="text-4xl font-bold">${walletData.balance.toLocaleString()}</p>
+                            <Button className="mt-4 w-full" disabled>Top Up Wallet</Button>
                         </CardContent>
                     </Card>
                     <Card>
@@ -88,7 +199,7 @@ export default function BuyerWalletPage() {
                                     <TableHead>Date</TableHead>
                                     <TableHead>Description</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Amount (USD)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -121,71 +232,36 @@ export default function BuyerWalletPage() {
                         <CardDescription>Manage your saved payment options for faster checkout.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {paymentMethods.map(pm => (
-                             <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
-                                <div className="flex items-center gap-3">
-                                    <CreditCard className="h-6 w-6 text-muted-foreground" />
-                                    <div>
-                                        <p className="font-semibold uppercase">{pm.type}</p>
-                                        <p className="text-sm text-muted-foreground">{pm.details}</p>
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-16 w-full rounded-lg" />
+                                <Skeleton className="h-16 w-full rounded-lg" />
+                            </>
+                        ) : paymentMethods && paymentMethods.length > 0 ? (
+                            paymentMethods.map(pm => (
+                                <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
+                                    <div className="flex items-center gap-3">
+                                        <CreditCard className="h-6 w-6 text-muted-foreground" />
+                                        <div>
+                                            <p className="font-semibold uppercase">{pm.type}</p>
+                                            <p className="text-sm text-muted-foreground">{pm.details}</p>
+                                        </div>
                                     </div>
+                                    <Button variant="ghost" size="sm">Edit</Button>
                                 </div>
-                                <Button variant="ghost" size="sm">Edit</Button>
-                            </div>
-                        ))}
-                        <Dialog>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center pt-4">No payment methods saved.</p>
+                        )}
+                        <Dialog open={isAddMethodOpen} onOpenChange={setIsAddMethodOpen}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="w-full">
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Add New Method
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                <DialogTitle>Add a Payment Method</DialogTitle>
-                                <DialogDescription>
-                                    Securely add a new way to pay.
-                                </DialogDescription>
-                                </DialogHeader>
-                                <Tabs defaultValue="card" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-2">
-                                        <TabsTrigger value="card">Card (Paystack)</TabsTrigger>
-                                        <TabsTrigger value="paypal">PayPal</TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="card">
-                                        <div className="grid gap-4 py-4">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="card-number">Card Number</Label>
-                                                <Input id="card-number" placeholder="**** **** **** 1234" />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="expiry">Expiry</Label>
-                                                    <Input id="expiry" placeholder="MM / YY" />
-                                                </div>
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="cvc">CVC</Label>
-                                                    <Input id="cvc" placeholder="123" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                         <DialogFooter>
-                                            <Button type="submit" className="w-full">Save Card</Button>
-                                        </DialogFooter>
-                                    </TabsContent>
-                                    <TabsContent value="paypal">
-                                        <div className="py-4 text-center">
-                                            <p className="text-sm text-muted-foreground mb-4">You will be redirected to PayPal to securely link your account.</p>
-                                            <Button type="button" className="w-full bg-[#0070BA] hover:bg-[#005ea6]">
-                                                <Bot className="mr-2 h-4 w-4" /> {/* Using Bot as a placeholder for PayPal icon */}
-                                                Continue with PayPal
-                                            </Button>
-                                        </div>
-                                    </TabsContent>
-                                </Tabs>
-                            </DialogContent>
+                           <AddPaymentMethodDialog onMethodAdded={() => setIsAddMethodOpen(false)} />
                         </Dialog>
-
                     </CardContent>
                 </Card>
             </div>
@@ -194,3 +270,5 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
+
+    

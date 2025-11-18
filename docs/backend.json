@@ -317,6 +317,35 @@
         "paymentStatus"
       ]
     },
+    "PaymentMethod": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PaymentMethod",
+      "type": "object",
+      "description": "Represents a user's saved payment method.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the payment method."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of payment method (e.g., 'card', 'paypal')."
+        },
+        "details": {
+          "type": "string",
+          "description": "Display details for the payment method (e.g., 'Visa **** 4242' or 'user@paypal.com')."
+        },
+        "isDefault": {
+          "type": "boolean",
+          "description": "Whether this is the user's default payment method."
+        },
+        "providerToken": {
+          "type": "string",
+          "description": "A token from the payment provider (Paystack, PayPal) that references the actual payment instrument. THIS IS NOT THE CARD NUMBER."
+        }
+      },
+      "required": ["id", "type", "details"]
+    },
     "AIProductDescription": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AIProductDescription",
@@ -597,6 +626,22 @@
                   {
                     "name": "productId",
                     "description": "The unique identifier for a product in the cart."
+                  }
+                ]
+              }
+            },
+            {
+              "path": "paymentMethods/{paymentMethodId}",
+              "definition": {
+                "entityName": "PaymentMethod",
+                "schema": {
+                  "$ref": "#/backend/entities/PaymentMethod"
+                },
+                "description": "A subcollection containing the user's saved payment methods.",
+                "params": [
+                  {
+                    "name": "paymentMethodId",
+                    "description": "The unique identifier for a saved payment method."
                   }
                 ]
               }

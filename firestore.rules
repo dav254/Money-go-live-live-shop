@@ -15,6 +15,11 @@ service cloud.firestore {
       match /cart/{productId} {
         allow read, write: if request.auth.uid == userId;
       }
+      
+      // A user can only read and write to their own payment methods.
+      match /paymentMethods/{paymentMethodId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
     
     // SellerShops are now publicly readable.
@@ -100,3 +105,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
