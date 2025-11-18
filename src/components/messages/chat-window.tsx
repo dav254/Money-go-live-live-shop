@@ -94,7 +94,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || "Product Image"} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
@@ -211,23 +211,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Chat Options</DropdownMenuLabel>
               <DropdownMenuSeparator />
-               {isSeller && (
-                <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Create Order from Chat
-                    </DropdownMenuItem>
-                     <DropdownMenuItem>
-                        <History className="mr-2 h-4 w-4" />
-                        View Buyer's Order History
-                    </DropdownMenuItem>
-                     <DropdownMenuItem>
-                        <Send className="mr-2 h-4 w-4" />
-                        Send Quick Reply
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                </DropdownMenuGroup>
-              )}
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -260,19 +243,21 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
                 {msg.messageType === 'product' && msg.productId ? (
                    <SharedProductCard productId={msg.productId} />
                 ) : (
-                  <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
-                    <div className={cn(
-                      "rounded-xl p-3 text-sm shadow-sm",
-                      msg.senderId === currentUser.uid
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-card border rounded-bl-none"
-                    )}>
-                      <p>{msg.messageText}</p>
+                  msg.messageText && (
+                    <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
+                      <div className={cn(
+                        "rounded-xl p-3 text-sm shadow-sm",
+                        msg.senderId === currentUser.uid
+                          ? "bg-primary text-primary-foreground rounded-br-none"
+                          : "bg-card border rounded-bl-none"
+                      )}>
+                        <p>{msg.messageText}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                  )
                 )}
             </div>
           ))}
@@ -306,3 +291,5 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
     </div>
   );
 }
+
+    
