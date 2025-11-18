@@ -36,7 +36,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
       ) : (
         <Image
           src={item.video.imageUrl}
-          alt={item.video.description || item.product.name}
+          alt={item.video.description || item.product.name || 'Product image'}
           fill
           className="object-cover"
           priority
