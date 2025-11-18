@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -139,7 +140,7 @@ export default function GoLivePage() {
      <div className="relative h-[calc(100vh-4rem)] w-full bg-background flex flex-col items-center justify-center p-4">
         <div className="absolute top-4 right-4 z-20">
             <Button asChild>
-                <Link href={`/sellers/${user?.uid}`}>
+                <Link href={`/sellers/CKmHD5jv0dOevUJhJ8tM7akpSlF2`}>
                     View My Shop
                 </Link>
             </Button>
