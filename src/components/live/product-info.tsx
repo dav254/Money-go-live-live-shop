@@ -5,6 +5,8 @@ import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, Star, Store } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface ProductInfoProps {
   product: Product;
@@ -15,14 +17,17 @@ export function ProductInfo({ product }: ProductInfoProps) {
     return null;
   }
 
+  const imageUrl = product.image?.imageUrl || product.imageUrl || getPlaceholderImage();
+
   return (
     <div className="bg-black/50 p-3 rounded-lg shadow-lg backdrop-blur-md max-w-sm w-full mx-auto">
         <div className="flex items-center gap-3">
             <div className="relative h-16 w-16 rounded-md overflow-hidden border border-neutral-700">
-                <img 
-                    src={product.image?.imageUrl || '/placeholder.svg'}
+                <Image 
+                    src={imageUrl}
                     alt={product.name || 'Product Image'}
-                    className="object-cover w-full h-full"
+                    fill
+                    className="object-cover"
                 />
             </div>
             <div className="flex-1 min-w-0">
