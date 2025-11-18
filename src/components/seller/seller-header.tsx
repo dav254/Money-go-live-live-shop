@@ -55,23 +55,30 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     setIsFollowLoading(true);
 
     const userProfileRef = doc(firestore, 'userProfiles', user.uid);
-    const sellerShopRef = doc(firestore, 'sellerShops', seller.id);
-    
+    // The client should NOT update the seller's follower count directly.
+    // This should be handled by a Cloud Function for security and scalability.
+    // We will only update the user's own `following` array from the client.
+
     try {
         if (isFollowing) {
             // Unfollow logic
             await updateDoc(userProfileRef, { following: arrayRemove(seller.id) });
-            await updateDoc(sellerShopRef, { followers: increment(-1) });
             toast({ title: `Unfollowed ${seller.name}` });
             setIsFollowing(false);
         } else {
             // Follow logic
             await updateDoc(userProfileRef, { following: arrayUnion(seller.id) });
-            await updateDoc(sellerShopRef, { followers: increment(1) });
             toast({ title: `You are now following ${seller.name}` });
             setIsFollowing(true);
         }
     } catch (error) {
+        const permissionError = new FirestorePermissionError({
+          path: userProfileRef.path,
+          operation: 'update',
+          requestResourceData: { following: '...' } // Don't log sensitive data
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
         console.error("Error following/unfollowing seller:", error);
         toast({ variant: 'destructive', title: 'Something went wrong', description: 'Could not update your follow status. Please try again.' });
     } finally {
@@ -172,9 +179,9 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
                 <span className="font-semibold">{seller.rating}</span>
-                <span>({seller.reviewsCount.toLocaleString()})</span>
+                <span>({(seller.reviewsCount || 0).toLocaleString()})</span>
               </div>
-              <span className="font-semibold">{seller.followers.toLocaleString()} Followers</span>
+              <span className="font-semibold">{(seller.followers || 0).toLocaleString()} Followers</span>
             </div>
           </div>
 
