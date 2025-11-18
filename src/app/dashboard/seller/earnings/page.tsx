@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -28,73 +29,91 @@ import {
 } from 'lucide-react';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import Link from 'next/link';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
+import type { Order } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const analyticsData = [
-  {
-    title: 'Total Revenue',
-    amount: '52,600',
-    icon: DollarSign,
-    description: '+20.1% from last month',
-  },
-  {
-    title: 'Total Payouts',
-    amount: '48,400',
-    icon: Banknote,
-    description: 'Successfully sent to your account.',
-  },
-  {
-    title: 'Live Sales Today',
-    amount: '2,040',
-    icon: Package,
-    description: 'From 12 orders today',
-  },
-  {
-    title: 'Platform Fees',
-    amount: '4,200',
-    icon: CircleDollarSign,
-    description: 'Total commission paid to MoneyGo.',
-  },
-];
+const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string, icon: React.ElementType, description?: string }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          {title}
+        </CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </CardContent>
+    </Card>
+);
 
-const transactions = [
-  {
-    orderId: '#ORD-001',
-    amount: 950.0,
-    status: 'paid',
-    method: 'M-Pesa',
-    date: '2024-08-18',
-  },
-  {
-    orderId: '#ORD-002',
-    amount: 1200.0,
-    status: 'paid',
-    method: 'Card',
-    date: '2024-08-25',
-  },
-  {
-    orderId: '#ORD-003',
-    amount: 450.0,
-    status: 'paid',
-    method: 'M-Pesa',
-    date: '2024-08-17',
-  },
-  {
-    orderId: '#ORD-004',
-    amount: 2500.0,
-    status: 'paid',
-    method: 'Bank Transfer',
-    date: '2024-08-23',
-  },
-    {
-    orderId: '#ORD-005',
-    amount: 85.0,
-    status: 'paid',
-    method: 'M-Pesa',
-    date: '2024-08-23',
-  },
-];
+const StatCardSkeleton = () => (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+             <Skeleton className="h-4 w-2/4" />
+             <Skeleton className="h-4 w-4" />
+        </CardHeader>
+        <CardContent>
+            <Skeleton className="h-8 w-3/4 mb-2" />
+            <Skeleton className="h-3 w-full" />
+        </CardContent>
+    </Card>
+)
+
 
 export default function SellerEarningsPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    const isLoading = isUserLoading || areOrdersLoading;
+
+    const stats = React.useMemo(() => {
+        if (!orders) {
+            return {
+                totalRevenue: 0,
+                salesToday: 0,
+                platformFees: 0,
+                totalPayouts: 0, // Static for now
+            };
+        }
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        const totalRevenue = orders
+            .filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped')
+            .reduce((sum, o) => sum + o.totalAmount, 0);
+
+        const salesToday = orders
+             .filter(o => o.orderDate && o.orderDate.toDate() >= today)
+             .reduce((sum, o) => sum + o.totalAmount, 0);
+        
+        const platformFees = totalRevenue * 0.10; // Assuming a 10% fee
+
+        return {
+            totalRevenue,
+            salesToday,
+            platformFees,
+            totalPayouts: 48400, // Static placeholder
+        };
+
+    }, [orders]);
+
+    const recentTransactions = React.useMemo(() => {
+        if (!orders) return [];
+        return orders.slice(0, 5); // Display the 5 most recent orders
+    }, [orders]);
+
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -113,22 +132,41 @@ export default function SellerEarningsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {analyticsData.map((data, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {data.title}
-                </CardTitle>
-                <data.icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.amount}</div>
-                <p className="text-xs text-muted-foreground">
-                  {data.description}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+          {isLoading ? (
+            <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+                <StatCard 
+                    title="Total Revenue"
+                    value={stats.totalRevenue.toLocaleString()}
+                    icon={DollarSign}
+                    description="From completed sales"
+                />
+                 <StatCard 
+                    title="Total Payouts"
+                    value={stats.totalPayouts.toLocaleString()}
+                    icon={Banknote}
+                    description="Successfully sent to your account"
+                />
+                 <StatCard 
+                    title="Sales Today"
+                    value={stats.salesToday.toLocaleString()}
+                    icon={Package}
+                    description="Live sales from today"
+                />
+                 <StatCard 
+                    title="Platform Fees"
+                    value={stats.platformFees.toLocaleString()}
+                    icon={CircleDollarSign}
+                    description="Total commission paid to MoneyGo"
+                />
+            </>
+          )}
         </div>
 
         <Card>
@@ -149,22 +187,41 @@ export default function SellerEarningsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((tx) => (
-                  <TableRow key={tx.orderId}>
-                    <TableCell className="font-medium">{tx.orderId}</TableCell>
-                    <TableCell>{tx.amount.toLocaleString()}</TableCell>
-                    <TableCell>
-                       <Badge variant={'default'} className={'bg-green-600/80'}>
-                        {tx.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{tx.method}</TableCell>
-                    <TableCell>{tx.date}</TableCell>
-                    <TableCell className="text-right">
-                       <Button variant="ghost" size="sm">View Order</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {isLoading ? (
+                     [...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                        </TableRow>
+                    ))
+                ) : recentTransactions.length > 0 ? (
+                    recentTransactions.map((tx) => (
+                    <TableRow key={tx.id}>
+                        <TableCell className="font-medium">#{tx.id.substring(0,6)}...</TableCell>
+                        <TableCell>{tx.totalAmount.toLocaleString()}</TableCell>
+                        <TableCell>
+                        <Badge variant={'default'} className={'bg-green-600/80'}>
+                            {tx.orderStatus}
+                        </Badge>
+                        </TableCell>
+                        <TableCell>{tx.paymentMethod}</TableCell>
+                        <TableCell>{tx.orderDate.toDate().toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                        <Button variant="ghost" size="sm">View Order</Button>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                     <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                            No transactions yet.
+                        </TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
