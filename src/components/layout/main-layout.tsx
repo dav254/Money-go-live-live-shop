@@ -17,24 +17,26 @@ export function MainLayout({ children, sidebar }: { children: React.ReactNode, s
       <div className="flex min-h-screen w-full flex-col bg-background">
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="md:hidden">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Menu className="h-6 w-6" />
-                    <span className="sr-only">Toggle navigation menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="flex w-72 flex-col bg-card p-4">
-                  <Link href="/" className="mb-6">
-                    <Logo className="h-8 w-auto text-primary" />
-                  </Link>
-                  <nav className="flex flex-1 flex-col gap-4">
-                    {sidebar}
-                  </nav>
-                </SheetContent>
-              </Sheet>
-            </div>
+            {sidebar && (
+              <div className="md:hidden">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                      <Menu className="h-6 w-6" />
+                      <span className="sr-only">Toggle navigation menu</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="flex w-72 flex-col bg-card p-4">
+                    <Link href="/" className="mb-6">
+                      <Logo className="h-8 w-auto text-primary" />
+                    </Link>
+                    <nav className="flex flex-1 flex-col gap-4">
+                      {sidebar}
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            )}
             <Link href="/" className="hidden md:block">
               <Logo className="h-8 w-auto text-primary" />
             </Link>
@@ -65,7 +67,7 @@ export function MainLayout({ children, sidebar }: { children: React.ReactNode, s
                 </Link>
             </Button>
              <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
-                <Link href="/dashboard/live/start">
+                <Link href="/live">
                     <Video className="h-5 w-5" />
                     <span className="sr-only">Live</span>
                 </Link>
