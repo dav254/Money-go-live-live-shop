@@ -92,7 +92,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
 
 
   return (
-    <div className={cn("relative w-full text-white", theme.darkMode ? 'dark' : '')}>
+    <div className={cn("relative w-full", theme.darkMode ? 'dark text-white' : 'text-foreground')}>
       {/* Banner Image */}
       <div className="relative h-48 w-full md:h-64">
         <Image
@@ -119,7 +119,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           {/* Seller Info */}
           <div className="mt-4 md:ml-6 md:mt-0">
             <div className="flex items-center justify-center gap-2 md:justify-start">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{seller.name}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{seller.name}</h1>
             </div>
             <div className="mt-2 flex items-center justify-center gap-4 text-neutral-300 md:justify-start">
               <div className="flex items-center gap-1.5">
