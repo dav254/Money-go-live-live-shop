@@ -82,17 +82,8 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     }
   };
 
-  const theme = seller.themeSettings || {};
-  const accentColorClass = theme.accentColor ? `bg-${theme.accentColor}-500` : 'bg-primary';
-  const buttonStyleClass = {
-      'rounded': 'rounded-full',
-      'square': 'rounded-none',
-      'soft': 'rounded-lg'
-  }[theme.buttonStyle || 'rounded'];
-
-
   return (
-    <div className={cn("relative w-full", theme.darkMode ? 'dark text-white' : 'text-foreground')}>
+    <div className="relative w-full text-foreground">
       {/* Banner Image */}
       <div className="relative h-48 w-full md:h-64">
         <Image
@@ -124,17 +115,17 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <div className="mt-2 flex items-center justify-center gap-4 text-neutral-300 md:justify-start">
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                <span className="font-semibold">{seller.rating}</span>
-                <span>({seller.reviewsCount.toLocaleString()})</span>
+                <span className="font-semibold text-white">{seller.rating}</span>
+                <span className="text-white">({seller.reviewsCount.toLocaleString()})</span>
               </div>
-              <span className="font-semibold">{seller.followers.toLocaleString()} Followers</span>
+              <span className="font-semibold text-white">{seller.followers.toLocaleString()} Followers</span>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="mt-6 flex w-full flex-wrap justify-center gap-2 md:ml-auto md:mt-0 md:w-auto md:flex-nowrap">
-            <Button className={cn("flex-1 text-white hover:bg-neutral-200 md:flex-initial font-bold", accentColorClass, buttonStyleClass)}>Follow</Button>
-            <Button onClick={handleChat} variant="outline" className={cn("flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold", buttonStyleClass)}>
+            <Button className="flex-1 text-white bg-primary hover:bg-primary/90 md:flex-initial font-bold rounded-full">Follow</Button>
+            <Button onClick={handleChat} variant="outline" className="flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold rounded-full">
               <MessageCircle className="mr-2 h-4 w-4" /> Chat
             </Button>
             <Button variant="ghost" size="icon" className="hover:bg-neutral-800">

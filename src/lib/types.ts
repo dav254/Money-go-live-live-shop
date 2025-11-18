@@ -21,7 +21,6 @@ export interface SellerShop {
   location?: string;
   contactEmail?: string;
   contactWhatsapp?: string;
-  themeSettings?: ThemeSettings;
 }
 
 export interface Seller {

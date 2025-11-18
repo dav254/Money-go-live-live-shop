@@ -36,9 +36,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 
-type AccentColor = 'red' | 'blue' | 'purple' | 'gold' | 'pink';
-type ButtonStyle = 'rounded' | 'square' | 'soft';
-
 export default function SellerSettingsPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
@@ -59,11 +56,6 @@ export default function SellerSettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<'logo' | 'banner' | null>(null);
-
-  // Theme State
-  const [darkMode, setDarkMode] = useState(true);
-  const [accentColor, setAccentColor] = useState<AccentColor>('red');
-  const [buttonStyle, setButtonStyle] = useState<ButtonStyle>('rounded');
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
@@ -72,12 +64,6 @@ export default function SellerSettingsPage() {
         setShopDescription(shopData.description || '');
         setLogoUrl(shopData.logoUrl || null);
         setBannerUrl(shopData.bannerUrl || null);
-
-        if (shopData.themeSettings) {
-            setDarkMode(shopData.themeSettings.darkMode ?? true);
-            setAccentColor(shopData.themeSettings.accentColor ?? 'red');
-            setButtonStyle(shopData.themeSettings.buttonStyle ?? 'rounded');
-        }
     }
   }, [shopData]);
 
@@ -140,11 +126,6 @@ export default function SellerSettingsPage() {
         description: shopDescription,
         logoUrl: logoUrl || '',
         bannerUrl: bannerUrl || '',
-        themeSettings: {
-            darkMode,
-            accentColor,
-            buttonStyle
-        }
     };
 
     try {
@@ -186,9 +167,6 @@ export default function SellerSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="contact">
               <Mail className="mr-2 h-4 w-4" /> Contact
-            </TabsTrigger>
-            <TabsTrigger value="theme">
-              <Palette className="mr-2 h-4 w-4" /> Theme
             </TabsTrigger>
             <TabsTrigger value="security">
               <Lock className="mr-2 h-4 w-4" /> Security
@@ -311,43 +289,6 @@ export default function SellerSettingsPage() {
                     <Input placeholder="TikTok Profile URL" />
                     <Input placeholder="Instagram Profile URL" />
                     <Input placeholder="Facebook Page URL" />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Theme Customization Tab */}
-          <TabsContent value="theme" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Theme Customization</CardTitle>
-                <CardDescription>
-                  Personalize the look and feel of your shop page.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center space-x-2">
-                    <Label htmlFor="dark-mode">Dark Mode</Label>
-                    <Switch id="dark-mode" checked={darkMode} onCheckedChange={setDarkMode} />
-                </div>
-                 <div>
-                  <Label>Accent Color</Label>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {(['red', 'blue', 'purple', 'gold', 'pink'] as AccentColor[]).map(color => (
-                         <Button key={color} variant={accentColor === color ? 'default' : 'outline'} onClick={() => setAccentColor(color)} className="capitalize">{color}</Button>
-                    ))}
-                  </div>
-                </div>
-                 <div>
-                  <Label>Button Style</Label>
-                    <RadioGroup value={buttonStyle} onValueChange={(val) => setButtonStyle(val as ButtonStyle)} className="flex gap-4 pt-2">
-                        {(['rounded', 'square', 'soft'] as ButtonStyle[]).map(style => (
-                            <div key={style} className="flex items-center space-x-2">
-                                <RadioGroupItem value={style} id={style} />
-                                <Label htmlFor={style} className="capitalize">{style}</Label>
-                            </div>
-                        ))}
-                    </RadioGroup>
                 </div>
               </CardContent>
             </Card>
