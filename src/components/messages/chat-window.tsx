@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download } from 'lucide-react';
+import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2 } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
@@ -35,6 +35,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useToast } from '@/hooks/use-toast';
+import { Progress } from '../ui/progress';
 
 
 interface ChatWindowProps {
@@ -143,7 +145,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product image'} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
@@ -166,6 +168,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const firestore = useFirestore();
   const { userProfile } = useUserProfile(currentUser?.uid);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const messagesQuery = useMemoFirebase(() => {
     if (!chat) return null;
@@ -211,33 +215,82 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
       });
   };
 
+  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
+    const timestamp = Math.round((new Date()).getTime() / 1000);
+    const paramsToSign = { timestamp };
+
+    const signatureResponse = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paramsToSign }),
+    });
+    const { signature } = await signatureResponse.json();
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl, true);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100;
+          setUploadProgress(progress);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const uploadedData = JSON.parse(xhr.responseText);
+          resolve({ url: uploadedData.secure_url, type: file.type });
+        } else {
+          reject(new Error(`Cloudinary upload failed: ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during upload.'));
+      xhr.send(formData);
+    });
+  };
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // TODO: Implement actual Cloudinary upload here
-    // For now, we'll simulate the upload and message sending
-    console.log("Simulating upload for:", file.name);
+    setUploadProgress(0);
+    toast({ title: 'Uploading file...', description: file.name });
 
-    // After a successful (simulated) upload, you would get a URL
-    const simulatedUrl = "https://picsum.photos/seed/attachment/300/200";
-    
-    await sendMessage({
+    try {
+      const { url, type } = await uploadToCloudinary(file);
+      await sendMessage({
         messageText: '',
-        messageType: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file',
-        mediaUrl: simulatedUrl,
+        messageType: type.startsWith('image/') ? 'image' : type.startsWith('video/') ? 'video' : 'file',
+        mediaUrl: url,
         mediaMetadata: {
-            name: file.name,
-            size: file.size,
-            type: file.type,
+          name: file.name,
+          size: file.size,
+          type: file.type,
         }
-    });
-
-    // Reset file input
-    if(fileInputRef.current) {
+      });
+      toast({ title: 'Upload complete!', description: `${file.name} sent.` });
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your file. Please try again.' });
+    } finally {
+      setUploadProgress(null);
+      if (fileInputRef.current) {
         fileInputRef.current.value = '';
+      }
     }
   };
+
 
   const triggerFileSelect = () => fileInputRef.current?.click();
   
@@ -320,7 +373,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
                 <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
                     {msg.messageType === 'product' && msg.productId ? (
                         <SharedProductCard productId={msg.productId} />
-                    ) : msg.messageType === 'image' || msg.messageType === 'video' || msg.messageType === 'file' ? (
+                    ) : (msg.messageType === 'image' || msg.messageType === 'video' || msg.messageType === 'file') && msg.mediaUrl ? (
                         <MediaMessage message={msg} />
                     ) : msg.messageText ? (
                         <div className={cn(
@@ -342,16 +395,21 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
       </ScrollArea>
 
       <div className="border-t bg-background p-3">
+        {uploadProgress !== null && (
+          <div className="mb-2">
+            <Progress value={uploadProgress} className="h-1" />
+          </div>
+        )}
         <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative">
             <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center">
-                 <Button type="button" size="icon" variant="ghost" onClick={triggerFileSelect}>
-                    <PlusCircle className="h-5 w-5" />
+                 <Button type="button" size="icon" variant="ghost" onClick={triggerFileSelect} disabled={uploadProgress !== null}>
+                    {uploadProgress !== null ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlusCircle className="h-5 w-5" />}
                  </Button>
-                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} disabled={uploadProgress !== null} />
                 {isSeller && (
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button type="button" size="icon" variant="ghost">
+                            <Button type="button" size="icon" variant="ghost" disabled={uploadProgress !== null}>
                                 <Package className="h-5 w-5" />
                             </Button>
                         </DialogTrigger>
@@ -364,9 +422,10 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
             className={cn("pr-12", isSeller ? "pl-24" : "pl-12")}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            disabled={uploadProgress !== null}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-            <Button type="submit" size="icon" variant="ghost">
+            <Button type="submit" size="icon" variant="ghost" disabled={uploadProgress !== null}>
                 <Send className="h-5 w-5" />
             </Button>
           </div>
