@@ -42,7 +42,8 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     
     const cartItemData = {
       productId: product.id,
-      sellerId: product.sellerId, // <-- ADDED THIS LINE
+      sellerId: product.sellerId,
+      buyerId: user.uid, // Add buyerId for querying
       quantity: increment(1), // Atomically increment quantity
       price: product.price,
       name: product.name || '', // Fallback to empty string if name is undefined
@@ -109,5 +110,3 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     </Sheet>
   );
 }
-
-    
