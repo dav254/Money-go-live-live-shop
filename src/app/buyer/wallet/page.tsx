@@ -1,11 +1,26 @@
 
+'use client';
+
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet } from 'lucide-react';
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot } from 'lucide-react';
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 const walletData = {
   balance: 1250.75,
@@ -103,6 +118,7 @@ export default function BuyerWalletPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Payment Methods</CardTitle>
+                        <CardDescription>Manage your saved payment options for faster checkout.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {paymentMethods.map(pm => (
@@ -117,10 +133,59 @@ export default function BuyerWalletPage() {
                                 <Button variant="ghost" size="sm">Edit</Button>
                             </div>
                         ))}
-                        <Button variant="outline" className="w-full">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add New Method
-                        </Button>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="w-full">
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add New Method
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                <DialogTitle>Add a Payment Method</DialogTitle>
+                                <DialogDescription>
+                                    Securely add a new way to pay.
+                                </DialogDescription>
+                                </DialogHeader>
+                                <Tabs defaultValue="card" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="card">Card (Paystack)</TabsTrigger>
+                                        <TabsTrigger value="paypal">PayPal</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="card">
+                                        <div className="grid gap-4 py-4">
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="card-number">Card Number</Label>
+                                                <Input id="card-number" placeholder="**** **** **** 1234" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="expiry">Expiry</Label>
+                                                    <Input id="expiry" placeholder="MM / YY" />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="cvc">CVC</Label>
+                                                    <Input id="cvc" placeholder="123" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                         <DialogFooter>
+                                            <Button type="submit" className="w-full">Save Card</Button>
+                                        </DialogFooter>
+                                    </TabsContent>
+                                    <TabsContent value="paypal">
+                                        <div className="py-4 text-center">
+                                            <p className="text-sm text-muted-foreground mb-4">You will be redirected to PayPal to securely link your account.</p>
+                                            <Button type="button" className="w-full bg-[#0070BA] hover:bg-[#005ea6]">
+                                                <Bot className="mr-2 h-4 w-4" /> {/* Using Bot as a placeholder for PayPal icon */}
+                                                Continue with PayPal
+                                            </Button>
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                            </DialogContent>
+                        </Dialog>
+
                     </CardContent>
                 </Card>
             </div>
