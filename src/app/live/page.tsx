@@ -4,7 +4,7 @@
 import { useCallback, useRef } from 'react';
 import { VideoCard } from '@/components/feed/video-card';
 import { MainLayout } from '@/components/layout/main-layout';
-import { useCollection, useDoc } from '@/firebase';
+import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import type { Product, Seller, VideoFeedItem } from '@/lib/types';
 import { useFirestore } from '@/firebase';
@@ -12,9 +12,17 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 function RealtimeVideoCard({ product }: { product: Product }) {
     const firestore = useFirestore();
-    const sellerRef = product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
-    const { data: sellerData, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
-    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<any>(doc(firestore, 'userProfiles', product.sellerId));
+    
+    const sellerShopRef = useMemoFirebase(() => {
+        return product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
+    }, [firestore, product.sellerId]);
+    
+    const userProfileRef = useMemoFirebase(() => {
+        return product.sellerId ? doc(firestore, 'userProfiles', product.sellerId) : null;
+    }, [firestore, product.sellerId]);
+
+    const { data: sellerData, isLoading: isSellerLoading } = useDoc<Seller>(sellerShopRef);
+    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
       // This is a placeholder as the main container handles scrolling
@@ -58,7 +66,7 @@ function RealtimeVideoCard({ product }: { product: Product }) {
         id: product.id,
         product: product,
         seller: seller,
-        video: product.image || getPlaceholderImage(),
+        video: product.image || {id:'placeholder', imageUrl: getPlaceholderImage(), description: 'placeholder', imageHint: 'placeholder'},
         likes: product.likes || 0,
         viewers: Math.floor(Math.random() * 3000) + 100, // Placeholder
         comments: [], // Placeholder
@@ -75,7 +83,11 @@ function RealtimeVideoCard({ product }: { product: Product }) {
 export default function LiveFeedPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const firestore = useFirestore();
-  const productsQuery = collection(firestore, 'products');
+  
+  const productsQuery = useMemoFirebase(() => {
+    return collection(firestore, 'products');
+  }, [firestore]);
+
   const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
   const handleScroll = useCallback((direction: 'up' | 'down') => {
