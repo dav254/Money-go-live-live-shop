@@ -4,7 +4,7 @@
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
-import type { Order } from '@/lib/types';
+import type { Order, Product } from '@/lib/types';
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,7 +65,22 @@ export default function CheckoutPage() {
         return doc(firestore, 'orders', orderId);
     }, [firestore, orderId]);
 
-    const { data: order, isLoading, error } = useDoc<Order>(orderRef);
+    const { data: order, isLoading: isLoadingOrder, error: orderError } = useDoc<Order>(orderRef);
+
+    const productRef = useMemoFirebase(() => {
+        if (!order?.productId || !firestore) return null;
+        return doc(firestore, 'products', order.productId);
+    }, [firestore, order]);
+
+    const { data: product, isLoading: isLoadingProduct, error: productError } = useDoc<Product>(productRef);
+    
+    const isLoading = isLoadingOrder || isLoadingProduct;
+    const error = orderError || productError;
+
+    // Use the live shipping cost from the product, not the one saved in the order
+    const liveShippingCost = product?.shippingCost ?? order?.shippingCost ?? 0;
+    const liveTotalAmount = (order?.productPrice ?? 0) + liveShippingCost;
+
 
     const handlePayment = async (gateway: 'paystack' | 'paypal') => {
         if (!order) return;
@@ -77,14 +92,15 @@ export default function CheckoutPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderId: order.id,
-                    amount: order.totalAmount,
+                    amount: liveTotalAmount, // Use the live total amount
                     email: 'buyer@example.com', // In real app, get from user profile
                     gateway: gateway,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create payment intent.');
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'Failed to create payment intent.');
             }
 
             const data = await response.json();
@@ -96,11 +112,11 @@ export default function CheckoutPage() {
                 throw new Error('No checkout URL received.');
             }
 
-        } catch (err) {
+        } catch (err: any) {
             toast({
                 variant: 'destructive',
                 title: 'Payment Error',
-                description: 'Could not initiate payment. Please try again or use another method.',
+                description: err.message || 'Could not initiate payment. Please try again or use another method.',
             });
             setIsLoadingPayment(null);
         }
@@ -117,7 +133,7 @@ export default function CheckoutPage() {
         )
     }
 
-    if (error || !order) {
+    if (error || !order || !product) {
         return (
             <MainLayout>
                 <div className="container py-12 text-center">
@@ -169,13 +185,13 @@ export default function CheckoutPage() {
                             </div>
                              <div className="flex justify-between text-sm">
                                 <p>Shipping</p>
-                                <p>${order.shippingCost.toLocaleString()}</p>
+                                <p>${liveShippingCost.toLocaleString()}</p>
                             </div>
                         </CardContent>
                         <CardFooter>
                             <div className="flex justify-between w-full font-bold text-lg">
                                 <p>Total</p>
-                                <p>USD ${order.totalAmount.toLocaleString()}</p>
+                                <p>USD ${liveTotalAmount.toLocaleString()}</p>
                             </div>
                         </CardFooter>
                     </Card>
@@ -206,5 +222,3 @@ export default function CheckoutPage() {
         </MainLayout>
     )
 }
-
-    
