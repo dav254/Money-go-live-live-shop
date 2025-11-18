@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -11,7 +12,7 @@ export function BuyerHeader() {
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2 md:gap-4">
-        <Link href="/" className="md:block">
+        <Link href="/buyer/dashboard" className="md:block">
           <Logo className="h-8 w-auto text-primary" />
         </Link>
       </div>
