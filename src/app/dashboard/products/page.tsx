@@ -4,6 +4,7 @@ import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
+import { LogisticsTable } from '@/components/seller/logistics-table';
 
 export default function ProductsPage() {
   return (
@@ -17,6 +18,7 @@ export default function ProductsPage() {
             <TabsTrigger value="my-products">My Products</TabsTrigger>
             <TabsTrigger value="add-new">Add New</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
+            <TabsTrigger value="logistics">Logistics</TabsTrigger>
           </TabsList>
           <TabsContent value="my-products" className="space-y-4">
             <MyProductsTable />
@@ -26,6 +28,9 @@ export default function ProductsPage() {
           </TabsContent>
           <TabsContent value="discounts" className="space-y-4">
              <DiscountedProductsTable />
+          </TabsContent>
+           <TabsContent value="logistics" className="space-y-4">
+             <LogisticsTable />
           </TabsContent>
         </Tabs>
       </div>
