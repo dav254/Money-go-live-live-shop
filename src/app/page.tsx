@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useRef, useMemo, useState } from 'react';
@@ -20,10 +19,12 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
     const firestore = useFirestore();
     
     const sellerShopRef = useMemoFirebase(() => {
+        if (!firestore) return null;
         return product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
     }, [firestore, product.sellerId]);
     
     const userProfileRef = useMemoFirebase(() => {
+        if (!firestore) return null;
         return product.sellerId ? doc(firestore, 'userProfiles', product.sellerId) : null;
     }, [firestore, product.sellerId]);
 

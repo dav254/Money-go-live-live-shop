@@ -1,4 +1,3 @@
-
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -74,10 +73,12 @@ export default function BuyerDashboardPage() {
   const firestore = useFirestore();
 
   const productsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(collection(firestore, 'products'), limit(10));
   }, [firestore]);
 
   const sellerShopsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(collection(firestore, 'sellerShops'), limit(4));
   }, [firestore]);
 
