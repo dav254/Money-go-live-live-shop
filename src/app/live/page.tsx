@@ -10,7 +10,7 @@ import type { Product, Seller, VideoFeedItem } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 
-function RealtimeVideoCard({ product, mediaUrl, mediaType }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video' }) {
+function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
     
     const sellerShopRef = useMemoFirebase(() => {
@@ -76,7 +76,7 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType }: { product: Product;
 
     return (
         <div className="h-full w-full snap-start flex-shrink-0">
-          <VideoCard item={feedItem} />
+          <VideoCard item={feedItem} onScroll={onScroll} />
         </div>
     );
 }
@@ -87,6 +87,7 @@ export default function LiveFeedPage() {
   const firestore = useFirestore();
   
   const productsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(collection(firestore, 'products'));
   }, [firestore]);
 
@@ -154,6 +155,7 @@ export default function LiveFeedPage() {
                   product={item.product} 
                   mediaUrl={item.mediaUrl}
                   mediaType={item.mediaType}
+                  onScroll={handleScroll}
                 />
             ))
           ) : (
