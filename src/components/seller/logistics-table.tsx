@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -79,7 +78,6 @@ export function LogisticsTable() {
     }
   };
 
-
   const columns: ColumnDef<ProductRow>[] = React.useMemo(() => [
     {
       accessorKey: 'name',
@@ -100,7 +98,7 @@ export function LogisticsTable() {
     },
     {
       accessorKey: 'shippingCost',
-      header: ({ column }) => {
+      header: () => {
         return (
           <div className="text-right">Shipping Cost (USD)</div>
         );
@@ -115,7 +113,7 @@ export function LogisticsTable() {
                     <Input 
                         type="number"
                         value={shippingCost}
-                        onChange={(e) => setShippingCost(parseFloat(e.target.value))}
+                        onChange={(e) => setShippingCost(parseFloat(e.target.value) || 0)}
                         className="w-24 text-right"
                         autoFocus
                     />
@@ -144,7 +142,7 @@ export function LogisticsTable() {
     {
         accessorKey: 'deliveryOptions',
         header: 'Delivery Options',
-        cell: ({ row }) => <div className="text-sm text-muted-foreground truncate max-w-xs">{row.getValue('deliveryOptions')}</div>,
+        cell: ({ row }) => <div className="text-sm text-muted-foreground truncate max-w-xs">{row.original.deliveryOptions || ''}</div>,
     }
   ], [editingRowId, shippingCost, isSaving]);
 
