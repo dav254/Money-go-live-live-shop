@@ -32,9 +32,11 @@ service cloud.firestore {
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
       // Allow a product owner to update any field.
-      // Allow any authenticated user to ONLY update the 'inCartCount'.
+      // Allow any authenticated user to ONLY update the 'inCartCount' by incrementing it.
       allow update: if (resource.data.sellerId == request.auth.uid) ||
-                    (request.auth != null && request.resource.data.keys().hasOnly(['inCartCount']));
+                    (request.auth != null && 
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inCartCount']) &&
+                     request.resource.data.inCartCount == resource.data.inCartCount + 1);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
