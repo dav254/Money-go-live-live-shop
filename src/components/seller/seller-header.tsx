@@ -168,13 +168,13 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <div className="flex items-center justify-center gap-2 md:justify-start">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{seller.name}</h1>
             </div>
-            <div className="mt-2 flex items-center justify-center gap-4 text-neutral-300">
+            <div className="mt-2 flex items-center justify-center gap-4 text-white">
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                <span className="font-semibold text-white">{seller.rating}</span>
-                <span className="text-white">({seller.reviewsCount.toLocaleString()})</span>
+                <span className="font-semibold">{seller.rating}</span>
+                <span>({seller.reviewsCount.toLocaleString()})</span>
               </div>
-              <span className="font-semibold text-white">{seller.followers.toLocaleString()} Followers</span>
+              <span className="font-semibold">{seller.followers.toLocaleString()} Followers</span>
             </div>
           </div>
 
@@ -184,7 +184,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
               onClick={handleFollow}
               disabled={isFollowLoading || user?.uid === seller.id}
               variant={isFollowing ? 'secondary' : 'default'}
-              className="flex-1 md:flex-initial font-bold rounded-full text-white bg-primary hover:bg-primary/90"
+              className="flex-1 md:flex-initial font-bold rounded-full"
             >
               {isFollowing ? (
                 <>
@@ -194,10 +194,10 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
                 'Follow'
               )}
             </Button>
-            <Button onClick={handleChat} variant="outline" className="flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold rounded-full">
+            <Button onClick={handleChat} variant="outline" className="flex-1 md:flex-initial font-bold rounded-full">
               <MessageCircle className="mr-2 h-4 w-4" /> Chat
             </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-neutral-800">
+            <Button variant="ghost" size="icon" className="rounded-full">
               <Share2 className="h-5 w-5" />
             </Button>
           </div>

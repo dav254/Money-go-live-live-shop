@@ -3,7 +3,6 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
-import { products as placeholderProducts } from '@/lib/placeholder-data';
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
