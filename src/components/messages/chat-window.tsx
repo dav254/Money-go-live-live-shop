@@ -154,7 +154,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   
   const handleShareProduct = async (productId: string) => {
       await sendMessage({
-          messageText: 'I\'ve shared a product with you.',
+          messageText: '',
           messageType: 'product',
           productId: productId,
       });
@@ -239,25 +239,26 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
             <div key={msg.id} className={cn("flex", msg.senderId === currentUser.uid ? "justify-end" : "justify-start")}>
-              
-              {msg.messageType === 'product' && msg.productId ? (
-                 <SharedProductCard productId={msg.productId} />
-              ) : (
-                <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
-                  <div className={cn(
-                    "rounded-xl p-3 text-sm shadow-sm",
-                    msg.senderId === currentUser.uid
-                      ? "bg-primary text-primary-foreground rounded-br-none"
-                      : "bg-card border rounded-bl-none"
-                  )}>
-                    <p>{msg.messageText}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              )}
-
+              <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
+                
+                {msg.messageType === 'product' && msg.productId ? (
+                   <SharedProductCard productId={msg.productId} />
+                ) : (
+                  <>
+                    <div className={cn(
+                      "rounded-xl p-3 text-sm shadow-sm",
+                      msg.senderId === currentUser.uid
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-card border rounded-bl-none"
+                    )}>
+                      <p>{msg.messageText}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
