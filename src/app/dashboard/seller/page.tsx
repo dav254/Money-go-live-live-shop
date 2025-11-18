@@ -9,6 +9,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Heart, Eye } from 'lucide-react';
 import type { SellerShop } from '@/lib/types';
+import { doc } from 'firebase/firestore';
 
 
 // This is a simplified version of the Product type for this demo page
@@ -48,7 +49,7 @@ export default function SellerDashboardPage() {
 
   const sellerShopRef = useMemoFirebase(() => {
     if (!user) return null;
-    return firestore ? firestore.doc(`sellerShops/${user.uid}`) : null;
+    return firestore ? doc(firestore, `sellerShops/${user.uid}`) : null;
   }, [firestore, user]);
 
   const { data: shopData } = useDoc<SellerShop>(sellerShopRef);
