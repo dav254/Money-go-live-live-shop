@@ -1,19 +1,88 @@
 
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { VideoCard } from '@/components/feed/video-card';
-import { feedItems } from '@/lib/placeholder-data';
 import { MainLayout } from '@/components/layout/main-layout';
+import { useCollection, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import type { Product, Seller, VideoFeedItem } from '@/lib/types';
+import { useFirestore } from '@/firebase';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
+
+function RealtimeVideoCard({ product }: { product: Product }) {
+    const firestore = useFirestore();
+    const sellerRef = product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
+    const { data: sellerData, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<any>(doc(firestore, 'userProfiles', product.sellerId));
+
+    const handleScroll = useCallback((direction: 'up' | 'down') => {
+      // This is a placeholder as the main container handles scrolling
+    }, []);
+
+    if (isSellerLoading || isProfileLoading) {
+        return (
+             <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
+                <p className="text-white">Loading live feed...</p>
+            </div>
+        )
+    }
+
+    const seller: Seller = {
+        id: product.sellerId,
+        sellerId: product.sellerId,
+        name: sellerData?.shopName || userProfileData?.fullName || 'Seller Store',
+        avatar: {
+            id: 'avatar',
+            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
+            description: 'Seller avatar',
+            imageHint: 'seller avatar'
+        },
+        banner: {
+            id: 'banner',
+            imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
+            description: 'Seller banner',
+            imageHint: 'store banner'
+        },
+        bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
+        rating: 4.8, // Placeholder
+        followers: 123, // Placeholder
+        reviewsCount: 45, // Placeholder
+        isVerified: true, // Placeholder
+        joinedDate: userProfileData?.joinDate || new Date().toISOString(),
+        location: sellerData?.location || userProfileData?.location || 'Unknown',
+        description: sellerData?.description || userProfileData?.bio || 'Welcome!',
+    };
+
+    const feedItem: VideoFeedItem = {
+        id: product.id,
+        product: product,
+        seller: seller,
+        video: product.image || getPlaceholderImage(),
+        likes: product.likes || 0,
+        viewers: Math.floor(Math.random() * 3000) + 100, // Placeholder
+        comments: [], // Placeholder
+    };
+
+    return (
+        <div className="h-full w-full snap-start flex-shrink-0">
+          <VideoCard item={feedItem} onScroll={handleScroll} />
+        </div>
+    );
+}
+
 
 export default function LiveFeedPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const firestore = useFirestore();
+  const productsQuery = collection(firestore, 'products');
+  const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
   const handleScroll = useCallback((direction: 'up' | 'down') => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const scrollAmount = container.clientHeight; // Each video is the height of the container
+    const scrollAmount = container.clientHeight;
     const currentScroll = container.scrollTop;
 
     let targetScroll;
@@ -27,8 +96,17 @@ export default function LiveFeedPage() {
         top: targetScroll,
         behavior: 'smooth',
     });
-
   }, []);
+
+  if (isLoading) {
+    return (
+        <MainLayout>
+             <div className="flex h-full w-full items-center justify-center">
+                <p>Loading live shows...</p>
+            </div>
+        </MainLayout>
+    )
+  }
 
 
   return (
@@ -38,11 +116,15 @@ export default function LiveFeedPage() {
           ref={scrollContainerRef}
           className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
         >
-          {feedItems.map((item, index) => (
-            <div key={item.id} className="h-full w-full snap-start flex-shrink-0">
-              <VideoCard item={item} onScroll={handleScroll} />
+          {products && products.length > 0 ? (
+             products.map((product) => (
+                <RealtimeVideoCard key={product.id} product={product} />
+            ))
+          ) : (
+             <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-black">
+                <p className="text-white">No live shows available right now.</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </MainLayout>

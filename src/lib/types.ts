@@ -21,6 +21,9 @@ export interface Seller {
   deliveryPolicy?: string;
   storeHours?: string;
   deliversFast?: boolean;
+  shopName?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
 }
 
 export interface Review {
