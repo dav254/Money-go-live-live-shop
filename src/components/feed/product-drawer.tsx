@@ -25,7 +25,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
               <div className="relative h-24 w-24 overflow-hidden rounded-lg">
                 <Image 
                   src={product.image.imageUrl} 
-                  alt={product.name} 
+                  alt={product.name || 'Product Image'} 
                   fill 
                   className="object-cover" 
                   data-ai-hint={product.image.imageHint}
