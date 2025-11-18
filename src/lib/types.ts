@@ -1,4 +1,5 @@
 
+
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -80,6 +81,7 @@ export interface UserProfile {
 export interface CartItem {
   id: string;
   productId: string;
+  sellerId: string; // <-- ADDED THIS LINE
   quantity: number;
   price: number;
   name: string;

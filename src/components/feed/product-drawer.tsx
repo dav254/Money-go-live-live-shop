@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -41,6 +42,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     
     const cartItemData = {
       productId: product.id,
+      sellerId: product.sellerId, // <-- ADDED THIS LINE
       quantity: increment(1), // Atomically increment quantity
       price: product.price,
       name: product.name || '', // Fallback to empty string if name is undefined
