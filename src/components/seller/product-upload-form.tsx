@@ -334,7 +334,7 @@ export function ProductUploadForm() {
 
             {/* Pricing & Inventory Section */}
             <div className="space-y-6 pt-8 border-t">
-                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Inventory (in USD)</h3>
+                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Inventory</h3>
                 <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>Pricing in USD</AlertTitle>
@@ -408,6 +408,13 @@ export function ProductUploadForm() {
 
             {/* Logistics Section */}
             <div className="space-y-6 pt-8 border-t">
+                 <Alert variant="default" className="bg-primary/10 border-primary/50">
+                    <Truck className="h-4 w-4 !text-primary" />
+                    <AlertTitle className="font-semibold !text-primary">Set Your Shipping Cost Here</AlertTitle>
+                    <AlertDescription>
+                        This is where you set the shipping cost for this product. This cost will be automatically added to the buyer's total at checkout.
+                    </AlertDescription>
+                </Alert>
                 <h3 className="text-lg font-medium leading-6 text-foreground">Logistics & Delivery</h3>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <FormField
@@ -465,4 +472,3 @@ export function ProductUploadForm() {
     </Form>
   );
 }
-
