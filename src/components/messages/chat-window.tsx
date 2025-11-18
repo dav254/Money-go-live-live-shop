@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2 } from 'lucide-react';
+import { Package, MoreVertical, Trash2, PlusCircle, History, Send } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
@@ -22,6 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -93,7 +94,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'product image'} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
@@ -207,9 +208,26 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
                 <MoreVertical className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent align="end">
               <DropdownMenuLabel>Chat Options</DropdownMenuLabel>
               <DropdownMenuSeparator />
+               {isSeller && (
+                <DropdownMenuGroup>
+                    <DropdownMenuItem>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create Order from Chat
+                    </DropdownMenuItem>
+                     <DropdownMenuItem>
+                        <History className="mr-2 h-4 w-4" />
+                        View Buyer's Order History
+                    </DropdownMenuItem>
+                     <DropdownMenuItem>
+                        <Send className="mr-2 h-4 w-4" />
+                        Send Quick Reply
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                </DropdownMenuGroup>
+              )}
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -239,12 +257,10 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
             <div key={msg.id} className={cn("flex", msg.senderId === currentUser.uid ? "justify-end" : "justify-start")}>
-              <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
-                
                 {msg.messageType === 'product' && msg.productId ? (
                    <SharedProductCard productId={msg.productId} />
                 ) : (
-                  <>
+                  <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
                     <div className={cn(
                       "rounded-xl p-3 text-sm shadow-sm",
                       msg.senderId === currentUser.uid
@@ -256,9 +272,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
                     <span className="text-xs text-muted-foreground">
                       {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                  </>
+                  </div>
                 )}
-              </div>
             </div>
           ))}
         </div>
