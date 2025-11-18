@@ -1,4 +1,6 @@
 
+'use client';
+
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -27,6 +29,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import Link from 'next/link';
 
 const analyticsData = [
   {
@@ -39,19 +42,19 @@ const analyticsData = [
     title: 'Pending Payouts',
     amount: '12,300',
     icon: Wallet,
-    description: 'Awaiting clearance',
+    description: 'Awaiting clearance (7-day window)',
   },
   {
     title: 'Completed Payouts',
     amount: '20,150',
     icon: Banknote,
-    description: 'In your account',
+    description: 'Successfully sent to your account.',
   },
   {
     title: 'Live Sales Today',
     amount: '2,040',
     icon: Package,
-    description: 'From 12 orders',
+    description: 'From 12 orders today',
   },
 ];
 
@@ -59,9 +62,9 @@ const transactions = [
   {
     orderId: '#ORD-001',
     amount: 950.0,
-    status: 'paid',
+    status: 'cleared',
     method: 'M-Pesa',
-    date: '2024-08-25',
+    date: '2024-08-18',
   },
   {
     orderId: '#ORD-002',
@@ -73,14 +76,14 @@ const transactions = [
   {
     orderId: '#ORD-003',
     amount: 450.0,
-    status: 'paid',
+    status: 'cleared',
     method: 'M-Pesa',
-    date: '2024-08-24',
+    date: '2024-08-17',
   },
   {
     orderId: '#ORD-004',
     amount: 2500.0,
-    status: 'paid',
+    status: 'pending',
     method: 'Bank Transfer',
     date: '2024-08-23',
   },
@@ -103,8 +106,10 @@ export default function SellerEarningsPage() {
           </h1>
           <div className="flex items-center space-x-2">
             <DateRangePicker />
-            <Button variant="destructive" className="font-bold">
-              Withdraw Funds <ArrowRight className="ml-2 h-4 w-4" />
+            <Button asChild variant="destructive" className="font-bold">
+              <Link href="/dashboard/seller/wallet">
+                Go to Wallet <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -150,7 +155,7 @@ export default function SellerEarningsPage() {
                     <TableCell className="font-medium">{tx.orderId}</TableCell>
                     <TableCell>{tx.amount.toLocaleString()}</TableCell>
                     <TableCell>
-                       <Badge variant={tx.status === 'paid' ? 'default' : 'secondary'} className={tx.status === 'paid' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>
+                       <Badge variant={tx.status === 'cleared' ? 'default' : 'secondary'} className={tx.status === 'cleared' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>
                         {tx.status}
                       </Badge>
                     </TableCell>

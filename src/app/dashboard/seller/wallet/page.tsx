@@ -102,7 +102,7 @@ export default function SellerWalletPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Date & Time</TableHead>
+                          <TableHead>Date &amp; Time</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead className="text-right">Amount</TableHead>
