@@ -85,6 +85,8 @@ export interface Order {
   productName?: string;
   productImage?: string;
   orderDate: Timestamp;
+  productPrice: number;
+  shippingCost: number;
   totalAmount: number;
   shippingAddress: string;
   orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'in-cart';
@@ -146,6 +148,7 @@ export interface Product {
   price: number;
   wasPrice?: number;
   originalPrice?: number;
+  shippingCost?: number;
   image?: ImagePlaceholder;
   imageUrl?: string; // Optional for cases where it's not a placeholder object
   imageUrls?: string[];
@@ -179,3 +182,5 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    

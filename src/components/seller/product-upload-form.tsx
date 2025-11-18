@@ -35,6 +35,7 @@ import {
   MapPin,
   Truck,
   Info,
+  DollarSign,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -48,6 +49,7 @@ const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
   category: z.string().min(1, { message: 'Please select a category.' }),
   price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+  shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
   salePrice: z.coerce.number().optional(),
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
   tags: z.string().optional(),
@@ -71,6 +73,7 @@ export function ProductUploadForm() {
       productName: '',
       category: '',
       price: 0,
+      shippingCost: 0,
       salePrice: 0,
       stock: 0,
       tags: '',
@@ -168,6 +171,7 @@ export function ProductUploadForm() {
           stock: values.stock,
           tags: values.tags || '',
           description: values.description,
+          shippingCost: values.shippingCost,
           location: values.location,
           deliveryOptions: values.deliveryOptions,
           sellerId: user.uid,
@@ -335,7 +339,7 @@ export function ProductUploadForm() {
                     <Info className="h-4 w-4" />
                     <AlertTitle>Pricing in USD</AlertTitle>
                     <AlertDescription>
-                        All prices must be in USD. Please use an online currency converter to price your items accurately for the international market.
+                        All prices must be in USD to attract international buyers. Use an online currency converter to price your items accurately.
                     </AlertDescription>
                 </Alert>
                  <FormField
@@ -405,7 +409,21 @@ export function ProductUploadForm() {
             {/* Logistics Section */}
             <div className="space-y-6 pt-8 border-t">
                 <h3 className="text-lg font-medium leading-6 text-foreground">Logistics & Delivery</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <FormField
+                        control={form.control}
+                        name="shippingCost"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2"><DollarSign className="h-4 w-4" /> Shipping Cost (USD)</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 10.00" {...field} />
+                            </FormControl>
+                             <FormDescription>Enter 0 for free shipping.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                     <FormField
                         control={form.control}
                         name="location"
@@ -447,3 +465,5 @@ export function ProductUploadForm() {
     </Form>
   );
 }
+
+    

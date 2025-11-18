@@ -133,6 +133,10 @@
           "type": "number",
           "description": "The original price of the product."
         },
+        "shippingCost": {
+            "type": "number",
+            "description": "The shipping cost for the product."
+        },
         "category": {
           "type": "string",
           "description": "The category the product belongs to."
@@ -167,6 +171,7 @@
         "name",
         "description",
         "price",
+        "shippingCost",
         "category",
         "imageUrl",
         "uploadDate"
@@ -233,9 +238,17 @@
           "description": "Date when the order was placed.",
           "format": "date-time"
         },
+        "productPrice": {
+            "type": "number",
+            "description": "Price of the product at the time of order."
+        },
+        "shippingCost": {
+            "type": "number",
+            "description": "Shipping cost for the order."
+        },
         "totalAmount": {
           "type": "number",
-          "description": "The total amount of the order."
+          "description": "The total amount of the order (productPrice + shippingCost)."
         },
         "shippingAddress": {
           "type": "string",
@@ -256,6 +269,8 @@
         "sellerId",
         "productId",
         "orderDate",
+        "productPrice",
+        "shippingCost",
         "totalAmount",
         "shippingAddress",
         "orderStatus"

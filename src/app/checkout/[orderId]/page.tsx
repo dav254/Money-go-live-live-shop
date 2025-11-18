@@ -142,9 +142,6 @@ export default function CheckoutPage() {
         )
     }
 
-    const shippingCost = 10; // Placeholder in USD
-    const total = order.totalAmount + shippingCost;
-
     return (
         <MainLayout>
             <div className="container py-12">
@@ -163,22 +160,22 @@ export default function CheckoutPage() {
                                     <p className="font-semibold">{order.productName}</p>
                                     <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
                                 </div>
-                                <p className="ml-auto font-bold">${order.totalAmount.toLocaleString()}</p>
+                                <p className="ml-auto font-bold">${order.productPrice.toLocaleString()}</p>
                             </div>
                             <Separator />
                             <div className="flex justify-between text-sm">
                                 <p>Subtotal</p>
-                                <p>${order.totalAmount.toLocaleString()}</p>
+                                <p>${order.productPrice.toLocaleString()}</p>
                             </div>
                              <div className="flex justify-between text-sm">
                                 <p>Shipping</p>
-                                <p>${shippingCost.toLocaleString()}</p>
+                                <p>${order.shippingCost.toLocaleString()}</p>
                             </div>
                         </CardContent>
                         <CardFooter>
                             <div className="flex justify-between w-full font-bold text-lg">
                                 <p>Total</p>
-                                <p>USD ${total.toLocaleString()}</p>
+                                <p>USD ${order.totalAmount.toLocaleString()}</p>
                             </div>
                         </CardFooter>
                     </Card>
@@ -209,3 +206,5 @@ export default function CheckoutPage() {
         </MainLayout>
     )
 }
+
+    

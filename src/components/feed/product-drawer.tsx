@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, serverTimestamp, increment, writeBatch, addDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, increment, writeBatch, addDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -98,6 +98,8 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     
     // Create a new document reference with an auto-generated ID
     const newOrderRef = doc(ordersCollectionRef);
+    const shippingCost = product.shippingCost || 0;
+    const productPrice = product.price;
 
     const newOrderData = {
         id: newOrderRef.id, // Store the ID within the document
@@ -106,7 +108,9 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
         productId: product.id,
         productName: product.name,
         productImage: imageUrl,
-        totalAmount: product.price,
+        productPrice: productPrice,
+        shippingCost: shippingCost,
+        totalAmount: productPrice + shippingCost,
         orderDate: serverTimestamp(),
         shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
         orderStatus: 'pending',
@@ -156,10 +160,10 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
               <div className="flex-1">
                 <h3 className="font-headline text-lg font-semibold">{product.name}</h3>
                 <div className="text-xl font-bold text-primary mt-1">
-                  {product.price.toLocaleString()}
+                  ${product.price.toLocaleString()}
                   {product.originalPrice && (
                     <span className="ml-2 text-sm text-muted-foreground line-through">
-                      {product.originalPrice.toLocaleString()}
+                      ${product.originalPrice.toLocaleString()}
                     </span>
                   )}
                 </div>
@@ -180,3 +184,5 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     </Sheet>
   );
 }
+
+    
