@@ -3,7 +3,8 @@
 
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star } from 'lucide-react';
+import { ShoppingCart, Star, Store } from 'lucide-react';
+import Link from 'next/link';
 
 interface ProductInfoProps {
   product: Product;
@@ -35,9 +36,11 @@ export function ProductInfo({ product }: ProductInfoProps) {
                     )}
                 </div>
             </div>
-            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shrink-0">
-                <ShoppingCart className="h-4 w-4 mr-2"/>
-                Shop
+            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shrink-0">
+                <Link href={`/sellers/${product.sellerId}`}>
+                    <Store className="h-4 w-4 mr-2"/>
+                    Shop
+                </Link>
             </Button>
         </div>
     </div>
