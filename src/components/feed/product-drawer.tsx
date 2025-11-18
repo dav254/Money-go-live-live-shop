@@ -43,7 +43,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
       productId: product.id,
       quantity: increment(1), // Atomically increment quantity
       price: product.price,
-      name: product.name,
+      name: product.name || '', // Fallback to empty string if name is undefined
       imageUrl: imageUrl,
       addedAt: serverTimestamp(),
     };
