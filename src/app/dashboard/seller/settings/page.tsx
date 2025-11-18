@@ -201,30 +201,19 @@ export default function SellerSettingsPage() {
           <TabsContent value="security" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Security & 2FA</CardTitle>
+                <CardTitle>Security</CardTitle>
                 <CardDescription>
-                  Protect your account from unauthorized access.
+                  Manage your account security settings.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between rounded-lg border p-4">
                     <div>
                         <Label>Password</Label>
-                        <p className="text-sm text-muted-foreground">Last changed 3 months ago</p>
+                        <p className="text-sm text-muted-foreground">Manage your account password.</p>
                     </div>
                     <Button variant="outline">Change Password</Button>
                 </div>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                        <Label>Two-Factor Authentication (2FA)</Label>
-                        <p className="text-sm text-muted-foreground">Keep your account extra secure.</p>
-                    </div>
-                    <Button>Enable 2FA</Button>
-                </div>
-                <Separator />
-                <CardTitle className="text-lg">Login Devices</CardTitle>
-                <p className="text-sm text-muted-foreground">You are currently logged in on 2 devices.</p>
-                 <Button variant="destructive">Logout All Other Devices</Button>
               </CardContent>
             </Card>
           </TabsContent>
