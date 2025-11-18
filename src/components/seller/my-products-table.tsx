@@ -86,7 +86,7 @@ export const columns: ColumnDef<ProductRow>[] = [
             <div className="relative h-12 w-12 rounded-md overflow-hidden">
                 <Image 
                     src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
-                    alt={row.original.name} 
+                    alt={row.original.name || 'Product image'} 
                     fill 
                     className="object-cover" 
                 />
