@@ -8,6 +8,7 @@ import { VideoActions } from './video-actions';
 import { ProductDrawer } from './product-drawer';
 import { Button } from '../ui/button';
 import Link from 'next/link';
+import { useUser } from '@/firebase';
 
 interface VideoCardProps {
   item: VideoFeedItem;
@@ -16,12 +17,13 @@ interface VideoCardProps {
 
 export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { user } = useUser();
 
   return (
     <div className="relative h-full w-full bg-black">
       <Image
         src={item.video.imageUrl}
-        alt={item.video.description}
+        alt={item.video.description || item.product.name}
         fill
         className="object-cover"
         priority
