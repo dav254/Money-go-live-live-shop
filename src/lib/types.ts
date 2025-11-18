@@ -174,6 +174,19 @@ export interface PaymentMethod {
   providerToken?: string; // a token from Paystack/PayPal
 }
 
+export interface PayoutMethod {
+  id: string;
+  type: 'paypal' | 'bank';
+  details: string; // e.g. user@example.com or Equity Bank - ...1234
+  // PayPal specific
+  paypalEmail?: string;
+  // Bank specific
+  accountName?: string;
+  accountNumber?: string;
+  bankName?: string;
+  country?: string;
+}
+
 
 export interface VideoFeedItem {
   id: string;
@@ -190,6 +203,8 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    
 
     
 

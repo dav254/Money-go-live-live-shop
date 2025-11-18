@@ -37,6 +37,8 @@ import {
   Trash2,
   Phone,
   Loader2,
+  Bank,
+  Mail,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -61,19 +63,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { PayoutMethod } from '@/lib/types';
 
-interface PayoutMethod {
-    id: string;
-    type: 'mpesa';
-    details: string; // e.g., 'John Doe - 0712345678'
-    accountName: string;
-    accountNumber: string;
-}
 
-const payoutFormSchema = z.object({
-  accountName: z.string().min(2, "Account name is required."),
-  accountNumber: z.string().regex(/^0\d{9}$/, "Please enter a valid phone number (e.g., 0712345678)."),
+const paypalFormSchema = z.object({
+  email: z.string().email("Please enter a valid PayPal email address."),
+});
+
+const bankFormSchema = z.object({
+  accountName: z.string().min(2, "Account holder's name is required."),
+  accountNumber: z.string().min(5, "Account number is required."),
+  bankName: z.string().min(2, "Bank name is required."),
+  country: z.string().min(2, "Country is required."),
 });
 
 
@@ -83,26 +86,50 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
-    const form = useForm<z.infer<typeof payoutFormSchema>>({
-        resolver: zodResolver(payoutFormSchema),
-        defaultValues: { accountName: '', accountNumber: '' },
+    const paypalForm = useForm<z.infer<typeof paypalFormSchema>>({
+        resolver: zodResolver(paypalFormSchema),
+        defaultValues: { email: user?.email || '' },
     });
 
-    const handleSaveMethod = async (values: z.infer<typeof payoutFormSchema>) => {
+    const bankForm = useForm<z.infer<typeof bankFormSchema>>({
+        resolver: zodResolver(bankFormSchema),
+        defaultValues: { accountName: '', accountNumber: '', bankName: '', country: '' },
+    });
+
+    const handleSavePayPal = async (values: z.infer<typeof paypalFormSchema>) => {
         if (!user || !firestore) return;
         setIsSaving(true);
         try {
             const payoutMethodsRef = collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
             await addDoc(payoutMethodsRef, {
-                type: 'mpesa',
-                details: `${values.accountName} - ${values.accountNumber}`,
-                accountName: values.accountName,
-                accountNumber: values.accountNumber,
+                type: 'paypal',
+                details: values.email,
+                paypalEmail: values.email,
             });
-            toast({ title: "Success", description: "M-Pesa payout method saved." });
+            toast({ title: "Success", description: "PayPal payout method saved." });
             onMethodAdded();
         } catch (error) {
-            console.error("Error saving payout method:", error);
+            console.error("Error saving PayPal method:", error);
+            toast({ variant: 'destructive', title: "Error", description: "Could not save payout method." });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleSaveBank = async (values: z.infer<typeof bankFormSchema>) => {
+        if (!user || !firestore) return;
+        setIsSaving(true);
+        try {
+            const payoutMethodsRef = collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
+            await addDoc(payoutMethodsRef, {
+                type: 'bank',
+                details: `${values.bankName} - *...${values.accountNumber.slice(-4)}`,
+                ...values
+            });
+            toast({ title: "Success", description: "Bank account saved for Paystack payouts." });
+            onMethodAdded();
+        } catch (error) {
+            console.error("Error saving bank method:", error);
             toast({ variant: 'destructive', title: "Error", description: "Could not save payout method." });
         } finally {
             setIsSaving(false);
@@ -112,25 +139,52 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
     return (
         <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-                <DialogTitle>Add M-Pesa Payout Method</DialogTitle>
-                <DialogDescription>Enter the M-Pesa account details where you want to receive your funds.</DialogDescription>
+                <DialogTitle>Add Payout Method</DialogTitle>
+                <DialogDescription>Add a PayPal or Bank Account to receive your earnings.</DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSaveMethod)} className="space-y-4 py-4">
-                    <FormField control={form.control} name="accountName" render={({ field }) => (
-                        <FormItem><FormLabel>Account Name (Full Name)</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="accountNumber" render={({ field }) => (
-                        <FormItem><FormLabel>M-Pesa Phone Number</FormLabel><FormControl><Input placeholder="0712345678" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <DialogFooter>
-                        <Button type="submit" className="w-full" disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save M-Pesa Account
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
+            <Tabs defaultValue="paypal" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="paypal">PayPal</TabsTrigger>
+                    <TabsTrigger value="bank">Bank (Paystack)</TabsTrigger>
+                </TabsList>
+                <TabsContent value="paypal">
+                     <Form {...paypalForm}>
+                        <form onSubmit={paypalForm.handleSubmit(handleSavePayPal)} className="space-y-4 py-4">
+                             <FormField control={paypalForm.control} name="email" render={({ field }) => (
+                                <FormItem><FormLabel>PayPal Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <DialogFooter>
+                                <Button type="submit" className="w-full" disabled={isSaving}>
+                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save PayPal Account'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </TabsContent>
+                <TabsContent value="bank">
+                     <Form {...bankForm}>
+                        <form onSubmit={bankForm.handleSubmit(handleSaveBank)} className="space-y-4 py-4">
+                             <FormField control={bankForm.control} name="accountName" render={({ field }) => (
+                                <FormItem><FormLabel>Account Holder Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={bankForm.control} name="accountNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={bankForm.control} name="bankName" render={({ field }) => (
+                                <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="Equity Bank" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={bankForm.control} name="country" render={({ field }) => (
+                                <FormItem><FormLabel>Country</FormLabel><FormControl><Input placeholder="Kenya" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <DialogFooter>
+                                <Button type="submit" className="w-full" disabled={isSaving}>
+                                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Bank Account'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </TabsContent>
+            </Tabs>
         </DialogContent>
     );
 };
@@ -282,7 +336,7 @@ export default function SellerWalletPage() {
                              payoutMethods.map(pm => (
                                 <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
                                     <div className="flex items-center gap-3">
-                                        <Phone className="h-6 w-6 text-muted-foreground" />
+                                        {pm.type === 'paypal' ? <Mail className="h-6 w-6 text-muted-foreground" /> : <Bank className="h-6 w-6 text-muted-foreground" />}
                                         <div>
                                             <p className="font-semibold uppercase">{pm.type}</p>
                                             <p className="text-sm text-muted-foreground">{pm.details}</p>
@@ -341,3 +395,5 @@ export default function SellerWalletPage() {
     </SellerLayout>
   );
 }
+
+    
