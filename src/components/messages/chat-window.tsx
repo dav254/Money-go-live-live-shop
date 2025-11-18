@@ -1,19 +1,19 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { MoreVertical, Package, Phone, Send, Video } from 'lucide-react';
+import { Package } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
+import { collection, addDoc, serverTimestamp, orderBy, query, where, doc } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
 
 interface ChatWindowProps {
@@ -21,25 +21,37 @@ interface ChatWindowProps {
   currentUser: User | null;
 }
 
-const ProductCard = () => (
-     <div className="max-w-xs rounded-lg border bg-background p-3 shadow-sm">
-        <div className="flex gap-3">
-            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                <Avatar className="h-full w-full rounded-none">
-                     <AvatarImage src="https://picsum.photos/seed/handbag/150/150" alt="product" />
-                </Avatar>
-            </div>
-            <div>
-                <p className="font-semibold">Classic Leather Handbag</p>
-                <p className="text-sm font-bold text-primary">KES 850</p>
-                <Button size="sm" className="mt-1 h-7">View Product</Button>
+const SharedProductCard = ({ productId }: { productId: string }) => {
+    const firestore = useFirestore();
+    const productRef = useMemoFirebase(() => doc(firestore, 'products', productId), [firestore, productId]);
+    const { data: product, isLoading } = useDoc<Product>(productRef);
+
+    if (isLoading) {
+        return <div className="max-w-xs rounded-lg border bg-background p-3 shadow-sm animate-pulse h-28"></div>;
+    }
+    
+    if (!product) {
+        return <div className="max-w-xs rounded-lg border bg-background p-3 shadow-sm"><p>This product is no longer available.</p></div>
+    }
+
+     return (
+        <div className="max-w-xs rounded-lg border bg-background p-3 shadow-sm">
+            <div className="flex gap-3">
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
+                     <Image src={product.imageUrl || 'https://picsum.photos/seed/product/150/150'} alt={product.name || 'product image'} fill className="object-cover" />
+                </div>
+                <div>
+                    <p className="font-semibold">{product.name}</p>
+                    <p className="text-sm font-bold text-primary">{product.price.toLocaleString()}</p>
+                    <Button size="sm" className="mt-1 h-7">View Product</Button>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 
-const ShareProductDialog = ({ sellerId }: { sellerId: string }) => {
+const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: (productId: string) => void }) => {
     const firestore = useFirestore();
 
     const productsQuery = useMemoFirebase(() => {
@@ -60,13 +72,15 @@ const ShareProductDialog = ({ sellerId }: { sellerId: string }) => {
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product image'} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
                                 <p className="text-sm text-primary">{product.price.toLocaleString()}</p>
                             </div>
-                            <Button size="sm">Share</Button>
+                            <DialogClose asChild>
+                                <Button size="sm" onClick={() => onShare(product.id)}>Share</Button>
+                            </DialogClose>
                         </div>
                     ))}
                 </div>
@@ -88,29 +102,41 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
 
   const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
   
-  const handleSendMessage = async () => {
-    if (!chat || !currentUser || !newMessage.trim()) return;
+  const sendMessage = async (messageData: Partial<ChatMessage>) => {
+      if (!chat || !currentUser) return;
+      
+      const messagesCollectionRef = collection(firestore, 'chats', chat.id, 'messages');
+      const fullMessageData = {
+          senderId: currentUser.uid,
+          timestamp: serverTimestamp(),
+          ...messageData
+      };
 
-    const messagesCollectionRef = collection(firestore, 'chats', chat.id, 'messages');
-    const messageData = {
-      senderId: currentUser.uid,
-      messageText: newMessage.trim(),
-      timestamp: serverTimestamp(),
-    };
-
-    try {
-      addDoc(messagesCollectionRef, messageData).catch(error => {
+      addDoc(messagesCollectionRef, fullMessageData).catch(error => {
           const permissionError = new FirestorePermissionError({
               path: messagesCollectionRef.path,
               operation: 'create',
-              requestResourceData: messageData
+              requestResourceData: fullMessageData
           });
           errorEmitter.emit('permission-error', permissionError);
       });
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
+  };
+
+  const handleSendTextMessage = async () => {
+    if (!newMessage.trim()) return;
+    await sendMessage({ 
+        messageText: newMessage.trim(),
+        messageType: 'text',
+    });
+    setNewMessage('');
+  };
+  
+  const handleShareProduct = async (productId: string) => {
+      await sendMessage({
+          messageText: 'I\'ve shared a product with you.',
+          messageType: 'product',
+          productId: productId,
+      });
   };
 
 
@@ -147,31 +173,33 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
             <div key={msg.id} className={cn("flex", msg.senderId === currentUser.uid ? "justify-end" : "justify-start")}>
-              <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
-                <div className={cn(
-                  "rounded-xl p-3 text-sm shadow-sm",
-                  msg.senderId === currentUser.uid
-                    ? "bg-primary text-primary-foreground rounded-br-none"
-                    : "bg-card border rounded-bl-none"
-                )}>
-                  <p>{msg.messageText}</p>
+              
+              {msg.messageType === 'product' && msg.productId ? (
+                 <SharedProductCard productId={msg.productId} />
+              ) : (
+                <div className={cn("flex max-w-sm flex-col gap-1", msg.senderId === currentUser.uid ? "items-end" : "items-start")}>
+                  <div className={cn(
+                    "rounded-xl p-3 text-sm shadow-sm",
+                    msg.senderId === currentUser.uid
+                      ? "bg-primary text-primary-foreground rounded-br-none"
+                      : "bg-card border rounded-bl-none"
+                  )}>
+                    <p>{msg.messageText}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
+              )}
+
             </div>
           ))}
-            {/* Placeholder for shared product */}
-             <div className="flex justify-start">
-                <ProductCard />
-            </div>
         </div>
       </ScrollArea>
 
       {/* Message Input */}
       <div className="border-t bg-background p-3">
-        <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="relative">
+        <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative">
              {isSeller && (
                 <Dialog>
                     <DialogTrigger asChild>
@@ -179,7 +207,7 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
                             <Package className="h-5 w-5" />
                         </Button>
                     </DialogTrigger>
-                    <ShareProductDialog sellerId={currentUser.uid} />
+                    <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
                 </Dialog>
              )}
           <Input

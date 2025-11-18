@@ -67,6 +67,8 @@ export interface ChatMessage {
   senderId: string;
   messageText: string;
   timestamp: Timestamp;
+  messageType?: 'text' | 'product';
+  productId?: string;
 }
 
 
