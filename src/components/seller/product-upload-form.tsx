@@ -69,6 +69,7 @@ export function ProductUploadForm() {
       productName: '',
       category: '',
       price: 0,
+      salePrice: 0,
       stock: 0,
       tags: '',
       description: '',
