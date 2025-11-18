@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -59,7 +60,7 @@ const ShareProductDialog = ({ sellerId }: { sellerId: string }) => {
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product image'} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
