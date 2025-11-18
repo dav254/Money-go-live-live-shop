@@ -7,18 +7,39 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package } from 'lucide-react';
+import { Package, MoreVertical, Trash2 } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 
 interface ChatWindowProps {
   chat: Chat | null;
   currentUser: User | null;
+  onChatDeleted?: () => void;
 }
 
 const SharedProductCard = ({ productId }: { productId: string }) => {
@@ -72,7 +93,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
                             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover" />
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name || 'product image'} fill className="object-cover" />
                             </div>
                             <div className="flex-1">
                                 <p className="font-semibold">{product.name}</p>
@@ -90,7 +111,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
 }
 
 
-export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
+export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const firestore = useFirestore();
   const { userProfile } = useUserProfile(currentUser?.uid);
@@ -138,6 +159,20 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
           productId: productId,
       });
   };
+  
+  const handleDeleteChat = async () => {
+    if (!chat || !currentUser) return;
+    const chatRef = doc(firestore, 'chats', chat.id);
+    try {
+      await updateDoc(chatRef, {
+        deletedFor: arrayUnion(currentUser.uid)
+      });
+      onChatDeleted?.();
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+      // Optionally show a toast notification on failure
+    }
+  };
 
 
   if (!chat || !currentUser) {
@@ -165,6 +200,37 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
             <p className="text-sm text-muted-foreground">Online</p>
           </div>
         </div>
+        <AlertDialog>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Chat Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <AlertDialogTrigger asChild>
+                <DropdownMenuItem className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Chat
+                </DropdownMenuItem>
+              </AlertDialogTrigger>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will only delete the chat from your view. The other person will still see the conversation. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteChat}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Messages Area */}

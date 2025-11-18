@@ -58,6 +58,7 @@ export interface Chat {
   participantIds: string[];
   lastMessage?: string;
   lastMessageTimestamp?: Timestamp;
+  deletedFor?: string[]; // Array of user IDs who have "deleted" the chat
   // This will be populated client-side
   otherParticipant?: UserProfile;
 }

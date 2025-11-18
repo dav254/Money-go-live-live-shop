@@ -24,6 +24,10 @@ export function ChatSystem() {
     if (!chats || !user) return [];
     const ids = new Set<string>();
     chats.forEach(chat => {
+      // Don't fetch profiles for chats the user has deleted
+      if (chat.deletedFor?.includes(user.uid)) {
+          return;
+      }
       chat.participantIds.forEach(id => {
         if (id !== user.uid) {
           ids.add(id);
@@ -42,12 +46,21 @@ export function ChatSystem() {
 
   const chatsWithParticipants = useMemo(() => {
     if (!chats || !participants || !user) return [];
-    return chats.map(chat => {
-      const otherParticipantId = chat.participantIds.find(id => id !== user.uid);
-      const otherParticipant = participants.find(p => p.id === otherParticipantId);
-      return { ...chat, otherParticipant };
-    });
+    
+    return chats
+      .filter(chat => !chat.deletedFor?.includes(user.uid)) // Filter out deleted chats
+      .map(chat => {
+        const otherParticipantId = chat.participantIds.find(id => id !== user.uid);
+        const otherParticipant = participants.find(p => p.id === otherParticipantId);
+        return { ...chat, otherParticipant };
+      });
+
   }, [chats, participants, user]);
+  
+  const handleChatDeleted = () => {
+      setSelectedChat(null);
+      // The useCollection hook will automatically refetch and update the list
+  }
 
 
   return (
@@ -58,7 +71,11 @@ export function ChatSystem() {
         onSelectChat={setSelectedChat}
         isLoading={isLoadingChats || isLoadingParticipants}
       />
-      <ChatWindow chat={selectedChat} currentUser={user} />
+      <ChatWindow
+        chat={selectedChat}
+        currentUser={user}
+        onChatDeleted={handleChatDeleted}
+      />
     </div>
   );
 }
