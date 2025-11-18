@@ -6,12 +6,13 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SellerBadges } from './seller-badges';
-import { Star, Share2, MessageCircle } from 'lucide-react';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { Star, Share2, MessageCircle, Check } from 'lucide-react';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useUserProfile } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 
 
 interface SellerHeaderProps {
@@ -19,13 +20,68 @@ interface SellerHeaderProps {
 }
 
 export function SellerHeader({ seller }: SellerHeaderProps) {
-  const { user, isLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(true);
+
+  useEffect(() => {
+    // Determine if the current user is following this seller
+    setIsFollowLoading(true);
+    if (userProfile && userProfile.following?.includes(seller.id)) {
+      setIsFollowing(true);
+    } else {
+      setIsFollowing(false);
+    }
+    setIsFollowLoading(false);
+  }, [userProfile, seller.id]);
+
+
+  const handleFollow = async () => {
+    if (isUserLoading || isProfileLoading) return;
+    if (!user || !userProfile) {
+        router.push('/login?redirect=/sellers/' + seller.id);
+        return;
+    }
+    if (user.uid === seller.id) {
+        toast({ title: "You cannot follow yourself." });
+        return;
+    }
+    
+    setIsFollowLoading(true);
+
+    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+    const sellerShopRef = doc(firestore, 'sellerShops', seller.id);
+    
+    try {
+        if (isFollowing) {
+            // Unfollow logic
+            await updateDoc(userProfileRef, { following: arrayRemove(seller.id) });
+            await updateDoc(sellerShopRef, { followers: increment(-1) });
+            toast({ title: `Unfollowed ${seller.name}` });
+            setIsFollowing(false);
+        } else {
+            // Follow logic
+            await updateDoc(userProfileRef, { following: arrayUnion(seller.id) });
+            await updateDoc(sellerShopRef, { followers: increment(1) });
+            toast({ title: `You are now following ${seller.name}` });
+            setIsFollowing(true);
+        }
+    } catch (error) {
+        console.error("Error following/unfollowing seller:", error);
+        toast({ variant: 'destructive', title: 'Something went wrong', description: 'Could not update your follow status. Please try again.' });
+    } finally {
+        setIsFollowLoading(false);
+    }
+  };
+
 
   const handleChat = async () => {
-    if (isLoading) return;
+    if (isUserLoading) return;
 
     if (!user) {
       router.push('/login');
@@ -112,7 +168,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <div className="flex items-center justify-center gap-2 md:justify-start">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">{seller.name}</h1>
             </div>
-            <div className="mt-2 flex items-center justify-center gap-4 text-neutral-300 md:justify-start">
+            <div className="mt-2 flex items-center justify-center gap-4 text-neutral-300">
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
                 <span className="font-semibold text-white">{seller.rating}</span>
@@ -124,7 +180,20 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
 
           {/* Action Buttons */}
           <div className="mt-6 flex w-full flex-wrap justify-center gap-2 md:ml-auto md:mt-0 md:w-auto md:flex-nowrap">
-            <Button className="flex-1 text-white bg-primary hover:bg-primary/90 md:flex-initial font-bold rounded-full">Follow</Button>
+            <Button
+              onClick={handleFollow}
+              disabled={isFollowLoading || user?.uid === seller.id}
+              variant={isFollowing ? 'secondary' : 'default'}
+              className="flex-1 md:flex-initial font-bold rounded-full text-white bg-primary hover:bg-primary/90"
+            >
+              {isFollowing ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" /> Following
+                </>
+              ) : (
+                'Follow'
+              )}
+            </Button>
             <Button onClick={handleChat} variant="outline" className="flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold rounded-full">
               <MessageCircle className="mr-2 h-4 w-4" /> Chat
             </Button>

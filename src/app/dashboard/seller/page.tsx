@@ -5,6 +5,11 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { products as placeholderProducts } from '@/lib/placeholder-data';
 import Image from 'next/image';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Heart, Eye } from 'lucide-react';
+import type { SellerShop } from '@/lib/types';
+
 
 // This is a simplified version of the Product type for this demo page
 const products = [
@@ -38,6 +43,16 @@ const products = [
 ];
 
 export default function SellerDashboardPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const sellerShopRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return firestore ? firestore.doc(`sellerShops/${user.uid}`) : null;
+  }, [firestore, user]);
+
+  const { data: shopData } = useDoc<SellerShop>(sellerShopRef);
+
   return (
     <SellerLayout>
       <div className="p-4 bg-background min-h-full">
@@ -45,7 +60,7 @@ export default function SellerDashboardPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Image
-              src="https://picsum.photos/seed/avatar/50/50"
+              src={shopData?.logoUrl || "https://picsum.photos/seed/avatar/50/50"}
               width={48}
               height={48}
               alt="Seller Avatar"
@@ -53,7 +68,7 @@ export default function SellerDashboardPage() {
               data-ai-hint="seller avatar"
             />
             <div>
-              <h2 className="text-lg font-bold font-headline">Seller Store</h2>
+              <h2 className="text-lg font-bold font-headline">{shopData?.shopName || 'Seller Store'}</h2>
               <p className="text-sm text-muted-foreground">Wallet: 4,200</p>
             </div>
           </div>
@@ -61,6 +76,43 @@ export default function SellerDashboardPage() {
           <Button variant="destructive" className="rounded-xl font-bold">
             Go Live
           </Button>
+        </div>
+        
+        {/* Shop Analytics Section */}
+        <div className="mb-6">
+          <h3 className="font-headline text-xl font-bold mb-4">Shop Analytics</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Followers</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{shopData?.followers?.toLocaleString() || 0}</div>
+                <p className="text-xs text-muted-foreground">+2 since last week</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
+                <Heart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">1,250</div>
+                <p className="text-xs text-muted-foreground">Across all products</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Product Views</CardTitle>
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">28,491</div>
+                <p className="text-xs text-muted-foreground">In the last 30 days</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Tabs */}
