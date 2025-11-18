@@ -146,6 +146,11 @@ export const columns: ColumnDef<ProductRow>[] = [
     },
   },
   {
+    accessorKey: 'inCartCount',
+    header: () => <div className="text-center">In Carts</div>,
+    cell: ({ row }) => <div className="text-center font-bold text-primary">{row.original.inCartCount || 0}</div>,
+  },
+  {
     id: 'actions',
     enableHiding: false,
     cell: ({ row }) => {
@@ -350,3 +355,5 @@ export function MyProductsTable() {
     </div>
   );
 }
+
+    

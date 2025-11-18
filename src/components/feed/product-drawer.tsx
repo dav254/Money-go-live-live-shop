@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { doc, serverTimestamp, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -49,6 +49,13 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     };
 
     setDocumentNonBlocking(cartItemRef, cartItemData, { merge: true });
+
+    // Also increment the inCartCount on the product itself
+    const productRef = doc(firestore, 'products', product.id);
+    updateDocumentNonBlocking(productRef, {
+        inCartCount: increment(1)
+    });
+
 
     toast({
       title: 'Added to Cart',
@@ -100,3 +107,5 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     </Sheet>
   );
 }
+
+    

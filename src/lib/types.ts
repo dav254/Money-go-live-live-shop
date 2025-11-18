@@ -142,6 +142,7 @@ export interface Product {
   deliveryOptions?: string;
   rating?: number; // Added for product-level rating
   likes?: number; // Added for product likes
+  inCartCount?: number;
 }
 
 
@@ -160,3 +161,5 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    
