@@ -120,15 +120,22 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
               </div>
             </div>
           ))}
+            {/* Placeholder for shared product */}
+             <div className="flex justify-start">
+                <ProductCard />
+            </div>
         </div>
       </ScrollArea>
 
       {/* Message Input */}
       <div className="border-t bg-background p-3">
         <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="relative">
+             <Button type="button" size="icon" variant="ghost" className="absolute left-1 top-1/2 -translate-y-1/2">
+                <Package className="h-5 w-5" />
+            </Button>
           <Input
             placeholder="Type your message..."
-            className="pr-12"
+            className="pr-12 pl-12"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
           />
