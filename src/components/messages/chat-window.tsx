@@ -1,18 +1,19 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { MoreVertical, Package, Phone, Send, Video } from 'lucide-react';
-import type { Chat, ChatMessage } from '@/lib/types';
+import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile } from '@/firebase';
+import { collection, addDoc, serverTimestamp, orderBy, query, where } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import Image from 'next/image';
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -34,11 +35,50 @@ const ProductCard = () => (
             </div>
         </div>
     </div>
-)
+);
+
+
+const ShareProductDialog = ({ sellerId }: { sellerId: string }) => {
+    const firestore = useFirestore();
+
+    const productsQuery = useMemoFirebase(() => {
+        return query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
+    }, [firestore, sellerId]);
+
+    const { data: products, isLoading } = useCollection<Product>(productsQuery);
+
+    return (
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+                <DialogTitle>Share a Product</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="h-96">
+                <div className="space-y-4 p-4">
+                    {isLoading && <p>Loading your products...</p>}
+                    {products && products.length === 0 && <p>You have no products to share.</p>}
+                    {products?.map(product => (
+                        <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted">
+                            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
+                                <Image src={product.image?.imageUrl || '/placeholder.svg'} alt={product.name} fill className="object-cover" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-semibold">{product.name}</p>
+                                <p className="text-sm text-primary">{product.price.toLocaleString()}</p>
+                            </div>
+                            <Button size="sm">Share</Button>
+                        </div>
+                    ))}
+                </div>
+            </ScrollArea>
+        </DialogContent>
+    )
+}
+
 
 export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const firestore = useFirestore();
+  const { userProfile } = useUserProfile(currentUser?.uid);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!chat) return null;
@@ -82,6 +122,7 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
   }
 
   const otherParticipant = chat.otherParticipant;
+  const isSeller = userProfile?.userRole === 'seller';
 
   return (
     <div className="flex h-full flex-1 flex-col">
@@ -90,7 +131,7 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8 border">
             <AvatarImage src={otherParticipant?.profilePictureUrl} alt={otherParticipant?.fullName} />
-            <AvatarFallback>{otherParticipant?.fullName.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{otherParticipant?.fullName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
             <p className="font-semibold">{otherParticipant?.fullName}</p>
@@ -130,12 +171,19 @@ export function ChatWindow({ chat, currentUser }: ChatWindowProps) {
       {/* Message Input */}
       <div className="border-t bg-background p-3">
         <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="relative">
-             <Button type="button" size="icon" variant="ghost" className="absolute left-1 top-1/2 -translate-y-1/2">
-                <Package className="h-5 w-5" />
-            </Button>
+             {isSeller && (
+                <Dialog>
+                    <DialogTrigger asChild>
+                         <Button type="button" size="icon" variant="ghost" className="absolute left-1 top-1/2 -translate-y-1/2">
+                            <Package className="h-5 w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <ShareProductDialog sellerId={currentUser.uid} />
+                </Dialog>
+             )}
           <Input
             placeholder="Type your message..."
-            className="pr-12 pl-12"
+            className={cn("pr-12", isSeller ? "pl-12" : "pl-4")}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
           />
