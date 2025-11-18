@@ -42,22 +42,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { products as placeholderProducts } from '@/lib/placeholder-data';
 import type { Product } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ProductUploadForm } from './product-upload-form';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
 
 type ProductRow = Product & {
     status: 'active' | 'draft' | 'out-of-stock';
     sales: number;
 }
-
-const data: ProductRow[] = placeholderProducts.map((p, i) => ({
-    ...p,
-    status: (['active', 'draft', 'out-of-stock'] as const)[i % 3],
-    sales: (p.price * (i + 1) * 3) + 500, // Use deterministic sales data instead of Math.random()
-}));
 
 
 export const columns: ColumnDef<ProductRow>[] = [
@@ -90,11 +85,10 @@ export const columns: ColumnDef<ProductRow>[] = [
         <div className="flex items-center gap-4">
             <div className="relative h-12 w-12 rounded-md overflow-hidden">
                 <Image 
-                    src={row.original.image.imageUrl} 
+                    src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
                     alt={row.original.name} 
                     fill 
                     className="object-cover" 
-                    data-ai-hint={row.original.image.imageHint}
                 />
             </div>
             <div className="font-medium capitalize">{row.getValue('name')}</div>
@@ -105,13 +99,11 @@ export const columns: ColumnDef<ProductRow>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-        const status: ProductRow['status'] = row.getValue('status');
-        const variant = {
-            active: 'default',
-            draft: 'secondary',
-            'out-of-stock': 'destructive',
-        }[status] as 'default' | 'secondary' | 'destructive';
-        return <Badge variant={variant} className="capitalize">{status.replace('-', ' ')}</Badge>
+        const stock = row.original.stock;
+        const status = stock > 0 ? 'active' : 'out-of-stock';
+        const variant = status === 'active' ? 'default' : 'destructive';
+        
+        return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status.replace('-', ' ')}</Badge>
     }
   },
   {
@@ -148,7 +140,7 @@ export const columns: ColumnDef<ProductRow>[] = [
          <div className="text-right">Total Sales</div>
     ),
     cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('sales'));
+        const amount = 0; // Placeholder for sales data
         const formatted = new Intl.NumberFormat('en-US').format(amount);
         return <div className="text-right">{formatted}</div>;
     },
@@ -196,14 +188,26 @@ export const columns: ColumnDef<ProductRow>[] = [
 ];
 
 export function MyProductsTable() {
+  const { user, isLoading: isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+
+  const { data: productsData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  
+  const isLoading = isUserLoading || areProductsLoading;
 
   const table = useReactTable({
-    data,
+    data: productsData || [],
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -284,7 +288,13 @@ export function MyProductsTable() {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+                <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                    Loading your products...
+                    </TableCell>
+                </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -306,7 +316,7 @@ export function MyProductsTable() {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  You haven't uploaded any products yet.
                 </TableCell>
               </TableRow>
             )}
