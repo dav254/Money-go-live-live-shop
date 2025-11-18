@@ -15,6 +15,7 @@ import {
   Home,
   Package,
   User,
+  Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,6 +34,14 @@ export function BuyerSidebar() {
             <Link href="/buyer/dashboard">
               <Home />
               <span>Home</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/live')}>
+            <Link href="/live">
+              <Video />
+              <span>Live Selling</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
