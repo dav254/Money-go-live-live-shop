@@ -51,12 +51,30 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
       addedAt: serverTimestamp(),
     };
 
-    setDocumentNonBlocking(cartItemRef, cartItemData, { merge: true });
+    setDoc(cartItemRef, cartItemData, { merge: true }).catch(error => {
+        errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+            path: cartItemRef.path,
+            operation: 'write',
+            requestResourceData: cartItemData,
+        })
+        )
+    });
 
     // Also increment the inCartCount on the product itself
     const productRef = doc(firestore, 'products', product.id);
-    updateDocumentNonBlocking(productRef, {
+    updateDoc(productRef, {
         inCartCount: increment(1)
+    }).catch(error => {
+         errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+            path: productRef.path,
+            operation: 'update',
+            requestResourceData: { inCartCount: 'increment' },
+        })
+        )
     });
 
 
@@ -78,7 +96,11 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
 
     const ordersCollectionRef = collection(firestore, 'orders');
     
+    // Create a new document reference with an auto-generated ID
+    const newOrderRef = doc(ordersCollectionRef);
+
     const newOrderData = {
+        id: newOrderRef.id, // Store the ID within the document
         buyerId: user.uid,
         sellerId: product.sellerId,
         productId: product.id,
@@ -93,13 +115,8 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     };
 
     try {
-      const newOrderRef = await addDoc(ordersCollectionRef, newOrderData);
-
-      // Now add the ID to the document itself
-      const orderDocRef = doc(firestore, "orders", newOrderRef.id);
-      const batch = writeBatch(firestore);
-      batch.update(orderDocRef, { id: newOrderRef.id });
-      await batch.commit();
+      // Use setDoc with the pre-generated ref
+      await setDoc(newOrderRef, newOrderData);
 
       toast({
         title: 'Order Created!',
@@ -111,7 +128,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     } catch (error) {
        console.error("Failed to place order:", error);
        const permissionError = new FirestorePermissionError({
-          path: ordersCollectionRef.path,
+          path: newOrderRef.path,
           operation: 'create',
           requestResourceData: newOrderData
        });
