@@ -110,7 +110,10 @@ export default function SellerEarningsPage() {
 
     const recentTransactions = React.useMemo(() => {
         if (!orders) return [];
-        return orders.slice(0, 5); // Display the 5 most recent orders
+        // Sort by date descending before slicing
+        return [...orders]
+            .sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime())
+            .slice(0, 5);
     }, [orders]);
 
 
