@@ -1,5 +1,6 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
+import type { Timestamp } from 'firebase/firestore';
 
 export interface Seller {
   id: string;
@@ -40,6 +41,34 @@ export interface StoryHighlight {
     title: string;
     imageUrl: string;
 }
+
+export interface UserProfile {
+  id: string;
+  fullName: string;
+  username: string;
+  email: string;
+  joinDate: string;
+  userRole: 'buyer' | 'seller' | 'reseller' | 'admin';
+  profilePictureUrl?: string;
+}
+
+
+export interface Chat {
+  id: string;
+  participantIds: string[];
+  lastMessage?: string;
+  lastMessageTimestamp?: Timestamp;
+  // This will be populated client-side
+  otherParticipant?: UserProfile;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  messageText: string;
+  timestamp: Timestamp;
+}
+
 
 export interface Comment {
   id: string;

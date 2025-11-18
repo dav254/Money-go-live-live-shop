@@ -21,6 +21,7 @@ import {
   Users,
   Home,
   User,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -63,6 +64,17 @@ export function SellerSidebar() {
             <Link href="/dashboard/seller/orders">
               <Package />
               <span>Orders</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            isActive={isActive('/dashboard/seller/messages')}
+          >
+            <Link href="/dashboard/seller/messages">
+              <MessageSquare />
+              <span>Messages</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
