@@ -11,6 +11,8 @@ import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@
 import { useRouter } from 'next/navigation';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
 
 interface SellerHeaderProps {
   seller: Seller;
@@ -80,8 +82,17 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     }
   };
 
+  const theme = seller.themeSettings || {};
+  const accentColorClass = theme.accentColor ? `bg-${theme.accentColor}-500` : 'bg-primary';
+  const buttonStyleClass = {
+      'rounded': 'rounded-full',
+      'square': 'rounded-none',
+      'soft': 'rounded-lg'
+  }[theme.buttonStyle || 'rounded'];
+
+
   return (
-    <div className="relative w-full text-white">
+    <div className={cn("relative w-full text-white", theme.darkMode ? 'dark' : '')}>
       {/* Banner Image */}
       <div className="relative h-48 w-full md:h-64">
         <Image
@@ -102,7 +113,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           {/* Avatar */}
           <Avatar className="h-24 w-24 border-4 border-background md:h-32 md:w-32">
             <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} data-ai-hint={seller.avatar.imageHint} />
-            <AvatarFallback>{seller.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{seller.name ? seller.name.slice(0, 2).toUpperCase() : 'S'}</AvatarFallback>
           </Avatar>
 
           {/* Seller Info */}
@@ -122,8 +133,8 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
 
           {/* Action Buttons */}
           <div className="mt-6 flex w-full flex-wrap justify-center gap-2 md:ml-auto md:mt-0 md:w-auto md:flex-nowrap">
-            <Button className="flex-1 bg-white text-black hover:bg-neutral-200 md:flex-initial font-bold">Follow</Button>
-            <Button onClick={handleChat} variant="outline" className="flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold">
+            <Button className={cn("flex-1 text-white hover:bg-neutral-200 md:flex-initial font-bold", accentColorClass, buttonStyleClass)}>Follow</Button>
+            <Button onClick={handleChat} variant="outline" className={cn("flex-1 border-neutral-700 bg-black/50 hover:bg-neutral-800 md:flex-initial font-bold", buttonStyleClass)}>
               <MessageCircle className="mr-2 h-4 w-4" /> Chat
             </Button>
             <Button variant="ghost" size="icon" className="hover:bg-neutral-800">
