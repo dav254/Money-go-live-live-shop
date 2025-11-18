@@ -75,7 +75,7 @@ export interface Product {
 
 export interface VideoFeedItem {
   id: string;
-  video: ImagePlaceholder;
+  video: ImagePlaceholder & { mediaType?: 'image' | 'video' };
   seller: Seller;
   viewers: number;
   likes: number;

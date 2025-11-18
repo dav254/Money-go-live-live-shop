@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -12,7 +13,7 @@ import { useUser } from '@/firebase';
 
 interface VideoCardProps {
   item: VideoFeedItem;
-  onScroll: (direction: 'up' | 'down') => void;
+  onScroll?: (direction: 'up' | 'down') => void;
 }
 
 export function VideoCard({ item, onScroll }: VideoCardProps) {
@@ -21,14 +22,28 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
 
   return (
     <div className="relative h-full w-full bg-black">
-      <Image
-        src={item.video.imageUrl}
-        alt={item.video.description || item.product.name}
-        fill
-        className="object-cover"
-        priority
-        data-ai-hint={item.video.imageHint}
-      />
+      {item.video.mediaType === 'video' ? (
+        <video 
+          src={item.video.imageUrl} // imageUrl now holds the media URL
+          className="h-full w-full object-cover" 
+          autoPlay 
+          muted 
+          loop 
+          playsInline
+          key={item.video.imageUrl}
+        />
+      ) : (
+        <Image
+          src={item.video.imageUrl}
+          alt={item.video.description || item.product.name}
+          fill
+          className="object-cover"
+          priority
+          data-ai-hint={item.video.imageHint}
+          key={item.video.imageUrl}
+        />
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
       
       <VideoInfo seller={item.seller} viewers={item.viewers} />

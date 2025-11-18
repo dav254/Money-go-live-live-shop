@@ -1,16 +1,16 @@
 
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { VideoCard } from '@/components/feed/video-card';
 import { MainLayout } from '@/components/layout/main-layout';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query } from 'firebase/firestore';
 import type { Product, Seller, VideoFeedItem } from '@/lib/types';
 import { useFirestore } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 
-function RealtimeVideoCard({ product }: { product: Product }) {
+function RealtimeVideoCard({ product, mediaUrl, mediaType }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video' }) {
     const firestore = useFirestore();
     
     const sellerShopRef = useMemoFirebase(() => {
@@ -23,10 +23,6 @@ function RealtimeVideoCard({ product }: { product: Product }) {
 
     const { data: sellerData, isLoading: isSellerLoading } = useDoc<Seller>(sellerShopRef);
     const { data: userProfileData, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
-
-    const handleScroll = useCallback((direction: 'up' | 'down') => {
-      // This is a placeholder as the main container handles scrolling
-    }, []);
 
     if (isSellerLoading || isProfileLoading) {
         return (
@@ -66,7 +62,13 @@ function RealtimeVideoCard({ product }: { product: Product }) {
         id: product.id,
         product: product,
         seller: seller,
-        video: product.image || {id:'placeholder', imageUrl: getPlaceholderImage(), description: 'placeholder', imageHint: 'placeholder'},
+        video: {
+          id: product.id + mediaUrl, 
+          imageUrl: mediaUrl,
+          description: product.name,
+          imageHint: mediaType,
+          mediaType: mediaType,
+        },
         likes: product.likes || 0,
         viewers: Math.floor(Math.random() * 3000) + 100, // Placeholder
         comments: [], // Placeholder
@@ -74,7 +76,7 @@ function RealtimeVideoCard({ product }: { product: Product }) {
 
     return (
         <div className="h-full w-full snap-start flex-shrink-0">
-          <VideoCard item={feedItem} onScroll={handleScroll} />
+          <VideoCard item={feedItem} />
         </div>
     );
 }
@@ -85,10 +87,28 @@ export default function LiveFeedPage() {
   const firestore = useFirestore();
   
   const productsQuery = useMemoFirebase(() => {
-    return collection(firestore, 'products');
+    return query(collection(firestore, 'products'));
   }, [firestore]);
 
   const { data: products, isLoading } = useCollection<Product>(productsQuery);
+
+  const feedMediaItems = useMemo(() => {
+    if (!products) return [];
+
+    const allMedia: {product: Product, mediaUrl: string, mediaType: 'video' | 'image'}[] = [];
+    products.forEach(product => {
+      // Prioritize videos
+      if (product.videoUrls && product.videoUrls.length > 0) {
+        product.videoUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'video' }));
+      }
+      // Then add images
+      if (product.imageUrls && product.imageUrls.length > 0) {
+        product.imageUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'image' }));
+      }
+    });
+
+    return allMedia;
+  }, [products]);
 
   const handleScroll = useCallback((direction: 'up' | 'down') => {
     const container = scrollContainerRef.current;
@@ -120,7 +140,6 @@ export default function LiveFeedPage() {
     )
   }
 
-
   return (
     <MainLayout>
       <div className="relative h-full w-full">
@@ -128,9 +147,14 @@ export default function LiveFeedPage() {
           ref={scrollContainerRef}
           className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
         >
-          {products && products.length > 0 ? (
-             products.map((product) => (
-                <RealtimeVideoCard key={product.id} product={product} />
+          {feedMediaItems && feedMediaItems.length > 0 ? (
+             feedMediaItems.map((item) => (
+                <RealtimeVideoCard 
+                  key={item.product.id + item.mediaUrl} 
+                  product={item.product} 
+                  mediaUrl={item.mediaUrl}
+                  mediaType={item.mediaType}
+                />
             ))
           ) : (
              <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-black">
