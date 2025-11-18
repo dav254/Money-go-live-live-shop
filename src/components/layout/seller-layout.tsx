@@ -17,8 +17,19 @@ import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Bell, Menu, MessageSquare, Search, Video } from 'lucide-react';
 import { Input } from '../ui/input';
 import { UserNav } from './user-nav';
+import { useUser } from '@/firebase';
 
 export function SellerLayout({ children }: { children: React.ReactNode }) {
+  const { isLoading } = useUser();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <p>Loading Seller Dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
