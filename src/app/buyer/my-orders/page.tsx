@@ -25,6 +25,25 @@ const OrderCard = ({ order }: { order: Order }) => {
 
     const { data: seller, isLoading } = useDoc<SellerShop>(sellerShopRef);
 
+    const getStatusVariant = (status: Order['orderStatus']) => {
+        switch (status) {
+            case 'delivered': return 'default';
+            case 'shipped': return 'secondary';
+            case 'processing': return 'secondary';
+            case 'cancelled': return 'destructive';
+            default: return 'outline';
+        }
+    };
+     const getStatusClass = (status: Order['orderStatus']) => {
+        switch (status) {
+            case 'delivered': return 'bg-green-600/80';
+            case 'shipped': return 'bg-indigo-500/80';
+            case 'processing': return 'bg-blue-500/80';
+            case 'pending': return 'bg-yellow-500/80';
+            default: return '';
+        }
+    };
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between p-4">
@@ -41,13 +60,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                         </>
                     )}
                 </div>
-                 <Badge variant={
-                    order.orderStatus === 'delivered' ? 'default' :
-                    order.orderStatus === 'shipped' ? 'secondary' : 'destructive'
-                    } className={
-                    order.orderStatus === 'delivered' ? 'bg-green-600/80' :
-                    order.orderStatus === 'shipped' ? 'bg-yellow-500/80' : ''
-                    }>
+                 <Badge variant={getStatusVariant(order.orderStatus)} className={getStatusClass(order.orderStatus)}>
                     {order.orderStatus}
                 </Badge>
             </CardHeader>
@@ -55,7 +68,7 @@ const OrderCard = ({ order }: { order: Order }) => {
             <CardContent className="p-4">
                 <div className="flex gap-4">
                     <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
-                         <Image src={order.productImage || ''} alt={order.productName || 'product image'} fill className="object-cover" />
+                         <Image src={order.productImage || 'https://picsum.photos/seed/product/200'} alt={order.productName || 'product image'} fill className="object-cover" />
                     </div>
                     <div className="flex-1">
                         <p className="font-semibold">{order.productName}</p>
@@ -69,6 +82,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                 <Button variant="ghost">View Details</Button>
                 {order.orderStatus === 'shipped' && <Button><Truck className="mr-2 h-4 w-4" /> Track Order</Button>}
                 {order.orderStatus === 'delivered' && <Button variant="secondary">Request Return</Button>}
+                 {order.orderStatus === 'pending' && <Button variant="destructive">Cancel Order</Button>}
             </div>
         </Card>
     );
@@ -130,12 +144,12 @@ export default function MyOrdersPage() {
         <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
         {isLoading ? <OrdersSkeleton /> : (
         <Tabs defaultValue="all">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-5">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
             <TabsTrigger value="shipped">Shipped</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
-            <TabsTrigger value="returns">Returns</TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="space-y-4">
@@ -144,18 +158,15 @@ export default function MyOrdersPage() {
           <TabsContent value="pending" className="space-y-4">
              {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No pending orders.</p>}
           </TabsContent>
+           <TabsContent value="processing" className="space-y-4">
+             {filteredOrders('processing').length > 0 ? filteredOrders('processing').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No orders are being processed.</p>}
+          </TabsContent>
           <TabsContent value="shipped" className="space-y-4">
              {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No shipped orders.</p>}
           </TabsContent>
           <TabsContent value="delivered" className="space-y-4">
              {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No delivered orders.</p>}
           </TabsContent>
-          <TabsContent value="returns">
-            <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">No return requests found.</p>
-            </div>
-          </TabsContent>
-
         </Tabs>
         )}
       </div>
