@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -8,6 +7,8 @@ import { useFirestore, useUser } from '@/firebase';
 import type { Seller, Product } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 // --- The Page Component ---
 export default function GoLivePage() {
@@ -16,6 +17,7 @@ export default function GoLivePage() {
   const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isUserLoading || !user || !firestore) {
@@ -27,48 +29,53 @@ export default function GoLivePage() {
 
     const fetchData = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-        // Fetch seller data from multiple sources
+        // 1. Fetch UserProfile to check role
         const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         const userProfileSnap = await getDoc(userProfileRef);
-        const profileData = userProfileSnap.exists() ? userProfileSnap.data() : {};
-
-        if (profileData.userRole !== 'seller') {
-            setIsLoading(false);
-            return;
+        
+        if (!userProfileSnap.exists() || userProfileSnap.data()?.userRole !== 'seller') {
+          setError("Your account is not configured as a 'seller'. Please update your profile or contact support.");
+          setIsLoading(false);
+          return;
         }
+        const profileData = userProfileSnap.data();
 
-        const sellerRef = doc(firestore, 'sellers', user.uid);
-        const sellerSnap = await getDoc(sellerRef);
-        const sellerData = sellerSnap.exists() ? sellerSnap.data() : {};
+        // 2. Fetch SellerShop for shop-specific details
+        const sellerShopRef = doc(firestore, 'sellerShops', user.uid);
+        const sellerShopSnap = await getDoc(sellerShopRef);
+        const sellerShopData = sellerShopSnap.exists() ? sellerShopSnap.data() : {};
 
-        // Safely construct the seller object with fallbacks for every property
+        // 3. Construct the complete Seller object
         const constructedSeller: Seller = {
             id: user.uid,
-            name: sellerData?.name || profileData?.fullName || 'Seller Store',
-            isVerified: sellerData?.isVerified || false,
-            rating: sellerData?.rating || 0,
-            reviewsCount: sellerData?.reviewsCount || 0,
-            followers: sellerData?.followers || 0,
-            location: sellerData?.location || 'Online',
-            bio: sellerData?.bio || 'Welcome to the live show!',
-            joinedDate: profileData?.joinDate || new Date(),
+            sellerId: sellerShopData.sellerId || user.uid,
+            name: sellerShopData.shopName || profileData.fullName || 'Seller Store',
+            description: sellerShopData.description || profileData.bio || 'Welcome to my shop!',
+            isVerified: true, // Assuming if they have a sellerShop, they are verified
+            rating: 4.8, // Placeholder - adjust as needed
+            reviewsCount: 150, // Placeholder
+            followers: 2300, // Placeholder
+            location: sellerShopData.location || profileData.location || 'Online',
+            joinedDate: profileData.joinDate || new Date().toISOString(),
+            bio: sellerShopData.description || profileData.bio || 'Welcome to the live show!',
             avatar: {
                 id: 'avatar',
                 imageHint: 'seller avatar',
                 description: 'seller avatar',
-                imageUrl: sellerData?.avatarUrl || user.photoURL || getPlaceholderImage(),
+                imageUrl: sellerShopData.logoUrl || profileData.profilePictureUrl || getPlaceholderImage(),
             },
             banner: {
                 id: 'banner',
                 imageHint: 'store banner',
                 description: 'store banner',
-                imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
+                imageUrl: sellerShopData.bannerUrl || getPlaceholderImage(),
             },
         };
         setSeller(constructedSeller);
 
-        // Fetch seller products
+        // 4. Fetch seller's products
         const productsRef = collection(firestore, 'products');
         const q = query(productsRef, where('sellerId', '==', user.uid));
         const querySnapshot = await getDocs(q);
@@ -80,7 +87,7 @@ export default function GoLivePage() {
 
           return {
             id: doc.id,
-            name: data.productName,
+            name: data.name,
             price: data.price,
             originalPrice: data.wasPrice,
             stock: data.stock !== undefined ? data.stock : 1,
@@ -97,8 +104,9 @@ export default function GoLivePage() {
         
         setProducts(fetchedProducts);
 
-      } catch (error) {
-        console.error("[Studio Debug] Error fetching seller data for live preview:", error);
+      } catch (err) {
+        console.error("[Studio Debug] Error fetching seller data for live preview:", err);
+        setError('An unexpected error occurred while fetching your data.');
       } finally {
         setIsLoading(false);
       }
@@ -107,7 +115,6 @@ export default function GoLivePage() {
     fetchData();
   }, [user, firestore, isUserLoading]);
 
-
   if (isLoading || isUserLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-black">
@@ -115,23 +122,31 @@ export default function GoLivePage() {
       </div>
     );
   }
-
-  if (!user || !seller) {
+  
+  if (error || !seller) {
     return (
       <SellerLayout>
-        <div className="flex h-full items-center justify-center text-center p-4">
-          <div>
+        <div className="flex h-full flex-col items-center justify-center p-4 text-center">
             <h2 className="text-xl font-bold">Could not load your seller profile.</h2>
-            <p className="text-muted-foreground">Please make sure your account is configured as a 'seller'.</p>
-          </div>
+            <p className="max-w-md text-muted-foreground">{error || "Please make sure your account is configured as a 'seller'."}</p>
         </div>
       </SellerLayout>
     );
   }
 
+
   return (
-    <div className="h-screen w-screen bg-black">
-       <LivePreview seller={seller} products={products} />
-    </div>
+     <div className="relative h-[calc(100vh-4rem)] w-full bg-background flex flex-col items-center justify-center p-4">
+        <div className="absolute top-4 right-4 z-20">
+            <Button asChild>
+                <Link href={`/sellers/${user?.uid}`}>
+                    View My Shop
+                </Link>
+            </Button>
+        </div>
+        <div className="w-full max-w-lg aspect-[9/16] border-4 border-muted rounded-2xl overflow-hidden relative shadow-2xl">
+            <LivePreview seller={seller} products={products} />
+        </div>
+     </div>
   );
 }
