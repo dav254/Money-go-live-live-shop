@@ -20,7 +20,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <Link href={`/products/${product.id}`} className="block relative aspect-[4/3] w-full">
           <Image
             src={product.imageUrl ?? product.image?.imageUrl ?? '/placeholder.svg'} // Use optional chaining and a fallback
-            alt={product.name}
+            alt={product.name || 'Product image'}
             fill
             className="object-cover"
             data-ai-hint={product.image?.imageHint}
