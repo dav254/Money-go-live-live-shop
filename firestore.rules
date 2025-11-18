@@ -32,12 +32,8 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // - Allow product owner to update any field.
-      // - Allow any authenticated user to ONLY increment the 'inCartCount' field by 1.
-      allow update: if (resource.data.sellerId == request.auth.uid) ||
-                     (request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inCartCount']) &&
-                      request.resource.data.inCartCount == resource.data.inCartCount + 1);
+      // Allow product owner to update any field.
+      allow update: if resource.data.sellerId == request.auth.uid;
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
@@ -51,10 +47,24 @@ service cloud.firestore {
                       resource.data.sellerId == request.auth.uid);
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
-      // Allow seller to update only the orderStatus
-      allow update: if request.auth != null && 
-                     resource.data.sellerId == request.auth.uid &&
-                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']);
+      // Allow seller to update status from pending->processing or processing->shipped
+      // Allow buyer to update status from shipped->delivered
+      allow update: if request.auth != null &&
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
+                     (
+                       ( // Seller's permissions
+                         resource.data.sellerId == request.auth.uid &&
+                         (
+                           (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
+                           (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
+                         )
+                       ) ||
+                       ( // Buyer's permissions
+                         resource.data.buyerId == request.auth.uid &&
+                         resource.data.orderStatus == 'shipped' &&
+                         request.resource.data.orderStatus == 'delivered'
+                       )
+                     );
 
       allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }

@@ -8,16 +8,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Truck, MessageSquare } from 'lucide-react';
+import { Truck, MessageSquare, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, updateDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 const OrderCard = ({ order }: { order: Order }) => {
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const sellerShopRef = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -34,6 +36,25 @@ const OrderCard = ({ order }: { order: Order }) => {
             case 'pending': return 'bg-yellow-500/80';
             case 'cancelled': return 'bg-red-500/80';
             default: return 'bg-gray-400/80';
+        }
+    };
+
+    const handleConfirmDelivery = async () => {
+        if (!firestore) return;
+        const orderRef = doc(firestore, 'orders', order.id);
+        try {
+            await updateDoc(orderRef, { orderStatus: 'delivered' });
+            toast({
+                title: 'Order Complete!',
+                description: 'You have confirmed delivery. Thank you for your purchase!',
+            });
+        } catch (error) {
+            console.error('Failed to confirm delivery:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not update order status.',
+            });
         }
     };
 
@@ -76,9 +97,9 @@ const OrderCard = ({ order }: { order: Order }) => {
             <Separator />
             <div className="flex items-center justify-end p-3 gap-2">
                 <Button variant="ghost"><MessageSquare className="mr-2 h-4 w-4" /> Chat with Seller</Button>
-                {order.orderStatus === 'shipped' && <Button><Truck className="mr-2 h-4 w-4" /> Track Order</Button>}
+                {order.orderStatus === 'shipped' && <Button onClick={handleConfirmDelivery} variant="secondary"><CheckCircle className="mr-2 h-4 w-4" /> Confirm Delivery</Button>}
                 {order.orderStatus === 'delivered' && <Button variant="secondary">Leave a Review</Button>}
-                 {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
+                {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
             </div>
         </Card>
     );
@@ -141,24 +162,28 @@ export default function MyOrdersPage() {
         <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
         {isLoading ? <OrdersSkeleton /> : (
         <Tabs defaultValue="active">
-          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-4">
+          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="processing">Processing</TabsTrigger>
+            <TabsTrigger value="shipped">Shipped</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
             <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-             <TabsTrigger value="all">All</TabsTrigger>
           </TabsList>
           
           <TabsContent value="active" className="space-y-4">
-             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
+             {filteredOrders(['pending']).length > 0 ? filteredOrders(['pending']).map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
+          </TabsContent>
+          <TabsContent value="processing" className="space-y-4">
+             {filteredOrders('processing').length > 0 ? filteredOrders('processing').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No orders are currently processing.</p>}
+          </TabsContent>
+          <TabsContent value="shipped" className="space-y-4">
+             {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No orders have been shipped yet.</p>}
           </TabsContent>
           <TabsContent value="delivered" className="space-y-4">
              {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No delivered orders.</p>}
           </TabsContent>
           <TabsContent value="cancelled" className="space-y-4">
              {filteredOrders('cancelled').length > 0 ? filteredOrders('cancelled').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled orders.</p>}
-          </TabsContent>
-          <TabsContent value="all" className="space-y-4">
-            {orders && orders.length > 0 ? orders.map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no orders.</p>}
           </TabsContent>
         </Tabs>
         )}
