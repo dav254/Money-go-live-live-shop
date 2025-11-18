@@ -34,6 +34,7 @@ import {
   Sparkles,
   MapPin,
   Truck,
+  Info,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -41,6 +42,7 @@ import { Switch } from '../ui/switch';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -328,7 +330,14 @@ export function ProductUploadForm() {
 
             {/* Pricing & Inventory Section */}
             <div className="space-y-6 pt-8 border-t">
-                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Inventory</h3>
+                <h3 className="text-lg font-medium leading-6 text-foreground">Pricing & Inventory (in USD)</h3>
+                <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Pricing in USD</AlertTitle>
+                    <AlertDescription>
+                        All prices must be in USD. Please use an online currency converter to price your items accurately for the international market.
+                    </AlertDescription>
+                </Alert>
                  <FormField
                     control={form.control}
                     name="enableDiscount"
@@ -355,9 +364,9 @@ export function ProductUploadForm() {
                         name="price"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Original Price</FormLabel>
+                            <FormLabel>Original Price (USD)</FormLabel>
                             <FormControl>
-                            <Input type="number" placeholder="e.g., 1500" {...field} />
+                            <Input type="number" placeholder="e.g., 25.00" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -368,9 +377,9 @@ export function ProductUploadForm() {
                         name="salePrice"
                         render={({ field }) => (
                         <FormItem className={!enableDiscount ? 'hidden' : ''}>
-                            <FormLabel>Sale Price</FormLabel>
+                            <FormLabel>Sale Price (USD)</FormLabel>
                             <FormControl>
-                            <Input type="number" placeholder="e.g., 1200" {...field} />
+                            <Input type="number" placeholder="e.g., 19.99" {...field} />
                             </FormControl>
                              <FormDescription>Must be lower than original price.</FormDescription>
                             <FormMessage />
@@ -418,7 +427,7 @@ export function ProductUploadForm() {
                         <FormItem>
                         <FormLabel className="flex items-center gap-2"><Truck className="h-4 w-4" /> Delivery Options</FormLabel>
                         <FormControl>
-                            <Textarea rows={3} placeholder="e.g., Same-day delivery within Nairobi for KES 300." {...field} />
+                            <Textarea rows={3} placeholder="e.g., International shipping via DHL (5-7 days) for $25." {...field} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>

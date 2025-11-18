@@ -90,7 +90,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                     <div className="flex-1">
                         <p className="font-semibold">{order.productName}</p>
                         <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
-                        <p className="text-lg font-bold text-primary">{order.totalAmount.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-primary">${order.totalAmount.toLocaleString()}</p>
                     </div>
                 </div>
             </CardContent>

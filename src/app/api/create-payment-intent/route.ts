@@ -29,7 +29,8 @@ export async function POST(request: Request) {
         if (gateway === 'paystack') {
             const response = await paystack.transaction.initialize({
                 email: email,
-                amount: amount * 100, // Paystack expects amount in kobo
+                amount: amount * 100, // Paystack expects amount in the smallest currency unit (cents)
+                currency: 'USD',
                 reference: orderId,
                 metadata: { orderId },
             });
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
                 purchase_units: [{
                     reference_id: orderId,
                     amount: {
-                        currency_code: 'KES', // Change if needed
+                        currency_code: 'USD', // Changed to USD
                         value: amount.toString(),
                     },
                 }],
