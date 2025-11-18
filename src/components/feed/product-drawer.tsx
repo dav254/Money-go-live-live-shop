@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import Link from 'next/link';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface ProductDrawerProps {
   product: Product;
@@ -14,6 +15,9 @@ interface ProductDrawerProps {
 }
 
 export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerProps) {
+  const imageUrl = product.image?.imageUrl || product.imageUrl || getPlaceholderImage();
+  const imageHint = product.image?.imageHint || 'product image';
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="bg-card/95 text-card-foreground border-t-primary border-t-2 rounded-t-2xl backdrop-blur-md">
@@ -24,11 +28,11 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
             <div className="flex items-start gap-4">
               <div className="relative h-24 w-24 overflow-hidden rounded-lg">
                 <Image 
-                  src={product.image.imageUrl} 
+                  src={imageUrl} 
                   alt={product.name || 'Product Image'} 
                   fill 
                   className="object-cover" 
-                  data-ai-hint={product.image.imageHint}
+                  data-ai-hint={imageHint}
                 />
               </div>
               <div className="flex-1">
