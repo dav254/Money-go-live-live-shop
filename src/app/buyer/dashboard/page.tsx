@@ -1,4 +1,6 @@
 
+'use client';
+
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { ProductCard } from '@/components/seller/product-card';
 import { Button } from '@/components/ui/button';
@@ -10,39 +12,81 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { products, sellers } from '@/lib/placeholder-data';
 import { Heart, Package, Video, Wallet } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, limit } from 'firebase/firestore';
+import type { Product, SellerShop, UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const shortcuts = [
   {
     title: 'My Orders',
     icon: Package,
-    href: '#',
+    href: '/buyer/my-orders',
     color: 'bg-blue-500/20 text-blue-500',
   },
   {
     title: 'Wishlist',
     icon: Heart,
-    href: '#',
+    href: '/buyer/wishlist',
     color: 'bg-red-500/20 text-red-500',
   },
   {
     title: 'Wallet',
     icon: Wallet,
-    href: '#',
+    href: '/buyer/wallet',
     color: 'bg-green-500/20 text-green-500',
   },
   {
     title: 'Live Shows',
     icon: Video,
-    href: '#',
+    href: '/live',
     color: 'bg-purple-500/20 text-purple-500',
   },
 ];
 
+const ProductCarouselSkeleton = () => (
+    <Carousel className="w-full">
+        <CarouselContent>
+            {Array.from({ length: 5 }).map((_, i) => (
+                <CarouselItem key={i} className="md:basis-1/2 lg:basis-1/4 xl:basis-1/5">
+                    <div className="p-1">
+                        <Skeleton className="h-64 w-full" />
+                    </div>
+                </CarouselItem>
+            ))}
+        </CarouselContent>
+    </Carousel>
+);
+
+const SellerCarouselSkeleton = () => (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-52 w-full" />
+        ))}
+    </div>
+);
+
+
 export default function BuyerDashboardPage() {
+  const firestore = useFirestore();
+
+  const productsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'products'), limit(10));
+  }, [firestore]);
+
+  const sellerShopsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'sellerShops'), limit(4));
+  }, [firestore]);
+
+  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+  const { data: sellers, isLoading: isLoadingSellers } = useCollection<SellerShop>(sellerShopsQuery);
+
+  const dealsProducts = products?.slice(0, 5) || [];
+  const recommendedProducts = products?.slice(5, 10) || [];
+
   return (
     <BuyerLayout>
       <div className="flex-1 space-y-8 p-4 pt-6 md:p-8">
@@ -81,28 +125,30 @@ export default function BuyerDashboardPage() {
         {/* Today's Deals Carousel */}
         <div className="space-y-4">
           <h2 className="font-headline text-2xl font-bold">Today's Deals</h2>
-          <Carousel
-            opts={{
-              align: 'start',
-              loop: true,
-            }}
-            className="w-full"
-          >
-            <CarouselContent>
-              {products.slice(0, 5).map((product) => (
-                <CarouselItem
-                  key={product.id}
-                  className="md:basis-1/2 lg:basis-1/4 xl:basis-1/5"
-                >
-                  <div className="p-1">
-                    <ProductCard product={product} />
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
-          </Carousel>
+           {isLoadingProducts ? <ProductCarouselSkeleton /> : (
+            <Carousel
+                opts={{
+                align: 'start',
+                loop: dealsProducts.length > 4,
+                }}
+                className="w-full"
+            >
+                <CarouselContent>
+                {dealsProducts.map((product) => (
+                    <CarouselItem
+                    key={product.id}
+                    className="md:basis-1/2 lg:basis-1/4 xl:basis-1/5"
+                    >
+                    <div className="p-1">
+                        <ProductCard product={product} />
+                    </div>
+                    </CarouselItem>
+                ))}
+                </CarouselContent>
+                <CarouselPrevious className="hidden md:flex" />
+                <CarouselNext className="hidden md:flex" />
+            </Carousel>
+           )}
         </div>
 
         {/* Trending Live Shows */}
@@ -110,27 +156,29 @@ export default function BuyerDashboardPage() {
           <h2 className="font-headline text-2xl font-bold">
             Trending Live Shows
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {sellers.map((seller) => (
-              <Link href="#" key={seller.id}>
-                <Card className="group relative h-52 overflow-hidden">
-                  <Image
-                    src={seller.banner.imageUrl}
-                    alt={seller.name}
-                    fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                    data-ai-hint={seller.banner.imageHint}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                  <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
-                    <CardTitle className="font-headline text-lg text-white">
-                      {seller.name}
-                    </CardTitle>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          {isLoadingSellers ? <SellerCarouselSkeleton /> : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {sellers?.map((seller) => (
+                <Link href={`/sellers/${seller.sellerId}`} key={seller.id}>
+                    <Card className="group relative h-52 overflow-hidden">
+                    <Image
+                        src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
+                        alt={seller.shopName}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-105"
+                        data-ai-hint="store banner"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                    <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
+                        <CardTitle className="font-headline text-lg text-white">
+                        {seller.shopName}
+                        </CardTitle>
+                    </CardHeader>
+                    </Card>
+                </Link>
+                ))}
+            </div>
+          )}
         </div>
 
         {/* Recommended For You */}
@@ -138,28 +186,30 @@ export default function BuyerDashboardPage() {
           <h2 className="font-headline text-2xl font-bold">
             Recommended For You
           </h2>
-          <Carousel
-            opts={{
-              align: 'start',
-              loop: true,
-            }}
-            className="w-full"
-          >
-            <CarouselContent>
-              {products.slice(1, 6).map((product) => (
-                <CarouselItem
-                  key={product.id}
-                  className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5"
-                >
-                  <div className="p-1">
-                    <ProductCard product={product} />
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
-          </Carousel>
+           {isLoadingProducts ? <ProductCarouselSkeleton /> : (
+            <Carousel
+                opts={{
+                align: 'start',
+                loop: recommendedProducts.length > 4,
+                }}
+                className="w-full"
+            >
+                <CarouselContent>
+                {recommendedProducts.map((product) => (
+                    <CarouselItem
+                    key={product.id}
+                    className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5"
+                    >
+                    <div className="p-1">
+                        <ProductCard product={product} />
+                    </div>
+                    </CarouselItem>
+                ))}
+                </CarouselContent>
+                <CarouselPrevious className="hidden md:flex" />
+                <CarouselNext className="hidden md:flex" />
+            </Carousel>
+           )}
         </div>
       </div>
     </BuyerLayout>
