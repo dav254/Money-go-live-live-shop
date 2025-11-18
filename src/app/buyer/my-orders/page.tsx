@@ -20,27 +20,20 @@ const OrderCard = ({ order }: { order: Order }) => {
 
     const sellerShopRef = useMemoFirebase(() => {
         if (!firestore) return null;
+        // Correctly reference sellerShops collection with the sellerId from the order
         return doc(firestore, 'sellerShops', order.sellerId);
     }, [firestore, order.sellerId]);
 
     const { data: seller, isLoading } = useDoc<SellerShop>(sellerShopRef);
 
-    const getStatusVariant = (status: Order['orderStatus']) => {
-        switch (status) {
-            case 'delivered': return 'default';
-            case 'shipped': return 'secondary';
-            case 'processing': return 'secondary';
-            case 'cancelled': return 'destructive';
-            default: return 'outline';
-        }
-    };
-     const getStatusClass = (status: Order['orderStatus']) => {
+    const getStatusClass = (status: Order['orderStatus']) => {
         switch (status) {
             case 'delivered': return 'bg-green-600/80';
             case 'shipped': return 'bg-indigo-500/80';
             case 'processing': return 'bg-blue-500/80';
             case 'pending': return 'bg-yellow-500/80';
-            default: return '';
+            case 'cancelled': return 'bg-red-500/80';
+            default: return 'bg-gray-400/80';
         }
     };
 
@@ -49,7 +42,10 @@ const OrderCard = ({ order }: { order: Order }) => {
             <CardHeader className="flex flex-row items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                     {isLoading ? (
-                        <Skeleton className="h-6 w-24" />
+                        <>
+                            <Skeleton className="h-6 w-6 rounded-full" />
+                            <Skeleton className="h-4 w-24" />
+                        </>
                     ) : (
                         <>
                         <Avatar className="h-6 w-6">
@@ -60,7 +56,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                         </>
                     )}
                 </div>
-                 <Badge variant={getStatusVariant(order.orderStatus)} className={getStatusClass(order.orderStatus)}>
+                 <Badge variant="default" className={getStatusClass(order.orderStatus)}>
                     {order.orderStatus}
                 </Badge>
             </CardHeader>
@@ -82,7 +78,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                 <Button variant="ghost">View Details</Button>
                 {order.orderStatus === 'shipped' && <Button><Truck className="mr-2 h-4 w-4" /> Track Order</Button>}
                 {order.orderStatus === 'delivered' && <Button variant="secondary">Request Return</Button>}
-                 {order.orderStatus === 'pending' && <Button variant="destructive">Cancel Order</Button>}
+                 {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
             </div>
         </Card>
     );
@@ -126,7 +122,7 @@ export default function MyOrdersPage() {
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return query(collection(firestore, 'orders'), where('buyerId', '==', user.uid));
     }, [firestore, user]);
 
@@ -134,8 +130,9 @@ export default function MyOrdersPage() {
 
     const isLoading = isUserLoading || isOrdersLoading;
 
-    const filteredOrders = (status: Order['orderStatus']) => {
-        return orders?.filter(o => o.orderStatus === status) || [];
+    const filteredOrders = (status: Order['orderStatus'] | Order['orderStatus'][]) => {
+        const statuses = Array.isArray(status) ? status : [status];
+        return orders?.filter(o => statuses.includes(o.orderStatus)) || [];
     }
 
   return (
@@ -143,29 +140,25 @@ export default function MyOrdersPage() {
       <div className="container mx-auto max-w-7xl py-8">
         <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
         {isLoading ? <OrdersSkeleton /> : (
-        <Tabs defaultValue="all">
-          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-5">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="processing">Processing</TabsTrigger>
-            <TabsTrigger value="shipped">Shipped</TabsTrigger>
+        <Tabs defaultValue="active">
+          <TabsList className="mb-6 grid w-full grid-cols-3 md:grid-cols-4">
+            <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
+            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+             <TabsTrigger value="all">All</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="all" className="space-y-4">
-            {orders && orders.length > 0 ? orders.map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no orders.</p>}
-          </TabsContent>
-          <TabsContent value="pending" className="space-y-4">
-             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No pending orders.</p>}
-          </TabsContent>
-           <TabsContent value="processing" className="space-y-4">
-             {filteredOrders('processing').length > 0 ? filteredOrders('processing').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No orders are being processed.</p>}
-          </TabsContent>
-          <TabsContent value="shipped" className="space-y-4">
-             {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No shipped orders.</p>}
+          <TabsContent value="active" className="space-y-4">
+             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
           </TabsContent>
           <TabsContent value="delivered" className="space-y-4">
              {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No delivered orders.</p>}
+          </TabsContent>
+          <TabsContent value="cancelled" className="space-y-4">
+             {filteredOrders('cancelled').length > 0 ? filteredOrders('cancelled').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled orders.</p>}
+          </TabsContent>
+          <TabsContent value="all" className="space-y-4">
+            {orders && orders.length > 0 ? orders.map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no orders.</p>}
           </TabsContent>
         </Tabs>
         )}

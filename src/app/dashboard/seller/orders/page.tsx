@@ -1,10 +1,9 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { InCartsTable } from '@/components/seller/in-carts-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, CircleDot } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Truck, CircleDot, XCircle, ListOrdered } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -17,8 +16,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 interface ManagedOrder extends Order {
     productName?: string;
@@ -28,12 +30,12 @@ interface ManagedOrder extends Order {
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
-    pending: { label: 'Pending', className: 'bg-yellow-500/80' },
-    processing: { label: 'Processing', className: 'bg-blue-500/80' },
-    shipped: { label: 'Shipped', className: 'bg-indigo-500/80' },
-    delivered: { label: 'Delivered', className: 'bg-green-600/80' },
-    cancelled: { label: 'Cancelled', className: 'bg-red-500/80' },
-    'in-cart': { label: 'In Cart', className: 'bg-gray-500/80' },
+    pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
+    processing: { label: 'Processing', className: 'bg-blue-500/80 hover:bg-blue-500/70' },
+    shipped: { label: 'Shipped', className: 'bg-indigo-500/80 hover:bg-indigo-500/70' },
+    delivered: { label: 'Delivered', className: 'bg-green-600/80 hover:bg-green-600/70' },
+    cancelled: { label: 'Cancelled', className: 'bg-red-500/80 hover:bg-red-500/70' },
+    'in-cart': { label: 'In Cart', className: 'bg-gray-500/80 hover:bg-gray-500/70' },
   };
   const config = statusConfig[status] || { label: 'Unknown', className: 'bg-gray-400' };
   return <Badge className={`capitalize ${config.className}`}>{config.label}</Badge>;
@@ -53,6 +55,7 @@ const AllOrdersTable = () => {
     const { data: orders, isLoading } = useCollection<ManagedOrder>(ordersQuery);
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
+        if (!firestore) return;
         const orderRef = doc(firestore, 'orders', orderId);
         try {
             await updateDoc(orderRef, { orderStatus: newStatus });
@@ -64,9 +67,32 @@ const AllOrdersTable = () => {
     };
 
     if (isLoading) {
-        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
-            <p className="text-muted-foreground">Loading all orders...</p>
-        </div>
+       return (
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Buyer ID</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {[...Array(3)].map((_, i) => (
+                            <TableRow key={i}>
+                                <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                                <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+                                <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        );
     }
 
     if (!orders || orders.length === 0) {
@@ -111,10 +137,11 @@ const AllOrdersTable = () => {
                                         <Button variant="outline" size="sm">Manage</Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}>Mark as Processing</DropdownMenuItem>}
-                                        {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}>Mark as Shipped</DropdownMenuItem>}
-                                        {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}>Mark as Delivered</DropdownMenuItem>}
-                                        {order.orderStatus !== 'cancelled' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive">Cancel Order</DropdownMenuItem>}
+                                        {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
+                                        {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
+                                        {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
+                                        <DropdownMenuSeparator />
+                                        {order.orderStatus !== 'cancelled' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
@@ -137,7 +164,7 @@ export default function SellerOrdersPage() {
         <Tabs defaultValue="all-orders" className="space-y-4">
           <TabsList>
              <TabsTrigger value="all-orders">
-              <CircleDot className="mr-2 h-4 w-4" />
+              <ListOrdered className="mr-2 h-4 w-4" />
               All Orders
             </TabsTrigger>
             <TabsTrigger value="in-carts">

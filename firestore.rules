@@ -7,6 +7,7 @@ service cloud.firestore {
     // Public read is now allowed for user profiles.
     match /userProfiles/{userId} {
       allow read: if true;
+      // Allow user to update their own profile, including the 'following' array.
       allow update: if request.auth.uid == userId;
       allow create: if request.auth.uid != null;
       
@@ -32,7 +33,7 @@ service cloud.firestore {
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
       // - Allow product owner to update any field.
-      // - Allow any authenticated user to ONLY increment the 'inCartCount' field.
+      // - Allow any authenticated user to ONLY increment the 'inCartCount' field by 1.
       allow update: if (resource.data.sellerId == request.auth.uid) ||
                      (request.auth != null &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['inCartCount']) &&
@@ -43,7 +44,7 @@ service cloud.firestore {
     }
 
     // Orders can be read by the buyer or the seller.
-    // Buyers can create orders. Sellers can update order status.
+    // Buyers can create orders.
     match /orders/{orderId} {
       allow read: if request.auth != null && 
                      (resource.data.buyerId == request.auth.uid || 
