@@ -10,16 +10,33 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag } from 'lucide-react';
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag, MoreVertical, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { PaymentMethod, Order } from '@/lib/types';
-import { collection, addDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const cardFormSchema = z.object({
   cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
@@ -154,6 +171,7 @@ const TransactionTableSkeleton = () => (
 export default function BuyerWalletPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
 
     const paymentMethodsQuery = useMemoFirebase(() => {
@@ -178,6 +196,25 @@ export default function BuyerWalletPage() {
             .filter(order => order.orderStatus === 'delivered')
             .reduce((sum, order) => sum + order.totalAmount, 0);
     }, [orders]);
+
+    const handleDeleteMethod = async (methodId: string) => {
+        if (!user || !firestore) return;
+        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
+        try {
+            await deleteDoc(methodRef);
+            toast({
+                title: 'Success',
+                description: 'Payment method has been removed.',
+            });
+        } catch (error) {
+            console.error('Error deleting payment method:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not remove payment method. Please try again.',
+            });
+        }
+    };
 
   return (
     <BuyerLayout>
@@ -285,7 +322,37 @@ export default function BuyerWalletPage() {
                                             <p className="text-sm text-muted-foreground">{pm.details}</p>
                                         </div>
                                     </div>
-                                    <Button variant="ghost" size="sm">Edit</Button>
+                                    <AlertDialog>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <MoreVertical className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive">
+                                              <Trash2 className="mr-2 h-4 w-4" />
+                                              Delete
+                                            </DropdownMenuItem>
+                                          </AlertDialogTrigger>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This will permanently delete this payment method. This action cannot be undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeleteMethod(pm.id)}>
+                                            Continue
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                 </div>
                             ))
                         ) : (
@@ -308,5 +375,3 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
-
-    
