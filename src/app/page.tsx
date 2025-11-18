@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useCallback, useRef, useMemo, useState } from 'react';
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/main-layout';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query } from 'firebase/firestore';
@@ -12,6 +12,7 @@ import { VideoCard } from '@/components/feed/video-card';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useUser } from '@/firebase/auth/use-user';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { useRouter } from 'next/navigation';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
@@ -170,10 +171,41 @@ function VideoFeed() {
 export default function HomePage() {
     const { user, isLoading } = useUser();
     const { userProfile } = useUserProfile(user?.uid);
+    const router = useRouter();
 
-    // If the user is logged in and is a buyer, show the BuyerLayout.
+    useEffect(() => {
+        // Wait until auth state is determined
+        if (!isLoading && user && userProfile) {
+            switch (userProfile.userRole) {
+                case 'admin':
+                    router.replace('/dashboard/admin');
+                    break;
+                case 'seller':
+                    router.replace('/dashboard/seller');
+                    break;
+                case 'reseller':
+                    router.replace('/dashboard/reseller');
+                    break;
+                // Buyers and other roles will stay on the homepage
+                case 'buyer':
+                default:
+                    break;
+            }
+        }
+    }, [user, userProfile, isLoading, router]);
+
+
+    // Show a loading state while we determine the user's role and redirect
+    if (isLoading || (user && !userProfile)) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center">
+                <p>Loading...</p>
+            </div>
+        );
+    }
+    
+    // If the user is a buyer, show the BuyerLayout.
     // Otherwise, show the main public layout.
-    // We could extend this to redirect sellers/admins to their dashboards too.
     if (!isLoading && user && userProfile?.userRole === 'buyer') {
         return (
             <BuyerLayout>
@@ -182,11 +214,10 @@ export default function HomePage() {
         )
     }
 
-    // Default view for guests or other roles
+    // Default view for guests or non-buyer roles before redirect
     return (
         <MainLayout>
             <VideoFeed />
         </MainLayout>
     );
 }
-
