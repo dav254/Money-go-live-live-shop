@@ -3,6 +3,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
 
 export default function ProductsPage() {
   return (
@@ -24,9 +25,7 @@ export default function ProductsPage() {
             <ProductUploadForm />
           </TabsContent>
           <TabsContent value="discounts" className="space-y-4">
-             <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">Create and manage discounts and offers here.</p>
-            </div>
+             <DiscountedProductsTable />
           </TabsContent>
         </Tabs>
       </div>
