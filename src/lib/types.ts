@@ -77,11 +77,27 @@ export interface UserProfile {
   following?: string[];
 }
 
+export interface Order {
+  id: string;
+  buyerId: string;
+  sellerId: string;
+  productId: string;
+  productName?: string;
+  productImage?: string;
+  orderDate: Timestamp;
+  totalAmount: number;
+  shippingAddress: string;
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'in-cart';
+  paymentMethod: string;
+  quantity: number;
+}
+
 
 export interface CartItem {
   id: string;
   productId: string;
-  sellerId: string; // <-- ADDED THIS LINE
+  sellerId: string;
+  buyerId: string;
   quantity: number;
   price: number;
   name: string;
@@ -163,5 +179,3 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
-
-    

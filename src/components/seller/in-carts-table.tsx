@@ -1,245 +1,142 @@
-
 'use client';
 
-import * as React from 'react';
-import Image from 'next/image';
-import {
-  CaretSortIcon,
-  DotsHorizontalIcon,
-} from '@radix-ui/react-icons';
+import { useUser } from '@/firebase/auth/use-user';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, where } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
-import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import type { CartItem, UserProfile } from '@/lib/types';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where } from 'firebase/firestore';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { formatDistanceToNow } from 'date-fns';
-
-type EnrichedCartItem = CartItem & {
-    buyer?: UserProfile;
-};
-
-
-export const columns: ColumnDef<EnrichedCartItem>[] = [
-  {
-    accessorKey: 'buyer',
-    header: 'Buyer',
-    cell: ({ row }) => {
-        const buyer = row.original.buyer;
-        if (!buyer) return 'Loading...';
-        return (
-            <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src={buyer.profilePictureUrl} />
-                    <AvatarFallback>{buyer.fullName?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <div className="font-medium">{buyer.fullName}</div>
-                    <div className="text-xs text-muted-foreground">{buyer.email}</div>
-                </div>
-            </div>
-        )
-    }
-  },
-  {
-    accessorKey: 'name',
-    header: 'Product In Cart',
-    cell: ({ row }) => (
-        <div className="flex items-center gap-4">
-            <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                <Image 
-                    src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
-                    alt={row.original.name || 'Product image'} 
-                    fill 
-                    className="object-cover" 
-                />
-            </div>
-            <div className="font-medium capitalize">{row.getValue('name')}</div>
-        </div>
-    ),
-  },
-  {
-    accessorKey: 'price',
-    header: () => <div className="text-right">Price</div>,
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('price'));
-      const formatted = new Intl.NumberFormat('en-US').format(amount);
-      return <div className="text-right font-medium">{formatted}</div>;
-    },
-  },
-  {
-    accessorKey: 'addedAt',
-    header: 'Added',
-    cell: ({ row }) => {
-        const addedAt = row.original.addedAt?.toDate();
-        return addedAt ? <div className="text-right">{formatDistanceToNow(addedAt, { addSuffix: true })}</div> : '...';
-    },
-  },
-  {
-    id: 'actions',
-    enableHiding: false,
-    cell: ({ row }) => {
-      return (
-        <div className="text-right">
-            <Button variant="outline">Send Offer</Button>
-        </div>
-      );
-    },
-  },
-];
+// This is a hypothetical type. We are assuming the structure of documents in the 'orders' collection.
+interface CartItem {
+  id: string;
+  productName: string;
+  productImage: string;
+  buyerName: string;
+  buyerAvatar: string;
+  addedAt: any; // Firestore Timestamp
+  quantity: number;
+}
 
 export function InCartsTable() {
   const { user, isLoading: isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const db = useFirestore();
 
-  const cartItemsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collectionGroup(firestore, 'cart'), where('sellerId', '==', user.uid));
-  }, [firestore, user]);
+  const cartItemsQuery = useMemoFirebase(
+    () =>
+      user
+        ? query(
+            collection(db, 'orders'), // Target the 'orders' collection.
+            where('sellerId', '==', user.uid), // Filter by the current seller.
+            where('status', '==', 'in-cart') // Filter by status.
+          )
+        : null, // Pass null if the user is not loaded yet to prevent the query from running.
+    [user]
+  );
 
-  const { data: cartItems, isLoading: areCartItemsLoading } = useCollection<CartItem>(cartItemsQuery);
+  const { data: cartItems, isLoading: isDataLoading, error } = useCollection<CartItem>(cartItemsQuery);
 
-  const buyerIds = React.useMemo(() => {
-    if (!cartItems) return [];
-    // The parent document ID is the buyer's UID. This is a common Firestore pattern,
-    // but collectionGroup queries don't directly provide parent IDs in the snapshot data.
-    // A robust solution is to denormalize and store `buyerId` on the cart item itself.
-    // Assuming `buyerId` will be added to the CartItem type and data.
-    const ids = cartItems.map(item => (item as any).buyerId).filter(Boolean);
-    return [...new Set(ids)]; // Return unique IDs
-  }, [cartItems]);
-  
-  const buyersQuery = useMemoFirebase(() => {
-    // CRITICAL FIX: Do not create a query if there are no buyer IDs to fetch.
-    if (!firestore || buyerIds.length === 0) return null;
-    return query(collection(firestore, 'userProfiles'), where('id', 'in', buyerIds));
-  }, [firestore, buyerIds]);
+  const isLoading = isUserLoading || isDataLoading;
 
-  const { data: buyers, isLoading: areBuyersLoading } = useCollection<UserProfile>(buyersQuery);
-  
-  const enrichedCartItems = React.useMemo(() => {
-    if (!cartItems || !buyers) return [];
-    return cartItems.map(item => ({
-      ...item,
-      buyer: buyers.find(b => b.id === (item as any).buyerId)
-    }));
-  }, [cartItems, buyers]);
-
-
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  
-  const isLoading = isUserLoading || areCartItemsLoading || areBuyersLoading;
-
-  const table = useReactTable({
-    data: enrichedCartItems,
-    columns,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      sorting,
-    },
-  });
-
-  return (
-    <div className="w-full">
+  if (isLoading) {
+    return (
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Buyer</TableHead>
+              <TableHead>Quantity</TableHead>
+              <TableHead>Date Added</TableHead>
+            </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-                <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                    Finding potential orders...
-                    </TableCell>
-                </TableRow>
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No products are currently in buyers' carts.
+            {[...Array(5)].map((_, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                  <Skeleton className="h-10 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-10 w-24" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-8 w-8" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-8 w-20" />
                 </TableCell>
               </TableRow>
-            )}
+            ))}
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed border-red-500">
+        <h2 className="text-xl font-semibold text-red-600">Error Loading Data</h2>
+        <p className="text-muted-foreground">{error.message}</p>
+        <p className="text-sm text-muted-foreground">
+          This is likely due to a permission issue. Ensure your Firestore rules allow sellers to read their own orders.
+        </p>
       </div>
+    );
+  }
+
+  if (!cartItems || cartItems.length === 0) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
+        <h2 className="text-xl font-semibold">No Items in Carts</h2>
+        <p className="text-muted-foreground">When potential buyers add your products to their carts, you'll see them here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="hidden sm:table-cell">Image</TableHead>
+            <TableHead>Product</TableHead>
+            <TableHead>Buyer</TableHead>
+            <TableHead className="text-center">Quantity</TableHead>
+            <TableHead className="hidden md:table-cell text-right">Date Added</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {cartItems.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell className="hidden sm:table-cell">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={item.productImage} alt={item.productName} />
+                  <AvatarFallback>{item.productName.charAt(0)}</AvatarFallback>
+                </Avatar>
+              </TableCell>
+              <TableCell className="font-medium">{item.productName}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={item.buyerAvatar} alt={item.buyerName} />
+                    <AvatarFallback>{item.buyerName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <span>{item.buyerName}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge variant="outline">{item.quantity}</Badge>
+              </TableCell>
+              <TableCell className="hidden md:table-cell text-right">
+                {item.addedAt ? new Date(item.addedAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

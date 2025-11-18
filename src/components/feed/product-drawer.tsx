@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { useUser, useFirestore, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { doc, serverTimestamp, increment } from 'firebase/firestore';
+import { useUser, useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, doc, serverTimestamp, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -66,6 +66,49 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     });
   };
 
+  const handleBuyNow = () => {
+     if (!user) {
+      toast({
+        title: 'Please log in',
+        description: 'You need to be logged in to purchase an item.',
+        action: <Button onClick={() => router.push('/login')}>Login</Button>,
+      });
+      return;
+    }
+
+    const ordersCollectionRef = collection(firestore, 'orders');
+    
+    const newOrderData = {
+        buyerId: user.uid,
+        sellerId: product.sellerId,
+        productId: product.id,
+        productName: product.name,
+        productImage: imageUrl,
+        totalAmount: product.price,
+        orderDate: serverTimestamp(),
+        shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+        orderStatus: 'pending',
+        paymentMethod: 'pending',
+        quantity: 1, // Assuming quantity of 1 for "Buy Now"
+    };
+
+    addDocumentNonBlocking(ordersCollectionRef, newOrderData)
+      .then(() => {
+        toast({
+          title: 'Order Placed!',
+          description: 'Your order is pending. Please proceed to payment.',
+        });
+        // In a real app, you would redirect to a payment page here.
+        // For now, we just close the drawer.
+        onOpenChange(false);
+      })
+      .catch((err) => {
+        // The error is already handled by the global emitter in addDocumentNonBlocking,
+        // but you could add specific UI feedback here if needed.
+        console.error("Failed to place order:", err);
+      });
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="bg-card/95 text-card-foreground border-t-primary border-t-2 rounded-t-2xl backdrop-blur-md">
@@ -99,7 +142,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
               </div>
             </div>
             <div className="mt-6 flex flex-col gap-3">
-               <Button size="lg" className="w-full font-bold text-lg">Buy Now</Button>
+               <Button size="lg" className="w-full font-bold text-lg" onClick={handleBuyNow}>Buy Now</Button>
                <Button size="lg" variant="secondary" className="w-full font-bold text-lg" onClick={handleAddToCart}>Add to Cart</Button>
                <Button size="lg" variant="link" asChild>
                   <Link href={`/sellers/${product.sellerId}`}>Visit Shop</Link>

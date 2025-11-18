@@ -42,10 +42,13 @@ service cloud.firestore {
       allow delete: if resource.data.sellerId == request.auth.uid;
     }
 
-    // Orders can be read by the buyer and by admins.
+    // Orders can be read by the buyer, the seller, and by admins.
     // Buyers can create orders.
     match /orders/{orderId} {
-      allow read: if request.auth != null && (resource.data.buyerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read: if request.auth != null && 
+                     (resource.data.buyerId == request.auth.uid || 
+                      resource.data.sellerId == request.auth.uid ||
+                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
