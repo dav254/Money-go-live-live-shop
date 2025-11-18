@@ -118,9 +118,11 @@ export default function GoLivePage() {
 
   if (isLoading || isUserLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-black">
-        <p className="text-white">Loading your studio...</p>
-      </div>
+      <SellerLayout>
+        <div className="flex h-full w-full items-center justify-center">
+            <p>Loading your live studio...</p>
+        </div>
+      </SellerLayout>
     );
   }
   
@@ -130,6 +132,9 @@ export default function GoLivePage() {
         <div className="flex h-full flex-col items-center justify-center p-4 text-center">
             <h2 className="text-xl font-bold">Could not load your seller profile.</h2>
             <p className="max-w-md text-muted-foreground">{error || "Please make sure your account is configured as a 'seller'."}</p>
+             <Button asChild className="mt-4">
+                <Link href="/dashboard/account">Go to Account Settings</Link>
+            </Button>
         </div>
       </SellerLayout>
     );
@@ -140,7 +145,7 @@ export default function GoLivePage() {
      <div className="relative h-[calc(100vh-4rem)] w-full bg-background flex flex-col items-center justify-center p-4">
         <div className="absolute top-4 right-4 z-20">
             <Button asChild>
-                <Link href={`/sellers/CKmHD5jv0dOevUJhJ8tM7akpSlF2`}>
+                <Link href={`/sellers/${user?.uid}`}>
                     View My Shop
                 </Link>
             </Button>
