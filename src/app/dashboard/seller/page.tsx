@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -8,8 +9,27 @@ import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Heart, Eye } from 'lucide-react';
 import type { SellerShop, Product } from '@/lib/types';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { ProductUploadForm } from '@/components/seller/product-upload-form';
 
 
 const ProductRowSkeleton = () => (
@@ -34,6 +54,10 @@ const ProductRowSkeleton = () => (
 export default function SellerDashboardPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | undefined>(undefined);
 
   const sellerShopRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -49,6 +73,23 @@ export default function SellerDashboardPage() {
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   const isLoading = isUserLoading || isShopLoading || areProductsLoading;
+  
+  const handleDelete = async (productId: string) => {
+    if (!firestore) return;
+    const productRef = doc(firestore, 'products', productId);
+    try {
+        await deleteDoc(productRef);
+        toast({ title: "Product Deleted", description: "The product has been successfully removed." });
+    } catch (e) {
+        console.error("Error deleting product: ", e);
+        toast({ variant: 'destructive', title: "Error", description: "Could not delete the product." });
+    }
+  };
+  
+  const handleEditOpen = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  }
 
   return (
     <SellerLayout>
@@ -144,8 +185,8 @@ export default function SellerDashboardPage() {
               products.map((p) => {
                 const status = (p.stock || 0) > 0 ? "Active" : "Out of Stock";
                 return (
+                  <AlertDialog key={p.id}>
                   <div
-                    key={p.id}
                     className="bg-card p-4 rounded-xl shadow-md flex gap-4 items-center"
                   >
                     <Image 
@@ -174,22 +215,49 @@ export default function SellerDashboardPage() {
                       </p>
                     </div>
                       <div className="flex flex-col gap-2">
-                          <Button size="sm" variant="outline" className="w-full">
+                          <Button size="sm" variant="outline" className="w-full" onClick={() => handleEditOpen(p)}>
                           Edit
                           </Button>
-                          <Button size="sm" variant="destructive" className="w-full">
-                          Delete
-                          </Button>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive" className="w-full">
+                                Delete
+                            </Button>
+                          </AlertDialogTrigger>
                     </div>
                   </div>
+                   <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete "{p.name}". This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(p.id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )
               })
           ) : (
              <p className="text-muted-foreground text-center py-8">You have not uploaded any products yet.</p>
           )}
         </div>
+         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[800px]">
+                <DialogHeader>
+                    <DialogTitle>Edit Product</DialogTitle>
+                </DialogHeader>
+                <ProductUploadForm 
+                    productToEdit={selectedProduct} 
+                    onFormSubmit={() => setIsEditDialogOpen(false)} 
+                />
+            </DialogContent>
+        </Dialog>
       </div>
     </SellerLayout>
   );
 }
 
+    
