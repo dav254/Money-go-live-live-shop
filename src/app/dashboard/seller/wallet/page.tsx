@@ -37,7 +37,7 @@ import {
   Trash2,
   Phone,
   Loader2,
-  Bank,
+  Landmark,
   Mail,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -293,7 +293,7 @@ export default function SellerWalletPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Date &amp; Time</TableHead>
+                          <TableHead>Date & Time</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
                           <TableHead className="text-right">Amount</TableHead>
@@ -336,7 +336,7 @@ export default function SellerWalletPage() {
                              payoutMethods.map(pm => (
                                 <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
                                     <div className="flex items-center gap-3">
-                                        {pm.type === 'paypal' ? <Mail className="h-6 w-6 text-muted-foreground" /> : <Bank className="h-6 w-6 text-muted-foreground" />}
+                                        {pm.type === 'paypal' ? <Mail className="h-6 w-6 text-muted-foreground" /> : <Landmark className="h-6 w-6 text-muted-foreground" />}
                                         <div>
                                             <p className="font-semibold uppercase">{pm.type}</p>
                                             <p className="text-sm text-muted-foreground">{pm.details}</p>
@@ -395,5 +395,3 @@ export default function SellerWalletPage() {
     </SellerLayout>
   );
 }
-
-    
