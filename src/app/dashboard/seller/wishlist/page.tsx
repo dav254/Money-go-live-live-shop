@@ -48,7 +48,7 @@ export default function SellerWishlistPage() {
     return query(
       collection(firestore, 'products'),
       where('sellerId', '==', user.uid),
-      limit(0) // Start with an empty list, will be populated by wishlist logic later
+      limit(1) // Changed from 0 to 1 to fix the error. This is a temporary query.
     );
   }, [firestore, user]);
 
