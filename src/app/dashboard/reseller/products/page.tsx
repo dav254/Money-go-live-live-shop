@@ -1,19 +1,29 @@
 
+'use client';
+
 import { ResellerLayout } from '@/components/layout/reseller-layout';
-import { ProductCard } from '@/components/seller/product-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { products } from '@/lib/placeholder-data';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles } from 'lucide-react';
+import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const ResellerProductCard = ({ product }: { product: typeof products[0] }) => (
+const ResellerProductCard = ({ product }: { product: Product }) => (
     <Card className="overflow-hidden">
         <div className="relative aspect-video">
-            <ProductCard product={product} />
-            <Badge className="absolute top-2 left-2 bg-green-600/80">15% Commission</Badge>
+            <Image
+                src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
+                alt={product.name || 'product'}
+                fill
+                className="object-cover"
+            />
+            <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
         </div>
         <CardContent className="p-3">
              <div className="flex gap-2">
@@ -24,7 +34,26 @@ const ResellerProductCard = ({ product }: { product: typeof products[0] }) => (
     </Card>
 );
 
+const ProductGridSkeleton = () => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
+    </div>
+)
+
 export default function ResellerProductsPage() {
+  const firestore = useFirestore();
+
+  const productsQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(
+          collection(firestore, 'products'),
+          where('commissionRate', '>', 0),
+          orderBy('commissionRate', 'desc')
+      );
+  }, [firestore]);
+
+  const { data: products, isLoading } = useCollection<Product>(productsQuery);
+
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -50,18 +79,26 @@ export default function ResellerProductsPage() {
           </TabsList>
           
           <TabsContent value="all" className="mt-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
-            </div>
+            {isLoading ? (
+                <ProductGridSkeleton />
+            ) : products && products.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                </div>
+            ) : (
+                 <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                    <p className="text-muted-foreground">No products available for reselling yet.</p>
+                </div>
+            )}
           </TabsContent>
            <TabsContent value="trending" className="mt-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {products.slice(0, 3).map(p => <ResellerProductCard key={p.id} product={p} />)}
+            <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+              <p className="text-muted-foreground">Trending products will appear here.</p>
             </div>
           </TabsContent>
            <TabsContent value="high-commission" className="mt-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {products.slice(2, 5).map(p => <ResellerProductCard key={p.id} product={p} />)}
+            <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+              <p className="text-muted-foreground">High-commission products will appear here.</p>
             </div>
           </TabsContent>
           <TabsContent value="ai-recommended" className="mt-6">
@@ -70,8 +107,8 @@ export default function ResellerProductsPage() {
             </div>
           </TabsContent>
            <TabsContent value="new" className="mt-6">
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {products.slice(1, 4).map(p => <ResellerProductCard key={p.id} product={p} />)}
+             <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+              <p className="text-muted-foreground">New arrivals will appear here.</p>
             </div>
           </TabsContent>
 
