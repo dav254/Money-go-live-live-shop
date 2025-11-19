@@ -4,46 +4,35 @@
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Heart, Eye } from 'lucide-react';
-import type { SellerShop } from '@/lib/types';
-import { doc } from 'firebase/firestore';
+import type { SellerShop, Product } from '@/lib/types';
+import { collection, doc, query, where } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
-// This is a simplified version of the Product type for this demo page
-const products = [
-  {
-    id: 1,
-    name: 'Reusable Adult Diaper',
-    price: 350,
-    stock: 22,
-    status: 'Active',
-    views: 244,
-    image: { imageUrl: 'https://picsum.photos/seed/p1/150/150', imageHint: 'diaper product' },
-  },
-  {
-    id: 2,
-    name: 'Premium Wheelchair',
-    price: 900,
-    stock: 0,
-    status: 'Out of Stock',
-    views: 1000,
-    image: { imageUrl: 'https://picsum.photos/seed/p2/150/150', imageHint: 'wheelchair product' },
-  },
-  {
-    id: 3,
-    name: 'Classic Leather Handbag',
-    price: 850,
-    stock: 15,
-    status: 'Active',
-    views: 1500,
-    image: { imageUrl: 'https://picsum.photos/seed/p3/150/150', imageHint: 'handbag product' },
-  }
-];
+const ProductRowSkeleton = () => (
+  <div className="bg-card p-4 rounded-xl shadow-md flex gap-4 items-center">
+    <Skeleton className="w-20 h-20 rounded-lg" />
+    <div className="flex-1 space-y-2">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-1/4" />
+      <div className="flex gap-4">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+      <Skeleton className="h-4 w-1/5" />
+    </div>
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-8 w-16" />
+      <Skeleton className="h-8 w-16" />
+    </div>
+  </div>
+)
 
 export default function SellerDashboardPage() {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const sellerShopRef = useMemoFirebase(() => {
@@ -51,7 +40,15 @@ export default function SellerDashboardPage() {
     return firestore ? doc(firestore, `sellerShops/${user.uid}`) : null;
   }, [firestore, user]);
 
-  const { data: shopData } = useDoc<SellerShop>(sellerShopRef);
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return firestore ? query(collection(firestore, 'products'), where('sellerId', '==', user.uid)) : null;
+  },[firestore, user]);
+
+  const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  const isLoading = isUserLoading || isShopLoading || areProductsLoading;
 
   return (
     <SellerLayout>
@@ -88,7 +85,7 @@ export default function SellerDashboardPage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{shopData?.followers?.toLocaleString() || 0}</div>
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{shopData?.followers?.toLocaleString() || 0}</div>}
                 <p className="text-xs text-muted-foreground">+2 since last week</p>
               </CardContent>
             </Card>
@@ -98,7 +95,7 @@ export default function SellerDashboardPage() {
                 <Heart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1,250</div>
+                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">1,250</div>}
                 <p className="text-xs text-muted-foreground">Across all products</p>
               </CardContent>
             </Card>
@@ -108,7 +105,7 @@ export default function SellerDashboardPage() {
                 <Eye className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">28,491</div>
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">28,491</div>}
                 <p className="text-xs text-muted-foreground">In the last 30 days</p>
               </CardContent>
             </Card>
@@ -138,49 +135,61 @@ export default function SellerDashboardPage() {
         {/* Product List */}
         <div className="space-y-4">
           <h3 className="font-headline text-xl font-bold">My Products</h3>
-          {products.map((p) => (
-            <div
-              key={p.id}
-              className="bg-card p-4 rounded-xl shadow-md flex gap-4 items-center"
-            >
-              <Image 
-                src={p.image.imageUrl} 
-                width={80}
-                height={80}
-                alt={p.name}
-                className="w-20 h-20 rounded-lg object-cover"
-                data-ai-hint={p.image.imageHint}
-              />
+          {isLoading ? (
+            <>
+              <ProductRowSkeleton />
+              <ProductRowSkeleton />
+            </>
+          ) : products && products.length > 0 ? (
+              products.map((p) => {
+                const status = (p.stock || 0) > 0 ? "Active" : "Out of Stock";
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-card p-4 rounded-xl shadow-md flex gap-4 items-center"
+                  >
+                    <Image 
+                      src={p.imageUrl || "https://picsum.photos/seed/product/80/80"}
+                      width={80}
+                      height={80}
+                      alt={p.name || 'product'}
+                      className="w-20 h-20 rounded-lg object-cover"
+                    />
 
-              <div className="flex-1">
-                <h3 className="font-bold font-headline">{p.name}</h3>
-                <p className="font-semibold text-primary">{p.price.toLocaleString()}</p>
+                    <div className="flex-1">
+                      <h3 className="font-bold font-headline">{p.name}</h3>
+                      <p className="font-semibold text-primary">{p.price?.toLocaleString()}</p>
 
-                <div className="text-sm text-muted-foreground mt-1 flex gap-4">
-                    <span>Stock: {p.stock}</span>
-                    <span>Views: {p.views}</span>
-                </div>
-                
-                <p
-                  className={`text-sm mt-1 font-bold ${
-                    p.status === "Active" ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  {p.status}
-                </p>
-              </div>
-                <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="outline" className="w-full">
-                    Edit
-                    </Button>
-                    <Button size="sm" variant="destructive" className="w-full">
-                    Delete
-                    </Button>
-              </div>
-            </div>
-          ))}
+                      <div className="text-sm text-muted-foreground mt-1 flex gap-4">
+                          <span>Stock: {p.stock || 0}</span>
+                          <span>Views: 0</span>
+                      </div>
+                      
+                      <p
+                        className={`text-sm mt-1 font-bold ${
+                          status === "Active" ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {status}
+                      </p>
+                    </div>
+                      <div className="flex flex-col gap-2">
+                          <Button size="sm" variant="outline" className="w-full">
+                          Edit
+                          </Button>
+                          <Button size="sm" variant="destructive" className="w-full">
+                          Delete
+                          </Button>
+                    </div>
+                  </div>
+                )
+              })
+          ) : (
+             <p className="text-muted-foreground text-center py-8">You have not uploaded any products yet.</p>
+          )}
         </div>
       </div>
     </SellerLayout>
   );
 }
+
