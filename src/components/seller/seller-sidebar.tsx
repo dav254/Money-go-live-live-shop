@@ -89,10 +89,10 @@ export function SellerSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive('/dashboard/live/start')}
+              isActive={isActive('/dashboard/seller/live')}
                tooltip="Live Selling"
             >
-              <Link href="/dashboard/live/start">
+              <Link href="/dashboard/seller/live">
                 <Video />
                 <span>Live Selling</span>
               </Link>

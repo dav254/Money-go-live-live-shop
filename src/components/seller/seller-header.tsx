@@ -61,7 +61,7 @@ export function SellerHeader() {
           className="hidden md:inline-flex"
           asChild
         >
-          <Link href="/dashboard/live/start">
+          <Link href="/dashboard/seller/live">
             <Video className="h-5 w-5" />
             <span className="sr-only">Go Live</span>
           </Link>
