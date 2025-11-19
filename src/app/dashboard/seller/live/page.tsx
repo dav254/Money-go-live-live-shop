@@ -2,13 +2,13 @@
 'use client';
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
-import { SellerLayout } from '@/components/layout/seller-layout';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import type { Product, Seller, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
+import { MainLayout } from '@/components/layout/main-layout';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
@@ -135,16 +135,16 @@ export default function SellerLivePage() {
 
     if (isLoading) {
         return (
-            <SellerLayout>
+            <MainLayout>
                 <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
                     <p>Loading your product feed...</p>
                 </div>
-            </SellerLayout>
+            </MainLayout>
         );
     }
 
     return (
-        <SellerLayout>
+        <MainLayout>
             <div className="relative h-[calc(100vh-4rem)]">
                 <div 
                     ref={scrollContainerRef}
@@ -170,6 +170,6 @@ export default function SellerLivePage() {
                 )}
                 </div>
             </div>
-        </SellerLayout>
+        </MainLayout>
     );
 }
