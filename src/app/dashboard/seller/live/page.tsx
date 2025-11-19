@@ -1,33 +1,96 @@
 
 'use client';
 
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import type { Product } from '@/lib/types';
-import { collection, query, where } from 'firebase/firestore';
-import Image from 'next/image';
-import { useMemo } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ImageIcon, VideoIcon } from 'lucide-react';
+import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where } from 'firebase/firestore';
+import type { Product, Seller, VideoFeedItem } from '@/lib/types';
+import { useFirestore, useUser } from '@/firebase';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { VideoCard } from '@/components/feed/video-card';
 
-const MediaGridSkeleton = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="relative aspect-square">
-                <Skeleton className="h-full w-full rounded-md" />
+function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
+    const firestore = useFirestore();
+    
+    const sellerShopRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
+    }, [firestore, product.sellerId]);
+    
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return product.sellerId ? doc(firestore, 'userProfiles', product.sellerId) : null;
+    }, [firestore, product.sellerId]);
+
+    const { data: sellerData, isLoading: isSellerLoading } = useDoc<Seller>(sellerShopRef);
+    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
+
+    if (isSellerLoading || isProfileLoading) {
+        return (
+             <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
+                <p className="text-white">Loading your feed...</p>
             </div>
-        ))}
-    </div>
-);
+        )
+    }
+
+    const seller: Seller = {
+        id: product.sellerId,
+        sellerId: product.sellerId,
+        name: sellerData?.shopName || userProfileData?.fullName || 'Seller Store',
+        avatar: {
+            id: 'avatar',
+            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
+            description: 'Seller avatar',
+            imageHint: 'seller avatar'
+        },
+        banner: {
+            id: 'banner',
+            imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
+            description: 'Seller banner',
+            imageHint: 'store banner'
+        },
+        bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
+        rating: 4.8, // Placeholder
+        followers: 123, // Placeholder
+        reviewsCount: 45, // Placeholder
+        isVerified: true, // Placeholder
+        joinedDate: userProfileData?.joinDate || new Date().toISOString(),
+        location: sellerData?.location || userProfileData?.location || 'Unknown',
+        description: sellerData?.description || userProfileData?.bio || 'Welcome!',
+    };
+
+    const feedItem: VideoFeedItem = {
+        id: product.id,
+        product: product,
+        seller: seller,
+        video: {
+          id: product.id + mediaUrl, 
+          imageUrl: mediaUrl,
+          description: product.name,
+          imageHint: mediaType,
+          mediaType: mediaType,
+        },
+        likes: product.likes || 0,
+        viewers: Math.floor(Math.random() * 50) + 1, // Placeholder for preview
+        comments: [], // Placeholder
+    };
+
+    return (
+        <div className="h-full w-full snap-start flex-shrink-0">
+          <VideoCard item={feedItem} onScroll={onScroll} />
+        </div>
+    );
+}
 
 export default function SellerLivePage() {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
     const productsQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
+        // Query for products where the sellerId matches the current user's ID
         return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
     }, [firestore, user]);
 
@@ -35,75 +98,78 @@ export default function SellerLivePage() {
 
     const isLoading = isUserLoading || areProductsLoading;
 
-    const allImages = useMemo(() => {
+    const feedMediaItems = useMemo(() => {
         if (!products) return [];
-        return products.flatMap(p => p.imageUrls || (p.imageUrl ? [p.imageUrl] : [])).filter(Boolean);
+
+        const allMedia: {product: Product, mediaUrl: string, mediaType: 'video' | 'image'}[] = [];
+        products.forEach(product => {
+            if (product.videoUrls && product.videoUrls.length > 0) {
+                product.videoUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'video' }));
+            }
+            if (product.imageUrls && product.imageUrls.length > 0) {
+                product.imageUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'image' }));
+            }
+        });
+        return allMedia;
     }, [products]);
 
-    const allVideos = useMemo(() => {
-        if (!products) return [];
-        return products.flatMap(p => p.videoUrls || (p.videoUrl ? [p.videoUrl] : [])).filter(Boolean);
-    }, [products]);
+    const handleScroll = useCallback((direction: 'up' | 'down') => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const scrollAmount = container.clientHeight;
+        const currentScroll = container.scrollTop;
+
+        let targetScroll;
+        if (direction === 'down') {
+            targetScroll = currentScroll + scrollAmount;
+        } else {
+            targetScroll = currentScroll - scrollAmount;
+        }
+        
+        container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth',
+        });
+    }, []);
+
+    if (isLoading) {
+        return (
+            <SellerLayout>
+                <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+                    <p>Loading your product feed...</p>
+                </div>
+            </SellerLayout>
+        );
+    }
 
     return (
         <SellerLayout>
-            <div className="flex-1 space-y-8 p-8 pt-6">
-                <h1 className="font-headline text-3xl font-bold tracking-tight">
-                    My Media
-                </h1>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>My Videos & Images</CardTitle>
-                        <CardDescription>A gallery of all media uploaded with your products.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Tabs defaultValue="images">
-                            <TabsList className="mb-4">
-                                <TabsTrigger value="images">Images ({allImages.length})</TabsTrigger>
-                                <TabsTrigger value="videos">Videos ({allVideos.length})</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="images">
-                                {isLoading ? (
-                                    <MediaGridSkeleton />
-                                ) : allImages.length > 0 ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                        {allImages.map((url, index) => (
-                                            <div key={index} className="relative aspect-square rounded-md overflow-hidden border">
-                                                <Image src={url} alt={`Product Image ${index + 1}`} fill className="object-cover" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                                        <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                                        <p className="mt-4 text-muted-foreground">You have not uploaded any images yet.</p>
-                                    </div>
-                                )}
-                            </TabsContent>
-                             <TabsContent value="videos">
-                                {isLoading ? (
-                                    <MediaGridSkeleton />
-                                ) : allVideos.length > 0 ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                        {allVideos.map((url, index) => (
-                                            <div key={index} className="relative aspect-video rounded-md overflow-hidden border bg-black">
-                                                <video src={url} className="h-full w-full object-contain" controls />
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                                        <VideoIcon className="h-10 w-10 text-muted-foreground" />
-                                        <p className="mt-4 text-muted-foreground">You have not uploaded any videos yet.</p>
-                                    </div>
-                                )}
-                            </TabsContent>
-                        </Tabs>
-                    </CardContent>
-                </Card>
+            <div className="relative h-[calc(100vh-4rem)]">
+                <div 
+                    ref={scrollContainerRef}
+                    className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
+                >
+                {feedMediaItems && feedMediaItems.length > 0 ? (
+                    feedMediaItems.map((item) => (
+                        <RealtimeVideoCard 
+                            key={item.product.id + item.mediaUrl} 
+                            product={item.product} 
+                            mediaUrl={item.mediaUrl}
+                            mediaType={item.mediaType}
+                            onScroll={handleScroll}
+                        />
+                    ))
+                ) : (
+                    <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
+                        <div className="text-center">
+                            <h2 className="text-xl font-semibold">Your Feed is Empty</h2>
+                            <p className="text-muted-foreground">Upload products with images or videos to see them here.</p>
+                        </div>
+                    </div>
+                )}
+                </div>
             </div>
         </SellerLayout>
     );
 }
-
