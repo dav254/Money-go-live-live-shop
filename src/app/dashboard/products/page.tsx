@@ -20,16 +20,16 @@ export default function ProductsPage() {
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="logistics">Logistics</TabsTrigger>
           </TabsList>
-          <TabsContent value="my-products" className="space-y-4">
+          <TabsContent value="my-products" className="space-y-4" forceMount={false}>
             <MyProductsTable />
           </TabsContent>
-          <TabsContent value="add-new" className="space-y-4">
+          <TabsContent value="add-new" className="space-y-4" forceMount={false}>
             <ProductUploadForm />
           </TabsContent>
-          <TabsContent value="discounts" className="space-y-4">
+          <TabsContent value="discounts" className="space-y-4" forceMount={false}>
              <DiscountedProductsTable />
           </TabsContent>
-           <TabsContent value="logistics" className="space-y-4">
+           <TabsContent value="logistics" className="space-y-4" forceMount={false}>
              <LogisticsTable />
           </TabsContent>
         </Tabs>
