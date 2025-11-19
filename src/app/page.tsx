@@ -170,33 +170,39 @@ function VideoFeed() {
 
 export default function HomePage() {
     const { user, isLoading } = useUser();
-    const { userProfile } = useUserProfile(user?.uid);
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const router = useRouter();
 
     useEffect(() => {
-        // Wait until auth state is determined
-        if (!isLoading && user && userProfile) {
-            switch (userProfile.userRole) {
-                case 'admin':
-                    router.replace('/dashboard/admin');
-                    break;
-                case 'seller':
-                    router.replace('/dashboard/seller');
-                    break;
-                case 'reseller':
-                    router.replace('/dashboard/reseller');
-                    break;
-                // Buyers and other roles will stay on the homepage
-                case 'buyer':
-                default:
-                    break;
+        // Wait until auth state and profile are determined
+        if (!isLoading && !isProfileLoading) {
+            if (user && userProfile) {
+                 switch (userProfile.userRole) {
+                    case 'admin':
+                        router.replace('/dashboard/admin');
+                        break;
+                    case 'seller':
+                        router.replace('/dashboard/seller');
+                        break;
+                    case 'reseller':
+                        router.replace('/dashboard/reseller');
+                        break;
+                    case 'buyer':
+                        // Buyers stay on the homepage, which is their feed.
+                        break;
+                    default:
+                        // Fallback for any other roles, redirect to a safe page.
+                        router.replace('/buyer/dashboard');
+                        break;
+                }
             }
+            // If there's no user, they stay on the public homepage.
         }
-    }, [user, userProfile, isLoading, router]);
+    }, [user, userProfile, isLoading, isProfileLoading, router]);
 
 
     // Show a loading state while we determine the user's role and redirect
-    if (isLoading || (user && !userProfile)) {
+    if (isLoading || isProfileLoading) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <p>Loading...</p>
@@ -205,8 +211,7 @@ export default function HomePage() {
     }
     
     // If the user is a buyer, show the BuyerLayout.
-    // Otherwise, show the main public layout.
-    if (!isLoading && user && userProfile?.userRole === 'buyer') {
+    if (user && userProfile?.userRole === 'buyer') {
         return (
             <BuyerLayout>
                 <VideoFeed />
@@ -214,7 +219,7 @@ export default function HomePage() {
         )
     }
 
-    // Default view for guests or non-buyer roles before redirect
+    // Default view for guests or roles that are about to be redirected.
     return (
         <MainLayout>
             <VideoFeed />

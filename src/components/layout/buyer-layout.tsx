@@ -1,6 +1,8 @@
 
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Button } from '../ui/button';
@@ -11,9 +13,26 @@ import { Logo } from '../logo';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useUser } from '@/firebase';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
 
 export function BuyerLayout({ children }: { children: React.ReactNode }) {
-  const { isLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isUserLoading && !isProfileLoading) {
+      if (!user) {
+        // Not logged in, redirect to login page
+        router.replace('/login');
+      } else if (userProfile && userProfile.userRole !== 'buyer') {
+        // Logged in, but not a buyer, redirect to homepage for role-based routing
+        router.replace('/');
+      }
+    }
+  }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+
+  const isLoading = isUserLoading || isProfileLoading;
 
   if (isLoading) {
     return (
@@ -21,6 +40,11 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
         <p>Loading Dashboard...</p>
       </div>
     );
+  }
+  
+  // Render nothing if we are about to redirect
+  if (!user || (userProfile && userProfile.userRole !== 'buyer')) {
+    return null;
   }
 
   return (
