@@ -454,6 +454,10 @@
         "followers": {
           "type": "number",
           "description": "Total number of followers for the shop."
+        },
+        "isLivePartner": {
+          "type": "boolean",
+          "description": "Whether the seller has unlocked full live streaming features."
         }
       },
       "required": [
