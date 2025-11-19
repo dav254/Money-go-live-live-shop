@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const ProductRowSkeleton = () => (
@@ -245,19 +246,21 @@ export default function SellerDashboardPage() {
           )}
         </div>
          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-[800px]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-3xl grid-rows-[auto_1fr] p-0 max-h-[90vh]">
+                <DialogHeader className="p-6 pb-0">
                     <DialogTitle>Edit Product</DialogTitle>
                 </DialogHeader>
-                <ProductUploadForm 
-                    productToEdit={selectedProduct} 
-                    onFormSubmit={() => setIsEditDialogOpen(false)} 
-                />
+                <ScrollArea className="h-full">
+                  <div className="p-6 pt-0">
+                    <ProductUploadForm 
+                        productToEdit={selectedProduct} 
+                        onFormSubmit={() => setIsEditDialogOpen(false)} 
+                    />
+                  </div>
+                </ScrollArea>
             </DialogContent>
         </Dialog>
       </div>
     </SellerLayout>
   );
 }
-
-    
