@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,8 +42,10 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import type { Product } from '@/lib/types';
+
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -59,13 +61,22 @@ const formSchema = z.object({
   enableDiscount: z.boolean().default(false),
 });
 
-export function ProductUploadForm() {
+interface ProductUploadFormProps {
+  productToEdit?: Product;
+  onFormSubmit?: () => void;
+}
+
+export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const [files, setFiles] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  const isEditMode = !!productToEdit;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -84,22 +95,51 @@ export function ProductUploadForm() {
     },
   });
 
+  useEffect(() => {
+    if (isEditMode && productToEdit) {
+      form.reset({
+        productName: productToEdit.name || '',
+        category: productToEdit.category || '',
+        price: productToEdit.wasPrice || productToEdit.price || 0,
+        salePrice: productToEdit.wasPrice ? productToEdit.price : 0,
+        enableDiscount: !!productToEdit.wasPrice,
+        stock: productToEdit.stock || 0,
+        tags: productToEdit.tags || '',
+        description: productToEdit.description || '',
+        shippingCost: productToEdit.shippingCost || 0,
+        location: productToEdit.location || '',
+        deliveryOptions: productToEdit.deliveryOptions || '',
+      });
+      setExistingImageUrls(productToEdit.imageUrls || []);
+      setExistingVideoUrls(productToEdit.videoUrls || []);
+    }
+  }, [productToEdit, isEditMode, form]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const newFiles = Array.from(event.target.files);
-      setFiles((prev) => [...prev, ...newFiles].slice(0, 5)); // Allow up to 5 files
+      const totalMedia = files.length + existingImageUrls.length + existingVideoUrls.length;
+      setFiles((prev) => [...prev, ...newFiles].slice(0, 5 - (existingImageUrls.length + existingVideoUrls.length)));
     }
   };
 
   const handleFileRemove = (fileName: string) => {
     setFiles((prev) => prev.filter((file) => file.name !== fileName));
   };
+  
+  const handleExistingMediaRemove = (url: string, type: 'image' | 'video') => {
+      if (type === 'image') {
+          setExistingImageUrls(prev => prev.filter(u => u !== url));
+      } else {
+          setExistingVideoUrls(prev => prev.filter(u => u !== url));
+      }
+  }
+
 
   const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
     const timestamp = Math.round((new Date()).getTime() / 1000);
     const paramsToSign = { timestamp };
     
-    // 1. Get signature from our API
     const signatureResponse = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,7 +147,6 @@ export function ProductUploadForm() {
     });
     const { signature } = await signatureResponse.json();
 
-    // 2. Upload file directly to Cloudinary
     const formData = new FormData();
     formData.append('file', file);
     formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
@@ -150,20 +189,23 @@ export function ProductUploadForm() {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to upload products.' });
         return;
     }
-    if (files.length === 0) {
+    if (files.length === 0 && existingImageUrls.length === 0 && existingVideoUrls.length === 0) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please upload at least one image or video.' });
         return;
     }
 
     setIsUploading(true);
-    toast({ title: 'Starting Uploads', description: 'Your files are being uploaded to the cloud.' });
+    toast({ title: isEditMode ? 'Updating Product...' : 'Starting Uploads', description: 'Your product is being saved.' });
 
     try {
       const uploadPromises = files.map(file => uploadToCloudinary(file));
-      const uploadedMedia = await Promise.all(uploadPromises);
+      const newUploadedMedia = await Promise.all(uploadPromises);
 
-      const imageUrls = uploadedMedia.filter(m => m.type.startsWith('image/')).map(m => m.url);
-      const videoUrls = uploadedMedia.filter(m => m.type.startsWith('video/')).map(m => m.url);
+      const newImageUrls = newUploadedMedia.filter(m => m.type.startsWith('image/')).map(m => m.url);
+      const newVideoUrls = newUploadedMedia.filter(m => m.type.startsWith('video/')).map(m => m.url);
+
+      const allImageUrls = [...existingImageUrls, ...newImageUrls];
+      const allVideoUrls = [...existingVideoUrls, ...newVideoUrls];
 
       const productData: any = {
           name: values.productName,
@@ -175,11 +217,11 @@ export function ProductUploadForm() {
           location: values.location,
           deliveryOptions: values.deliveryOptions,
           sellerId: user.uid,
-          imageUrl: imageUrls[0] || '',
-          videoUrl: videoUrls[0] || '',
-          imageUrls: imageUrls,
-          videoUrls: videoUrls,
-          uploadDate: serverTimestamp(),
+          imageUrl: allImageUrls[0] || '',
+          videoUrl: allVideoUrls[0] || '',
+          imageUrls: allImageUrls,
+          videoUrls: allVideoUrls,
+          updatedAt: serverTimestamp(),
       };
 
       if (values.enableDiscount && values.salePrice && values.salePrice < values.price) {
@@ -189,39 +231,44 @@ export function ProductUploadForm() {
           productData.price = values.price;
           productData.wasPrice = null;
       }
+      
+      if (isEditMode && productToEdit) {
+          const productRef = doc(firestore, 'products', productToEdit.id);
+          await updateDoc(productRef, productData);
+          toast({ title: 'Success!', description: 'Your product has been updated.' });
+      } else {
+          productData.uploadDate = serverTimestamp();
+          const productsCollectionRef = collection(firestore, 'products');
+          await addDoc(productsCollectionRef, productData);
+          toast({ title: 'Success!', description: 'Your product has been published.' });
+      }
 
-      const productsCollectionRef = collection(firestore, 'products');
-      addDoc(productsCollectionRef, productData).catch(error => {
-          const permissionError = new FirestorePermissionError({
-              path: productsCollectionRef.path,
-              operation: 'create',
-              requestResourceData: productData
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      });
-
-      toast({ title: 'Success!', description: 'Your product has been published with Cloudinary media.' });
       form.reset();
       setFiles([]);
+      setExistingImageUrls([]);
+      setExistingVideoUrls([]);
       setUploadProgress({});
+      onFormSubmit?.();
 
     } catch (error) {
         console.error('Error during product submission:', error);
-        toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your media. Please try again.' });
+        toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not save your product. Please try again.' });
     } finally {
       setIsUploading(false);
     }
   };
   
   const enableDiscount = form.watch('enableDiscount');
+  
+  const allMediaCount = files.length + existingImageUrls.length + existingVideoUrls.length;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Add New Product</CardTitle>
-            <CardDescription>Upload media to Cloudinary and fill in the details.</CardDescription>
+            <CardTitle className="font-headline text-2xl">{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
+            <CardDescription>{isEditMode ? 'Update the details of your product.' : 'Upload media to Cloudinary and fill in the details.'}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             {/* Media Upload Section */}
@@ -236,20 +283,36 @@ export function ProductUploadForm() {
                       className="relative cursor-pointer rounded-md bg-background font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
                     >
                       <span>Upload files</span>
-                      <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} accept="image/*,video/*" />
+                      <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} accept="image/*,video/*" disabled={allMediaCount >=5}/>
                     </label>
                     <p className="pl-1">or drag and drop</p>
                   </div>
-                  <p className="text-xs leading-5 text-gray-500">PNG, JPG, GIF, MP4, MOV up to 100MB</p>
+                  <p className="text-xs leading-5 text-gray-500">Up to 5 files (PNG, JPG, MP4, etc.). Max 100MB each.</p>
                 </div>
               </div>
             </div>
 
             {/* Preview Gallery Section */}
-            {files.length > 0 && (
+            {allMediaCount > 0 && (
               <div className="space-y-4">
-                <FormLabel>Uploaded Media Preview</FormLabel>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <FormLabel>Media Preview</FormLabel>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {existingImageUrls.map((url) => (
+                      <div key={url} className="relative group aspect-square rounded-md overflow-hidden border">
+                          <Image src={url} alt="Existing product media" fill className="object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleExistingMediaRemove(url, 'image')}><Trash2 size={16} /></Button>
+                          </div>
+                      </div>
+                  ))}
+                   {existingVideoUrls.map((url) => (
+                      <div key={url} className="relative group aspect-square rounded-md overflow-hidden border">
+                          <video src={url} className="h-full w-full object-cover" muted loop autoPlay />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleExistingMediaRemove(url, 'video')}><Trash2 size={16} /></Button>
+                          </div>
+                      </div>
+                  ))}
                   {files.map((file) => (
                     <div key={file.name} className="relative group aspect-square rounded-md overflow-hidden border">
                       {file.type.startsWith('image/') ? (
@@ -464,7 +527,7 @@ export function ProductUploadForm() {
           <CardFooter className="flex justify-end gap-2">
             <Button type="button" variant="outline">Save as Draft</Button>
             <Button type="submit" disabled={isUploading}>
-              {isUploading ? 'Publishing...' : 'Publish Product'}
+              {isUploading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Publish Product')}
             </Button>
           </CardFooter>
         </Card>

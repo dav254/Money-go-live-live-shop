@@ -43,10 +43,12 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { Product } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { ProductUploadForm } from './product-upload-form';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 
 
 type ProductRow = Product & {
@@ -55,153 +57,180 @@ type ProductRow = Product & {
 }
 
 
-export const columns: ColumnDef<ProductRow>[] = [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && 'indeterminate')
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: 'name',
-    header: 'Product',
-    cell: ({ row }) => (
-        <div className="flex items-center gap-4">
-            <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                <Image 
-                    src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
-                    alt={row.original.name || 'Product image'} 
-                    fill 
-                    className="object-cover" 
-                />
-            </div>
-            <div className="font-medium capitalize">{row.getValue('name')}</div>
-        </div>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-        const stock = row.original.stock;
-        const status = stock > 0 ? 'active' : 'out-of-stock';
-        const variant = status === 'active' ? 'default' : 'destructive';
-        
-        return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status.replace('-', ' ')}</Badge>
-    }
-  },
-  {
-    accessorKey: 'price',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          className="text-right w-full justify-end"
-        >
-          Price
-          <CaretSortIcon className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('price'));
-      const formatted = new Intl.NumberFormat('en-US').format(amount);
-
-      return <div className="text-right font-medium">{formatted}</div>;
-    },
-  },
-   {
-    accessorKey: 'stock',
-    header: ({ column }) => (
-         <div className="text-center">Stock</div>
-    ),
-    cell: ({ row }) => <div className="text-center">{row.getValue('stock')}</div>,
-  },
-    {
-    accessorKey: 'sales',
-    header: ({ column }) => (
-         <div className="text-right">Total Sales</div>
-    ),
-    cell: ({ row }) => {
-        const amount = 0; // Placeholder for sales data
-        const formatted = new Intl.NumberFormat('en-US').format(amount);
-        return <div className="text-right">{formatted}</div>;
-    },
-  },
-  {
-    accessorKey: 'inCartCount',
-    header: () => <div className="text-center">In Carts</div>,
-    cell: ({ row }) => <div className="text-center font-bold text-primary">{row.original.inCartCount || 0}</div>,
-  },
-  {
-    id: 'actions',
-    enableHiding: false,
-    cell: ({ row }) => {
-      const product = row.original;
-
-      return (
-        <Dialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <DotsHorizontalIcon className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(product.id)}
-              >
-                Copy product ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>View product page</DropdownMenuItem>
-              <DialogTrigger asChild>
-                <DropdownMenuItem>Edit product</DropdownMenuItem>
-              </DialogTrigger>
-              <DropdownMenuItem className="text-destructive">Delete product</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DialogContent className="sm:max-w-[800px]">
-            <DialogHeader>
-              <DialogTitle>Edit Product</DialogTitle>
-            </DialogHeader>
-            <ProductUploadForm />
-          </DialogContent>
-        </Dialog>
-      );
-    },
-  },
-];
-
 export function MyProductsTable() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | undefined>(undefined);
 
   const productsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
   }, [firestore, user]);
 
-  const { data: productsData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  const { data: productsData, isLoading: areProductsLoading, error } = useCollection<Product>(productsQuery);
+
+  const handleDelete = async (productId: string) => {
+    if (!firestore) return;
+    const productRef = doc(firestore, 'products', productId);
+    try {
+        await deleteDoc(productRef);
+        toast({ title: "Product Deleted", description: "The product has been successfully removed." });
+    } catch (e) {
+        console.error("Error deleting product: ", e);
+        toast({ variant: 'destructive', title: "Error", description: "Could not delete the product." });
+    }
+  };
+  
+  const handleEditOpen = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  }
+
+  const columns: ColumnDef<ProductRow>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'name',
+      header: 'Product',
+      cell: ({ row }) => (
+          <div className="flex items-center gap-4">
+              <div className="relative h-12 w-12 rounded-md overflow-hidden">
+                  <Image 
+                      src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
+                      alt={row.original.name || 'Product image'} 
+                      fill 
+                      className="object-cover" 
+                  />
+              </div>
+              <div className="font-medium capitalize">{row.getValue('name')}</div>
+          </div>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+          const stock = row.original.stock;
+          const status = stock > 0 ? 'active' : 'out-of-stock';
+          const variant = status === 'active' ? 'default' : 'destructive';
+          
+          return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status.replace('-', ' ')}</Badge>
+      }
+    },
+    {
+      accessorKey: 'price',
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="text-right w-full justify-end"
+          >
+            Price
+            <CaretSortIcon className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const amount = parseFloat(row.getValue('price'));
+        const formatted = new Intl.NumberFormat('en-US').format(amount);
+
+        return <div className="text-right font-medium">{formatted}</div>;
+      },
+    },
+     {
+      accessorKey: 'stock',
+      header: ({ column }) => (
+           <div className="text-center">Stock</div>
+      ),
+      cell: ({ row }) => <div className="text-center">{row.getValue('stock')}</div>,
+    },
+      {
+      accessorKey: 'sales',
+      header: ({ column }) => (
+           <div className="text-right">Total Sales</div>
+      ),
+      cell: ({ row }) => {
+          const amount = 0; // Placeholder for sales data
+          const formatted = new Intl.NumberFormat('en-US').format(amount);
+          return <div className="text-right">{formatted}</div>;
+      },
+    },
+    {
+      accessorKey: 'inCartCount',
+      header: () => <div className="text-center">In Carts</div>,
+      cell: ({ row }) => <div className="text-center font-bold text-primary">{row.original.inCartCount || 0}</div>,
+    },
+    {
+      id: 'actions',
+      enableHiding: false,
+      cell: ({ row }) => {
+        const product = row.original;
+
+        return (
+          <AlertDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <DotsHorizontalIcon className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => navigator.clipboard.writeText(product.id)}
+                >
+                  Copy product ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>View product page</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleEditOpen(product)}>Edit product</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive">Delete product</DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete "{product.name}". This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDelete(product.id)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        );
+      },
+    },
+  ];
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -352,8 +381,17 @@ export function MyProductsTable() {
           </Button>
         </div>
       </div>
+       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[800px]">
+                <DialogHeader>
+                    <DialogTitle>Edit Product</DialogTitle>
+                </DialogHeader>
+                <ProductUploadForm 
+                    productToEdit={selectedProduct} 
+                    onFormSubmit={() => setIsEditDialogOpen(false)} 
+                />
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
-
-    
