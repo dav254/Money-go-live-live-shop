@@ -9,8 +9,9 @@ import { VideoActions } from './video-actions';
 import { ProductDrawer } from './product-drawer';
 import { Button } from '../ui/button';
 import Link from 'next/link';
-import { useUser } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { ProductInfo } from '../live/product-info';
+import { doc, increment, writeBatch } from 'firebase/firestore';
 
 interface VideoCardProps {
   item: VideoFeedItem;
@@ -20,6 +21,17 @@ interface VideoCardProps {
 export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const handleLike = () => {
+    if (!firestore || !item.product.id) return;
+    const productRef = doc(firestore, 'products', item.product.id);
+    
+    // Non-blocking update
+    const batch = writeBatch(firestore);
+    batch.update(productRef, { likes: increment(1) });
+    batch.commit().catch(console.error);
+  };
 
   return (
     <div className="relative h-full w-full bg-black">
@@ -56,6 +68,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
 
       <VideoActions 
         initialLikes={item.likes}
+        onLike={handleLike}
         onProductClick={() => setIsDrawerOpen(true)}
         onScroll={onScroll}
       />

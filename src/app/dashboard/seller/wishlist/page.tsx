@@ -1,4 +1,6 @@
 
+'use client';
+
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,78 +10,128 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { products } from '@/lib/placeholder-data';
 import { BarChart2, Heart, PlusCircle, Tag, TrendingUp, Sparkles, Pencil, Trash2 } from 'lucide-react';
 import Image from 'next/image';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import type { Product } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
-const favoriteProducts = [
-  products[0],
-  products[3],
-  products[4],
-];
+const ProductSkeleton = () => (
+    <Card className="group overflow-hidden">
+        <div className="relative aspect-video bg-muted">
+            <Skeleton className="h-full w-full" />
+        </div>
+        <CardContent className="p-4">
+            <Skeleton className="h-4 w-3/4" />
+            <div className="mt-2 flex items-center justify-between">
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-6 w-1/4" />
+            </div>
+            <div className="mt-4 flex gap-2">
+                <Skeleton className="h-9 w-1/2" />
+                <Skeleton className="h-9 w-1/2" />
+            </div>
+        </CardContent>
+    </Card>
+);
+
 
 export default function SellerWishlistPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const mostLikedProductsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(
+      collection(firestore, 'products'),
+      where('sellerId', '==', user.uid),
+      orderBy('likes', 'desc'),
+      limit(10)
+    );
+  }, [firestore, user]);
+
+  const { data: favoriteProducts, isLoading } = useCollection<Product>(mostLikedProductsQuery);
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
-            My Wishlist & Favorites
+            Product Popularity
           </h1>
-           <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Product to Favorites
-            </Button>
         </div>
 
         <Tabs defaultValue="favorites">
           <TabsList>
-            <TabsTrigger value="favorites">My Favorite Products</TabsTrigger>
+            <TabsTrigger value="favorites">Most Wishlisted</TabsTrigger>
             <TabsTrigger value="campaigns">Saved Campaigns</TabsTrigger>
             <TabsTrigger value="trends">Market Trends</TabsTrigger>
           </TabsList>
           <TabsContent value="favorites" className="mt-6">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {favoriteProducts.map((product) => (
-                <Card key={product.id} className="group overflow-hidden">
-                  <div className="relative aspect-video">
-                    <Image
-                      src={product.image.imageUrl}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                      data-ai-hint={product.image.imageHint}
-                    />
-                     <div className="absolute top-2 right-2 flex gap-1">
-                          <Button size="icon" variant="destructive" className="h-8 w-8 rounded-full">
-                            <Heart className="h-4 w-4" fill="white" />
-                          </Button>
-                     </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-headline font-semibold truncate">
-                      {product.name}
-                    </h3>
-                    <div className="mt-2 flex items-center justify-between">
-                      <p className="text-lg font-bold text-primary">
-                        {product.price.toLocaleString()}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {product.stock} in stock
-                      </p>
-                    </div>
-                    <div className="mt-4 flex gap-2">
-                        <Button size="sm" className="flex-1">
-                            <Sparkles className="mr-2 h-4 w-4" /> Promote
-                        </Button>
-                        <Button size="sm" variant="secondary" className="flex-1">
-                            Add to Live
-                        </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Your Most Popular Products</CardTitle>
+                    <p className="text-muted-foreground">Products most frequently wishlisted by buyers.</p>
+                </CardHeader>
+                <CardContent>
+                    {isLoading ? (
+                         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)}
+                        </div>
+                    ) : favoriteProducts && favoriteProducts.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {favoriteProducts.map((product) => (
+                                <Card key={product.id} className="group overflow-hidden">
+                                <div className="relative aspect-video">
+                                    <Image
+                                    src={product.imageUrl || product.image?.imageUrl || '/placeholder.svg'}
+                                    alt={product.name || 'Product'}
+                                    fill
+                                    className="object-cover"
+                                    data-ai-hint={product.image?.imageHint}
+                                    />
+                                    <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-xs text-white">
+                                        <Heart className="h-3 w-3" fill="white" />
+                                        <span>{product.likes || 0}</span>
+                                    </div>
+                                </div>
+                                <CardContent className="p-4">
+                                    <h3 className="font-headline font-semibold truncate">
+                                    {product.name}
+                                    </h3>
+                                    <div className="mt-2 flex items-center justify-between">
+                                    <p className="text-lg font-bold text-primary">
+                                        ${product.price.toLocaleString()}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {product.stock} in stock
+                                    </p>
+                                    </div>
+                                    <div className="mt-4 flex gap-2">
+                                        <Button size="sm" className="flex-1">
+                                            <Sparkles className="mr-2 h-4 w-4" /> Promote
+                                        </Button>
+                                        <Button asChild size="sm" variant="secondary" className="flex-1">
+                                            <Link href="/dashboard/live/start">Add to Live</Link>
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                            <Heart className="h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-xl font-semibold">No Wishlisted Products</h3>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                When buyers add your products to their wishlist, they will appear here.
+                            </p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="campaigns" className="mt-6">
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
