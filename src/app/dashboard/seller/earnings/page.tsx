@@ -31,7 +31,7 @@ import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, Payout } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string, icon: React.ElementType, description?: string }) => (
@@ -43,7 +43,7 @@ const StatCard = ({ title, value, icon: Icon, description }: { title: string, va
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-bold">${value}</div>
         {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </CardContent>
     </Card>
@@ -72,17 +72,23 @@ export default function SellerEarningsPage() {
         return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+    const payoutsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
 
-    const isLoading = isUserLoading || areOrdersLoading;
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+    const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
+
+    const isLoading = isUserLoading || areOrdersLoading || arePayoutsLoading;
 
     const stats = React.useMemo(() => {
-        if (!orders) {
+        if (!orders || !payouts) {
             return {
                 totalRevenue: 0,
                 salesToday: 0,
                 platformFees: 0,
-                totalPayouts: 0, // Static for now
+                totalPayouts: 0,
             };
         }
 
@@ -99,14 +105,18 @@ export default function SellerEarningsPage() {
         
         const platformFees = totalRevenue * 0.10; // Assuming a 10% fee
 
+        const totalPayouts = payouts
+            .filter(p => p.status === 'completed')
+            .reduce((sum, p) => sum + p.amount, 0);
+
         return {
             totalRevenue,
             salesToday,
             platformFees,
-            totalPayouts: 48400, // Static placeholder
+            totalPayouts,
         };
 
-    }, [orders]);
+    }, [orders, payouts]);
 
     const recentTransactions = React.useMemo(() => {
         if (!orders) return [];
@@ -146,25 +156,25 @@ export default function SellerEarningsPage() {
             <>
                 <StatCard 
                     title="Total Revenue"
-                    value={stats.totalRevenue.toLocaleString()}
+                    value={stats.totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}
                     icon={DollarSign}
                     description="From completed sales"
                 />
                  <StatCard 
                     title="Total Payouts"
-                    value={stats.totalPayouts.toLocaleString()}
+                    value={stats.totalPayouts.toLocaleString(undefined, {minimumFractionDigits: 2})}
                     icon={Banknote}
                     description="Successfully sent to your account"
                 />
                  <StatCard 
                     title="Sales Today"
-                    value={stats.salesToday.toLocaleString()}
+                    value={stats.salesToday.toLocaleString(undefined, {minimumFractionDigits: 2})}
                     icon={Package}
                     description="Live sales from today"
                 />
                  <StatCard 
                     title="Platform Fees"
-                    value={stats.platformFees.toLocaleString()}
+                    value={stats.platformFees.toLocaleString(undefined, {minimumFractionDigits: 2})}
                     icon={CircleDollarSign}
                     description="Total commission paid to MoneyGo"
                 />
@@ -205,7 +215,7 @@ export default function SellerEarningsPage() {
                     recentTransactions.map((tx) => (
                     <TableRow key={tx.id}>
                         <TableCell className="font-medium">#{tx.id.substring(0,6)}...</TableCell>
-                        <TableCell>{tx.totalAmount.toLocaleString()}</TableCell>
+                        <TableCell>${tx.totalAmount.toLocaleString()}</TableCell>
                         <TableCell>
                         <Badge variant={'default'} className={'bg-green-600/80'}>
                             {tx.orderStatus}

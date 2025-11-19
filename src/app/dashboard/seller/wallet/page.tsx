@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,7 +44,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -63,9 +63,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { PayoutMethod, Payout } from '@/lib/types';
+import type { PayoutMethod, Payout, Order } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FirestorePermissionError } from '@/firebase/errors';
 
@@ -253,7 +253,7 @@ const WithdrawFundsDialog = ({ balance, payoutMethods }: { balance: number, payo
             <DialogHeader>
                 <DialogTitle>Request a Withdrawal</DialogTitle>
                 <DialogDescription>
-                    Your available balance is <span className="font-bold text-primary">${balance.toLocaleString()}</span>. 
+                    Your available balance is <span className="font-bold text-primary">${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>. 
                     Requests are processed within 2-3 business days.
                 </DialogDescription>
             </DialogHeader>
@@ -306,34 +306,74 @@ const WithdrawFundsDialog = ({ balance, payoutMethods }: { balance: number, payo
     );
 };
 
+const StatCard = ({ title, value, icon: Icon, description, isLoading }: { title: string, value: string | ReactNode, icon: React.ElementType, description?: string, isLoading?: boolean }) => (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          {title}
+        </CardTitle>
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+            <>
+                <Skeleton className="h-8 w-3/4 mb-2" />
+                <Skeleton className="h-3 w-full" />
+            </>
+        ) : (
+            <>
+                <div className="text-3xl font-bold">{value}</div>
+                {description && <p className="text-xs text-muted-foreground">{description}</p>}
+            </>
+        )}
+      </CardContent>
+    </Card>
+);
 
 export default function SellerWalletPage() {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
-  const walletData = {
-    totalRevenue: 52600.0,
-    payouts: 48400.0,
-    platformFees: 4200.00,
-  };
+  // Fetching data
+  const ordersQuery = useMemoFirebase(() => {
+      if (!user) return null;
+      return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('orderStatus', 'in', ['delivered', 'shipped']));
+  }, [firestore, user]);
 
-  const availableBalance = walletData.totalRevenue - walletData.payouts - walletData.platformFees;
-
-  const transactions = [
-    { type: 'payout', amount: -15000.00, date: '2024-08-25 18:00', balance: 3400.50, description: 'Withdrawal to M-Pesa' },
-    { type: 'sale', amount: 950.00, date: '2024-08-26 14:30', balance: 4200.50, description: 'Order #ORD-001' },
-    { type: 'sale', amount: 1200.00, date: '2024-08-24 11:45', balance: 8100.50, description: 'Order #ORD-002' },
-  ];
+  const payoutsQuery = useMemoFirebase(() => {
+      if (!user) return null;
+      return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
   
   const payoutMethodsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
   }, [firestore, user]);
 
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+  const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
   const { data: payoutMethods, isLoading: isLoadingMethods } = useCollection<PayoutMethod>(payoutMethodsQuery);
+
+  const isLoading = isUserLoading || areOrdersLoading || arePayoutsLoading;
+
+  // Memoized calculations
+  const { totalRevenue, totalPaidOut, platformFees, availableBalance } = useMemo(() => {
+      const revenue = orders?.reduce((sum, o) => sum + o.totalAmount, 0) || 0;
+      const paidOut = payouts?.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0) || 0;
+      const fees = revenue * 0.10; // Assuming 10% fee
+      const balance = revenue - fees - paidOut;
+
+      return {
+          totalRevenue: revenue,
+          totalPaidOut: paidOut,
+          platformFees: fees,
+          availableBalance: balance
+      };
+  }, [orders, payouts]);
+
 
   const handleDeleteMethod = async (methodId: string) => {
     if (!user || !firestore) return;
@@ -364,7 +404,7 @@ export default function SellerWalletPage() {
           </h1>
            <Dialog open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
               <DialogTrigger asChild>
-                <Button variant="destructive" className="font-bold text-lg px-6" disabled={!payoutMethods || payoutMethods.length === 0}>
+                <Button variant="destructive" className="font-bold text-lg px-6" disabled={!payoutMethods || payoutMethods.length === 0 || availableBalance <= 0}>
                     Withdraw Funds <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </DialogTrigger>
@@ -374,36 +414,27 @@ export default function SellerWalletPage() {
 
         {/* Wallet Balance Overview */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="bg-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Available for Payout</CardTitle>
-              <Wallet className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">${availableBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-              <p className="text-xs text-muted-foreground">This is your current withdrawable balance.</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Paid Out</CardTitle>
-              <CreditCard className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">${walletData.payouts.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Funds successfully sent to you.</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Platform Fees</CardTitle>
-              <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">${walletData.platformFees.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Commission paid to MoneyGo.</p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Available for Payout"
+            value={`$${availableBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+            icon={Wallet}
+            description="This is your current withdrawable balance."
+            isLoading={isLoading}
+          />
+          <StatCard
+            title="Total Paid Out"
+            value={`$${totalPaidOut.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+            icon={CreditCard}
+            description="Funds successfully sent to you."
+            isLoading={isLoading}
+          />
+          <StatCard
+            title="Total Platform Fees"
+            value={`$${platformFees.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+            icon={CircleDollarSign}
+            description="10% commission paid to MoneyGo."
+            isLoading={isLoading}
+          />
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -412,38 +443,43 @@ export default function SellerWalletPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2"><History /> Payout History</CardTitle>
-                    <CardDescription>A record of all your wallet activities.</CardDescription>
+                    <CardDescription>A record of your recent withdrawal requests.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Date & Time</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead className="text-right">New Balance</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Method</TableHead>
+                          <TableHead className="text-right">Transaction ID</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {transactions.map((tx, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="text-muted-foreground">{tx.date}</TableCell>
-                            <TableCell>
-                              <Badge variant={ tx.type === 'payout' ? 'destructive' : 'secondary'}>
-                                {tx.type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{tx.description}</TableCell>
-                            <TableCell className={`text-right font-semibold ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </TableCell>
-                             <TableCell className="text-right">{tx.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        {arePayoutsLoading ? (
+                             [...Array(3)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell colSpan={5}><Skeleton className="h-6" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : payouts && payouts.length > 0 ? (
+                          payouts.map((payout) => (
+                          <TableRow key={payout.id}>
+                            <TableCell>{payout.requestedAt?.toDate().toLocaleDateString()}</TableCell>
+                            <TableCell className="font-semibold">${payout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell><Badge variant={payout.status === 'completed' ? 'default' : 'secondary'} className={payout.status === 'completed' ? 'bg-green-600/80' : ''}>{payout.status}</Badge></TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{payout.payoutMethodInfo}</TableCell>
+                            <TableCell className="text-right text-xs text-muted-foreground">{payout.transactionId || 'N/A'}</TableCell>
                           </TableRow>
-                        ))}
+                        ))) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">No payout history.</TableCell>
+                            </TableRow>
+                        )}
                       </TableBody>
                     </Table>
-                     <Button variant="link" className="mt-4">View all transactions</Button>
+                     <Button variant="link" className="mt-4 px-0">View all transactions</Button>
                   </CardContent>
                 </Card>
             </div>
