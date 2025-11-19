@@ -187,6 +187,19 @@ export interface PayoutMethod {
   country?: string;
 }
 
+export interface Payout {
+    id: string;
+    sellerId: string;
+    amount: number;
+    payoutMethodId: string;
+    payoutMethodInfo: string; // e.g., "PayPal: seller@example.com"
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    requestedAt: Timestamp;
+    processedAt?: Timestamp;
+    transactionId?: string; // ID from payment gateway
+    adminNotes?: string;
+}
+
 
 export interface VideoFeedItem {
   id: string;

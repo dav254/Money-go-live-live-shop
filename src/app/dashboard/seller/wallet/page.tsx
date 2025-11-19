@@ -40,11 +40,11 @@ import {
   Landmark,
   Mail,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
+import { collection, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -65,7 +65,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { PayoutMethod } from '@/lib/types';
+import type { PayoutMethod, Payout } from '@/lib/types';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 const paypalFormSchema = z.object({
@@ -77,6 +79,11 @@ const bankFormSchema = z.object({
   accountNumber: z.string().min(5, "Account number is required."),
   bankName: z.string().min(2, "Bank name is required."),
   country: z.string().min(2, "Country is required."),
+});
+
+const withdrawSchema = (maxAmount: number) => z.object({
+  amount: z.coerce.number().min(1, 'Amount must be greater than 0.').max(maxAmount, `Amount cannot exceed available balance of ${maxAmount}.`),
+  payoutMethodId: z.string().min(1, 'You must select a payout method.'),
 });
 
 
@@ -189,18 +196,131 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
     );
 };
 
+const WithdrawFundsDialog = ({ balance, payoutMethods }: { balance: number, payoutMethods: PayoutMethod[] }) => {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [isRequesting, setIsRequesting] = useState(false);
+
+    const form = useForm<z.infer<typeof withdrawSchema>>({
+        resolver: zodResolver(withdrawSchema(balance)),
+        defaultValues: { amount: balance, payoutMethodId: '' },
+    });
+    
+    const handleWithdraw = async (values: z.infer<typeof withdrawSchema>) => {
+        if (!user || !firestore) return;
+        setIsRequesting(true);
+
+        const selectedMethod = payoutMethods.find(pm => pm.id === values.payoutMethodId);
+        if (!selectedMethod) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Invalid payout method selected.' });
+            setIsRequesting(false);
+            return;
+        }
+        
+        try {
+            const payoutsRef = collection(firestore, 'payouts');
+            const newPayoutData: Omit<Payout, 'id'> = {
+                sellerId: user.uid,
+                amount: values.amount,
+                payoutMethodId: selectedMethod.id,
+                payoutMethodInfo: `${selectedMethod.type}: ${selectedMethod.details}`,
+                status: 'pending',
+                requestedAt: serverTimestamp() as any,
+            };
+
+            await addDoc(payoutsRef, newPayoutData).catch(error => {
+                const permissionError = new FirestorePermissionError({
+                    path: payoutsRef.path,
+                    operation: 'create',
+                    requestResourceData: newPayoutData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
+
+            toast({ title: 'Success', description: 'Your withdrawal request has been submitted for processing.' });
+            // Here you would typically close the dialog
+        } catch (error) {
+             console.error("Error submitting payout request:", error);
+             toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your withdrawal request.' });
+        } finally {
+            setIsRequesting(false);
+        }
+    };
+
+    return (
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Request a Withdrawal</DialogTitle>
+                <DialogDescription>
+                    Your available balance is <span className="font-bold text-primary">${balance.toLocaleString()}</span>. 
+                    Requests are processed within 2-3 business days.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleWithdraw)} className="space-y-6">
+                    <FormField control={form.control} name="amount" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Amount to Withdraw (USD)</FormLabel>
+                            <FormControl>
+                                <Input type="number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    
+                    <FormField control={form.control} name="payoutMethodId" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Send to</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-col gap-3">
+                                    {payoutMethods.map(pm => (
+                                        <FormItem key={pm.id} className="flex items-center space-x-3 space-y-0 rounded-lg border p-3 has-[:checked]:border-primary">
+                                            <FormControl>
+                                                <RadioGroupItem value={pm.id} />
+                                            </FormControl>
+                                            <FormLabel className="font-normal flex items-center gap-3 w-full">
+                                                {pm.type === 'paypal' ? <Mail className="h-5 w-5 text-muted-foreground" /> : <Landmark className="h-5 w-5 text-muted-foreground" />}
+                                                <div>
+                                                    <p className="font-semibold uppercase">{pm.type}</p>
+                                                    <p className="text-sm text-muted-foreground">{pm.details}</p>
+                                                </div>
+                                            </FormLabel>
+                                        </FormItem>
+                                    ))}
+                                </RadioGroup>
+                            </FormControl>
+                             <FormMessage />
+                        </FormItem>
+                    )} />
+                    
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isRequesting}>
+                             {isRequesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Confirm Withdrawal'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    );
+};
+
 
 export default function SellerWalletPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
   const walletData = {
     totalRevenue: 52600.0,
     payouts: 48400.0,
     platformFees: 4200.00,
   };
+
+  const availableBalance = walletData.totalRevenue - walletData.payouts - walletData.platformFees;
 
   const transactions = [
     { type: 'payout', amount: -15000.00, date: '2024-08-25 18:00', balance: 3400.50, description: 'Withdrawal to M-Pesa' },
@@ -242,9 +362,14 @@ export default function SellerWalletPage() {
           <h1 className="font-headline text-3xl font-bold tracking-tight">
             Seller Wallet
           </h1>
-          <Button variant="destructive" className="font-bold text-lg px-6">
-            Withdraw Funds <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+           <Dialog open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
+              <DialogTrigger asChild>
+                <Button variant="destructive" className="font-bold text-lg px-6" disabled={!payoutMethods || payoutMethods.length === 0}>
+                    Withdraw Funds <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              {payoutMethods && <WithdrawFundsDialog balance={availableBalance} payoutMethods={payoutMethods} />}
+            </Dialog>
         </div>
 
         {/* Wallet Balance Overview */}
@@ -255,8 +380,8 @@ export default function SellerWalletPage() {
               <Wallet className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-primary">{walletData.totalRevenue.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">This is your total earned revenue.</p>
+              <div className="text-3xl font-bold text-primary">${availableBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+              <p className="text-xs text-muted-foreground">This is your current withdrawable balance.</p>
             </CardContent>
           </Card>
           <Card>
@@ -265,7 +390,7 @@ export default function SellerWalletPage() {
               <CreditCard className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{walletData.payouts.toLocaleString()}</div>
+              <div className="text-3xl font-bold">${walletData.payouts.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Funds successfully sent to you.</p>
             </CardContent>
           </Card>
@@ -275,7 +400,7 @@ export default function SellerWalletPage() {
               <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{walletData.platformFees.toLocaleString()}</div>
+              <div className="text-3xl font-bold">${walletData.platformFees.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">Commission paid to MoneyGo.</p>
             </CardContent>
           </Card>

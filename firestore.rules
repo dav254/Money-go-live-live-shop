@@ -78,6 +78,14 @@ service cloud.firestore {
 
       allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
+    
+    // Payout requests can only be created by the seller themselves.
+    // Admins can read and update them.
+    match /payouts/{payoutId} {
+      allow read: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow update: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
 
     // Categories are publicly readable
     match /categories/{categoryId} {
