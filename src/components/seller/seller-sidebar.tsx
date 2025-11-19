@@ -24,6 +24,7 @@ import {
   User,
   MessageSquare,
   Bookmark,
+  RadioTower,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -90,11 +91,23 @@ export function SellerSidebar() {
             <SidebarMenuButton
               asChild
               isActive={isActive('/dashboard/seller/live')}
-               tooltip="Live Selling"
+               tooltip="Live"
             >
               <Link href="/dashboard/seller/live">
                 <Video />
-                <span>Live Selling</span>
+                <span>Live</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive('/dashboard/seller/studio')}
+               tooltip="Studio"
+            >
+              <Link href="/dashboard/seller/studio">
+                <RadioTower />
+                <span>Studio</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
