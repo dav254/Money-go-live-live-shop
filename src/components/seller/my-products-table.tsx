@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   DotsHorizontalIcon,
 } from '@radix-ui/react-icons';
+import { differenceInDays, addDays, formatDistanceToNow } from 'date-fns';
 
 import {
   ColumnDef,
@@ -114,19 +115,22 @@ export function MyProductsTable() {
     {
       accessorKey: 'name',
       header: 'Product',
-      cell: ({ row }) => (
-          <div className="flex items-center gap-4">
-              <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                  <Image 
-                      src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
-                      alt={row.original.name || 'Product image'} 
-                      fill 
-                      className="object-cover" 
-                  />
-              </div>
-              <div className="font-medium capitalize">{row.getValue('name')}</div>
-          </div>
-      ),
+      cell: ({ row }) => {
+          const isExpired = row.original.uploadDate && differenceInDays(new Date(), row.original.uploadDate.toDate()) > 30;
+          return (
+            <div className={cn("flex items-center gap-4", isExpired && "opacity-50")}>
+                <div className="relative h-12 w-12 rounded-md overflow-hidden">
+                    <Image 
+                        src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
+                        alt={row.original.name || 'Product image'} 
+                        fill 
+                        className="object-cover" 
+                    />
+                </div>
+                <div className="font-medium capitalize">{row.getValue('name')}</div>
+            </div>
+          )
+      },
     },
     {
       accessorKey: 'status',
@@ -136,7 +140,7 @@ export function MyProductsTable() {
           const status = stock > 0 ? 'active' : 'out-of-stock';
           const variant = status === 'active' ? 'default' : 'destructive';
           
-          return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status.replace('-', ' ')}</Badge>
+          return <Badge variant={variant} className={cn(`capitalize`, status === 'active' ? 'bg-green-600/80' : '')}>{status.replace('-', ' ')}</Badge>
       }
     },
     {
@@ -167,21 +171,23 @@ export function MyProductsTable() {
       ),
       cell: ({ row }) => <div className="text-center">{row.getValue('stock')}</div>,
     },
-      {
-      accessorKey: 'sales',
-      header: ({ column }) => (
-           <div className="text-right">Total Sales</div>
-      ),
-      cell: ({ row }) => {
-          const amount = 0; // Placeholder for sales data
-          const formatted = new Intl.NumberFormat('en-US').format(amount);
-          return <div className="text-right">{formatted}</div>;
-      },
-    },
     {
-      accessorKey: 'inCartCount',
-      header: () => <div className="text-center">In Carts</div>,
-      cell: ({ row }) => <div className="text-center font-bold text-primary">{row.original.inCartCount || 0}</div>,
+        accessorKey: 'uploadDate',
+        header: 'Expires',
+        cell: ({ row }) => {
+            const uploadDate = row.original.uploadDate?.toDate();
+            if (!uploadDate) return <div className="text-center">-</div>;
+
+            const expiryDate = addDays(uploadDate, 30);
+            const now = new Date();
+            const isExpired = expiryDate < now;
+            
+            if (isExpired) {
+                return <Badge variant="destructive">Expired</Badge>
+            }
+
+            return <div className="text-sm text-muted-foreground">{formatDistanceToNow(expiryDate, { addSuffix: true })}</div>;
+        }
     },
     {
       id: 'actions',
@@ -208,6 +214,7 @@ export function MyProductsTable() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>View product page</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleEditOpen(product)}>Edit product</DropdownMenuItem>
+                 <DropdownMenuItem>Relist Product</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <AlertDialogTrigger asChild>
                     <DropdownMenuItem className="text-destructive">Delete product</DropdownMenuItem>
