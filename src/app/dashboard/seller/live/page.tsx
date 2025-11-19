@@ -9,6 +9,7 @@ import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
 import { MainLayout } from '@/components/layout/main-layout';
+import { cn } from '@/lib/utils';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
@@ -148,7 +149,13 @@ export default function SellerLivePage() {
             <div className="relative h-[calc(100vh-4rem)]">
                 <div 
                     ref={scrollContainerRef}
-                    className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
+                    className={cn(
+                        "h-full w-full snap-y snap-mandatory overflow-y-scroll",
+                        // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
+                        "[&::-webkit-scrollbar]:hidden",
+                        // This will hide the scrollbar in Firefox
+                        "scrollbar-hide"
+                    )}
                 >
                 {feedMediaItems && feedMediaItems.length > 0 ? (
                     feedMediaItems.map((item) => (
