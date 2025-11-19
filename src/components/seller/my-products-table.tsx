@@ -73,7 +73,7 @@ export function MyProductsTable() {
 
   const { data: productsData, isLoading: areProductsLoading, error } = useCollection<Product>(productsQuery);
 
-  const handleDelete = async (productId: string) => {
+  const handleDelete = React.useCallback(async (productId: string) => {
     if (!firestore) return;
     const productRef = doc(firestore, 'products', productId);
     try {
@@ -83,14 +83,14 @@ export function MyProductsTable() {
         console.error("Error deleting product: ", e);
         toast({ variant: 'destructive', title: "Error", description: "Could not delete the product." });
     }
-  };
+  }, [firestore, toast]);
   
-  const handleEditOpen = (product: Product) => {
+  const handleEditOpen = React.useCallback((product: Product) => {
     setSelectedProduct(product);
     setIsEditDialogOpen(true);
-  }
+  }, []);
 
-  const columns: ColumnDef<ProductRow>[] = [
+  const columns: ColumnDef<ProductRow>[] = React.useMemo(() => [
     {
       id: 'select',
       header: ({ table }) => (
@@ -238,7 +238,7 @@ export function MyProductsTable() {
         );
       },
     },
-  ];
+  ], [handleDelete, handleEditOpen]);
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
