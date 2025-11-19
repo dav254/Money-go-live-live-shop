@@ -23,6 +23,7 @@ import {
   Home,
   User,
   MessageSquare,
+  Bookmark,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -122,10 +123,10 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}  tooltip="Favorites">
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/wishlist')}  tooltip="My Wishlist">
               <Link href="/dashboard/seller/wishlist">
-                <Heart />
-                <span>Favorites</span>
+                <Bookmark />
+                <span>My Wishlist</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -164,6 +164,8 @@ export interface Product {
   rating?: number; // Added for product-level rating
   likes?: number; // Added for product likes
   inCartCount?: number;
+  profitEstimate?: number;
+  trendingScore?: number;
 }
 
 export interface PaymentMethod {
@@ -216,9 +218,3 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
-
-    
-
-    
-
-    
