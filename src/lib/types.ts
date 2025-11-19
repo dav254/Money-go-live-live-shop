@@ -166,6 +166,7 @@ export interface Product {
   inCartCount?: number;
   profitEstimate?: number;
   trendingScore?: number;
+  commissionRate?: number; // Added for reseller commissions
 }
 
 export interface PaymentMethod {

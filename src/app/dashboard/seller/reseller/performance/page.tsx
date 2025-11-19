@@ -1,4 +1,6 @@
 
+'use client';
+
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -8,6 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, LineChart, Users, BarChart, BadgePercent, CircleDollarSign, FolderKanban, Bot, Sparkles } from 'lucide-react';
+import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 
 export default function ResellerPerformancePage() {
   return (
@@ -86,11 +89,7 @@ export default function ResellerPerformancePage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                      <p className="text-muted-foreground">
-                        Define fixed or percentage-based commissions for your products here.
-                      </p>
-                    </div>
+                    <CommissionSettingsTable />
                   </CardContent>
                 </Card>
             </TabsContent>
