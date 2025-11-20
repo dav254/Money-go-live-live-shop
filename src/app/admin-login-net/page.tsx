@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -55,28 +55,47 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
-
-      // CORRECTED: Check the /admins collection, not /userProfiles
+      
       const adminDocRef = doc(firestore, 'admins', user.uid);
-      const adminDocSnap = await getDoc(adminDocRef);
+      
+      try {
+        const adminDocSnap = await getDoc(adminDocRef);
 
-      if (adminDocSnap.exists()) {
-        toast({
-          title: 'Admin Login Successful!',
-          description: 'Welcome back, Admin.',
+        if (adminDocSnap.exists()) {
+            toast({
+            title: 'Admin Login Successful!',
+            description: 'Welcome back, Admin.',
+            });
+            router.replace('/dashboard/admin');
+        } else {
+            await auth.signOut();
+            toast({
+            variant: 'destructive',
+            title: 'Access Denied',
+            description: 'You do not have admin privileges.',
+            });
+        }
+      } catch (firestoreError: any) {
+        // This is the new error handling block.
+        // It specifically catches Firestore errors (like permission denied)
+        // that occur *after* a successful login.
+
+        // Create the rich, contextual error.
+        const permissionError = new FirestorePermissionError({
+          path: adminDocRef.path,
+          operation: 'get',
         });
-        router.replace('/dashboard/admin');
-      } else {
-        // This is the correct place for the access denied error
+        
+        // Emit the error to be caught by the global error listener.
+        errorEmitter.emit('permission-error', permissionError);
+
+        // Also sign the user out as they cannot proceed.
         await auth.signOut();
-        toast({
-          variant: 'destructive',
-          title: 'Access Denied',
-          description: 'You do not have admin privileges.',
-        });
       }
+
     } catch (error: any) {
-      console.error('Admin Login Error:', error);
+      // This block handles Firebase Auth errors (e.g., wrong password)
+      console.error('Admin Auth Error:', error);
       let description = 'Could not sign you in. Please try again.';
 
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
