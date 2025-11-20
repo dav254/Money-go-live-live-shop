@@ -269,7 +269,12 @@
         },
         "orderStatus": {
           "type": "string",
-          "description": "The current status of the order (e.g., pending, shipped, delivered)."
+          "description": "The current status of the order (e.g., pending, shipped, delivered, disputed).",
+          "enum": ["pending", "processing", "shipped", "delivered", "cancelled", "disputed"]
+        },
+        "disputeReason": {
+          "type": "string",
+          "description": "A description of the reason for the dispute, if any."
         },
         "paymentMethod": {
           "type": "string",
