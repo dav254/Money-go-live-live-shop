@@ -108,66 +108,6 @@ export default function AdminLoginPage() {
       });
   }
 
-  // One-click login function
-  const handleOneClickLogin = async () => {
-    const adminEmail = 'admin@goearn.com';
-    const adminPassword = 'TemporaryPassword123!'; // Use a temporary, known password
-
-    try {
-        // Try to sign in first
-        await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-        toast({ title: 'Admin Login Successful!' });
-        router.replace('/dashboard/admin');
-    } catch (error: any) {
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-            // If user does not exist, create it
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-                const user = userCredential.user;
-                
-                // Also create the corresponding Firestore documents
-                const batch = writeBatch(firestore);
-                const userDocRef = doc(firestore, "userProfiles", user.uid);
-                batch.set(userDocRef, {
-                    id: user.uid,
-                    fullName: "Go Earn Admin",
-                    username: "admin",
-                    email: adminEmail,
-                    joinDate: new Date().toISOString(),
-                    userRole: "admin",
-                });
-                
-                const adminDocRef = doc(firestore, 'admins', user.uid);
-                batch.set(adminDocRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    displayName: "Go Earn Admin",
-                    role: 'SuperAdmin',
-                    lastLogin: new Date().toISOString(),
-                });
-
-                await batch.commit();
-
-                toast({
-                    title: 'Admin Account Created & Logged In!',
-                    description: 'Your admin account has been set up.',
-                });
-                router.replace('/dashboard/admin');
-
-            } catch (createError: any) {
-                toast({ variant: 'destructive', title: 'Setup Failed', description: `Could not create admin account: ${createError.message}` });
-            }
-        } else if (error.code === 'auth/wrong-password') {
-            toast({
-                variant: 'destructive',
-                title: 'Password Mismatch',
-                description: 'An admin account exists but with a different password. Please contact support or clear the user from Firebase console.',
-            });
-        } else {
-            toast({ variant: 'destructive', title: 'Login Failed', description: error.message });
-        }
-    }
-  };
 
   return (
     <AuthLayout>
@@ -180,20 +120,11 @@ export default function AdminLoginPage() {
                 </div>
             </div>
             <CardTitle className="font-headline text-2xl">Admin Access</CardTitle>
-            <CardDescription>Enter your admin credentials to continue.</CardDescription>
+            <CardDescription>
+                First time admin? <Link href="/signup" className="text-primary hover:underline font-bold">Sign up here</Link> with the email <strong className="text-foreground">admin@goearn.com</strong> to create your account.
+            </CardDescription>
           </CardHeader>
-          {!currentUser && (
-            <div className="px-6 pb-4">
-                <Button 
-                    variant="destructive" 
-                    className="w-full"
-                    onClick={handleOneClickLogin}
-                >
-                    <ShieldAlert className="mr-2 h-4 w-4" />
-                    One-Click Admin Login (Temporary)
-                </Button>
-            </div>
-          )}
+          
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <CardContent className="grid gap-4">
