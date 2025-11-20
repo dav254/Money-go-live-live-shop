@@ -11,6 +11,8 @@ import Image from 'next/image';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Send } from 'lucide-react';
+import { CommentDrawer } from '@/components/feed/comment-drawer';
+import { useUser } from '@/firebase';
 
 // --- Floating Hearts Animation --- //
 interface Heart {
@@ -21,10 +23,17 @@ interface Heart {
 
 // --- Simulated Comments --- //
 interface Comment {
-    id: number;
-    user: string;
+    id: string;
+    user: {
+      name: string;
+      avatar: {
+        id: string;
+        imageUrl: string;
+        description: string;
+        imageHint: string;
+      };
+    };
     text: string;
-    time: string;
 }
 
 interface LivePreviewProps {
@@ -41,11 +50,14 @@ interface MediaItem {
 export function LivePreview({ seller, products }: LivePreviewProps) {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
+  const { user } = useUser();
+
   const [comments, setComments] = useState<Comment[]>([
-    { id: 1, user: 'John', text: 'Is this available?', time: 'now' },
-    { id: 2, user: 'Amina', text: 'How much for delivery to CBD?', time: '2s' }
+    { id: '1', user: { name: 'John', avatar: {id: 'c1', imageUrl: 'https://picsum.photos/seed/commenter1/40', description: 'avatar', imageHint: 'person' } }, text: 'Is this available?' },
+    { id: '2', user: { name: 'Amina', avatar: {id: 'c2', imageUrl: 'https://picsum.photos/seed/commenter2/40', description: 'avatar', imageHint: 'person' } }, text: 'How much for delivery to CBD?' }
   ]);
   const [newComment, setNewComment] = useState('');
 
@@ -99,20 +111,25 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
     }, 1200);
   };
   
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newComment.trim()) {
-        const nextId = comments.length ? comments[comments.length - 1].id + 1 : 1;
-        const comment: Comment = {
-            id: nextId,
-            user: 'You', // Simulate the current user
-            text: newComment.trim(),
-            time: 'now'
-        };
-        setComments(prev => [...prev.slice(-4), comment]);
-        setNewComment('');
-    }
-  }
+  const handleAddComment = (text: string) => {
+    if (!user) return; // Or prompt to login
+
+    const newComment: Comment = {
+      id: `comment-${Date.now()}`,
+      user: {
+        name: user.displayName || 'Anonymous',
+        avatar: {
+          id: 'user-avatar',
+          imageUrl: user.photoURL || 'https://picsum.photos/seed/avatar/40',
+          description: 'User avatar',
+          imageHint: 'user avatar'
+        }
+      },
+      text: text,
+    };
+
+    setComments(prev => [...prev, newComment]);
+  };
 
 
   useEffect(() => {
@@ -160,7 +177,8 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
                       initialLikes={currentProduct.likes || 0}
                       commentCount={comments.length}
                       onLike={spawnHeart}
-                      onProductClick={() => setIsDrawerOpen(true)} 
+                      onProductClick={() => setIsDrawerOpen(true)}
+                      onCommentClick={() => setIsCommentDrawerOpen(true)}
                       onScroll={handleScroll} 
                   />
               </div>
@@ -168,9 +186,9 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
 
           {/* Comments Feed (Bottom Left) */}
           <div className="absolute bottom-24 left-4 z-20 pointer-events-auto flex flex-col gap-2 max-h-48 overflow-y-auto">
-              {comments.map(c => (
+              {comments.slice(-5).map(c => (
                   <div key={c.id} className="bg-black/50 text-white px-3 py-2 rounded-xl text-sm shadow-lg backdrop-blur-sm max-w-xs">
-                      <span className="font-bold mr-2">{c.user}:</span>{c.text}
+                      <span className="font-bold mr-2">{c.user.name}:</span>{c.text}
                   </div>
               ))}
           </div>
@@ -182,7 +200,13 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
       </div>
       
         {/* Comment Input at the bottom */}
-        <form onSubmit={handleSendMessage} className="p-4 bg-black/50 backdrop-blur-sm z-20 flex items-center gap-2">
+         <form onSubmit={(e) => {
+            e.preventDefault();
+            if (newComment.trim()) {
+                handleAddComment(newComment.trim());
+                setNewComment('');
+            }
+        }} className="p-4 bg-black/50 backdrop-blur-sm z-20 flex items-center gap-2">
             <Input 
                 placeholder="Add a comment..." 
                 className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-400"
@@ -202,6 +226,12 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
               onOpenChange={setIsDrawerOpen} 
           />
       )}
+      <CommentDrawer
+        comments={comments}
+        isOpen={isCommentDrawerOpen}
+        onOpenChange={setIsCommentDrawerOpen}
+        onAddComment={handleAddComment}
+      />
     </div>
   );
 }

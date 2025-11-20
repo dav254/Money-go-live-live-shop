@@ -70,4 +70,3 @@ export function CommentDrawer({ comments, isOpen, onOpenChange, onAddComment }: 
     </Sheet>
   );
 }
-
