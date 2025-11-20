@@ -9,11 +9,12 @@ interface VideoActionsProps {
   initialLikes?: number;
   commentCount?: number;
   onProductClick?: () => void;
+  onCommentClick?: () => void;
   onScroll?: (direction: 'up' | 'down') => void;
   onLike?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export function VideoActions({ initialLikes = 0, commentCount = 0, onProductClick, onScroll, onLike }: VideoActionsProps) {
+export function VideoActions({ initialLikes = 0, commentCount = 0, onProductClick, onCommentClick, onScroll, onLike }: VideoActionsProps) {
   const [likes, setLikes] = useState(initialLikes);
 
   const handleLike = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -36,6 +37,12 @@ export function VideoActions({ initialLikes = 0, commentCount = 0, onProductClic
       onProductClick();
     }
   };
+  
+  const handleCommentClick = () => {
+    if (typeof onCommentClick === 'function') {
+      onCommentClick();
+    }
+  };
 
   return (
     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 z-20">
@@ -51,7 +58,7 @@ export function VideoActions({ initialLikes = 0, commentCount = 0, onProductClic
         <span className="text-sm font-semibold text-white drop-shadow-md">{likes}</span>
       </div>
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70">
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleCommentClick}>
           <MessageCircle className="h-6 w-6 text-white" />
         </Button>
         <span className="text-sm font-semibold text-white drop-shadow-md">{commentCount}</span>
