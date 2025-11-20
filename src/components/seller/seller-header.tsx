@@ -26,10 +26,10 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
   const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
-    if (userProfile && userProfile.following) {
+    if (userProfile && userProfile.following && seller) {
       setIsFollowing(userProfile.following.includes(seller.id));
     }
-  }, [userProfile, seller.id]);
+  }, [userProfile, seller]);
 
   const handleFollow = async () => {
     if (!user || !firestore) {
