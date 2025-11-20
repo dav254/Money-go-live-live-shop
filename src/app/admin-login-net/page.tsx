@@ -23,16 +23,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, writeBatch } from 'firebase/firestore';
-import { KeyRound, ShieldAlert } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
-import { useUser } from '@/firebase/auth/use-user';
-import React from 'react';
-import type { UserProfile } from '@/lib/types';
+import { isAdmin } from '@/ai/flows/is-admin';
 
 
 const formSchema = z.object({
@@ -42,10 +39,8 @@ const formSchema = z.object({
 
 export default function AdminLoginPage() {
   const auth = useAuth();
-  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
-  const { user: currentUser } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,12 +54,11 @@ export default function AdminLoginPage() {
     signInWithEmailAndPassword(auth, values.email, values.password)
       .then(async (userCredential) => {
         const user = userCredential.user;
-        const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         
         try {
-          const userProfileSnap = await getDoc(userProfileRef);
+          const { isAdmin: isUserAdmin } = await isAdmin({ uid: user.uid });
 
-          if (!userProfileSnap.exists() || userProfileSnap.data()?.userRole !== 'admin') {
+          if (!isUserAdmin) {
             await auth.signOut();
             toast({
               variant: 'destructive',
@@ -74,16 +68,14 @@ export default function AdminLoginPage() {
             return;
           }
 
-          const userProfile = userProfileSnap.data() as UserProfile;
           toast({
             title: 'Admin Login Successful!',
-            description: `Welcome back, ${userProfile.fullName || 'Admin'}.`,
+            description: 'Welcome back, Admin.',
           });
           router.replace('/dashboard/admin'); 
 
         } catch (error) {
-            // This catch block might be for network errors or if the userProfiles collection itself is restricted
-            console.error('Error fetching user profile:', error);
+            console.error('Error verifying admin status:', error);
             await auth.signOut();
             toast({
               variant: 'destructive',
