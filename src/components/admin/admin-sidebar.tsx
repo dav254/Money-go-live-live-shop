@@ -116,7 +116,6 @@ export function AdminSidebar() {
             basePath="products"
             items={[
                 { href: 'all', label: 'All Products' },
-                { href: 'pending', label: 'Pending Approval' },
                 { href: 'reported', label: 'Reported' },
                 { href: 'categories', label: 'Categories' },
                 { href: 'tags', label: 'Tags' },
