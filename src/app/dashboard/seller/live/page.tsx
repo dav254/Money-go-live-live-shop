@@ -8,7 +8,7 @@ import type { Product, Seller, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
-import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import { cn } from '@/lib/utils';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
@@ -136,17 +136,17 @@ export default function SellerLivePage() {
 
     if (isLoading) {
         return (
-            <MainLayout>
+            <SellerLayout>
                 <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
                     <p>Loading your product feed...</p>
                 </div>
-            </MainLayout>
+            </SellerLayout>
         );
     }
 
     return (
-        <MainLayout>
-            <div className="relative h-[calc(100vh-4rem)]">
+        <SellerLayout>
+            <div className="relative h-[calc(100vh-81px)]">
                 <div 
                     ref={scrollContainerRef}
                     className={cn(
@@ -177,6 +177,6 @@ export default function SellerLivePage() {
                 )}
                 </div>
             </div>
-        </MainLayout>
+        </SellerLayout>
     );
 }

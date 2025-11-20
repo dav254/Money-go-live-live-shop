@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
@@ -144,7 +145,7 @@ export default function LiveFeedPage() {
 
   return (
     <MainLayout>
-      <div className="relative h-full w-full">
+      <div className="relative h-[calc(100vh-65px)]">
         <div 
           ref={scrollContainerRef}
           className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
