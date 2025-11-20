@@ -8,7 +8,7 @@ import { Heart, MessageSquare, Plus, Share2 } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { useEffect, useState } from 'react';
@@ -176,7 +176,7 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
           <div className="mt-4 md:ml-6 md:mt-0">
             <h1 className="font-headline text-3xl font-bold text-white">{seller.name}</h1>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-neutral-300 md:justify-start">
-              <span>{(seller.followers || 0).toLocaleString()} followers</span>
+              <span>{seller.followers.toLocaleString()} followers</span>
               <span>&middot;</span>
               <span>{(seller.reviewsCount || 0).toLocaleString()} reviews</span>
               <span>&middot;</span>

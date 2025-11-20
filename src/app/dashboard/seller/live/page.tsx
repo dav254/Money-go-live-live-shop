@@ -4,7 +4,7 @@
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
-import type { Product, Seller, VideoFeedItem } from '@/lib/types';
+import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
@@ -23,8 +23,8 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
         return product.sellerId ? doc(firestore, 'userProfiles', product.sellerId) : null;
     }, [firestore, product.sellerId]);
 
-    const { data: sellerData, isLoading: isSellerLoading } = useDoc<Seller>(sellerShopRef);
-    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<any>(userProfileRef);
+    const { data: sellerData, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
+    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
     if (isSellerLoading || isProfileLoading) {
         return (
@@ -52,7 +52,7 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
         },
         bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
         rating: 4.8, // Placeholder
-        followers: 123, // Placeholder
+        followers: sellerData?.followers || 0,
         reviewsCount: 45, // Placeholder
         isVerified: true, // Placeholder
         joinedDate: userProfileData?.joinDate || new Date().toISOString(),

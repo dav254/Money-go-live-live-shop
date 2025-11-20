@@ -4,7 +4,7 @@ import { SellerHeader } from '@/components/seller/seller-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import { db } from '@/firebase/server';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import type { Seller, Product, Review } from '@/lib/types';
+import type { Seller, Product, Review, SellerShop, UserProfile } from '@/lib/types';
 import { sellers, products, reviews } from '@/lib/placeholder-data';
 
 
@@ -21,10 +21,12 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
     if (!userProfileSnap.exists()) {
         return null;
     }
-     const userProfile = userProfileSnap.data();
+     const userProfile = userProfileSnap.data() as UserProfile;
      return {
         id: userProfileSnap.id,
-        name: userProfile.shopName || userProfile.fullName || 'Seller',
+        sellerId: userProfileSnap.id,
+        name: userProfile.fullName || 'Seller',
+        description: userProfile.bio || 'Welcome to my shop!',
         avatar: { id: 'avatar', imageUrl: userProfile.profilePictureUrl || `https://picsum.photos/seed/${sellerId}/200`, description: 'Seller Avatar', imageHint: 'seller avatar' },
         isVerified: false,
         rating: 0,
@@ -37,12 +39,12 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
     };
   }
 
-  const sellerData = sellerDocSnap.data();
+  const sellerData = sellerDocSnap.data() as SellerShop;
 
   // Also fetch user profile for additional details
   const userProfileRef = doc(db, 'userProfiles', sellerId);
   const userProfileSnap = await getDoc(userProfileRef);
-  const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : {};
+  const userProfile = userProfileSnap.exists() ? userProfileSnap.data() as UserProfile : {};
 
   // Combine data from sellerShops and userProfiles
   return {
@@ -52,13 +54,13 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
     description: sellerData.description,
     avatar: { id: 'logo', imageUrl: sellerData.logoUrl || `https://picsum.photos/seed/${sellerId}/200`, description: 'Shop Logo', imageHint: 'shop logo' },
     banner: { id: 'banner', imageUrl: sellerData.bannerUrl || `https://picsum.photos/seed/${sellerId}/1200/400`, description: 'Shop Banner', imageHint: 'shop banner' },
-    location: sellerData.location,
+    location: sellerData.location || userProfile.location || 'Unknown',
     contactEmail: sellerData.contactEmail,
     contactWhatsapp: sellerData.contactWhatsapp,
     isVerified: true, // Assuming verified if they have a shop
     rating: 4.8, // Placeholder
-    reviewsCount: 150, // Placeholder
-    followers: 2300, // Placeholder
+    reviewsCount: sellerData.reviewsCount || 0,
+    followers: sellerData.followers || 0,
     joinedDate: userProfile.joinDate || new Date().toISOString(),
     bio: sellerData.description || userProfile.bio || 'Welcome to my shop!',
   };

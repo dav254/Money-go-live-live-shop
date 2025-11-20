@@ -17,7 +17,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { SellerHeader } from '../seller/seller-header';
 import { doc } from 'firebase/firestore';
-import type { Seller, SellerShop } from '@/lib/types';
+import type { Seller, SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 export function SellerLayout({ children }: { children: React.ReactNode }) {
@@ -54,11 +54,11 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
       },
       isVerified: true, // Placeholder
       rating: 4.8, // Placeholder
-      reviewsCount: shopData.reviewsCount || 0, // Placeholder
+      reviewsCount: shopData.reviewsCount || 0,
       followers: shopData.followers || 0,
-      location: shopData.location || 'Online',
+      location: shopData.location || userProfile.location || 'Online',
       joinedDate: userProfile.joinDate,
-      bio: shopData.description || 'Welcome!',
+      bio: shopData.description || userProfile.bio || 'Welcome!',
     };
   }, [user, userProfile, shopData]);
 

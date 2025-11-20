@@ -23,6 +23,7 @@ export interface SellerShop {
   contactEmail?: string;
   contactWhatsapp?: string;
   followers?: number;
+  reviewsCount?: number;
 }
 
 export interface Seller {
@@ -75,6 +76,8 @@ export interface UserProfile {
   userRole: 'buyer' | 'seller' | 'reseller' | 'admin';
   profilePictureUrl?: string;
   following?: string[];
+  bio?: string;
+  location?: string;
 }
 
 export interface Order {
