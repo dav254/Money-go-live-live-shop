@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -42,25 +41,42 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Reseller = {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  totalCommissions: number;
-  payoutsCompleted: number;
-  referralLink: string;
-  status: 'active' | 'suspended' | 'pending';
-  avatarUrl: string;
+  phone?: string;
+  totalCommissions: number; // Placeholder
+  payoutsCompleted: number; // Placeholder
+  referralLink: string; // Placeholder
+  status: 'active' | 'suspended' | 'pending'; // Placeholder
+  avatarUrl?: string;
 };
 
-const data: Reseller[] = [
-    { id: 'res-001', name: 'Super Reseller One', email: 'reseller1@example.com', phone: '+254711111111', totalCommissions: 22300, payoutsCompleted: 15000, referralLink: '/ref/super1', status: 'active', avatarUrl: 'https://picsum.photos/seed/reseller1/40/40' },
-    { id: 'res-002', name: 'Nairobi Deals', email: 'nairobideals@example.com', phone: '+254722222222', totalCommissions: 8500, payoutsCompleted: 8500, referralLink: '/ref/nai-deals', status: 'active', avatarUrl: 'https://picsum.photos/seed/reseller2/40/40' },
-    { id: 'res-003', name: 'Digital Nomad', email: 'dnomad@example.com', phone: '+254733333333', totalCommissions: 1500, payoutsCompleted: 0, referralLink: '/ref/dnomad', status: 'pending', avatarUrl: 'https://picsum.photos/seed/reseller3/40/40' },
-    { id: 'res-004', name: 'Suspended User', email: 'suspended@example.com', phone: '+254744444444', totalCommissions: 500, payoutsCompleted: 500, referralLink: '/ref/susp', status: 'suspended', avatarUrl: 'https://picsum.photos/seed/reseller4/40/40' },
-];
+const DataTableSkeleton = () => (
+    <div className="rounded-md border">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    {Array.from({ length: 8 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                        {Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+);
+
 
 export const columns: ColumnDef<Reseller>[] = [
   {
@@ -96,7 +112,7 @@ export const columns: ColumnDef<Reseller>[] = [
     ),
   },
   { accessorKey: 'email', header: 'Email' },
-  { accessorKey: 'phone', header: 'Phone' },
+  { accessorKey: 'phone', header: 'Phone', cell: ({ row }) => row.original.phone || 'N/A' },
   {
     accessorKey: 'totalCommissions',
     header: () => <div className="text-right">Total Commissions</div>,
@@ -153,6 +169,31 @@ export default function AdminResellersPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  
+  const firestore = useFirestore();
+
+  const resellersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller'));
+  }, [firestore]);
+
+  const { data: resellersData, isLoading } = useCollection<UserProfile>(resellersQuery);
+
+  const data: Reseller[] = React.useMemo(() => {
+    if (!resellersData) return [];
+    return resellersData.map(profile => ({
+      id: profile.id,
+      name: profile.fullName,
+      email: profile.email,
+      phone: profile.phoneNumber,
+      totalCommissions: 0, // Placeholder
+      payoutsCompleted: 0, // Placeholder
+      referralLink: `/ref/${profile.username}`, // Placeholder
+      status: 'active', // Placeholder
+      avatarUrl: profile.profilePictureUrl,
+    }));
+  }, [resellersData]);
+
 
   const table = useReactTable({
     data,
@@ -183,6 +224,7 @@ export default function AdminResellersPage() {
               className="max-w-sm"
             />
           </div>
+          {isLoading ? <DataTableSkeleton /> : (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -212,13 +254,14 @@ export default function AdminResellersPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No results.
+                      No resellers found.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
+          )}
           <div className="flex items-center justify-end space-x-2 py-4">
              <div className="flex-1 text-sm text-muted-foreground">
                 {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
