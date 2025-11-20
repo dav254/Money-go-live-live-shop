@@ -1,53 +1,11 @@
 'use server';
 
-/**
- * @fileOverview A flow to check if a user has admin privileges.
- *
- * - isAdmin - A function that returns true if the user is an admin.
- * - IsAdminInput - The input type for the isAdmin function.
- * - IsAdminOutput - The return type for the isAdmin function.
- */
+import { config } from 'dotenv';
+config();
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import * as serviceAccount from '../../../service-account.json';
+// Firebase Admin SDK is no longer initialized here.
+// It will be initialized within the specific flows that need it to ensure
+// it works in all environments.
 
-// Initialize Firebase Admin SDK if not already initialized
-if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccount as any),
-  });
-}
-
-const IsAdminInputSchema = z.object({
-  uid: z.string().describe('The user ID to check for admin privileges.'),
-});
-export type IsAdminInput = z.infer<typeof IsAdminInputSchema>;
-
-const IsAdminOutputSchema = z.object({
-  isAdmin: z.boolean().describe('Whether or not the user is an admin.'),
-});
-export type IsAdminOutput = z.infer<typeof IsAdminOutputSchema>;
-
-export async function isAdmin(input: IsAdminInput): Promise<IsAdminOutput> {
-  return isAdminFlow(input);
-}
-
-const isAdminFlow = ai.defineFlow(
-  {
-    name: 'isAdminFlow',
-    inputSchema: IsAdminInputSchema,
-    outputSchema: IsAdminOutputSchema,
-  },
-  async ({uid}) => {
-    const db = getFirestore();
-    const adminRef = db.collection('admins').doc(uid);
-    const doc = await adminRef.get();
-    
-    return {
-        isAdmin: doc.exists,
-    };
-  }
-);
+import '@/ai/flows/suggest-daily-content.ts';
+import '@/ai/flows/generate-product-description.ts';

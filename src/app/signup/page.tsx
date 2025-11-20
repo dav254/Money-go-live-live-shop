@@ -43,7 +43,7 @@ const formSchema = z.object({
   username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['buyer', 'seller', 'reseller', 'admin'], { required_error: 'You must select a role.' }),
+  role: z.enum(['buyer', 'seller', 'reseller'], { required_error: 'You must select a role.' }),
 });
 
 export default function SignupPage() {
@@ -70,7 +70,7 @@ export default function SignupPage() {
       const batch = writeBatch(firestore);
       const userDocRef = doc(firestore, "userProfiles", user.uid);
       
-      let userRole = values.role;
+      let userRole: 'buyer' | 'seller' | 'reseller' | 'admin' = values.role;
       // If the user is the special admin, ensure their role is 'admin'
       if (values.email === 'admin@goearn.com' || values.email === 'admin@moneygod.com') {
         userRole = 'admin';

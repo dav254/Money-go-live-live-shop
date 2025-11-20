@@ -23,13 +23,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, useUserProfile } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
-import { isAdmin } from '@/ai/flows/is-admin';
+import { doc, getDoc } from 'firebase/firestore';
 
 
 const formSchema = z.object({
@@ -39,6 +39,7 @@ const formSchema = z.object({
 
 export default function AdminLoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -51,53 +52,41 @@ export default function AdminLoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    signInWithEmailAndPassword(auth, values.email, values.password)
-      .then(async (userCredential) => {
-        const user = userCredential.user;
-        
-        try {
-          const { isAdmin: isUserAdmin } = await isAdmin({ uid: user.uid });
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
 
-          if (!isUserAdmin) {
-            await auth.signOut();
-            toast({
-              variant: 'destructive',
-              title: 'Access Denied',
-              description: 'You do not have admin privileges.',
-            });
-            return;
-          }
+      const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+      const userProfileSnap = await getDoc(userProfileRef);
 
-          toast({
-            title: 'Admin Login Successful!',
-            description: 'Welcome back, Admin.',
-          });
-          router.replace('/dashboard/admin'); 
-
-        } catch (error) {
-            console.error('Error verifying admin status:', error);
-            await auth.signOut();
-            toast({
-              variant: 'destructive',
-              title: 'Login Error',
-              description: 'Could not verify your admin status. Please contact support.',
-            });
-        }
-      })
-      .catch((error: any) => {
-        console.error('Admin Login Error:', error);
-        let description = 'Could not sign you in. Please try again.';
-
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-          description = 'Invalid email or password.';
-        }
-        
+      if (userProfileSnap.exists() && userProfileSnap.data()?.userRole === 'admin') {
+        toast({
+          title: 'Admin Login Successful!',
+          description: 'Welcome back, Admin.',
+        });
+        router.replace('/dashboard/admin');
+      } else {
+        await auth.signOut();
         toast({
           variant: 'destructive',
-          title: 'Login Failed',
-          description: description,
+          title: 'Access Denied',
+          description: 'You do not have admin privileges.',
         });
+      }
+    } catch (error: any) {
+      console.error('Admin Login Error:', error);
+      let description = 'Could not sign you in. Please try again.';
+
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = 'Invalid email or password.';
+      }
+      
+      toast({
+        variant: 'destructive',
+        title: 'Login Failed',
+        description: description,
       });
+    }
   }
 
 
