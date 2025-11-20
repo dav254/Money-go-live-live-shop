@@ -11,6 +11,15 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import * as serviceAccount from '../../../service-account.json';
+
+// Initialize Firebase Admin SDK if not already initialized
+if (!getApps().length) {
+  initializeApp({
+    credential: cert(serviceAccount as any),
+  });
+}
 
 const IsAdminInputSchema = z.object({
   uid: z.string().describe('The user ID to check for admin privileges.'),
