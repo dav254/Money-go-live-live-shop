@@ -1,6 +1,10 @@
 
 'use client';
 
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { MainLayout } from '@/components/layout/main-layout';
 import {
   Card,
@@ -16,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Languages, Lock, Bell, Palette, User, Settings } from 'lucide-react';
+import { Camera, Languages, Lock, Bell, Palette, User, Settings, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -24,13 +28,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { SellerSidebar } from '@/components/seller/seller-sidebar';
 import { ResellerSidebar } from '@/components/reseller/reseller-sidebar';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
-import React from 'react';
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+
+const passwordFormSchema = z.object({
+  oldPassword: z.string().min(1, { message: "Old password is required." }),
+  newPassword: z.string().min(6, { message: "New password must be at least 6 characters." }),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 
 function SidebarNav({ role }: { role: string | undefined }) {
@@ -52,6 +67,41 @@ function SidebarNav({ role }: { role: string | undefined }) {
 export default function AccountSettingsPage() {
     const { user } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+    const { toast } = useToast();
+    const auth = getAuth();
+    const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+
+    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+      resolver: zodResolver(passwordFormSchema),
+      defaultValues: { oldPassword: '', newPassword: '', confirmPassword: '' },
+    });
+
+    async function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
+      if (!user || !user.email) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Not logged in or email not found.' });
+        return;
+      }
+      setIsPasswordSaving(true);
+      
+      const credential = EmailAuthProvider.credential(user.email, values.oldPassword);
+      
+      try {
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, values.newPassword);
+        toast({ title: 'Success', description: 'Your password has been updated.' });
+        passwordForm.reset();
+      } catch (error: any) {
+        console.error("Password update error:", error);
+        let description = "An error occurred. Please try again.";
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+          description = "The old password you entered is incorrect.";
+        }
+        toast({ variant: 'destructive', title: 'Password Update Failed', description });
+      } finally {
+        setIsPasswordSaving(false);
+      }
+    }
+
 
   return (
     <MainLayout sidebar={isProfileLoading ? <p>Loading...</p> : <SidebarNav role={userProfile?.userRole} />}>
@@ -124,26 +174,58 @@ export default function AccountSettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                 <div>
-                    <h3 className="text-lg font-medium">Change Password</h3>
-                    <div className="space-y-4 mt-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="old-password">Old Password</Label>
-                            <Input id="old-password" type="password" />
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="new-password">New Password</Label>
-                                <Input id="new-password" type="password" />
+                 <Form {...passwordForm}>
+                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                        <h3 className="text-lg font-medium">Change Password</h3>
+                        <div className="space-y-4 mt-4">
+                            <FormField
+                                control={passwordForm.control}
+                                name="oldPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Old Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Confirm New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                                <Input id="confirm-password" type="password" />
-                            </div>
+                            <Button type="submit" disabled={isPasswordSaving}>
+                                {isPasswordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Update Password
+                            </Button>
                         </div>
-                        <Button>Update Password</Button>
-                    </div>
-                </div>
+                    </form>
+                 </Form>
                 <Separator />
                  <div>
                     <h3 className="text-lg font-medium">Two-Factor Authentication (2FA)</h3>
