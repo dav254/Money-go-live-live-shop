@@ -1,12 +1,11 @@
 
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader } from '@/components/seller/seller-header';
-import { ShopStoryHighlights } from '@/components/seller/shop-story-highlights';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import { db } from '@/firebase/server';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import type { Seller, Product, Review, StoryHighlight } from '@/lib/types';
-import { sellers, products, reviews, storyHighlights } from '@/lib/placeholder-data';
+import type { Seller, Product, Review } from '@/lib/types';
+import { sellers, products, reviews } from '@/lib/placeholder-data';
 
 
 async function getSellerData(sellerId: string): Promise<Seller | null> {
@@ -98,11 +97,6 @@ async function getSellerReviews(sellerId: string): Promise<Review[]> {
   return reviews;
 }
 
-async function getSellerStoryHighlights(sellerId: string): Promise<StoryHighlight[]> {
-  // Placeholder: Firestore schema doesn't have story highlights yet.
-  return storyHighlights;
-}
-
 export default async function SellerShopPage({ params }: { params: { sellerId: string } }) {
   const seller = await getSellerData(params.sellerId);
   
@@ -117,10 +111,9 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
   }
 
   // Fetch all data in parallel
-  const [sellerProducts, sellerReviews, sellerHighlights] = await Promise.all([
+  const [sellerProducts, sellerReviews] = await Promise.all([
     getSellerProducts(params.sellerId),
     getSellerReviews(params.sellerId),
-    getSellerStoryHighlights(params.sellerId),
   ]);
 
   return (
@@ -128,7 +121,6 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
       <div className="bg-background text-foreground">
         <SellerHeader seller={seller} />
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <ShopStoryHighlights highlights={sellerHighlights} />
           <SellerTabs seller={seller} products={sellerProducts} reviews={sellerReviews} />
         </div>
       </div>
