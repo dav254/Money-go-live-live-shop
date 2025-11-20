@@ -8,7 +8,6 @@ import type { Product, Seller, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
-import { SellerLayout } from '@/components/layout/seller-layout';
 import { cn } from '@/lib/utils';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
@@ -136,47 +135,43 @@ export default function SellerLivePage() {
 
     if (isLoading) {
         return (
-            <SellerLayout>
-                <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
-                    <p>Loading your product feed...</p>
-                </div>
-            </SellerLayout>
+            <div className="flex h-screen w-full items-center justify-center">
+                <p>Loading your product feed...</p>
+            </div>
         );
     }
 
     return (
-        <SellerLayout>
-            <div className="relative h-[calc(100vh-81px)]">
-                <div 
-                    ref={scrollContainerRef}
-                    className={cn(
-                        "h-full w-full snap-y snap-mandatory overflow-y-scroll",
-                        // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
-                        "[&::-webkit-scrollbar]:hidden",
-                        // This will hide the scrollbar in Firefox
-                        "scrollbar-hide"
-                    )}
-                >
-                {feedMediaItems && feedMediaItems.length > 0 ? (
-                    feedMediaItems.map((item) => (
-                        <RealtimeVideoCard 
-                            key={item.product.id + item.mediaUrl} 
-                            product={item.product} 
-                            mediaUrl={item.mediaUrl}
-                            mediaType={item.mediaType}
-                            onScroll={handleScroll}
-                        />
-                    ))
-                ) : (
-                    <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
-                        <div className="text-center">
-                            <h2 className="text-xl font-semibold">Your Feed is Empty</h2>
-                            <p className="text-muted-foreground">Upload products with images or videos to see them here.</p>
-                        </div>
-                    </div>
+        <div className="relative h-screen w-full">
+            <div 
+                ref={scrollContainerRef}
+                className={cn(
+                    "h-full w-full snap-y snap-mandatory overflow-y-scroll",
+                    // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
+                    "[&::-webkit-scrollbar]:hidden",
+                    // This will hide the scrollbar in Firefox
+                    "scrollbar-hide"
                 )}
+            >
+            {feedMediaItems && feedMediaItems.length > 0 ? (
+                feedMediaItems.map((item) => (
+                    <RealtimeVideoCard 
+                        key={item.product.id + item.mediaUrl} 
+                        product={item.product} 
+                        mediaUrl={item.mediaUrl}
+                        mediaType={item.mediaType}
+                        onScroll={handleScroll}
+                    />
+                ))
+            ) : (
+                <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
+                    <div className="text-center">
+                        <h2 className="text-xl font-semibold">Your Feed is Empty</h2>
+                        <p className="text-muted-foreground">Upload products with images or videos to see them here.</p>
+                    </div>
                 </div>
+            )}
             </div>
-        </SellerLayout>
+        </div>
     );
 }
