@@ -78,7 +78,7 @@ export default function AdminLoginPage() {
             title: 'Admin Login Successful!',
             description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
           });
-          router.push('/dashboard/admin'); 
+          router.replace('/dashboard/admin'); 
 
         } catch (error) {
             const permissionError = new FirestorePermissionError({
@@ -113,7 +113,7 @@ export default function AdminLoginPage() {
         // Try to sign in first
         await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
         toast({ title: 'Admin Login Successful!' });
-        router.push('/dashboard/admin');
+        router.replace('/dashboard/admin');
     } catch (error: any) {
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             // If user does not exist, create it
@@ -148,7 +148,7 @@ export default function AdminLoginPage() {
                     title: 'Admin Account Created & Logged In!',
                     description: 'Your admin account has been set up.',
                 });
-                router.push('/dashboard/admin');
+                router.replace('/dashboard/admin');
 
             } catch (createError: any) {
                 toast({ variant: 'destructive', title: 'Setup Failed', description: `Could not create admin account: ${createError.message}` });
