@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -42,37 +41,45 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { sellers } from '@/lib/placeholder-data';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { UserProfile, SellerShop } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-
-type Seller = {
+type SellerRow = {
   id: string;
   businessName: string;
   ownerName: string;
   email: string;
-  phone: string;
-  totalSales: number;
-  productCount: number;
-  status: 'active' | 'pending' | 'suspended';
-  verified: boolean;
-  avatarUrl: string;
+  phone?: string;
+  totalSales: number; // Placeholder
+  productCount: number; // Placeholder
+  status: 'active' | 'pending' | 'suspended'; // Placeholder
+  verified: boolean; // Placeholder
+  avatarUrl?: string;
 };
 
-const data: Seller[] = sellers.map((s, i) => ({
-    id: s.id,
-    businessName: s.name,
-    ownerName: `Owner ${i+1}`,
-    email: `owner${i+1}@example.com`,
-    phone: `+25471234567${i}`,
-    totalSales: (i+1) * 25000,
-    productCount: (i+1) * 15,
-    status: (['active', 'pending', 'suspended'] as const)[i%3],
-    verified: s.isVerified,
-    avatarUrl: s.avatar.imageUrl,
-}));
+const DataTableSkeleton = () => (
+    <div className="rounded-md border">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    {Array.from({ length: 8 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                        {Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+);
 
 
-export const columns: ColumnDef<Seller>[] = [
+export const columns: ColumnDef<SellerRow>[] = [
   {
     id: 'select',
     header: ({ table }) => (
@@ -170,6 +177,32 @@ export default function AdminSellersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
+  
+  const firestore = useFirestore();
+
+  const sellersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller'));
+  }, [firestore]);
+
+  const { data: sellersData, isLoading } = useCollection<UserProfile>(sellersQuery);
+
+  const data: SellerRow[] = React.useMemo(() => {
+    if (!sellersData) return [];
+    return sellersData.map(profile => ({
+      id: profile.id,
+      businessName: profile.shopName || profile.username, // Placeholder
+      ownerName: profile.fullName,
+      email: profile.email,
+      phone: profile.phoneNumber,
+      totalSales: 0, // Placeholder
+      productCount: 0, // Placeholder
+      status: 'active', // Placeholder
+      verified: true, // Placeholder
+      avatarUrl: profile.profilePictureUrl,
+    }));
+  }, [sellersData]);
+
 
   const table = useReactTable({
     data,
@@ -199,6 +232,7 @@ export default function AdminSellersPage() {
               className="max-w-sm"
             />
           </div>
+          {isLoading ? <DataTableSkeleton /> : (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -228,13 +262,14 @@ export default function AdminSellersPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No results.
+                      No sellers found.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
           </div>
+          )}
           <div className="flex items-center justify-end space-x-2 py-4">
              <div className="flex-1 text-sm text-muted-foreground">
                 {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.

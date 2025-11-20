@@ -78,6 +78,8 @@ export interface UserProfile {
   following?: string[];
   bio?: string;
   location?: string;
+  shopName?: string; // Added to potentially hold shop name
+  phoneNumber?: string; // Added for seller info
 }
 
 export interface Order {
