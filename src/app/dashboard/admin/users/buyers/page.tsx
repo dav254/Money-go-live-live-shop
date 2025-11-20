@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -42,27 +41,42 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { sellers } from '@/lib/placeholder-data';
-
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type Buyer = {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  ordersCount: number;
-  walletBalance: number;
+  phone?: string;
+  ordersCount: number; // Placeholder
+  walletBalance: number; // Placeholder
   joinedDate: string;
-  status: 'active' | 'suspended';
-  avatarUrl: string;
+  status: 'active' | 'suspended'; // Placeholder
+  avatarUrl?: string;
 };
 
-const data: Buyer[] = [
-    { id: 'usr-001', name: 'John Doe', email: 'john.d@example.com', phone: '+254712345678', ordersCount: 12, walletBalance: 550.00, joinedDate: '2024-08-15', status: 'active', avatarUrl: 'https://picsum.photos/seed/user1/40/40' },
-    { id: 'usr-002', name: 'Amina Kamau', email: 'amina.k@example.com', phone: '+254723456789', ordersCount: 5, walletBalance: 1250.75, joinedDate: '2024-07-20', status: 'active', avatarUrl: 'https://picsum.photos/seed/user2/40/40' },
-    { id: 'usr-003', name: 'David Otieno', email: 'david.o@example.com', phone: '+254734567890', ordersCount: 0, walletBalance: 0.00, joinedDate: '2024-06-01', status: 'suspended', avatarUrl: 'https://picsum.photos/seed/user3/40/40' },
-    { id: 'usr-004', name: 'Grace Mwende', email: 'grace.m@example.com', phone: '+254745678901', ordersCount: 25, walletBalance: 8200.00, joinedDate: '2023-11-11', status: 'active', avatarUrl: 'https://picsum.photos/seed/user4/40/40' },
-];
+const DataTableSkeleton = () => (
+    <div className="rounded-md border">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    {Array.from({ length: 8 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                        {Array.from({ length: 8 }).map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+);
+
 
 export const columns: ColumnDef<Buyer>[] = [
   {
@@ -104,6 +118,7 @@ export const columns: ColumnDef<Buyer>[] = [
    {
     accessorKey: 'phone',
     header: 'Phone',
+    cell: ({ row }) => row.original.phone || 'N/A'
   },
   {
     accessorKey: 'ordersCount',
@@ -125,6 +140,7 @@ export const columns: ColumnDef<Buyer>[] = [
   {
     accessorKey: 'joinedDate',
     header: 'Joined Date',
+     cell: ({ row }) => new Date(row.original.joinedDate).toLocaleDateString(),
   },
   {
     accessorKey: 'status',
@@ -163,6 +179,30 @@ export default function AdminBuyersPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  
+  const firestore = useFirestore();
+
+  const buyersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'userProfiles'), where('userRole', '==', 'buyer'));
+  }, [firestore]);
+
+  const { data: buyersData, isLoading } = useCollection<UserProfile>(buyersQuery);
+
+  const data: Buyer[] = React.useMemo(() => {
+    if (!buyersData) return [];
+    return buyersData.map(profile => ({
+      id: profile.id,
+      name: profile.fullName,
+      email: profile.email,
+      phone: profile.phoneNumber, // Assuming phoneNumber exists on UserProfile
+      ordersCount: 0, // Placeholder
+      walletBalance: 0.00, // Placeholder
+      joinedDate: profile.joinDate,
+      status: 'active', // Placeholder
+      avatarUrl: profile.profilePictureUrl,
+    }));
+  }, [buyersData]);
 
   const table = useReactTable({
     data,
@@ -230,6 +270,7 @@ export default function AdminBuyersPage() {
                 </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+            {isLoading ? <DataTableSkeleton /> : (
             <div className="rounded-md border">
                 <Table>
                 <TableHeader>
@@ -273,13 +314,14 @@ export default function AdminBuyersPage() {
                         colSpan={columns.length}
                         className="h-24 text-center"
                         >
-                        No results.
+                        No buyers found.
                         </TableCell>
                     </TableRow>
                     )}
                 </TableBody>
                 </Table>
             </div>
+            )}
             <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="flex-1 text-sm text-muted-foreground">
                 {table.getFilteredSelectedRowModel().rows.length} of{' '}
