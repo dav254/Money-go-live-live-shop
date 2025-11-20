@@ -9,10 +9,10 @@ export const Logo = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => 
     {...props}
   >
     <g fill="currentColor">
-      <path d="M11.3,4.9c-2,0-3.8,0.7-5.2,1.9L2.5,3.2C4.8,1.2,7.9,0,11.3,0c7.8,0,14.2,6.4,14.2,14.2c0,4.7-2.3,8.9-6,11.6 l-3.5-3.5c2.4-1.8,4-4.7,4-7.9C20.1,9.4,16.2,4.9,11.3,4.9z" />
-      <path d="M29.8,25.8c0-7.8-6.4-14.2-14.2-14.2c-4.7,0-8.9,2.3-11.6,6l3.5,3.5c1.8-2.4,4.7-4,7.9-4c5,0,9.1,4.1,9.1,9.1 s-4.1,9.1-9.1,9.1c-2,0-3.8-0.7-5.2-1.9L2.5,41.8c2.4,2,5.5,3.2,8.8,3.2C23.4,45.1,29.8,38.7,29.8,25.8z" />
+       <path d="M25,5.1c-2.8,0-5.3,1-7.3,2.6L14,2.9C17.3,1,21,0,25,0c11,0,20,9,20,20c0,6.6-3.2,12.5-8.4,16.2 l-4.9-4.9c3.4-2.5,5.6-6.6,5.6-11.2C37.3,13.1,31.9,7.1,25,5.1z" />
+      <circle cx="15" cy="25" r="10" />
     </g>
-    <text x="40" y="34" fontFamily="var(--font-space-grotesk), sans-serif" fontWeight="bold" fontSize="30" fill="hsl(var(--foreground))">
+    <text x="50" y="34" fontFamily="var(--font-space-grotesk), sans-serif" fontWeight="bold" fontSize="30" fill="hsl(var(--foreground))">
       MoneyGo
     </text>
   </svg>
