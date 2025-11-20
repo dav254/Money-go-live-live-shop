@@ -115,7 +115,7 @@ export default function AdminLoginPage() {
         toast({ title: 'Admin Login Successful!' });
         router.push('/dashboard/admin');
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             // If user does not exist, create it
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
@@ -153,7 +153,7 @@ export default function AdminLoginPage() {
             } catch (createError: any) {
                 toast({ variant: 'destructive', title: 'Setup Failed', description: `Could not create admin account: ${createError.message}` });
             }
-        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        } else if (error.code === 'auth/wrong-password') {
             toast({
                 variant: 'destructive',
                 title: 'Password Mismatch',

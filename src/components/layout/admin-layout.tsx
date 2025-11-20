@@ -19,14 +19,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         // Not logged in, redirect to admin login page
         router.replace('/admin-login-net');
       } else if (userProfile && userProfile.userRole !== 'admin') {
-        // Logged in, but not an admin, redirect to homepage for role-based routing
-        router.replace('/');
+        // Logged in, but not an admin, redirect to the admin login page as they are unauthorized
+        router.replace('/admin-login-net');
       }
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
   const isLoading = isUserLoading || isProfileLoading;
 
+  // While loading, show a loading screen to prevent content flash
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -35,10 +36,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Render nothing if we are about to redirect
-  if (!user || (userProfile && userProfile.userRole !== 'admin')) {
-    return null;
+  // If the user is confirmed to be an admin, render the layout.
+  // Otherwise, render null because a redirect is in progress.
+  if (user && userProfile && userProfile.userRole === 'admin') {
+    return <MainLayout sidebar={<AdminSidebar />}>{children}</MainLayout>;
   }
-  
-  return <MainLayout sidebar={<AdminSidebar />}>{children}</MainLayout>;
+
+  return null;
 }

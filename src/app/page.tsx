@@ -57,7 +57,7 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
         bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
         rating: 4.8, // Placeholder
         followers: sellerData?.followers || 0,
-        reviewsCount: 45, // Placeholder
+        reviewsCount: sellerData?.reviewsCount || 0,
         isVerified: true, // Placeholder
         joinedDate: userProfileData?.joinDate || new Date().toISOString(),
         location: sellerData?.location || userProfileData?.location || 'Unknown',
@@ -174,7 +174,6 @@ export default function HomePage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Wait until auth state and profile are determined
         if (!isLoading && !isProfileLoading) {
             if (user && userProfile) {
                  switch (userProfile.userRole) {
@@ -187,16 +186,14 @@ export default function HomePage() {
                     case 'reseller':
                         router.replace('/dashboard/reseller');
                         break;
-                    case 'buyer':
-                        // Buyers stay on the homepage, which is their feed.
-                        break;
+                    // Buyers stay on the homepage, which is their feed.
+                    // No action needed for 'buyer'.
                     default:
-                        // Fallback for any other roles, redirect to a safe page.
-                        router.replace('/buyer/dashboard');
+                        // Fallback for any other roles or if role is 'buyer'.
+                        // The component will render the correct layout below.
                         break;
                 }
             }
-            // If there's no user, they stay on the public homepage.
         }
     }, [user, userProfile, isLoading, isProfileLoading, router]);
 
