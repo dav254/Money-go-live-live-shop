@@ -32,6 +32,7 @@ import { KeyRound, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
 import React from 'react';
+import type { UserProfile } from '@/lib/types';
 
 
 const formSchema = z.object({
@@ -58,12 +59,12 @@ export default function AdminLoginPage() {
     signInWithEmailAndPassword(auth, values.email, values.password)
       .then(async (userCredential) => {
         const user = userCredential.user;
-        const adminDocRef = doc(firestore, 'admins', user.uid);
+        const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         
         try {
-          const adminDocSnap = await getDoc(adminDocRef);
+          const userProfileSnap = await getDoc(userProfileRef);
 
-          if (!adminDocSnap.exists()) {
+          if (!userProfileSnap.exists() || userProfileSnap.data()?.userRole !== 'admin') {
             await auth.signOut();
             toast({
               variant: 'destructive',
@@ -73,19 +74,22 @@ export default function AdminLoginPage() {
             return;
           }
 
-          const adminData = adminDocSnap.data();
+          const userProfile = userProfileSnap.data() as UserProfile;
           toast({
             title: 'Admin Login Successful!',
-            description: `Welcome back, ${adminData.displayName || 'Admin'}.`,
+            description: `Welcome back, ${userProfile.fullName || 'Admin'}.`,
           });
           router.replace('/dashboard/admin'); 
 
         } catch (error) {
-            const permissionError = new FirestorePermissionError({
-              path: adminDocRef.path,
-              operation: 'get',
+            // This catch block might be for network errors or if the userProfiles collection itself is restricted
+            console.error('Error fetching user profile:', error);
+            await auth.signOut();
+            toast({
+              variant: 'destructive',
+              title: 'Login Error',
+              description: 'Could not verify your admin status. Please contact support.',
             });
-            errorEmitter.emit('permission-error', permissionError);
         }
       })
       .catch((error: any) => {
