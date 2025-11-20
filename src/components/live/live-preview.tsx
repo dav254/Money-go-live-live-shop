@@ -140,9 +140,9 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
           <div className="absolute inset-0 z-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
               {currentMedia ? (
               currentMedia.type === 'video' ? (
-                  <video className="w-full h-full object-contain" src={currentMedia.url} poster="" autoPlay muted loop playsInline key={currentMedia.url}></video>
+                  <video className="w-full h-full object-cover" src={currentMedia.url} poster="" autoPlay muted loop playsInline key={currentMedia.url}></video>
               ) : (
-                  <Image src={currentMedia.url} alt="Product" fill className="object-contain" key={currentMedia.url} unoptimized />
+                  <Image src={currentMedia.url} alt="Product" fill className="object-cover" key={currentMedia.url} unoptimized />
               )
               ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground p-8 text-center">
