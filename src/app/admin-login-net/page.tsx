@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore, useUserProfile } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -56,16 +56,18 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      const userProfileRef = doc(firestore, 'userProfiles', user.uid);
-      const userProfileSnap = await getDoc(userProfileRef);
+      // CORRECTED: Check the /admins collection, not /userProfiles
+      const adminDocRef = doc(firestore, 'admins', user.uid);
+      const adminDocSnap = await getDoc(adminDocRef);
 
-      if (userProfileSnap.exists() && userProfileSnap.data()?.userRole === 'admin') {
+      if (adminDocSnap.exists()) {
         toast({
           title: 'Admin Login Successful!',
           description: 'Welcome back, Admin.',
         });
         router.replace('/dashboard/admin');
       } else {
+        // This is the correct place for the access denied error
         await auth.signOut();
         toast({
           variant: 'destructive',
