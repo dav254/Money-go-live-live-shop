@@ -18,14 +18,14 @@ const helpArticles = [
         questions: [
             { q: "How do I pick products to resell?", a: "Navigate to the 'Products to Resell' tab. You can filter by trending, high-commission, or new arrivals to find products that suit your audience." },
             { q: "How do my commissions work?", a: "You earn a percentage of each sale made through your unique reseller link. Commissions are tracked in your 'Commissions' tab and paid out according to the payout schedule." },
-            { q: "What if my sales are low?", a: "Use the 'Reseller Toolkit' to create AI-powered posters and captions. Also, check out the 'MoneyGo Academy' for tips on how to improve your marketing." },
+            { q: "What if my sales are low?", a: "Use the 'Reseller Toolkit' to create AI-powered posters and captions. Also, check out the 'Go Earn Academy' for tips on how to improve your marketing." },
         ],
     },
     {
         category: "How to Promote Products",
         questions: [
             { q: "How do I share to WhatsApp?", a: "On each product, click the 'Share' button and select the WhatsApp option to send it directly to your contacts or status." },
-            { q: "What are MoneyGo Smart Links?", a: "These are special links that track every click and sale you generate. Always use the links from the 'Share' button to ensure you get your commission." },
+            { q: "What are Go Earn Smart Links?", a: "These are special links that track every click and sale you generate. Always use the links from the 'Share' button to ensure you get your commission." },
         ],
     },
     {
@@ -97,7 +97,7 @@ export default function ResellerHelpCenterPage() {
                     <CardHeader>
                          <CardTitle className="flex items-center gap-2 text-primary">
                             <BookOpen />
-                            MoneyGo Academy
+                            Go Earn Academy
                         </CardTitle>
                         <CardDescription>Ready to level up? Visit the academy to learn from the best.</CardDescription>
                     </CardHeader>

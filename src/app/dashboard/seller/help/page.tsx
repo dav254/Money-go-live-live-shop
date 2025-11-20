@@ -95,12 +95,12 @@ export default function SellerHelpPage() {
                             </CardContent>
                         </Card>
 
-                        {/* MoneyGo Academy */}
+                        {/* Go Earn Academy */}
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-primary">
                                     <BookOpen />
-                                     MoneyGo Academy
+                                     Go Earn Academy
                                 </CardTitle>
                                 <CardDescription>Learn from the experts to grow your sales and brand.</CardDescription>
                             </CardHeader>

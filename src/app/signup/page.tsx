@@ -72,7 +72,7 @@ export default function SignupPage() {
       
       let userRole = values.role;
       // If the user is the special admin, ensure their role is 'admin'
-      if (values.email === 'admin@moneygod.com') {
+      if (values.email === 'admin@goearn.com') {
         userRole = 'admin';
         const adminDocRef = doc(firestore, 'admins', user.uid);
         batch.set(adminDocRef, {
@@ -128,7 +128,7 @@ export default function SignupPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="font-headline text-2xl">Create an Account</CardTitle>
-            <CardDescription>Join MoneyGo today. Choose your role to get started.</CardDescription>
+            <CardDescription>Join Go Earn today. Choose your role to get started.</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>

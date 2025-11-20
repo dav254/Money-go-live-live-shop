@@ -227,7 +227,7 @@ export default function AdminAccountSettingsPage() {
               <CardHeader>
                 <CardTitle>Preferences</CardTitle>
                 <CardDescription>
-                  Customize your MoneyGo experience.
+                  Customize your Go Earn experience.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">

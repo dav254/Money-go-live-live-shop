@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
 
   // One-click login function
   const handleOneClickLogin = async () => {
-    const adminEmail = 'admin@moneygod.com';
+    const adminEmail = 'admin@goearn.com';
     const adminPassword = 'TemporaryPassword123!'; // Use a temporary, known password
 
     try {
@@ -126,7 +126,7 @@ export default function AdminLoginPage() {
                 const userDocRef = doc(firestore, "userProfiles", user.uid);
                 batch.set(userDocRef, {
                     id: user.uid,
-                    fullName: "MoneyGo Admin",
+                    fullName: "Go Earn Admin",
                     username: "admin",
                     email: adminEmail,
                     joinDate: new Date().toISOString(),
@@ -137,7 +137,7 @@ export default function AdminLoginPage() {
                 batch.set(adminDocRef, {
                     uid: user.uid,
                     email: user.email,
-                    displayName: "MoneyGo Admin",
+                    displayName: "Go Earn Admin",
                     role: 'SuperAdmin',
                     lastLogin: new Date().toISOString(),
                 });
@@ -200,7 +200,7 @@ export default function AdminLoginPage() {
                     <FormItem>
                       <FormLabel>Admin Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@moneygo.com" {...field} />
+                        <Input type="email" placeholder="admin@goearn.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

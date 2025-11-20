@@ -432,7 +432,7 @@ export default function SellerWalletPage() {
             title="Total Platform Fees"
             value={`$${platformFees.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
             icon={CircleDollarSign}
-            description="10% commission paid to MoneyGo."
+            description="10% commission paid to Go Earn."
             isLoading={isLoading}
           />
         </div>

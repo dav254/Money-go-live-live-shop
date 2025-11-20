@@ -19,7 +19,7 @@ export default function SellerStudioPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3 text-primary">
                             <Award className="h-7 w-7"/>
-                            You are a MoneyGo Live Partner!
+                            You are a Go Earn Live Partner!
                         </CardTitle>
                         <CardDescription>
                             You've unlocked all live selling features. Start a show to connect with buyers and boost your sales.

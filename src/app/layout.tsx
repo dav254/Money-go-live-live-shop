@@ -16,7 +16,7 @@ const fontSpaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'MoneyGo: Live Shop',
+  title: 'Go Earn: Live Shop',
   description: 'A video-driven marketplace to buy and sell products.',
 };
 

@@ -13,7 +13,7 @@ export const Logo = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => 
       <circle cx="15" cy="25" r="10" />
     </g>
     <text x="50" y="34" fontFamily="var(--font-space-grotesk), sans-serif" fontWeight="bold" fontSize="30" fill="hsl(var(--foreground))">
-      MoneyGo
+      Go Earn
     </text>
   </svg>
 );

@@ -176,7 +176,7 @@ export default function SellerEarningsPage() {
                     title="Platform Fees"
                     value={stats.platformFees.toLocaleString(undefined, {minimumFractionDigits: 2})}
                     icon={CircleDollarSign}
-                    description="Total commission paid to MoneyGo"
+                    description="Total commission paid to Go Earn"
                 />
             </>
           )}

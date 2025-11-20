@@ -25,7 +25,7 @@ export default function ResellerAcademyPage() {
             <div className="flex-1 space-y-8 p-8 pt-6">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold tracking-tight">
-                        MoneyGo Academy
+                        Go Earn Academy
                     </h1>
                     <p className="text-lg text-muted-foreground">Your training center for becoming a top reseller.</p>
                 </div>
