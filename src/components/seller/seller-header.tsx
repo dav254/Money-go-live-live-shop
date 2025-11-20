@@ -12,13 +12,15 @@ import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { useEffect, useState } from 'react';
+import { Skeleton } from '../ui/skeleton';
 
 
 interface SellerHeaderProps {
   seller: Seller;
+  isLoading?: boolean;
 }
 
-export function SellerHeader({ seller }: SellerHeaderProps) {
+export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -62,6 +64,25 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
       });
     }
   };
+  
+  if (isLoading || !seller) {
+      return (
+          <div className="relative w-full bg-neutral-900 text-white">
+              <div className="relative h-48 w-full md:h-64">
+                <Skeleton className="h-full w-full" />
+              </div>
+               <div className="relative -mt-16 px-4 pb-6 sm:px-6 lg:px-8">
+                 <div className="flex flex-col items-center text-center md:flex-row md:items-end md:text-left">
+                    <Skeleton className="relative h-32 w-32 flex-shrink-0 rounded-full border-4 border-neutral-900" />
+                     <div className="mt-4 md:ml-6 md:mt-0 space-y-2">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-4 w-32" />
+                    </div>
+                 </div>
+               </div>
+          </div>
+      )
+  }
 
 
   return (
