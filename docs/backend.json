@@ -83,6 +83,11 @@
           "type": "string",
           "description": "The status of the user account (e.g., active, suspended)."
         },
+        "verificationStatus": {
+          "type": "string",
+          "description": "The verification status of the user (e.g., 'pending', 'verified', 'rejected').",
+          "enum": ["pending", "verified", "rejected"]
+        },
         "socialLinks": {
           "type": "array",
           "description": "array of social links",
