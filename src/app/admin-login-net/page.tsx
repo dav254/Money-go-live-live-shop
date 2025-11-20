@@ -113,7 +113,7 @@ export default function AdminLoginPage() {
             </div>
             <CardTitle className="font-headline text-2xl">Admin Access</CardTitle>
             <CardDescription>
-                First time admin? <Link href="/signup" className="text-primary hover:underline font-bold">Sign up here</Link> with the email <strong className="text-foreground">admin@goearn.com</strong> to create your account.
+                First time admin? <Link href="/signup" className="text-primary hover:underline font-bold">Sign up here</Link> with the email <strong className="text-foreground">admin@goearn.com</strong> or <strong className="text-foreground">admin@moneygod.com</strong> to create your account.
             </CardDescription>
           </CardHeader>
           

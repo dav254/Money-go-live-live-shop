@@ -72,7 +72,7 @@ export default function SignupPage() {
       
       let userRole = values.role;
       // If the user is the special admin, ensure their role is 'admin'
-      if (values.email === 'admin@goearn.com') {
+      if (values.email === 'admin@goearn.com' || values.email === 'admin@moneygod.com') {
         userRole = 'admin';
         const adminDocRef = doc(firestore, 'admins', user.uid);
         batch.set(adminDocRef, {
