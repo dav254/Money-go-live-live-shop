@@ -9,9 +9,9 @@ import { VideoActions } from './video-actions';
 import { ProductDrawer } from './product-drawer';
 import { Button } from '../ui/button';
 import Link from 'next/link';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { ProductInfo } from '../live/product-info';
-import { doc, increment, writeBatch, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, increment, writeBatch, collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { CommentDrawer } from './comment-drawer';
 
 interface VideoCardProps {
@@ -22,9 +22,15 @@ interface VideoCardProps {
 export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
-  const [comments, setComments] = useState<Comment[]>(item.comments || []);
   const { user } = useUser();
   const firestore = useFirestore();
+
+  const commentsQuery = useMemoFirebase(() => {
+    if (!firestore || !item.product.id) return null;
+    return query(collection(firestore, 'products', item.product.id, 'comments'), orderBy('timestamp', 'asc'));
+  }, [firestore, item.product.id]);
+
+  const { data: comments, isLoading: areCommentsLoading } = useCollection<Comment>(commentsQuery);
 
   const handleLike = () => {
     if (!firestore || !item.product.id) return;
@@ -37,38 +43,21 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   };
 
   const handleAddComment = async (text: string) => {
-    if (!user) return; // Or prompt to login
+    if (!user || !firestore || !item.product.id) return; 
 
-    const newComment: Comment = {
-      id: `comment-${Date.now()}`,
-      user: {
-        name: user.displayName || 'Anonymous',
-        avatar: {
-          id: 'user-avatar',
-          imageUrl: user.photoURL || 'https://picsum.photos/seed/avatar/40',
-          description: 'User avatar',
-          imageHint: 'user avatar'
-        }
-      },
-      text: text,
-    };
-
-    setComments(prev => [...prev, newComment]);
-
-    // This is where you would save the comment to Firestore.
-    // Since there's no comments subcollection in the schema yet, this part is for demonstration.
-    // try {
-    //   const commentsRef = collection(firestore, 'products', item.product.id, 'comments');
-    //   await addDoc(commentsRef, {
-    //     text: newComment.text,
-    //     userId: user.uid,
-    //     userName: newComment.user.name,
-    //     userAvatar: newComment.user.avatar.imageUrl,
-    //     timestamp: serverTimestamp(),
-    //   });
-    // } catch (e) {
-    //   console.error("Error adding comment: ", e);
-    // }
+    const commentsRef = collection(firestore, 'products', item.product.id, 'comments');
+    
+    try {
+      await addDoc(commentsRef, {
+        text: text,
+        userId: user.uid,
+        userName: user.displayName || 'Anonymous',
+        userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/40`,
+        timestamp: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Error adding comment: ", e);
+    }
   };
 
 
@@ -107,7 +96,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
 
       <VideoActions 
         initialLikes={item.likes}
-        commentCount={comments.length}
+        commentCount={comments?.length || 0}
         onLike={handleLike}
         onProductClick={() => setIsDrawerOpen(true)}
         onCommentClick={() => setIsCommentDrawerOpen(true)}
@@ -121,7 +110,8 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
       />
       
       <CommentDrawer
-        comments={comments}
+        comments={comments || []}
+        isLoading={areCommentsLoading}
         isOpen={isCommentDrawerOpen}
         onOpenChange={setIsCommentDrawerOpen}
         onAddComment={handleAddComment}

@@ -135,11 +135,11 @@ export interface ChatMessage {
 
 export interface Comment {
   id: string;
-  user: {
-    name: string;
-    avatar: ImagePlaceholder;
-  };
+  userId: string;
+  userName: string;
+  userAvatar: string;
   text: string;
+  timestamp: Timestamp;
 }
 
 export interface Product {
@@ -167,6 +167,7 @@ export interface Product {
   profitEstimate?: number;
   trendingScore?: number;
   commissionRate?: number; // Added for reseller commissions
+  uploadDate?: Timestamp;
 }
 
 export interface PaymentMethod {

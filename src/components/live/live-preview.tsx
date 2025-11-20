@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import type { Seller, Product } from '@/lib/types';
+import type { Seller, Product, Comment } from '@/lib/types';
 import { VideoInfo } from '@/components/feed/video-info';
 import { VideoActions } from '@/components/feed/video-actions';
 import { ProductInfo } from './product-info';
@@ -12,28 +12,15 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Send } from 'lucide-react';
 import { CommentDrawer } from '@/components/feed/comment-drawer';
-import { useUser } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+
 
 // --- Floating Hearts Animation --- //
 interface Heart {
   id: number;
   x: number;
   y: number;
-}
-
-// --- Simulated Comments --- //
-interface Comment {
-    id: string;
-    user: {
-      name: string;
-      avatar: {
-        id: string;
-        imageUrl: string;
-        description: string;
-        imageHint: string;
-      };
-    };
-    text: string;
 }
 
 interface LivePreviewProps {
@@ -54,11 +41,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
   const { user } = useUser();
-
-  const [comments, setComments] = useState<Comment[]>([
-    { id: '1', user: { name: 'John', avatar: {id: 'c1', imageUrl: 'https://picsum.photos/seed/commenter1/40', description: 'avatar', imageHint: 'person' } }, text: 'Is this available?' },
-    { id: '2', user: { name: 'Amina', avatar: {id: 'c2', imageUrl: 'https://picsum.photos/seed/commenter2/40', description: 'avatar', imageHint: 'person' } }, text: 'How much for delivery to CBD?' }
-  ]);
+  const firestore = useFirestore();
   const [newComment, setNewComment] = useState('');
 
   const allMedia = useMemo(() => {
@@ -76,6 +59,13 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
 
   const currentMedia = allMedia.length > 0 ? allMedia[currentMediaIndex] : null;
   const currentProduct = products.find(p => p.id === currentMedia?.productId);
+
+  const commentsQuery = useMemoFirebase(() => {
+    if (!firestore || !currentProduct?.id) return null;
+    return query(collection(firestore, 'products', currentProduct.id, 'comments'), orderBy('timestamp', 'asc'));
+  }, [firestore, currentProduct]);
+
+  const { data: comments, isLoading: areCommentsLoading } = useCollection<Comment>(commentsQuery);
 
   const handleNext = () => {
     if (allMedia.length > 0) {
@@ -111,24 +101,22 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
     }, 1200);
   };
   
-  const handleAddComment = (text: string) => {
-    if (!user) return; // Or prompt to login
+  const handleAddComment = async (text: string) => {
+    if (!user || !firestore || !currentProduct) return;
 
-    const newComment: Comment = {
-      id: `comment-${Date.now()}`,
-      user: {
-        name: user.displayName || 'Anonymous',
-        avatar: {
-          id: 'user-avatar',
-          imageUrl: user.photoURL || 'https://picsum.photos/seed/avatar/40',
-          description: 'User avatar',
-          imageHint: 'user avatar'
-        }
-      },
-      text: text,
-    };
-
-    setComments(prev => [...prev, newComment]);
+    const commentsRef = collection(firestore, 'products', currentProduct.id, 'comments');
+    
+    try {
+      await addDoc(commentsRef, {
+        text: text,
+        userId: user.uid,
+        userName: user.displayName || 'Anonymous',
+        userAvatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/40`,
+        timestamp: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Error adding comment: ", e);
+    }
   };
 
 
@@ -175,7 +163,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
               <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 pointer-events-auto">
                   <VideoActions 
                       initialLikes={currentProduct.likes || 0}
-                      commentCount={comments.length}
+                      commentCount={comments?.length || 0}
                       onLike={spawnHeart}
                       onProductClick={() => setIsDrawerOpen(true)}
                       onCommentClick={() => setIsCommentDrawerOpen(true)}
@@ -186,9 +174,9 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
 
           {/* Comments Feed (Bottom Left) */}
           <div className="absolute bottom-24 left-4 z-20 pointer-events-auto flex flex-col gap-2 max-h-48 overflow-y-auto">
-              {comments.slice(-5).map(c => (
+              {comments?.slice(-5).map(c => (
                   <div key={c.id} className="bg-black/50 text-white px-3 py-2 rounded-xl text-sm shadow-lg backdrop-blur-sm max-w-xs">
-                      <span className="font-bold mr-2">{c.user.name}:</span>{c.text}
+                      <span className="font-bold mr-2">{c.userName}:</span>{c.text}
                   </div>
               ))}
           </div>
@@ -227,7 +215,8 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
           />
       )}
       <CommentDrawer
-        comments={comments}
+        comments={comments || []}
+        isLoading={areCommentsLoading}
         isOpen={isCommentDrawerOpen}
         onOpenChange={setIsCommentDrawerOpen}
         onAddComment={handleAddComment}

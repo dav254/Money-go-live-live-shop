@@ -47,6 +47,12 @@ service cloud.firestore {
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
+
+      // Allow authenticated users to list and create comments.
+      match /comments/{commentId} {
+        allow list, read: if true;
+        allow create: if request.auth != null;
+      }
     }
 
     // Orders can be read by the buyer or the seller.
