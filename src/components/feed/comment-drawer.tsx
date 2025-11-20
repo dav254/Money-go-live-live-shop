@@ -63,10 +63,10 @@ export function CommentDrawer({ comments, isOpen, onOpenChange, onAddComment, is
                     <div key={comment.id} className="flex items-start gap-3">
                         <Avatar className="h-8 w-8 border">
                             <AvatarImage src={comment.userAvatar} />
-                            <AvatarFallback>{comment.userName.charAt(0)}</AvatarFallback>
+                            <AvatarFallback>{comment.userName?.charAt(0) || 'A'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                            <p className="text-xs text-muted-foreground">{comment.userName}</p>
+                            <p className="text-xs text-muted-foreground">{comment.userName || 'Anonymous'}</p>
                             <p className="text-sm">{comment.text}</p>
                         </div>
                     </div>
