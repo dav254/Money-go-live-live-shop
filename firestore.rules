@@ -55,11 +55,13 @@ service cloud.firestore {
       }
     }
 
-    // Orders can be read by the buyer or the seller.
+    // Orders can be read by the buyer, the seller, or an admin.
+    // Admins can list all orders.
     // Buyers can create orders.
     match /orders/{orderId} {
-      allow read: if request.auth != null && 
-                     (resource.data.buyerId == request.auth.uid || 
+      allow read, list: if request.auth != null && 
+                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
+                      resource.data.buyerId == request.auth.uid || 
                       resource.data.sellerId == request.auth.uid);
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
