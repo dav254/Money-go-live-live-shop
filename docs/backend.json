@@ -79,6 +79,10 @@
           "type": "string",
           "description": "The role of the user (e.g., buyer, seller, admin)."
         },
+        "status": {
+          "type": "string",
+          "description": "The status of the user account (e.g., active, suspended)."
+        },
         "socialLinks": {
           "type": "array",
           "description": "array of social links",

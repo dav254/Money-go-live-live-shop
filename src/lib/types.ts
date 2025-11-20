@@ -80,6 +80,7 @@ export interface UserProfile {
   location?: string;
   shopName?: string; // Added to potentially hold shop name
   phoneNumber?: string; // Added for seller info
+  status?: 'active' | 'suspended';
 }
 
 export interface Order {
