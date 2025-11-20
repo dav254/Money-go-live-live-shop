@@ -238,6 +238,10 @@
           "type": "string",
           "description": "Reference to UserProfile. The ID of the seller who is fulfilling the order. (Relationship: UserProfile 1:N Order)"
         },
+        "resellerId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the reseller who facilitated the sale (optional). (Relationship: UserProfile 1:N Order)"
+        },
         "productId": {
           "type": "string",
           "description": "Reference to Product. The ID of the product that was ordered. (Relationship: Product 1:N Order)"
