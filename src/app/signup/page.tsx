@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -35,7 +34,7 @@ import { useAuth } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 
 const formSchema = z.object({
@@ -67,35 +66,18 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      const batch = writeBatch(firestore);
       const userDocRef = doc(firestore, "userProfiles", user.uid);
       
-      let userRole: 'buyer' | 'seller' | 'reseller' | 'admin' = values.role;
-      // If the user is the special admin, ensure their role is 'admin'
-      if (values.email === 'admin@goearn.com' || values.email === 'admin@moneygod.com') {
-        userRole = 'admin';
-        const adminDocRef = doc(firestore, 'admins', user.uid);
-        batch.set(adminDocRef, {
-            uid: user.uid,
-            email: user.email,
-            displayName: values.fullName,
-            role: 'SuperAdmin',
-            lastLogin: new Date().toISOString(),
-        });
-      }
-
       const userProfile = {
         id: user.uid,
         fullName: values.fullName,
         username: values.username,
         email: values.email,
         joinDate: new Date().toISOString(),
-        userRole: userRole,
+        userRole: values.role,
       };
 
-      batch.set(userDocRef, userProfile);
-      
-      await batch.commit();
+      await setDoc(userDocRef, userProfile);
 
       toast({
         title: 'Account Created!',
