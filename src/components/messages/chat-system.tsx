@@ -1,16 +1,18 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Chat, ChatMessage, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
+import { useSearchParams } from 'next/navigation';
 
 export function ChatSystem() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const searchParams = useSearchParams();
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
 
   const chatsQuery = useMemoFirebase(() => {
@@ -57,6 +59,17 @@ export function ChatSystem() {
 
   }, [chats, participants, user]);
   
+  useEffect(() => {
+    const chatWithId = searchParams.get('chatWith');
+    if (chatWithId && chatsWithParticipants.length > 0) {
+      const chatToSelect = chatsWithParticipants.find(c => c.participantIds.includes(chatWithId));
+      if (chatToSelect) {
+        setSelectedChat(chatToSelect);
+      }
+    }
+  }, [searchParams, chatsWithParticipants]);
+
+
   const handleChatDeleted = () => {
       setSelectedChat(null);
       // The useCollection hook will automatically refetch and update the list

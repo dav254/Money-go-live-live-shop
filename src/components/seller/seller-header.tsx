@@ -8,11 +8,12 @@ import { Heart, MessageSquare, Plus, Share2 } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '../ui/skeleton';
+import { useRouter } from 'next/navigation';
 
 
 interface SellerHeaderProps {
@@ -26,6 +27,7 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
   const { toast } = useToast();
   const { userProfile } = useUserProfile(user?.uid);
   const [isFollowing, setIsFollowing] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (userProfile && userProfile.following && seller) {
@@ -34,7 +36,7 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
   }, [userProfile, seller]);
 
   const handleFollow = async () => {
-    if (!user || !firestore) {
+    if (!user || !firestore || !seller) {
       toast({
         variant: 'destructive',
         title: 'Please log in to follow sellers.',
@@ -62,6 +64,65 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
         variant: 'destructive',
         title: 'Something went wrong',
       });
+    }
+  };
+
+  const handleMessage = async () => {
+    if (!user || !firestore || !seller || user.uid === seller.id) {
+        if (user && seller && user.uid === seller.id) {
+            toast({
+                variant: 'default',
+                title: 'This is your own shop',
+                description: "You cannot message yourself.",
+            });
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Please log in to message sellers.',
+            });
+        }
+        return;
+    }
+
+    const chatsRef = collection(firestore, 'chats');
+    // Firestore doesn't support array-contains-all, so we query for one participant and filter locally.
+    // A more robust solution might involve a composite key of sorted participant IDs.
+    const q = query(chatsRef, where('participantIds', 'array-contains', user.uid));
+    
+    try {
+        const querySnapshot = await getDocs(q);
+        let existingChat = null;
+
+        querySnapshot.forEach(doc => {
+            const chat = doc.data();
+            if (chat.participantIds.includes(seller.id)) {
+                existingChat = { id: doc.id, ...chat };
+            }
+        });
+        
+        if (existingChat) {
+            // Chat exists, navigate to it. Pass seller ID to pre-select it on messages page.
+            router.push(`/messages?chatWith=${seller.id}`);
+        } else {
+            // Chat doesn't exist, create it.
+            const newChatRef = doc(collection(firestore, 'chats'));
+            await setDoc(newChatRef, {
+                id: newChatRef.id,
+                participantIds: [user.uid, seller.id],
+                lastMessage: `Started a conversation with ${seller.name}`,
+                lastMessageTimestamp: serverTimestamp()
+            });
+             // Navigate to the new chat.
+            router.push(`/messages?chatWith=${seller.id}`);
+        }
+
+    } catch (error) {
+        console.error('Error handling message action:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Could not start chat',
+            description: 'There was an error trying to start a conversation. Please try again later.'
+        });
     }
   };
   
@@ -115,11 +176,11 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
           <div className="mt-4 md:ml-6 md:mt-0">
             <h1 className="font-headline text-3xl font-bold text-white">{seller.name}</h1>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-neutral-300 md:justify-start">
-              <span>{seller.followers.toLocaleString()} followers</span>
+              <span>{(seller.followers || 0).toLocaleString()} followers</span>
               <span>&middot;</span>
-              <span>{seller.reviewsCount.toLocaleString()} reviews</span>
+              <span>{(seller.reviewsCount || 0).toLocaleString()} reviews</span>
               <span>&middot;</span>
-              <span>{seller.rating.toFixed(1)} <span className="text-yellow-400">★</span></span>
+              <span>{(seller.rating || 0).toFixed(1)} <span className="text-yellow-400">★</span></span>
             </div>
           </div>
         </div>
@@ -133,7 +194,7 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
                 <Plus className={`mr-2 h-4 w-4 transition-transform ${isFollowing ? 'rotate-45' : ''}`} />
                 {isFollowing ? 'Following' : 'Follow'}
             </Button>
-            <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
+            <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800" onClick={handleMessage}>
                 <MessageSquare className="mr-2 h-4 w-4" /> Message
             </Button>
              <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
