@@ -1,73 +1,131 @@
 
 'use client';
 
-import Link from 'next/link';
+import type { Seller } from '@/lib/types';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video, Search } from 'lucide-react';
-import { Logo } from '@/components/logo';
-import { Input } from '@/components/ui/input';
-import { UserNav } from '@/components/layout/user-nav';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Heart, MessageSquare, Plus, Share2 } from 'lucide-react';
+import { SellerBadges } from './seller-badges';
+import { ShopStoryHighlights } from './shop-story-highlights';
+import { useUser, useFirestore } from '@/firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { useEffect, useState } from 'react';
 
-export function SellerHeader() {
+
+interface SellerHeaderProps {
+  seller: Seller;
+}
+
+export function SellerHeader({ seller }: SellerHeaderProps) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const { userProfile } = useUserProfile(user?.uid);
+  const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    if (userProfile && userProfile.following) {
+      setIsFollowing(userProfile.following.includes(seller.id));
+    }
+  }, [userProfile, seller.id]);
+
+  const handleFollow = async () => {
+    if (!user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Please log in to follow sellers.',
+      });
+      return;
+    }
+
+    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+    const newFollowingState = !isFollowing;
+
+    try {
+      await updateDoc(userProfileRef, {
+        following: newFollowingState
+          ? arrayUnion(seller.id)
+          : arrayRemove(seller.id),
+      });
+      setIsFollowing(newFollowingState);
+      toast({
+        title: newFollowingState ? 'Followed!' : 'Unfollowed',
+        description: `You are now ${newFollowingState ? 'following' : 'no longer following'} ${seller.name}.`,
+      });
+    } catch (error) {
+      console.error('Error updating follow status:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Something went wrong',
+      });
+    }
+  };
+
+
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex items-center gap-2">
-        <SidebarTrigger className="md:hidden" />
-        <Link href="/dashboard/seller" className="hidden md:block">
-          <Logo className="h-8 w-auto text-primary" />
-        </Link>
+    <div className="relative w-full bg-neutral-900 text-white">
+      {/* Banner Image */}
+      <div className="relative h-48 w-full md:h-64">
+        <Image
+          src={seller.banner?.imageUrl || 'https://picsum.photos/seed/banner/1200/400'}
+          alt={`${seller.name}'s banner`}
+          fill
+          className="object-cover"
+          priority
+          data-ai-hint={seller.banner?.imageHint}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/50 to-transparent" />
       </div>
-      <div className="hidden md:flex flex-1 max-w-lg items-center">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search products, orders..."
-            className="pl-9"
-          />
+
+      <div className="relative -mt-16 px-4 pb-6 sm:px-6 lg:px-8">
+        {/* Avatar and Main Info */}
+        <div className="flex flex-col items-center text-center md:flex-row md:items-end md:text-left">
+          <div className="relative h-32 w-32 flex-shrink-0 rounded-full border-4 border-neutral-900">
+            <Image
+              src={seller.avatar?.imageUrl || 'https://picsum.photos/seed/avatar/200'}
+              alt={`${seller.name}'s avatar`}
+              fill
+              className="object-cover rounded-full"
+              data-ai-hint={seller.avatar?.imageHint}
+            />
+          </div>
+          <div className="mt-4 md:ml-6 md:mt-0">
+            <h1 className="font-headline text-3xl font-bold text-white">{seller.name}</h1>
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-neutral-300 md:justify-start">
+              <span>{seller.followers.toLocaleString()} followers</span>
+              <span>&middot;</span>
+              <span>{seller.reviewsCount.toLocaleString()} reviews</span>
+              <span>&middot;</span>
+              <span>{seller.rating.toFixed(1)} <span className="text-yellow-400">★</span></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        <SellerBadges seller={seller} />
+
+        {/* Action Buttons */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+            <Button onClick={handleFollow} variant={isFollowing ? 'secondary' : 'default'} className="bg-primary hover:bg-primary/90">
+                <Plus className={`mr-2 h-4 w-4 transition-transform ${isFollowing ? 'rotate-45' : ''}`} />
+                {isFollowing ? 'Following' : 'Follow'}
+            </Button>
+            <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
+                <MessageSquare className="mr-2 h-4 w-4" /> Message
+            </Button>
+             <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
+                <Share2 className="mr-2 h-4 w-4" /> Share
+            </Button>
+             <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
+                <Heart className="mr-2 h-4 w-4" /> Wishlist
+            </Button>
         </div>
       </div>
-
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden md:inline-flex relative"
-          asChild
-        >
-          <Link href="/notifications">
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
-            <span className="absolute top-1 right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden md:inline-flex"
-          asChild
-        >
-          <Link href="/dashboard/seller/messages">
-            <MessageSquare className="h-5 w-5" />
-            <span className="sr-only">Chat</span>
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden md:inline-flex"
-          asChild
-        >
-          <Link href="/dashboard/seller/live">
-            <Video className="h-5 w-5" />
-            <span className="sr-only">Go Live</span>
-          </Link>
-        </Button>
-        <UserNav />
+      <div className="px-4 sm:px-6 lg:px-8">
+        <ShopStoryHighlights highlights={[]} />
       </div>
-    </header>
+    </div>
   );
 }
