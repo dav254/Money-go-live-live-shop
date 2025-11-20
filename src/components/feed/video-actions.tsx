@@ -4,24 +4,44 @@
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Share2, ShoppingBag, Star, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface VideoActionsProps {
   initialLikes?: number;
   commentCount?: number;
+  productId: string;
   onProductClick?: () => void;
   onCommentClick?: () => void;
   onScroll?: (direction: 'up' | 'down') => void;
   onLike?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export function VideoActions({ initialLikes = 0, commentCount = 0, onProductClick, onCommentClick, onScroll, onLike }: VideoActionsProps) {
+export function VideoActions({ initialLikes = 0, commentCount = 0, productId, onProductClick, onCommentClick, onScroll, onLike }: VideoActionsProps) {
   const [likes, setLikes] = useState(initialLikes);
+  const { toast } = useToast();
 
   const handleLike = (e: React.MouseEvent<HTMLButtonElement>) => {
     setLikes((prev) => prev + 1);
     if (onLike) {
       onLike(e);
     }
+  };
+
+  const handleShare = () => {
+    const url = `https://goearnvid.shop/products/${productId}`;
+    navigator.clipboard.writeText(url).then(() => {
+        toast({
+            title: "Link Copied!",
+            description: "The product link has been copied to your clipboard.",
+        });
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        toast({
+            variant: "destructive",
+            title: "Failed to Copy",
+            description: "Could not copy the link to your clipboard.",
+        });
+    });
   };
 
   const handleScrollClick = (direction: 'up' | 'down') => {
@@ -64,7 +84,7 @@ export function VideoActions({ initialLikes = 0, commentCount = 0, onProductClic
         <span className="text-sm font-semibold text-white drop-shadow-md">{commentCount}</span>
       </div>
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70">
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleShare}>
           <Share2 className="h-6 w-6 text-white" />
         </Button>
       </div>

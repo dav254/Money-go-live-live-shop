@@ -97,6 +97,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
       <VideoActions 
         initialLikes={item.likes}
         commentCount={comments?.length || 0}
+        productId={item.product.id}
         onLike={handleLike}
         onProductClick={() => setIsDrawerOpen(true)}
         onCommentClick={() => setIsCommentDrawerOpen(true)}

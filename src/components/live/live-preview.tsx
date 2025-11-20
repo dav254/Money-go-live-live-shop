@@ -164,6 +164,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
                   <VideoActions 
                       initialLikes={currentProduct.likes || 0}
                       commentCount={comments?.length || 0}
+                      productId={currentProduct.id}
                       onLike={spawnHeart}
                       onProductClick={() => setIsDrawerOpen(true)}
                       onCommentClick={() => setIsCommentDrawerOpen(true)}
