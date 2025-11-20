@@ -1,4 +1,6 @@
 
+'use client';
+
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Accordion,
@@ -13,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { BookOpen, FileQuestion, LifeBuoy, Mail, MessageSquare, Search, ShieldAlert, Upload, Video, BadgeHelp } from 'lucide-react';
+import Link from 'next/link';
 
 const helpArticles = [
     {
@@ -166,9 +169,21 @@ export default function SellerHelpPage() {
                                 <CardDescription>Quick reports for urgent problems.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                <Button variant="outline" className="w-full justify-start gap-2"><BadgeHelp className="h-4 w-4"/> Report Buyer</Button>
-                                <Button variant="outline" className="w-full justify-start gap-2"><BadgeHelp className="h-4 w-4"/> Report Order Problem</Button>
-                                <Button variant="outline" className="w-full justify-start gap-2"><BadgeHelp className="h-4 w-4"/> Report System Bug</Button>
+                                <Button asChild variant="outline" className="w-full justify-start gap-2">
+                                    <Link href="/dashboard/seller/report-issue?type=buyer">
+                                        <BadgeHelp className="h-4 w-4"/> Report Buyer
+                                    </Link>
+                                </Button>
+                                <Button asChild variant="outline" className="w-full justify-start gap-2">
+                                    <Link href="/dashboard/seller/report-issue?type=order">
+                                        <BadgeHelp className="h-4 w-4"/> Report Order Problem
+                                    </Link>
+                                </Button>
+                                <Button asChild variant="outline" className="w-full justify-start gap-2">
+                                    <Link href="/dashboard/seller/report-issue?type=bug">
+                                         <BadgeHelp className="h-4 w-4"/> Report System Bug
+                                    </Link>
+                                </Button>
                             </CardContent>
                         </Card>
                     </div>
