@@ -8,6 +8,9 @@ import { VideoActions } from '@/components/feed/video-actions';
 import { ProductInfo } from './product-info';
 import { ProductDrawer } from '@/components/feed/product-drawer';
 import Image from 'next/image';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { Send } from 'lucide-react';
 
 // --- Floating Hearts Animation --- //
 interface Heart {
@@ -44,6 +47,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
     { id: 1, user: 'John', text: 'Is this available?', time: 'now' },
     { id: 2, user: 'Amina', text: 'How much for delivery to CBD?', time: '2s' }
   ]);
+  const [newComment, setNewComment] = useState('');
 
   const allMedia = useMemo(() => {
     const media: MediaItem[] = [];
@@ -94,29 +98,29 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
       setHearts(heartsRef.current);
     }, 1200);
   };
+  
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newComment.trim()) {
+        const nextId = comments.length ? comments[comments.length - 1].id + 1 : 1;
+        const comment: Comment = {
+            id: nextId,
+            user: 'You', // Simulate the current user
+            text: newComment.trim(),
+            time: 'now'
+        };
+        setComments(prev => [...prev.slice(-4), comment]);
+        setNewComment('');
+    }
+  }
+
 
   useEffect(() => {
     setCurrentMediaIndex(0);
-
-    const commentInterval = setInterval(() => {
-        setComments(prev => {
-            const nextId = prev.length ? prev[prev.length - 1].id + 1 : 1;
-            const users = ['Ali', 'Zuri', 'Ben', 'Maya'];
-            const texts = ['Nice!', 'I want one', 'Where from?', 'Say price'];
-            return [...prev.slice(-4), { 
-                id: nextId, 
-                user: users[Math.floor(Math.random() * users.length)], 
-                text: texts[Math.floor(Math.random() * texts.length)], 
-                time: 'now' 
-            }];
-        });
-    }, 4500);
-
-    return () => clearInterval(commentInterval);
   }, [products]);
 
   return (
-    <div className="relative h-full w-full bg-black text-white font-sans">
+    <div className="relative h-full w-full bg-black text-white font-sans flex flex-col">
       
       {/* Hearts Animation */}
       <div className="pointer-events-none absolute inset-0 z-50">
@@ -126,7 +130,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full flex-1">
           {/* Media Display */}
           <div className="absolute inset-0 z-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
               {currentMedia ? (
@@ -154,6 +158,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
               <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 pointer-events-auto">
                   <VideoActions 
                       initialLikes={currentProduct.likes || 0}
+                      commentCount={comments.length}
                       onLike={spawnHeart}
                       onProductClick={() => setIsDrawerOpen(true)} 
                       onScroll={handleScroll} 
@@ -171,10 +176,23 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
           </div>
 
           {/* Product Info (Bottom Center) */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
               {currentProduct && <ProductInfo product={currentProduct} />}
           </div>
       </div>
+      
+        {/* Comment Input at the bottom */}
+        <form onSubmit={handleSendMessage} className="p-4 bg-black/50 backdrop-blur-sm z-20 flex items-center gap-2">
+            <Input 
+                placeholder="Add a comment..." 
+                className="bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-400"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+            />
+            <Button type="submit" size="icon" variant="ghost">
+                <Send className="h-5 w-5" />
+            </Button>
+        </form>
 
       {/* Product Drawer */}
       {currentProduct && (
