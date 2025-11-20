@@ -31,7 +31,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <p>Loading Admin Dashboard...</p>
+        <p>Verifying admin privileges...</p>
       </div>
     );
   }
@@ -42,5 +42,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     return <MainLayout sidebar={<AdminSidebar />}>{children}</MainLayout>;
   }
 
-  return null;
+  return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <p>Redirecting to login...</p>
+      </div>
+  );
 }
