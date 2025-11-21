@@ -59,11 +59,11 @@ service cloud.firestore {
     // Admins can list all orders.
     // Buyers can create orders.
     match /orders/{orderId} {
+      allow read, list: if request.auth != null && 
+                     get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
       allow read: if request.auth != null && 
-                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
-                      resource.data.buyerId == request.auth.uid || 
+                     (resource.data.buyerId == request.auth.uid || 
                       resource.data.sellerId == request.auth.uid);
-      allow list: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
       // Allow seller to update status from pending->processing or processing->shipped
