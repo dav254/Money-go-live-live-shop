@@ -77,13 +77,17 @@ export default function LoginPage() {
       }
 
     } catch (error: any) {
-      console.error('Login Error:', error);
+      // Default error messages
       let title = 'Login Failed';
-      let description = 'Could not sign you in. Please check your credentials.';
+      let description = 'An unknown error occurred. Please try again.';
 
+      // Check for specific auth errors to provide better user feedback
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         title = 'Invalid Credentials';
         description = 'The email or password you entered is incorrect. Please try again.';
+      } else {
+        // Log other, unexpected errors to the console for debugging
+        console.error('Login Error:', error);
       }
       
       toast({
