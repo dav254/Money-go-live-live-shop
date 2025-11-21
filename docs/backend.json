@@ -627,6 +627,14 @@
           "description": "The current status of the session (e.g., upcoming, live, ended).",
           "enum": ["upcoming", "live", "ended"]
         },
+        "muxStreamKey": {
+          "type": "string",
+          "description": "The stream key provided by Mux for broadcasting."
+        },
+        "muxPlaybackId": {
+          "type": "string",
+          "description": "The playback ID provided by Mux for viewing."
+        },
         "productIds": {
           "type": "array",
           "description": "An array of product IDs featured in the session.",

@@ -9,6 +9,8 @@ import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
+import { SellerLayout } from '@/components/layout/seller-layout';
+import Link from 'next/link';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
@@ -135,43 +137,54 @@ export default function SellerLivePage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center">
-                <p>Loading your product feed...</p>
-            </div>
+            <SellerLayout>
+                <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+                    <p>Loading your product feed...</p>
+                </div>
+            </SellerLayout>
         );
     }
 
     return (
-        <div className="relative h-screen w-full">
-            <div 
-                ref={scrollContainerRef}
-                className={cn(
-                    "h-full w-full snap-y snap-mandatory overflow-y-scroll",
-                    // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
-                    "[&::-webkit-scrollbar]:hidden",
-                    // This will hide the scrollbar in Firefox
-                    "scrollbar-hide"
-                )}
-            >
-            {feedMediaItems && feedMediaItems.length > 0 ? (
-                feedMediaItems.map((item) => (
-                    <RealtimeVideoCard 
-                        key={item.product.id + item.mediaUrl} 
-                        product={item.product} 
-                        mediaUrl={item.mediaUrl}
-                        mediaType={item.mediaType}
-                        onScroll={handleScroll}
-                    />
-                ))
-            ) : (
-                <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
-                    <div className="text-center">
-                        <h2 className="text-xl font-semibold">Your Feed is Empty</h2>
-                        <p className="text-muted-foreground">Upload products with images or videos to see them here.</p>
+        <SellerLayout>
+            <div className="relative h-[calc(100vh-4rem)] w-full">
+                <div 
+                    ref={scrollContainerRef}
+                    className={cn(
+                        "h-full w-full snap-y snap-mandatory overflow-y-scroll",
+                        // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
+                        "[&::-webkit-scrollbar]:hidden",
+                        // This will hide the scrollbar in Firefox
+                        "scrollbar-hide"
+                    )}
+                >
+                {feedMediaItems && feedMediaItems.length > 0 ? (
+                    feedMediaItems.map((item) => (
+                        <RealtimeVideoCard 
+                            key={item.product.id + item.mediaUrl} 
+                            product={item.product} 
+                            mediaUrl={item.mediaUrl}
+                            mediaType={item.mediaType}
+                            onScroll={handleScroll}
+                        />
+                    ))
+                ) : (
+                    <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
+                        <div className="text-center p-4">
+                            <h2 className="text-xl font-semibold">Your Live Preview is Empty</h2>
+                            <p className="text-muted-foreground max-w-sm mx-auto">This page shows how your products will look in the main feed. Upload products with images or videos to see them here.</p>
+                            <Link href="/dashboard/products">
+                                <button className="mt-4 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
+                                    Add Your First Product
+                                </button>
+                            </Link>
+                        </div>
                     </div>
+                )}
                 </div>
-            )}
             </div>
-        </div>
+        </SellerLayout>
     );
 }
+
+    
