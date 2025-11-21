@@ -55,18 +55,20 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
-      const adminDocRef = doc(firestore, 'admins', user.uid);
+      // Correctly check the user's profile for the admin role.
+      const userProfileRef = doc(firestore, 'userProfiles', user.uid);
       
       try {
-        const adminDocSnap = await getDoc(adminDocRef);
+        const userProfileSnap = await getDoc(userProfileRef);
 
-        if (adminDocSnap.exists()) {
+        if (userProfileSnap.exists() && userProfileSnap.data().userRole === 'admin') {
             toast({
             title: 'Admin Login Successful!',
             description: 'Welcome back, Admin.',
             });
             router.replace('/dashboard/admin');
         } else {
+            // If the user is not an admin, sign them out.
             await auth.signOut();
             toast({
             variant: 'destructive',
@@ -75,21 +77,26 @@ export default function AdminLoginPage() {
             });
         }
       } catch (firestoreError: any) {
-        // This is the new error handling block.
-        // It specifically catches Firestore errors (like permission denied)
-        // that occur *after* a successful login.
+        // This handles potential Firestore errors when fetching the user profile.
+        // For example, if the security rules for userProfiles were to change and deny access.
+        console.error('Firestore Error checking admin status:', firestoreError);
 
-        // Create the rich, contextual error.
+        // Create a more specific error for logging/debugging if needed
         const permissionError = new FirestorePermissionError({
-          path: adminDocRef.path,
+          path: userProfileRef.path,
           operation: 'get',
         });
         
-        // Emit the error to be caught by the global error listener.
         errorEmitter.emit('permission-error', permissionError);
 
-        // Also sign the user out as they cannot proceed.
+        // Sign the user out as their role cannot be verified.
         await auth.signOut();
+        
+        toast({
+          variant: 'destructive',
+          title: 'Error Verifying Role',
+          description: 'Could not verify your user role. Please contact support.',
+        });
       }
 
     } catch (error: any) {
