@@ -85,8 +85,6 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
     }
 
     const chatsRef = collection(firestore, 'chats');
-    // Firestore doesn't support array-contains-all, so we query for one participant and filter locally.
-    // A more robust solution might involve a composite key of sorted participant IDs.
     const q = query(chatsRef, where('participantIds', 'array-contains', user.uid));
     
     try {
@@ -101,10 +99,8 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
         });
         
         if (existingChat) {
-            // Chat exists, navigate to it. Pass seller ID to pre-select it on messages page.
             router.push(`/messages?chatWith=${seller.id}`);
         } else {
-            // Chat doesn't exist, create it.
             const newChatRef = doc(collection(firestore, 'chats'));
             await setDoc(newChatRef, {
                 id: newChatRef.id,
@@ -112,7 +108,6 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
                 lastMessage: `Started a conversation with ${seller.name}`,
                 lastMessageTimestamp: serverTimestamp()
             });
-             // Navigate to the new chat.
             router.push(`/messages?chatWith=${seller.id}`);
         }
 
@@ -124,6 +119,24 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
             description: 'There was an error trying to start a conversation. Please try again later.'
         });
     }
+  };
+
+  const handleShare = () => {
+    if (!seller) return;
+    const url = `https://goearnvid.shop/sellers/${seller.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+        toast({
+            title: "Link Copied!",
+            description: "A shareable link to this shop has been copied to your clipboard.",
+        });
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        toast({
+            variant: "destructive",
+            title: "Failed to Copy",
+            description: "Could not copy the link.",
+        });
+    });
   };
   
   if (isLoading || !seller) {
@@ -197,7 +210,7 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
             <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800" onClick={handleMessage}>
                 <MessageSquare className="mr-2 h-4 w-4" /> Message
             </Button>
-             <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
+             <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800" onClick={handleShare}>
                 <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
              <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
