@@ -603,6 +603,59 @@
         "status",
         "timestamp"
       ]
+    },
+    "LiveSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LiveSession",
+      "type": "object",
+      "description": "Represents a live shopping session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the live session."
+        },
+        "sellerId": {
+          "type": "string",
+          "description": "Reference to UserProfile. The ID of the seller hosting the session."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the live stream."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the session (e.g., upcoming, live, ended).",
+          "enum": ["upcoming", "live", "ended"]
+        },
+        "productIds": {
+          "type": "array",
+          "description": "An array of product IDs featured in the session.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "viewerCount": {
+          "type": "number",
+          "description": "The current number of viewers."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The scheduled or actual start time of the session.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The actual end time of the session.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "sellerId",
+        "title",
+        "status",
+        "startTime"
+      ]
     }
   },
   "auth": {
@@ -821,6 +874,22 @@
             {
               "name": "notificationId",
               "description": "The unique identifier for the notification."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/liveSessions/{liveSessionId}",
+        "definition": {
+          "entityName": "LiveSession",
+          "schema": {
+            "$ref": "#/backend/entities/LiveSession"
+          },
+          "description": "Stores live shopping session information.",
+          "params": [
+            {
+              "name": "liveSessionId",
+              "description": "The unique identifier for the live session."
             }
           ]
         }
