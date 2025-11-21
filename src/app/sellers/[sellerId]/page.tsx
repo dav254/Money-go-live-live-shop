@@ -88,18 +88,6 @@ async function getSellerProducts(sellerId: string): Promise<Product[]> {
   });
 }
 
-async function getSellerReviews(sellerId: string): Promise<Review[]> {
-  const reviewsQuery = query(collectionGroup(db, 'reviews'), where('sellerId', '==', sellerId));
-  const snapshot = await getDocs(reviewsQuery);
-  if (snapshot.empty) {
-    return [];
-  }
-  return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-  } as Review));
-}
-
 export default async function SellerShopPage({ params }: { params: { sellerId: string } }) {
   const { sellerId } = params;
   const seller = await getSellerData(sellerId);
@@ -114,28 +102,18 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
     );
   }
 
-  const [sellerProducts, sellerReviews] = await Promise.all([
-    getSellerProducts(sellerId),
-    getSellerReviews(sellerId),
-  ]);
-
-  const totalReviews = sellerReviews.length;
-  const averageRating = totalReviews > 0 ? sellerReviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews : 0;
-  
-  const sellerWithReviewData: Seller = {
-      ...seller,
-      reviewsCount: totalReviews,
-      rating: averageRating,
-  }
+  const sellerProducts = await getSellerProducts(sellerId);
 
   return (
     <MainLayout>
       <div className="bg-background text-foreground">
-        <SellerHeader seller={sellerWithReviewData} />
+        <SellerHeader seller={seller} />
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SellerTabs seller={sellerWithReviewData} products={sellerProducts} reviews={sellerReviews} />
+          <SellerTabs seller={seller} products={sellerProducts} reviews={[]} />
         </div>
       </div>
     </MainLayout>
   );
 }
+
+    

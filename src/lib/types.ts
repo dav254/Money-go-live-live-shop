@@ -52,15 +52,6 @@ export interface Seller {
   themeSettings?: ThemeSettings;
 }
 
-export interface Review {
-    id: string;
-    author: string;
-    avatar: string;
-    rating: number;
-    comment: string;
-    date: string;
-}
-
 export interface StoryHighlight {
     id: string;
     title: string;
@@ -226,3 +217,5 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    

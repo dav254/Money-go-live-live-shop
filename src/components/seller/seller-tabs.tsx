@@ -20,7 +20,6 @@ export function SellerTabs({ seller, products, reviews }: SellerTabsProps) {
         <TabsTrigger value="videos">Videos</TabsTrigger>
         <TabsTrigger value="live">Live</TabsTrigger>
         <TabsTrigger value="about">About</TabsTrigger>
-        <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
       </TabsList>
       
       <div className="mt-6">
@@ -43,14 +42,9 @@ export function SellerTabs({ seller, products, reviews }: SellerTabsProps) {
         <TabsContent value="about">
           <SellerInfo seller={seller} />
         </TabsContent>
-
-        <TabsContent value="reviews">
-            {/* This will be replaced with a proper reviews component */}
-            <div className="flex items-center justify-center rounded-lg bg-neutral-900 p-12 text-center">
-                 <p className="text-neutral-400">No reviews yet.</p>
-            </div>
-        </TabsContent>
       </div>
     </Tabs>
   );
 }
+
+    

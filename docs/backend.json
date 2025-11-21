@@ -186,22 +186,6 @@
         "uploadDate"
       ]
     },
-    "Review": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "title": "Review",
-        "type": "object",
-        "description": "Represents a review for a product.",
-        "properties": {
-            "id": { "type": "string" },
-            "productId": { "type": "string" },
-            "sellerId": { "type": "string" },
-            "buyerId": { "type": "string" },
-            "rating": { "type": "number", "minimum": 1, "maximum": 5 },
-            "comment": { "type": "string" },
-            "createdAt": { "type": "string", "format": "date-time" }
-        },
-        "required": ["id", "productId", "sellerId", "buyerId", "rating", "createdAt"]
-    },
     "CartItem": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "CartItem",
@@ -768,24 +752,6 @@
             {
               "name": "productId",
               "description": "The unique identifier for the product."
-            }
-          ],
-          "subcollections": [
-            {
-              "path": "reviews/{reviewId}",
-              "definition": {
-                "entityName": "Review",
-                "schema": {
-                    "$ref": "#/backend/entities/Review"
-                },
-                "description": "A subcollection containing reviews for this product.",
-                "params": [
-                  {
-                    "name": "reviewId",
-                    "description": "The unique identifier for a review."
-                  }
-                ]
-              }
             }
           ]
         }
