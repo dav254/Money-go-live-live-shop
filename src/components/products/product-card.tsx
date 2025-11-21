@@ -5,6 +5,10 @@ import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { doc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +17,70 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock !== undefined && product.stock <= 0;
   const discountPercentage = product.originalPrice && product.price ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+  
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleAddToCart = () => {
+    if (!user) {
+      toast({
+        title: 'Please log in',
+        description: 'You need to be logged in to add items to your cart.',
+        action: <Button onClick={() => router.push('/login')}>Login</Button>,
+      });
+      return;
+    }
+
+    if (!firestore) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to the database.' });
+      return;
+    }
+    
+    const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
+    
+    const cartItemData = {
+      productId: product.id,
+      sellerId: product.sellerId,
+      buyerId: user.uid,
+      quantity: increment(1),
+      price: product.price,
+      name: product.name || '',
+      imageUrl: product.imageUrl || product.image?.imageUrl || '',
+      addedAt: serverTimestamp(),
+    };
+
+    // Use setDoc with merge to create or update the quantity
+    setDoc(cartItemRef, cartItemData, { merge: true }).catch(error => {
+        errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+            path: cartItemRef.path,
+            operation: 'write',
+            requestResourceData: cartItemData,
+        })
+        )
+    });
+
+    // Also increment the inCartCount on the product itself for analytics
+    const productRef = doc(firestore, 'products', product.id);
+    setDoc(productRef, { inCartCount: increment(1) }, { merge: true }).catch(error => {
+         errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+            path: productRef.path,
+            operation: 'update',
+            requestResourceData: { inCartCount: 'increment(1)' },
+        })
+        )
+    });
+
+    toast({
+      title: 'Added to Cart!',
+      description: `${product.name} has been added to your cart.`,
+    });
+  };
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white">
@@ -49,7 +117,7 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
         <div className="mt-3 flex gap-2">
-            <Button disabled={isOutOfStock} size="sm" className="w-full bg-primary hover:bg-primary/90 text-white">
+            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="w-full bg-primary hover:bg-primary/90 text-white">
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Add to Cart
             </Button>
