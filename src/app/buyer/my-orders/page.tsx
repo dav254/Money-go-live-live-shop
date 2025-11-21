@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Truck, MessageSquare, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, query, where, updateDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, updateDoc, getDocs, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -25,13 +25,37 @@ import { Textarea } from '@/components/ui/textarea';
 const ReviewDialog = ({ order }: { order: Order }) => {
     const { toast } = useToast();
     const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState('');
+    const { user } = useUser();
+    const firestore = useFirestore();
 
-    const handleSubmitReview = () => {
-        // In a real app, this would save the review to Firestore
-        toast({
-            title: 'Review Submitted!',
-            description: 'Thank you for your feedback.',
-        });
+    const handleSubmitReview = async () => {
+        if (rating === 0) {
+            toast({ variant: 'destructive', title: 'Please select a rating.' });
+            return;
+        }
+        if (!user || !firestore) return;
+
+        const reviewRef = collection(firestore, 'products', order.productId, 'reviews');
+        
+        try {
+            await addDoc(reviewRef, {
+                productId: order.productId,
+                sellerId: order.sellerId,
+                buyerId: user.uid,
+                rating: rating,
+                comment: comment,
+                createdAt: serverTimestamp(),
+            });
+            
+            toast({
+                title: 'Review Submitted!',
+                description: 'Thank you for your feedback.',
+            });
+        } catch (error) {
+            console.error("Error submitting review:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your review.' });
+        }
     };
 
     return (
@@ -52,7 +76,12 @@ const ReviewDialog = ({ order }: { order: Order }) => {
                         />
                     ))}
                 </div>
-                <Textarea placeholder="Write your review here..." rows={5} />
+                <Textarea 
+                    placeholder="Write your review here..." 
+                    rows={5}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                />
             </div>
             <DialogFooter>
                 <DialogClose asChild>
@@ -130,7 +159,7 @@ const OrderCard = ({ order }: { order: Order }) => {
             if (existingChatId) {
                 router.push(`/messages?chatWith=${order.sellerId}`);
             } else {
-                const newChatRef = doc(chatsRef);
+                const newChatRef = doc(collection(firestore, 'chats'));
                 await setDoc(newChatRef, {
                     id: newChatRef.id,
                     participantIds: [user.uid, order.sellerId],
@@ -285,3 +314,5 @@ export default function MyOrdersPage() {
     </BuyerLayout>
   );
 }
+
+    
