@@ -56,7 +56,7 @@ service cloud.firestore {
 
       // Allow anyone to read reviews, but only authenticated users who bought the item can create one.
       match /reviews/{reviewId} {
-        allow read: if true;
+        allow read, list: if true;
         allow create: if request.auth.uid == request.resource.data.buyerId;
       }
     }

@@ -101,7 +101,8 @@ async function getSellerReviews(sellerId: string): Promise<Review[]> {
 }
 
 export default async function SellerShopPage({ params }: { params: { sellerId: string } }) {
-  const seller = await getSellerData(params.sellerId);
+  const { sellerId } = params;
+  const seller = await getSellerData(sellerId);
   
   if (!seller) {
     return (
@@ -114,8 +115,8 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
   }
 
   const [sellerProducts, sellerReviews] = await Promise.all([
-    getSellerProducts(params.sellerId),
-    getSellerReviews(params.sellerId),
+    getSellerProducts(sellerId),
+    getSellerReviews(sellerId),
   ]);
 
   const totalReviews = sellerReviews.length;
@@ -138,5 +139,3 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
     </MainLayout>
   );
 }
-
-    
