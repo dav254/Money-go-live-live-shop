@@ -4,8 +4,7 @@ import { SellerHeader } from '@/components/seller/seller-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import { db } from '@/firebase/server';
 import { collection, doc, getDoc, getDocs, query, where, collectionGroup } from 'firebase/firestore';
-import type { Seller, Product, Review, SellerShop, UserProfile } from '@/lib/types';
-import { sellers, products } from '@/lib/placeholder-data';
+import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
 
 
 async function getSellerData(sellerId: string): Promise<Seller | null> {
@@ -82,6 +81,8 @@ async function getSellerProducts(sellerId: string): Promise<Product[]> {
           description: data.name, 
           imageHint: 'product' 
       },
+      imageUrl: data.imageUrl,
+      videoUrl: data.videoUrl,
       stock: data.stock || 0,
       sellerId: data.sellerId,
     } as Product;
@@ -109,11 +110,9 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
       <div className="bg-background text-foreground">
         <SellerHeader seller={seller} />
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SellerTabs seller={seller} products={sellerProducts} reviews={[]} />
+          <SellerTabs seller={seller} products={sellerProducts} />
         </div>
       </div>
     </MainLayout>
   );
 }
-
-    

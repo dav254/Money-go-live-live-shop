@@ -13,18 +13,32 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock !== undefined && product.stock <= 0;
+  const mediaUrl = product.videoUrl || product.imageUrl || product.image?.imageUrl || '/placeholder.svg';
+  const isVideo = product.videoUrl;
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 h-full flex flex-col">
       <CardContent className="p-0 flex flex-col flex-grow">
-        <Link href={`/products/${product.id}`} className="block relative aspect-[4/3] w-full">
-          <Image
-            src={product.imageUrl ?? product.image?.imageUrl ?? '/placeholder.svg'} // Use optional chaining and a fallback
-            alt={product.name || 'Product image'}
-            fill
-            className="object-cover"
-            data-ai-hint={product.image?.imageHint}
-          />
+        <Link href={`/products/${product.id}`} className="block relative aspect-[4/3] w-full bg-black">
+          {isVideo ? (
+             <video
+              src={mediaUrl}
+              className="h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              key={mediaUrl}
+            />
+          ) : (
+            <Image
+              src={mediaUrl}
+              alt={product.name || 'Product image'}
+              fill
+              className="object-cover"
+              data-ai-hint={product.image?.imageHint}
+            />
+          )}
           {isOutOfStock && (
             <Badge variant="destructive" className="absolute top-2 right-2">Out of Stock</Badge>
           )}
