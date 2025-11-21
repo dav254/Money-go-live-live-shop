@@ -61,6 +61,12 @@ service cloud.firestore {
       }
     }
 
+    // This rule allows collection group queries on 'reviews'.
+    // It's required for fetching all reviews for a seller.
+    match /{path=**}/reviews/{reviewId} {
+      allow read, list: if true;
+    }
+
     // Orders can be read by the buyer, the seller, or an admin.
     // Admins can list all orders.
     // Buyers can create orders.
