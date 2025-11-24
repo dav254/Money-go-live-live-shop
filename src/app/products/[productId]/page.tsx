@@ -55,7 +55,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { Bar, BarChart as RechartsBarChart } from 'recharts';
+import { Bar, BarChart as RechartsBarChart, XAxis } from 'recharts';
 
 const chartData = [
   { date: 'Mon', views: 186 },
@@ -130,7 +130,7 @@ export default function SellerProductDetailPage() {
   }
 
   const discountPercentage = product.wasPrice && product.price
-    ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100)
+    ? Math.round(((product.wasPrice - product.price) / product.price) * 100)
     : 0;
 
   return (
@@ -141,8 +141,8 @@ export default function SellerProductDetailPage() {
             <div>
                 <div className="flex items-center gap-3">
                     <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
-                    <Badge variant={product.stock > 0 ? 'default' : 'destructive'} className={product.stock > 0 ? 'bg-green-600/80' : ''}>
-                        {product.stock > 0 ? 'Active' : 'Out of Stock'}
+                    <Badge variant={(product.stock || 0) > 0 ? 'default' : 'destructive'} className={(product.stock || 0) > 0 ? 'bg-green-600/80' : ''}>
+                        {(product.stock || 0) > 0 ? 'Active' : 'Out of Stock'}
                     </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">Product ID: {product.id}</p>
@@ -151,7 +151,7 @@ export default function SellerProductDetailPage() {
                 <Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
                 <Button variant="outline" size="sm"><Upload className="mr-2 h-4 w-4" /> Promote</Button>
                 <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" /> View as Buyer</Button>
-                 <Button variant="destructive-outline" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                 <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
             </div>
         </div>
         
@@ -322,9 +322,18 @@ export default function SellerProductDetailPage() {
                         <Card>
                             <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Search /> SEO & Visibility</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <Input label="Meta Title" defaultValue={product.name} />
-                                <Textarea label="Meta Description" defaultValue={product.description} />
-                                <Input label="Keywords" defaultValue={product.tags} />
+                                <div className="space-y-2">
+                                  <Label>Meta Title</Label>
+                                  <Input defaultValue={product.name} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Meta Description</Label>
+                                  <Textarea defaultValue={product.description} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Keywords</Label>
+                                  <Input defaultValue={product.tags} />
+                                </div>
                                 <div className="flex items-center justify-between rounded-lg border p-4">
                                     <p>Visibility</p>
                                     <Switch defaultChecked />
