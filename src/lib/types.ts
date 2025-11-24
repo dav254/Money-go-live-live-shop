@@ -1,5 +1,6 @@
 
 
+
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -139,6 +140,17 @@ export interface Comment {
   timestamp: Timestamp;
 }
 
+export interface Review {
+  id: string;
+  productId: string;
+  buyerId: string;
+  sellerId: string;
+  rating: number;
+  comment: string;
+  createdAt: Timestamp;
+}
+
+
 export interface Product {
   id: string;
   name: string;
@@ -217,3 +229,5 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    

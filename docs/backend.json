@@ -665,6 +665,22 @@
         "status",
         "startTime"
       ]
+    },
+    "Review": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Review",
+      "type": "object",
+      "description": "Represents a customer review for a product.",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string", "description": "The ID of the product being reviewed." },
+        "buyerId": { "type": "string", "description": "The ID of the user who wrote the review." },
+        "sellerId": { "type": "string", "description": "The ID of the seller of the product." },
+        "rating": { "type": "number", "description": "The star rating from 1 to 5." },
+        "comment": { "type": "string", "description": "The text content of the review." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the review was submitted." }
+      },
+      "required": ["id", "productId", "buyerId", "sellerId", "rating", "createdAt"]
     }
   },
   "auth": {
@@ -753,6 +769,24 @@
             {
               "name": "productId",
               "description": "The unique identifier for the product."
+            }
+          ],
+          "subcollections": [
+            {
+              "path": "reviews/{reviewId}",
+              "definition": {
+                "entityName": "Review",
+                "schema": {
+                  "$ref": "#/backend/entities/Review"
+                },
+                "description": "A subcollection containing reviews for the product.",
+                "params": [
+                  {
+                    "name": "reviewId",
+                    "description": "The unique identifier for a review."
+                  }
+                ]
+              }
             }
           ]
         }
@@ -909,4 +943,6 @@
 }
 
     
+    
+
     

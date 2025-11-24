@@ -56,6 +56,15 @@ service cloud.firestore {
         allow list, read: if true;
         allow create: if request.auth != null;
       }
+
+      // Allow public read for reviews.
+      // Allow authenticated users to create reviews.
+      match /reviews/{reviewId} {
+          allow read, list: if true;
+          // A more robust rule would check if the user has purchased the product.
+          // For now, we'll just check if they are logged in.
+          allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
+      }
     }
 
     // Orders can be read by the buyer, the seller, or an admin.
@@ -145,5 +154,7 @@ service cloud.firestore {
     }
   }
 }
+
+    
 
     
