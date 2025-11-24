@@ -35,8 +35,8 @@ import {
 import Image from 'next/image';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { useParams } from 'next/navigation';
-import type { Product } from '@/lib/types';
-import { doc } from 'firebase/firestore';
+import type { Product, Review } from '@/lib/types';
+import { doc, collectionGroup, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,6 +57,8 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { Bar, BarChart as RechartsBarChart, XAxis } from 'recharts';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import React, { useMemo } from 'react';
 
 const chartData = [
   { date: 'Mon', views: 186 },
@@ -107,9 +109,9 @@ export default function SellerProductDetailPage() {
     return doc(firestore, 'products', productId);
   }, [firestore, productId]);
 
-  const { data: product, isLoading, error } = useDoc<Product>(productRef);
+  const { data: product, isLoading: isProductLoading, error } = useDoc<Product>(productRef);
 
-  if (isLoading) {
+  if (isProductLoading) {
       return (
           <SellerLayout>
             <div className="p-8">
