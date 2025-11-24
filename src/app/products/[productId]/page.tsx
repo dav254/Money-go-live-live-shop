@@ -244,7 +244,7 @@ export default function BuyerProductPage() {
                         {selectedMedia?.type === 'video' ? (
                             <video src={selectedMedia.url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
                         ) : (
-                            <Image src={selectedMedia?.url || 'https://picsum.photos/seed/placeholder/1000/1000'} alt={product.name} fill className="object-contain" priority />
+                            <Image src={selectedMedia?.url || 'https://picsum.photos/seed/placeholder/1000/1000'} alt={product.name || "Product image"} fill className="object-contain" priority />
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
