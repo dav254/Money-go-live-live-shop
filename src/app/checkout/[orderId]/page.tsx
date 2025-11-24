@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
@@ -56,6 +56,7 @@ export default function CheckoutPage() {
     const params = useParams();
     const orderId = params.orderId as string;
     const firestore = useFirestore();
+    const { user, isLoading: isUserLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export default function CheckoutPage() {
 
     const { data: product, isLoading: isLoadingProduct, error: productError } = useDoc<Product>(productRef);
     
-    const isLoading = isLoadingOrder || isLoadingProduct;
+    const isLoading = isLoadingOrder || isLoadingProduct || isUserLoading;
     const error = orderError || productError;
 
     // Use the live shipping cost from the product, not the one saved in the order
@@ -83,7 +84,14 @@ export default function CheckoutPage() {
 
 
     const handlePayment = async (gateway: 'paystack' | 'paypal') => {
-        if (!order) return;
+        if (!order || !user?.email) {
+            toast({
+                variant: 'destructive',
+                title: 'Cannot initiate payment',
+                description: 'Order details or user email is missing.',
+            });
+            return;
+        }
         setIsLoadingPayment(gateway);
 
         try {
@@ -93,7 +101,7 @@ export default function CheckoutPage() {
                 body: JSON.stringify({
                     orderId: order.id,
                     amount: liveTotalAmount, // Use the live total amount
-                    email: 'buyer@example.com', // In real app, get from user profile
+                    email: user.email,
                     gateway: gateway,
                 }),
             });
