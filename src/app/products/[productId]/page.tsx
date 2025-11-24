@@ -16,23 +16,13 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
-import type { Product } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
+import type { Product, SellerShop, UserProfile } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// --- MOCKED DATA FOR SECTIONS NOT YET CONNECTED ---
-const mockSeller = {
-    id: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
-    shopName: 'Urban Kicks',
-    logoUrl: 'https://picsum.photos/seed/shoplogo/200',
-    rating: 4.9,
-    followers: '25.8K',
-    responseRate: '98%',
-    onlineStatus: 'online'
-};
 
 const mockReviews = [
     { id: 1, author: 'Jane D.', rating: 5, comment: 'Best sneakers I have ever owned! Super comfortable and they look amazing at night.', date: '2 days ago', photos: ['https://picsum.photos/seed/review1/200'] },
@@ -90,6 +80,7 @@ export default function BuyerProductPage() {
     const productId = params.productId as string;
     const firestore = useFirestore();
     const { user } = useUser();
+    const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
 
@@ -98,6 +89,27 @@ export default function BuyerProductPage() {
     }, [firestore, productId]);
 
     const { data: product, isLoading: isProductLoading } = useDoc<Product>(productRef);
+    
+    // Fetch seller data
+    const sellerId = product?.sellerId;
+    const sellerShopRef = useMemoFirebase(() => {
+        return sellerId ? doc(firestore, 'sellerShops', sellerId) : null;
+    }, [firestore, sellerId]);
+    const sellerProfileRef = useMemoFirebase(() => {
+        return sellerId ? doc(firestore, 'userProfiles', sellerId) : null;
+    }, [firestore, sellerId]);
+
+    const { data: sellerShop, isLoading: isSellerShopLoading } = useDoc<SellerShop>(sellerShopRef);
+    const { data: sellerProfile, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
+
+    const [isFollowing, setIsFollowing] = useState(false);
+
+    useEffect(() => {
+        if (userProfile && userProfile.following && sellerId) {
+        setIsFollowing(userProfile.following.includes(sellerId));
+        }
+    }, [userProfile, sellerId]);
+
 
     const allMedia = useMemo(() => {
         if (!product) return [];
@@ -176,8 +188,33 @@ export default function BuyerProductPage() {
            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: newOrderRef.path, operation: 'create', requestResourceData: newOrderData }));
         }
     };
+    
+    const handleFollow = async () => {
+        if (!user || !firestore || !sellerId) {
+            toast({ variant: 'destructive', title: 'Please log in to follow sellers.' });
+            return;
+        }
 
-    if (isProductLoading) {
+        const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+        const newFollowingState = !isFollowing;
+
+        try {
+            await updateDoc(userProfileRef, {
+                following: newFollowingState ? arrayUnion(sellerId) : arrayRemove(sellerId),
+            });
+            setIsFollowing(newFollowingState);
+            toast({
+                title: newFollowingState ? 'Followed!' : 'Unfollowed',
+                description: `You are now ${newFollowingState ? 'following' : 'no longer following'} this shop.`,
+            });
+        } catch (error) {
+            console.error('Error updating follow status:', error);
+            toast({ variant: 'destructive', title: 'Something went wrong' });
+        }
+    };
+
+
+    if (isProductLoading || isSellerShopLoading || isSellerProfileLoading) {
         return <MainLayout><ProductPageSkeleton /></MainLayout>;
     }
 
@@ -192,6 +229,10 @@ export default function BuyerProductPage() {
     }
     
     const discountPercentage = product.wasPrice ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
+    const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Anonymous Seller';
+    const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || 'https://picsum.photos/seed/shoplogo/200';
+    const sellerFollowers = sellerShop?.followers || 0;
+
 
     return (
         <MainLayout>
@@ -241,10 +282,8 @@ export default function BuyerProductPage() {
                     </div>
 
                     {/* 3. Price Section */}
-                    <div className="flex items-end gap-3">
+                     <div>
                         <p className="text-3xl font-bold text-red-500">USD ${product.price.toLocaleString()}</p>
-                        {product.wasPrice && <p className="text-lg text-neutral-500 line-through">USD ${product.wasPrice.toLocaleString()}</p>}
-                        {discountPercentage > 0 && <Badge variant="destructive" className="font-bold">-{discountPercentage}%</Badge>}
                     </div>
 
                     {/* 4. Delivery & Location Section */}
@@ -270,13 +309,15 @@ export default function BuyerProductPage() {
                     {/* 6. Seller Shop Info Block */}
                     <Card className="bg-[#2a2a2a] border-neutral-800">
                         <CardContent className="p-4 flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border"><AvatarImage src={mockSeller.logoUrl} /><AvatarFallback>{mockSeller.shopName?.charAt(0)}</AvatarFallback></Avatar>
+                            <Avatar className="h-12 w-12 border"><AvatarImage src={sellerLogo} /><AvatarFallback>{sellerName?.charAt(0)}</AvatarFallback></Avatar>
                             <div className="flex-1">
-                                <p className="font-bold">{mockSeller.shopName}</p>
-                                <p className="text-xs text-neutral-400">{mockSeller.followers} followers</p>
+                                <p className="font-bold">{sellerName}</p>
+                                <p className="text-xs text-neutral-400">{sellerFollowers.toLocaleString()} followers</p>
                             </div>
-                            <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600">Follow</Button>
-                            <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600">Visit Shop</Button>
+                            <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow'}</Button>
+                            <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" asChild>
+                                <Link href={`/sellers/${sellerId}`}>Visit Shop</Link>
+                            </Button>
                         </CardContent>
                     </Card>
 
@@ -294,15 +335,17 @@ export default function BuyerProductPage() {
                             </AccordionContent>
                         </AccordionItem>
                         {/* 9. Q&A */}
-                        <AccordionItem value="qa">
+                         <AccordionItem value="qa">
                             <AccordionTrigger>Questions & Answers</AccordionTrigger>
-                            <AccordionContent><p className="text-neutral-400 text-sm text-center py-4">No questions yet.</p></AccordionContent>
+                            <AccordionContent>
+                                <p className="text-neutral-400 text-sm text-center py-4">No questions yet.</p>
+                            </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                     
                     {/* 10. Recommended From This Seller */}
                     <div>
-                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from {mockSeller.shopName}</h2>
+                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from {sellerName}</h2>
                          <p className="text-neutral-400 text-sm">Recommended products will appear here.</p>
                     </div>
                 </div>
