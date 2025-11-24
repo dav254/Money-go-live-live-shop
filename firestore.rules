@@ -45,7 +45,8 @@ service cloud.firestore {
       // Allow product owner to update any field.
       // Do not allow client to update sensitive fields like likes, inCartCount, etc.
       allow update: if resource.data.sellerId == request.auth.uid &&
-                      !('likes' in request.resource.data);
+                      !('likes' in request.resource.data) &&
+                      !('inCartCount' in request.resource.data);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
@@ -151,5 +152,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
