@@ -1,15 +1,13 @@
-
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
-import { db } from '@/firebase/server';
-import { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp, increment } from 'firebase/firestore';
-import type { Product, Seller, UserProfile, SellerShop, Review } from '@/lib/types';
+import { doc, collection, query, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import type { Product, SellerShop, Review } from '@/lib/types';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Star, MessageSquare, ShoppingCart, Store, Zap, ShieldCheck } from 'lucide-react';
+import { Star, ShoppingCart, Store } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { useParams } from 'next/navigation';
@@ -17,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useState } from 'react';
 
 const ProductPageSkeleton = () => (
     <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
@@ -69,8 +68,7 @@ const ReviewSection = ({ reviews }: { reviews: Review[] }) => (
             </div>
         ))}
     </div>
-)
-
+);
 
 export default function ProductDetailPage() {
     const params = useParams();
@@ -79,6 +77,8 @@ export default function ProductDetailPage() {
     const { toast } = useToast();
     const router = useRouter();
     const { user } = useUser();
+    
+    const [mainImage, setMainImage] = useState<string | null>(null);
 
     const productRef = useMemoFirebase(() => doc(firestore, 'products', productId), [firestore, productId]);
     const { data: product, isLoading: isProductLoading, error: productError } = useDoc<Product>(productRef);
@@ -98,6 +98,17 @@ export default function ProductDetailPage() {
     const { data: reviews, isLoading: areReviewsLoading } = useCollection<Review>(reviewsQuery);
     
     const isLoading = isProductLoading || isSellerLoading || areReviewsLoading;
+    
+    const allImages = useMemo(() => {
+        if (!product) return [];
+        return [product.imageUrl, ...(product.imageUrls || [])].filter(Boolean) as string[];
+    }, [product]);
+
+    useEffect(() => {
+        if (allImages.length > 0) {
+            setMainImage(allImages[0]);
+        }
+    }, [allImages]);
 
     const handleAddToCart = () => {
         if (!user) {
@@ -118,6 +129,46 @@ export default function ProductDetailPage() {
         setDoc(cartItemRef, cartItemData, { merge: true });
         toast({ title: "Added to Cart!", description: `${product.name} has been added to your cart.` });
     };
+    
+     const handleBuyNow = async () => {
+        if (!user) {
+            toast({ title: 'Please log in to purchase an item.', action: <Button onClick={() => router.push('/login')}>Login</Button> });
+            return;
+        }
+        if (!product) return;
+
+        const ordersCollectionRef = collection(firestore, 'orders');
+        const newOrderRef = doc(ordersCollectionRef);
+        const shippingCost = product.shippingCost || 0;
+        const productPrice = product.price || 0;
+
+        const newOrderData = {
+            id: newOrderRef.id,
+            buyerId: user.uid,
+            sellerId: product.sellerId,
+            productId: product.id,
+            productName: product.name || '',
+            productImage: product.imageUrl || '',
+            productPrice: productPrice,
+            shippingCost: shippingCost,
+            totalAmount: productPrice + shippingCost,
+            orderDate: serverTimestamp(),
+            shippingAddress: '123 Placeholder Lane, Nairobi',
+            orderStatus: 'pending' as const,
+            paymentMethod: 'pending',
+            quantity: 1,
+        };
+
+        try {
+            await setDoc(newOrderRef, newOrderData);
+            toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
+            router.push(`/checkout/${newOrderRef.id}`);
+        } catch (error) {
+            console.error("Failed to place order:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not create your order.' });
+        }
+    };
+
 
     if (isLoading) {
         return (
@@ -139,8 +190,7 @@ export default function ProductDetailPage() {
         )
     }
 
-    const isOutOfStock = product.stock <= 0;
-    const allImages = [product.imageUrl, ...(product.imageUrls || [])].filter(Boolean) as string[];
+    const isOutOfStock = (product.stock || 0) <= 0;
 
     return (
         <MainLayout>
@@ -149,13 +199,13 @@ export default function ProductDetailPage() {
                     {/* Image Gallery */}
                     <div>
                         <div className="aspect-square w-full rounded-lg overflow-hidden border">
-                            <Image src={allImages[0] || 'https://picsum.photos/seed/product/600'} alt={product.name || ''} width={600} height={600} className="w-full h-full object-cover" />
+                            <Image src={mainImage || 'https://picsum.photos/seed/product/600'} alt={product.name || ''} width={600} height={600} className="w-full h-full object-cover" />
                         </div>
                         <div className="mt-4 grid grid-cols-5 gap-2">
-                            {allImages.slice(0, 5).map((img, i) => (
-                                <div key={i} className="aspect-square w-full rounded-md overflow-hidden border-2 border-transparent hover:border-primary">
+                            {allImages.map((img, i) => (
+                                <button key={i} onClick={() => setMainImage(img)} className={`aspect-square w-full rounded-md overflow-hidden border-2 transition-colors ${mainImage === img ? 'border-primary' : 'border-transparent hover:border-primary/50'}`}>
                                     <Image src={img} alt={`${product.name} thumbnail ${i+1}`} width={100} height={100} className="w-full h-full object-cover" />
-                                </div>
+                                </button>
                             ))}
                         </div>
                     </div>
@@ -183,7 +233,7 @@ export default function ProductDetailPage() {
                         
                         <div className="flex flex-col sm:flex-row gap-3">
                             <Button size="lg" className="w-full" onClick={handleAddToCart} disabled={isOutOfStock}><ShoppingCart className="mr-2 h-5 w-5"/> Add to Cart</Button>
-                            <Button size="lg" variant="secondary" className="w-full" disabled={isOutOfStock}>Buy Now</Button>
+                            <Button size="lg" variant="secondary" className="w-full" onClick={handleBuyNow} disabled={isOutOfStock}>Buy Now</Button>
                         </div>
                         <Separator />
                          <Link href={`/sellers/${product.sellerId}`} className="block">
