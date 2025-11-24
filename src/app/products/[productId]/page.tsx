@@ -29,10 +29,13 @@ import {
   ShoppingCart,
   Zap,
   ChevronDown,
+  Store,
+  Heart,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 const ProductPageSkeleton = () => (
     <MainLayout>
@@ -71,16 +74,22 @@ export default function BuyerProductDetailPage() {
     const { user } = useUser();
 
     // Data Fetching
-    const productRef = useMemoFirebase(() => doc(firestore, 'products', productId), [firestore, productId]);
+    const productRef = useMemoFirebase(() => {
+      if (!firestore || !productId) return null;
+      return doc(firestore, 'products', productId);
+    }, [firestore, productId]);
+    
     const { data: product, isLoading: isProductLoading, error: productError } = useDoc<Product>(productRef);
 
     const sellerShopRef = useMemoFirebase(() => {
-        if (!product?.sellerId) return null;
+        if (!firestore || !product?.sellerId) return null;
         return doc(firestore, 'sellerShops', product.sellerId);
     }, [firestore, product]);
+    
     const { data: seller, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
     
     const reviewsQuery = useMemoFirebase(() => {
+        if (!firestore || !productId) return null;
         return query(collectionGroup(firestore, 'reviews'), where('productId', '==', productId));
     }, [firestore, productId]);
     const { data: reviews, isLoading: areReviewsLoading } = useCollection<Review>(reviewsQuery);
@@ -95,10 +104,10 @@ export default function BuyerProductDetailPage() {
     }, [product]);
     
     useEffect(() => {
-        if (allImages.length > 0) {
+        if (allImages.length > 0 && !selectedImage) {
             setSelectedImage(allImages[0]);
         }
-    }, [allImages]);
+    }, [allImages, selectedImage]);
 
     const isLoading = isProductLoading || isSellerLoading || areReviewsLoading;
     
@@ -135,14 +144,14 @@ export default function BuyerProductDetailPage() {
                 <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Share2 className="h-5 w-5" /></Button>
                 <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Bookmark className="h-5 w-5" /></Button>
             </div>
-            {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-bold">{discountPercentage}% OFF</Badge>}
+            {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-600 text-white font-bold">{discountPercentage}% OFF</Badge>}
         </div>
         {allImages.length > 1 && (
             <div className="container mx-auto p-2">
                 <Carousel opts={{ align: "start" }} className="w-full">
                     <CarouselContent>
                     {allImages.map((img, i) => (
-                        <CarouselItem key={i} className="basis-1/5">
+                        <CarouselItem key={i} className="basis-1/4 sm:basis-1/5">
                             <div className="p-1">
                                 <Card onClick={() => setSelectedImage(img)} className={cn("overflow-hidden cursor-pointer", selectedImage === img && "ring-2 ring-primary")}>
                                     <CardContent className="p-0 aspect-square relative">
@@ -170,7 +179,7 @@ export default function BuyerProductDetailPage() {
 
             {/* 3. Price Section */}
             <div className="flex items-end gap-3">
-                <p className="text-3xl font-bold text-red-500">{product.price.toLocaleString()} KES</p>
+                <p className="text-3xl font-bold text-red-600">{product.price.toLocaleString()} KES</p>
                 {product.wasPrice && <p className="text-lg text-muted-foreground line-through">{product.wasPrice.toLocaleString()} KES</p>}
             </div>
 
@@ -178,7 +187,7 @@ export default function BuyerProductDetailPage() {
             <Card className="bg-card">
                 <CardContent className="p-4 space-y-3">
                     <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" /> <span>Ships from <strong>{product.location}</strong></span></div>
-                    <div className="flex items-center gap-2 text-sm"><Truck className="h-4 w-4 text-muted-foreground" /> <span>Standard Delivery (1-2 days)</span></div>
+                    <div className="flex items-center gap-2 text-sm"><Truck className="h-4 w-4 text-muted-foreground" /> <span>Standard Delivery (1-2 days) - <strong className="text-primary">${product.shippingCost}</strong></span></div>
                     <div className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-muted-foreground" /> <span>7-day return policy</span></div>
                 </CardContent>
             </Card>
