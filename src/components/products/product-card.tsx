@@ -63,19 +63,6 @@ export function ProductCard({ product }: ProductCardProps) {
         )
     });
 
-    // Also increment the inCartCount on the product itself for analytics
-    const productRef = doc(firestore, 'products', product.id);
-    setDoc(productRef, { inCartCount: increment(1) }, { merge: true }).catch(error => {
-         errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-            path: productRef.path,
-            operation: 'update',
-            requestResourceData: { inCartCount: 'increment(1)' },
-        })
-        )
-    });
-
     toast({
       title: 'Added to Cart!',
       description: `${product.name} has been added to your cart.`,
