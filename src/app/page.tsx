@@ -186,11 +186,12 @@ export default function HomePage() {
                     case 'reseller':
                         router.replace('/dashboard/reseller');
                         break;
-                    // Buyers stay on the homepage, which is their feed.
-                    // No action needed for 'buyer'.
+                    case 'buyer':
+                        router.replace('/buyer/dashboard');
+                        break;
                     default:
-                        // Fallback for any other roles or if role is 'buyer'.
-                        // The component will render the correct layout below.
+                        // Fallback for any other roles.
+                        // The component will render the default MainLayout below.
                         break;
                 }
             }
