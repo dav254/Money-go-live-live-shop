@@ -2,33 +2,44 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, ShoppingBag, Star, ChevronUp, ChevronDown } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ShoppingBag, Bookmark, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useUser, useFirestore, errorEmitter } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { useRouter } from 'next/navigation';
+import type { Product } from '@/lib/types';
+
 
 interface VideoActionsProps {
+  product: Product;
   initialLikes?: number;
   commentCount?: number;
-  productId: string;
   onProductClick?: () => void;
   onCommentClick?: () => void;
   onScroll?: (direction: 'up' | 'down') => void;
   onLike?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export function VideoActions({ initialLikes = 0, commentCount = 0, productId, onProductClick, onCommentClick, onScroll, onLike }: VideoActionsProps) {
+export function VideoActions({
+  product,
+  initialLikes = 0,
+  commentCount = 0,
+  onProductClick,
+  onCommentClick,
+  onScroll,
+  onLike,
+}: VideoActionsProps) {
   const [likes, setLikes] = useState(initialLikes);
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
 
-  const handleLike = (e: React.MouseEvent<HTMLButtonElement>) => {
-    setLikes((prev) => prev + 1);
-    if (onLike) {
-      onLike(e);
-    }
-  };
 
   const handleShare = () => {
-    const url = `https://goearnvid.shop/products/${productId}`;
+    const url = `https://goearnvid.shop/products/${product.id}`;
     navigator.clipboard.writeText(url).then(() => {
         toast({
             title: "Link Copied!",
@@ -44,23 +55,56 @@ export function VideoActions({ initialLikes = 0, commentCount = 0, productId, on
     });
   };
 
+  const handleSaveToWishlist = () => {
+    if (!user || !firestore) {
+      toast({
+        title: 'Please Log In',
+        description: 'You need to be logged in to save items to your wishlist.',
+        action: <Button onClick={() => router.push('/login')}>Login</Button>,
+      });
+      return;
+    }
+
+    const wishlistItemRef = doc(firestore, 'userProfiles', user.uid, 'wishlist', product.id);
+    
+    // Create a simple object with just the necessary info.
+    const wishlistItemData = {
+      productId: product.id,
+      addedAt: serverTimestamp(),
+    };
+
+    setDoc(wishlistItemRef, wishlistItemData)
+      .then(() => {
+        toast({
+          title: 'Saved to Wishlist!',
+          description: `${product.name} has been added to your wishlist.`,
+        });
+      })
+      .catch(error => {
+        // Emit a detailed error for debugging.
+        errorEmitter.emit(
+          'permission-error',
+          new FirestorePermissionError({
+            path: wishlistItemRef.path,
+            operation: 'write',
+            requestResourceData: wishlistItemData,
+          })
+        );
+        // Show a generic message to the user.
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not save to wishlist. Please try again.'
+        });
+      });
+  };
+
+
   const handleScrollClick = (direction: 'up' | 'down') => {
     if (typeof onScroll === 'function') {
       onScroll(direction);
     } else {
       console.error('[Studio Debug] onScroll prop is not a function in VideoActions');
-    }
-  };
-
-  const handleProductClick = () => {
-    if (typeof onProductClick === 'function') {
-      onProductClick();
-    }
-  };
-  
-  const handleCommentClick = () => {
-    if (typeof onCommentClick === 'function') {
-      onCommentClick();
     }
   };
 
@@ -72,13 +116,13 @@ export function VideoActions({ initialLikes = 0, commentCount = 0, productId, on
         </Button>
       </div>
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLike}>
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onLike}>
           <Heart className="h-6 w-6 text-white fill-transparent" />
         </Button>
         <span className="text-sm font-semibold text-white drop-shadow-md">{likes}</span>
       </div>
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleCommentClick}>
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>
           <MessageCircle className="h-6 w-6 text-white" />
         </Button>
         <span className="text-sm font-semibold text-white drop-shadow-md">{commentCount}</span>
@@ -89,13 +133,13 @@ export function VideoActions({ initialLikes = 0, commentCount = 0, productId, on
         </Button>
       </div>
        <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-primary h-12 w-12 hover:bg-primary/80" onClick={handleProductClick}>
+        <Button size="icon" variant="ghost" className="rounded-full bg-primary h-12 w-12 hover:bg-primary/80" onClick={onProductClick}>
           <ShoppingBag className="h-6 w-6 text-primary-foreground" />
         </Button>
       </div>
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70">
-          <Star className="h-6 w-6 text-white" />
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleSaveToWishlist}>
+          <Bookmark className="h-6 w-6 text-white" />
         </Button>
       </div>
        <div className="flex flex-col items-center">

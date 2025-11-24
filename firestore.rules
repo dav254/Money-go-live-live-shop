@@ -25,6 +25,11 @@ service cloud.firestore {
       match /payoutMethods/{payoutMethodId} {
         allow read, write: if request.auth.uid == userId;
       }
+      
+      // A user can only read and write their own wishlist items.
+      match /wishlist/{productId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
     
     // SellerShops are now publicly readable.
@@ -43,7 +48,10 @@ service cloud.firestore {
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
       // Allow product owner to update any field.
-      allow update: if resource.data.sellerId == request.auth.uid;
+      // Do not allow client to update sensitive fields like likes, inCartCount, etc.
+      allow update: if resource.data.sellerId == request.auth.uid &&
+                      !('likes' in request.resource.data) &&
+                      !('inCartCount' in request.resource.data);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
@@ -142,5 +150,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

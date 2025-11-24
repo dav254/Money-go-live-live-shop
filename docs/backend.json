@@ -1,4 +1,5 @@
 
+
 {
   "entities": {
     "AdminUser": {
@@ -111,6 +112,24 @@
         "joinDate",
         "userRole"
       ]
+    },
+    "WishlistItem": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "WishlistItem",
+        "type": "object",
+        "description": "Represents a single item in a user's wishlist.",
+        "properties": {
+            "productId": {
+                "type": "string",
+                "description": "The ID of the product being wishlisted."
+            },
+            "addedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Timestamp when the item was added to the wishlist."
+            }
+        },
+        "required": ["productId", "addedAt"]
     },
     "Product": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -736,6 +755,22 @@
                   }
                 ]
               }
+            },
+            {
+               "path": "wishlist/{productId}",
+               "definition": {
+                 "entityName": "WishlistItem",
+                 "schema": {
+                   "$ref": "#/backend/entities/WishlistItem"
+                 },
+                 "description": "A subcollection containing product IDs the user has wishlisted.",
+                 "params": [
+                   {
+                     "name": "productId",
+                     "description": "The unique identifier for a product."
+                   }
+                 ]
+               }
             }
           ]
         }
