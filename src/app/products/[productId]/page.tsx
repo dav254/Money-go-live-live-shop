@@ -14,7 +14,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye } from 'lucide-react';
-import { ProductCard } from '@/components/seller/product-card';
+import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
