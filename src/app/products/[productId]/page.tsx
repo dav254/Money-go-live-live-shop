@@ -1,354 +1,257 @@
 
 'use client';
 
-import { SellerLayout } from '@/components/layout/seller-layout';
+import React, { useState, useMemo, useEffect } from 'react';
+import { MainLayout } from '@/components/layout/main-layout';
+import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useParams } from 'next/navigation';
+import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
+import { doc, collection, query, where, collectionGroup } from 'firebase/firestore';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { ProductCard } from '@/components/seller/product-card';
 import {
-  Pencil,
-  Trash2,
-  Upload,
-  Eye,
-  ShoppingCart,
-  Heart,
-  Bookmark,
-  MessageSquare,
-  BarChart2,
-  Share2,
-  Video,
-  DollarSign,
-  Info,
-  ShieldCheck,
   Star,
-  Users,
-  Box,
-  Tags,
-  FileText,
-  Search,
+  ShieldCheck,
   Truck,
   MapPin,
-  ClipboardList,
-  UploadCloud,
+  MessageSquare,
+  Plus,
+  Share2,
+  Bookmark,
+  ShoppingCart,
+  Zap,
+  ChevronDown,
 } from 'lucide-react';
-import Image from 'next/image';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { useParams } from 'next/navigation';
-import type { Product, Review } from '@/lib/types';
-import { doc, collectionGroup, query, where } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
-import { Bar, BarChart as RechartsBarChart, XAxis } from 'recharts';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import React, { useMemo } from 'react';
-
-const chartData = [
-  { date: 'Mon', views: 186 },
-  { date: 'Tue', views: 305 },
-  { date: 'Wed', views: 237 },
-  { date: 'Thu', views: 73 },
-  { date: 'Fri', views: 209 },
-  { date: 'Sat', views: 214 },
-  { date: 'Sun', views: 350 },
-];
-
-const chartConfig = {
-  views: {
-    label: 'Views',
-    color: 'hsl(var(--primary))',
-  },
-};
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase/auth/use-user';
+import Link from 'next/link';
 
 const ProductPageSkeleton = () => (
-    <div className="space-y-6">
-        <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-6 w-24" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-4">
-                 <Skeleton className="aspect-square w-full" />
-                 <div className="flex gap-2">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                 </div>
+    <MainLayout>
+        <div className="container mx-auto max-w-4xl py-8 space-y-8">
+            <Skeleton className="w-full aspect-square md:aspect-[16/9] rounded-lg" />
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="h-5 w-1/4" />
             </div>
-            <div className="lg:col-span-2">
-                 <Skeleton className="h-full w-full min-h-96" />
+            <Skeleton className="h-12 w-1/2" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
             </div>
         </div>
+    </MainLayout>
+);
+
+const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
+    <div className="flex items-center gap-1">
+        <div className="flex items-center text-yellow-400">
+            {[...Array(5)].map((_, i) => (
+                <Star key={i} className={`h-4 w-4 ${i < Math.round(rating) ? 'fill-current' : ''}`} />
+            ))}
+        </div>
+        {count !== undefined && <span className="text-xs text-muted-foreground">({count})</span>}
     </div>
 );
 
 
-export default function SellerProductDetailPage() {
-  const params = useParams();
-  const productId = params.productId as string;
-  const firestore = useFirestore();
+export default function BuyerProductDetailPage() {
+    const params = useParams();
+    const productId = params.productId as string;
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const { user } = useUser();
 
-  const productRef = useMemoFirebase(() => {
-    if (!firestore || !productId) return null;
-    return doc(firestore, 'products', productId);
-  }, [firestore, productId]);
+    // Data Fetching
+    const productRef = useMemoFirebase(() => doc(firestore, 'products', productId), [firestore, productId]);
+    const { data: product, isLoading: isProductLoading, error: productError } = useDoc<Product>(productRef);
 
-  const { data: product, isLoading: isProductLoading, error } = useDoc<Product>(productRef);
+    const sellerShopRef = useMemoFirebase(() => {
+        if (!product?.sellerId) return null;
+        return doc(firestore, 'sellerShops', product.sellerId);
+    }, [firestore, product]);
+    const { data: seller, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
+    
+    const reviewsQuery = useMemoFirebase(() => {
+        return query(collectionGroup(firestore, 'reviews'), where('productId', '==', productId));
+    }, [firestore, productId]);
+    const { data: reviews, isLoading: areReviewsLoading } = useCollection<Review>(reviewsQuery);
 
-  if (isProductLoading) {
-      return (
-          <SellerLayout>
-            <div className="p-8">
-              <ProductPageSkeleton />
-            </div>
-          </SellerLayout>
-      )
-  }
 
-  if (error || !product) {
-       return (
-          <SellerLayout>
-            <div className="p-8 text-center">
-              <h2 className="text-2xl font-bold">Product Not Found</h2>
-              <p className="text-muted-foreground">The product you are looking for does not exist or you do not have permission to view it.</p>
-            </div>
-          </SellerLayout>
-      )
-  }
+    // State
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const discountPercentage = product.wasPrice && product.price
-    ? Math.round(((product.wasPrice - product.price) / product.price) * 100)
-    : 0;
+    const allImages = useMemo(() => {
+        if (!product) return [];
+        return [product.imageUrl, ...(product.imageUrls || [])].filter(Boolean) as string[];
+    }, [product]);
+    
+    useEffect(() => {
+        if (allImages.length > 0) {
+            setSelectedImage(allImages[0]);
+        }
+    }, [allImages]);
+
+    const isLoading = isProductLoading || isSellerLoading || areReviewsLoading;
+    
+    if (isLoading) {
+        return <ProductPageSkeleton />;
+    }
+
+    if (productError || !product) {
+        return (
+            <MainLayout>
+                <div className="container py-12 text-center">
+                    <h1 className="text-2xl font-bold">Product Not Found</h1>
+                    <p className="text-muted-foreground">The product you are looking for might have been removed or is unavailable.</p>
+                </div>
+            </MainLayout>
+        );
+    }
+    
+    const discountPercentage = product.wasPrice && product.price
+        ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100)
+        : 0;
 
   return (
-    <SellerLayout>
-      <div className="flex-1 space-y-6 p-4 md:p-8">
-        {/* 1. Product Overview (Top Section) */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <div className="flex items-center gap-3">
-                    <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
-                    <Badge variant={(product.stock || 0) > 0 ? 'default' : 'destructive'} className={(product.stock || 0) > 0 ? 'bg-green-600/80' : ''}>
-                        {(product.stock || 0) > 0 ? 'Active' : 'Out of Stock'}
-                    </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">Product ID: {product.id}</p>
+    <MainLayout>
+      <div className="bg-background pb-24">
+        {/* 1. Product Media Section */}
+        <div className="relative w-full">
+            <div className="aspect-square md:aspect-[16/10] w-full bg-black">
+                {selectedImage && (
+                    <Image src={selectedImage} alt={product.name || 'Product'} fill className="object-contain" priority />
+                )}
             </div>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" /> Edit</Button>
-                <Button variant="outline" size="sm"><Upload className="mr-2 h-4 w-4" /> Promote</Button>
-                <Button variant="outline" size="sm"><Eye className="mr-2 h-4 w-4" /> View as Buyer</Button>
-                 <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+             <div className="absolute top-4 right-4 flex gap-2">
+                <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Share2 className="h-5 w-5" /></Button>
+                <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Bookmark className="h-5 w-5" /></Button>
             </div>
+            {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-bold">{discountPercentage}% OFF</Badge>}
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div className="lg:col-span-1 xl:col-span-1 space-y-6">
-                {/* Cover Image & Price */}
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="aspect-square relative w-full overflow-hidden rounded-md">
-                            <Image src={product.imageUrl || 'https://picsum.photos/seed/product/400'} alt={product.name || 'Product image'} fill className="object-cover" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                 {/* 4. Pricing Section */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2"><DollarSign /> Pricing & Earnings</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="flex justify-between items-baseline">
-                            <span className="text-muted-foreground">Selling Price</span>
-                            <span className="font-bold text-xl">{product.price.toLocaleString()} KES</span>
-                        </div>
-                        {discountPercentage > 0 && product.wasPrice && (
-                             <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground">Was Price</span>
-                                <span className="line-through">{product.wasPrice.toLocaleString()} KES</span>
+        {allImages.length > 1 && (
+            <div className="container mx-auto p-2">
+                <Carousel opts={{ align: "start" }} className="w-full">
+                    <CarouselContent>
+                    {allImages.map((img, i) => (
+                        <CarouselItem key={i} className="basis-1/5">
+                            <div className="p-1">
+                                <Card onClick={() => setSelectedImage(img)} className={cn("overflow-hidden cursor-pointer", selectedImage === img && "ring-2 ring-primary")}>
+                                    <CardContent className="p-0 aspect-square relative">
+                                        <Image src={img} alt={`thumbnail ${i}`} fill className="object-cover" />
+                                    </CardContent>
+                                </Card>
                             </div>
-                        )}
-                        <Separator />
-                        <div className="text-xs space-y-2 text-muted-foreground">
-                            <div className="flex justify-between"><span>Platform Fee (5%)</span><span>-{(product.price * 0.05).toLocaleString()} KES</span></div>
-                            <div className="flex justify-between"><span>Reseller Commission (10%)</span><span>-{(product.price * 0.10).toLocaleString()} KES</span></div>
-                            <div className="flex justify-between font-bold text-foreground"><span>Your Earnings</span><span>{(product.price * 0.85).toLocaleString()} KES</span></div>
+                        </CarouselItem>
+                    ))}
+                    </CarouselContent>
+                </Carousel>
+            </div>
+        )}
+
+        <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
+            {/* 2. Product Title + Rating */}
+            <div>
+                <Link href={`/categories/${product.category}`} className="text-sm text-primary hover:underline">{product.category}</Link>
+                <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
+                <div className="flex items-center gap-4 mt-1 text-sm">
+                    <StarRating rating={product.rating || 4.8} count={reviews?.length || 532} />
+                    <span className="text-muted-foreground">Sold 3.2k</span>
+                </div>
+            </div>
+
+            {/* 3. Price Section */}
+            <div className="flex items-end gap-3">
+                <p className="text-3xl font-bold text-red-500">{product.price.toLocaleString()} KES</p>
+                {product.wasPrice && <p className="text-lg text-muted-foreground line-through">{product.wasPrice.toLocaleString()} KES</p>}
+            </div>
+
+            {/* 4. Delivery & Location */}
+            <Card className="bg-card">
+                <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm"><MapPin className="h-4 w-4 text-muted-foreground" /> <span>Ships from <strong>{product.location}</strong></span></div>
+                    <div className="flex items-center gap-2 text-sm"><Truck className="h-4 w-4 text-muted-foreground" /> <span>Standard Delivery (1-2 days)</span></div>
+                    <div className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-muted-foreground" /> <span>7-day return policy</span></div>
+                </CardContent>
+            </Card>
+
+            {/* 5. Variants & Quantity (Placeholder) */}
+             <div className="flex items-center justify-between">
+                <p className="font-semibold">Quantity</p>
+                 <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" className="h-8 w-8">-</Button>
+                    <span className="w-10 text-center font-bold">1</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8">+</Button>
+                </div>
+            </div>
+
+            {/* 6. Seller Shop Info */}
+            {seller && (
+                <Card className="bg-card">
+                    <CardContent className="p-4 flex items-center gap-4">
+                        <Avatar className="h-12 w-12 border">
+                            <AvatarImage src={seller.logoUrl} />
+                            <AvatarFallback>{seller.shopName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                            <p className="font-bold">{seller.shopName}</p>
+                            <p className="text-xs text-muted-foreground">{seller.followers} followers</p>
                         </div>
+                        <Button variant="outline" size="sm" asChild><Link href={`/sellers/${seller.sellerId}`}>Visit Shop</Link></Button>
                     </CardContent>
                 </Card>
-            </div>
+            )}
 
-            <div className="lg:col-span-2 xl:col-span-3 space-y-6">
-                 <Tabs defaultValue="details">
-                    <TabsList>
-                        <TabsTrigger value="details">Details</TabsTrigger>
-                        <TabsTrigger value="media">Media</TabsTrigger>
-                        <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                        <TabsTrigger value="reviews">Reviews</TabsTrigger>
-                        <TabsTrigger value="resellers">Resellers</TabsTrigger>
-                        <TabsTrigger value="inventory">Inventory</TabsTrigger>
-                        <TabsTrigger value="seo">SEO</TabsTrigger>
-                    </TabsList>
-                    
-                    {/* 3. Product Details Section */}
-                    <TabsContent value="details" className="space-y-6">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><FileText /> Product Details</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div><p className="text-sm text-muted-foreground">Category</p><p>{product.category}</p></div>
-                                    <div><p className="text-sm text-muted-foreground">Condition</p><p>New</p></div>
-                                    <div><p className="text-sm text-muted-foreground">Stock</p><p>{product.stock}</p></div>
-                                    <div><p className="text-sm text-muted-foreground">SKU</p><p>AHS-0012</p></div>
+            <Accordion type="single" collapsible className="w-full">
+                {/* 7. Product Description */}
+                <AccordionItem value="description">
+                    <AccordionTrigger>Product Description</AccordionTrigger>
+                    <AccordionContent className="prose prose-sm dark:prose-invert">
+                        {product.description}
+                    </AccordionContent>
+                </AccordionItem>
+                {/* 8. Reviews & Ratings */}
+                <AccordionItem value="reviews">
+                    <AccordionTrigger>Reviews & Ratings ({reviews?.length || 0})</AccordionTrigger>
+                    <AccordionContent>
+                        {reviews && reviews.length > 0 ? reviews.map(r => (
+                             <div key={r.id} className="py-4 border-b last:border-b-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Avatar className="h-6 w-6"><AvatarFallback>B</AvatarFallback></Avatar>
+                                    <p className="text-xs font-semibold">A Buyer</p>
                                 </div>
-                                <div><p className="text-sm text-muted-foreground">Description</p><p>{product.description}</p></div>
-                            </CardContent>
-                        </Card>
-                         {/* 5. Delivery & Logistics Section */}
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Truck /> Delivery & Logistics</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div><p className="text-sm text-muted-foreground">Pickup Location</p><p>{product.location}</p></div>
-                                <div><p className="text-sm text-muted-foreground">Delivery Options</p><p>{product.deliveryOptions}</p></div>
-                                <div><p className="text-sm text-muted-foreground">Delivery Fee</p><p>{product.shippingCost?.toLocaleString() || 0} KES</p></div>
-                                <div><p className="text-sm text-muted-foreground">Return Policy</p><p>7-day returns accepted.</p></div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    {/* 2. Product Media Manager */}
-                    <TabsContent value="media">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg flex items-center gap-2"><Video /> Media Manager</CardTitle>
-                                <CardDescription>Drag and drop to reorder. The first image is the cover.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                    {(product.imageUrls || [product.imageUrl]).map((url, i) => (
-                                        <div key={i} className="relative aspect-square group">
-                                            <Image src={url || ''} alt={`media ${i}`} fill className="object-cover rounded-md" />
-                                            {i===0 && <Badge className="absolute top-2 left-2">Cover</Badge>}
-                                        </div>
-                                    ))}
-                                    <div className="flex items-center justify-center aspect-square border-2 border-dashed rounded-md cursor-pointer hover:border-primary">
-                                        <UploadCloud />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    {/* 6. Product Insights / Analytics */}
-                    <TabsContent value="analytics">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><BarChart2 /> Product Analytics</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6">
-                                    <div><p className="text-2xl font-bold">1.2k</p><p className="text-xs text-muted-foreground">Views</p></div>
-                                    <div><p className="text-2xl font-bold">89</p><p className="text-xs text-muted-foreground">Likes</p></div>
-                                    <div><p className="text-2xl font-bold">45</p><p className="text-xs text-muted-foreground">Added to Cart</p></div>
-                                    <div><p className="text-2xl font-bold text-primary">5.2%</p><p className="text-xs text-muted-foreground">Conversion</p></div>
-                                </div>
-                                <ChartContainer config={chartConfig} className="h-64 w-full">
-                                    <RechartsBarChart data={chartData}>
-                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                                        <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                                        <Bar dataKey="views" fill="var(--color-views)" radius={4} />
-                                    </RechartsBarChart>
-                                </ChartContainer>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    {/* 8. Reviews & Ratings Section */}
-                    <TabsContent value="reviews">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Star /> Reviews & Ratings</CardTitle></CardHeader>
-                            <CardContent>
-                                <div className="text-center p-8 border border-dashed rounded-md">
-                                    <p className="text-muted-foreground">No reviews yet.</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    
-                    {/* 7. Reseller Participation Section */}
-                    <TabsContent value="resellers">
-                        <Card>
-                             <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users /> Reseller Participation</CardTitle></CardHeader>
-                             <CardContent className="space-y-4">
-                                <div className="grid grid-cols-3 gap-4 text-center">
-                                    <div><p className="text-xl font-bold">23</p><p className="text-xs text-muted-foreground">Resellers</p></div>
-                                    <div><p className="text-xl font-bold">34</p><p className="text-xs text-muted-foreground">Sales</p></div>
-                                    <div><p className="text-xl font-bold text-green-500">12,300</p><p className="text-xs text-muted-foreground">Commission Paid</p></div>
-                                </div>
-                                <div className="flex gap-2">
-                                     <Button className="w-full">Make Product Resellable</Button>
-                                     <Button variant="secondary">Set Commission %</Button>
-                                </div>
-                             </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                     {/* 10. Inventory & Stock Management */}
-                    <TabsContent value="inventory">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Box /> Inventory Management</CardTitle></CardHeader>
-                            <CardContent>
-                               <div className="text-center p-8 border border-dashed rounded-md">
-                                    <p className="text-muted-foreground">Inventory history will be shown here.</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                     {/* 11. SEO & Visibility */}
-                    <TabsContent value="seo">
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Search /> SEO & Visibility</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label>Meta Title</Label>
-                                  <Input defaultValue={product.name} />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Meta Description</Label>
-                                  <Textarea defaultValue={product.description} />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label>Keywords</Label>
-                                  <Input defaultValue={product.tags} />
-                                </div>
-                                <div className="flex items-center justify-between rounded-lg border p-4">
-                                    <p>Visibility</p>
-                                    <Switch defaultChecked />
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                </Tabs>
-            </div>
+                                <StarRating rating={r.rating} />
+                                <p className="mt-2 text-sm">{r.comment}</p>
+                            </div>
+                        )) : <p className="text-muted-foreground text-sm text-center py-8">No reviews yet.</p>}
+                    </AccordionContent>
+                </AccordionItem>
+                {/* 9. Q&A */}
+                <AccordionItem value="qa">
+                    <AccordionTrigger>Questions & Answers</AccordionTrigger>
+                    <AccordionContent>
+                        <p className="text-muted-foreground text-sm text-center py-8">No questions have been asked yet.</p>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
         </div>
       </div>
-    </SellerLayout>
+
+      {/* 12. Bottom Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t p-2 flex items-center gap-2">
+            <Button variant="ghost" size="icon"><Link href={`/sellers/${product.sellerId}`}><Store className="h-5 w-5"/></Link></Button>
+            <Button variant="ghost" size="icon"><MessageSquare className="h-5 w-5" /></Button>
+            <Button variant="secondary" className="flex-1">Add to Cart</Button>
+            <Button className="flex-1 bg-red-600 hover:bg-red-700">Buy Now</Button>
+      </div>
+    </MainLayout>
   );
 }
