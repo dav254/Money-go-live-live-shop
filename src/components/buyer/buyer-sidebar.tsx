@@ -64,15 +64,6 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/wishlist')}>
-            <Link href="/buyer/wishlist">
-              <Heart />
-              <span>Wishlist</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-
-        <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')}>
             <Link href="/buyer/wallet">
               <Wallet />
@@ -95,3 +86,5 @@ export function BuyerSidebar() {
     </>
   );
 }
+
+    

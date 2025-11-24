@@ -28,12 +28,6 @@ const shortcuts = [
     color: 'bg-blue-500/20 text-blue-500',
   },
   {
-    title: 'Wishlist',
-    icon: Heart,
-    href: '/buyer/wishlist',
-    color: 'bg-red-500/20 text-red-500',
-  },
-  {
     title: 'Wallet',
     icon: Wallet,
     href: '/buyer/wallet',
@@ -102,7 +96,7 @@ export default function BuyerDashboardPage() {
         </div>
 
         {/* Quick Shortcuts */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {shortcuts.map((shortcut) => (
             <Card
               key={shortcut.title}
@@ -217,3 +211,5 @@ export default function BuyerDashboardPage() {
     </BuyerLayout>
   );
 }
+
+    

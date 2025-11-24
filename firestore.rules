@@ -25,11 +25,6 @@ service cloud.firestore {
       match /payoutMethods/{payoutMethodId} {
         allow read, write: if request.auth.uid == userId;
       }
-      
-      // A user can only read and write their own wishlist items.
-      match /wishlist/{productId} {
-        allow read, write: if request.auth.uid == userId;
-      }
     }
     
     // SellerShops are now publicly readable.
@@ -150,3 +145,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

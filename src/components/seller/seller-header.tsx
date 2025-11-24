@@ -4,7 +4,7 @@
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageSquare, Plus, Share2 } from 'lucide-react';
+import { MessageSquare, Plus, Share2 } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore } from '@/firebase';
@@ -213,9 +213,6 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
              <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800" onClick={handleShare}>
                 <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
-             <Button variant="outline" className="border-neutral-700 hover:bg-neutral-800">
-                <Heart className="mr-2 h-4 w-4" /> Wishlist
-            </Button>
         </div>
       </div>
       <div className="px-4 sm:px-6 lg:px-8">
@@ -224,3 +221,5 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
     </div>
   );
 }
+
+    
