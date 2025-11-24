@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import Image from 'next/image';
@@ -20,6 +21,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/
 import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // --- MOCKED DATA FOR SECTIONS NOT YET CONNECTED ---
 const mockSeller = {
@@ -64,7 +66,7 @@ const ProductPageSkeleton = () => (
         </div>
         <div className="bg-neutral-900 py-2">
              <div className="container px-0 flex gap-1">
-                {[...Array(4)].map(i => <Skeleton key={i} className="h-24 w-1/4" />)}
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-1/4" />)}
             </div>
         </div>
         <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
@@ -107,7 +109,7 @@ export default function BuyerProductPage() {
 
     const [selectedMedia, setSelectedMedia] = useState(allMedia[0]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (allMedia.length > 0 && !selectedMedia) {
             setSelectedMedia(allMedia[0]);
         }
@@ -188,7 +190,7 @@ export default function BuyerProductPage() {
             </MainLayout>
         );
     }
-
+    
     const discountPercentage = product.wasPrice ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
 
     return (
@@ -323,4 +325,3 @@ export default function BuyerProductPage() {
     );
 }
 
-    
