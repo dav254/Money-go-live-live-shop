@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -150,8 +151,8 @@ export default function BuyerProductPage() {
 
                     {/* 3. Price Section */}
                     <div className="flex items-end gap-3">
-                        <p className="text-3xl font-bold text-red-500">KES {product.price.toLocaleString()}</p>
-                        {product.wasPrice && <p className="text-lg text-neutral-500 line-through">KES {product.wasPrice.toLocaleString()}</p>}
+                        <p className="text-3xl font-bold text-red-500">USD ${product.price.toLocaleString()}</p>
+                        {product.wasPrice && <p className="text-lg text-neutral-500 line-through">USD ${product.wasPrice.toLocaleString()}</p>}
                         {discountPercentage > 0 && <Badge variant="destructive" className="font-bold">-{discountPercentage}%</Badge>}
                     </div>
 
@@ -159,7 +160,7 @@ export default function BuyerProductPage() {
                     <Card className="bg-[#2a2a2a] border-neutral-800">
                         <CardContent className="p-4 space-y-3 text-sm">
                             <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-neutral-400" /> <span>Ships to <strong>Nairobi, Kenya</strong></span> <Button variant="link" className="p-0 h-auto text-red-500">Change</Button></div>
-                            <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-neutral-400" /> <span>Standard Delivery (1-2 days) - <strong className="text-white">KES 300</strong></span></div>
+                            <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-neutral-400" /> <span>Standard Delivery (1-2 days) - <strong className="text-white">USD $3</strong></span></div>
                             <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-neutral-400" /> <span>7-day return policy</span></div>
                         </CardContent>
                     </Card>
@@ -234,3 +235,5 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
+
+    
