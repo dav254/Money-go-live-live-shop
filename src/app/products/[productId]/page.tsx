@@ -4,9 +4,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/main-layout';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
-import { doc, collection, query, where, collectionGroup } from 'firebase/firestore';
+import { doc, collection, query, where, collectionGroup, setDoc, increment, serverTimestamp, updateDoc, arrayUnion, arrayRemove, getDocs } from 'firebase/firestore';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
 
 const ProductPageSkeleton = () => (
     <MainLayout>
@@ -66,12 +67,14 @@ const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
 );
 
 
-export default function BuyerProductDetailPage() {
+export default function ProductDetailPage() {
     const params = useParams();
+    const router = useRouter();
     const productId = params.productId as string;
     const firestore = useFirestore();
     const { toast } = useToast();
     const { user } = useUser();
+    const { userProfile } = useUserProfile(user?.uid);
 
     // Data Fetching
     const productRef = useMemoFirebase(() => {
@@ -97,6 +100,7 @@ export default function BuyerProductDetailPage() {
 
     // State
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [isFollowing, setIsFollowing] = useState(false);
 
     const allImages = useMemo(() => {
         if (!product) return [];
@@ -108,12 +112,71 @@ export default function BuyerProductDetailPage() {
             setSelectedImage(allImages[0]);
         }
     }, [allImages, selectedImage]);
+    
+    useEffect(() => {
+      if (userProfile && userProfile.following && product) {
+        setIsFollowing(userProfile.following.includes(product.sellerId));
+      }
+    }, [userProfile, product]);
+
+
+    const handleAddToCart = () => {
+        if (!user || !firestore) {
+          toast({ title: 'Please log in', description: 'You need to be logged in to add items to your cart.', action: <Button onClick={() => router.push('/login')}>Login</Button> });
+          return;
+        }
+        const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
+        const cartItemData = {
+          productId: product.id, sellerId: product.sellerId, buyerId: user.uid, quantity: increment(1), price: product.price, name: product.name || '', imageUrl: product.imageUrl || '', addedAt: serverTimestamp(),
+        };
+        setDoc(cartItemRef, cartItemData, { merge: true });
+        toast({ title: 'Added to Cart', description: `${product.name} has been added to your cart.` });
+    };
+
+    const handleBuyNow = async () => {
+        if (!user || !firestore) {
+          toast({ title: 'Please log in', description: 'You need to be logged in to purchase.', action: <Button onClick={() => router.push('/login')}>Login</Button> });
+          return;
+        }
+        const newOrderRef = doc(collection(firestore, 'orders'));
+        const newOrderData = {
+            id: newOrderRef.id, buyerId: user.uid, sellerId: product.sellerId, productId: product.id, productName: product.name || '', productImage: product.imageUrl || '', productPrice: product.price, shippingCost: product.shippingCost || 0, totalAmount: (product.price || 0) + (product.shippingCost || 0), orderDate: serverTimestamp(), shippingAddress: '123 Placeholder Lane, Nairobi', orderStatus: 'pending', paymentMethod: 'pending', quantity: 1,
+        };
+        await setDoc(newOrderRef, newOrderData);
+        router.push(`/checkout/${newOrderRef.id}`);
+    };
+    
+    const handleFollow = async () => {
+        if (!user || !firestore || !product) {
+          toast({ variant: 'destructive', title: 'Please log in to follow sellers.' });
+          return;
+        }
+        const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+        const newFollowingState = !isFollowing;
+        await updateDoc(userProfileRef, { following: newFollowingState ? arrayUnion(product.sellerId) : arrayRemove(product.sellerId) });
+        setIsFollowing(newFollowingState);
+    };
+
+    const handleChat = async () => {
+        if (!user || !firestore || !product || user.uid === product.sellerId) return;
+        const chatsRef = collection(firestore, 'chats');
+        const q = query(chatsRef, where('participantIds', 'array-contains', user.uid));
+        const querySnapshot = await getDocs(q);
+        let existingChat = null;
+        querySnapshot.forEach(doc => { if (doc.data().participantIds.includes(product.sellerId)) { existingChat = doc.id; } });
+        if (existingChat) {
+            router.push(`/messages?chatWith=${product.sellerId}`);
+        } else {
+            const newChatRef = doc(collection(firestore, 'chats'));
+            await setDoc(newChatRef, { id: newChatRef.id, participantIds: [user.uid, product.sellerId], lastMessage: `Conversation started about ${product.name}`, lastMessageTimestamp: serverTimestamp() });
+            router.push(`/messages?chatWith=${product.sellerId}`);
+        }
+    };
+
 
     const isLoading = isProductLoading || isSellerLoading || areReviewsLoading;
     
-    if (isLoading) {
-        return <ProductPageSkeleton />;
-    }
+    if (isLoading) return <ProductPageSkeleton />;
 
     if (productError || !product) {
         return (
@@ -126,21 +189,17 @@ export default function BuyerProductDetailPage() {
         );
     }
     
-    const discountPercentage = product.wasPrice && product.price
-        ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100)
-        : 0;
+    const discountPercentage = product.wasPrice && product.price ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
 
-  return (
+    return (
     <MainLayout>
       <div className="bg-background pb-24">
         {/* 1. Product Media Section */}
         <div className="relative w-full">
             <div className="aspect-square md:aspect-[16/10] w-full bg-black">
-                {selectedImage && (
-                    <Image src={selectedImage} alt={product.name || 'Product'} fill className="object-contain" priority />
-                )}
+                {selectedImage && <Image src={selectedImage} alt={product.name || 'Product'} fill className="object-contain" priority />}
             </div>
-             <div className="absolute top-4 right-4 flex gap-2">
+            <div className="absolute top-4 right-4 flex gap-2">
                 <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Share2 className="h-5 w-5" /></Button>
                 <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Bookmark className="h-5 w-5" /></Button>
             </div>
@@ -192,7 +251,7 @@ export default function BuyerProductDetailPage() {
                 </CardContent>
             </Card>
 
-            {/* 5. Variants & Quantity (Placeholder) */}
+            {/* 5. Variants & Quantity */}
              <div className="flex items-center justify-between">
                 <p className="font-semibold">Quantity</p>
                  <div className="flex items-center gap-2">
@@ -206,14 +265,12 @@ export default function BuyerProductDetailPage() {
             {seller && (
                 <Card className="bg-card">
                     <CardContent className="p-4 flex items-center gap-4">
-                        <Avatar className="h-12 w-12 border">
-                            <AvatarImage src={seller.logoUrl} />
-                            <AvatarFallback>{seller.shopName?.charAt(0)}</AvatarFallback>
-                        </Avatar>
+                        <Avatar className="h-12 w-12 border"><AvatarImage src={seller.logoUrl} /><AvatarFallback>{seller.shopName?.charAt(0)}</AvatarFallback></Avatar>
                         <div className="flex-1">
                             <p className="font-bold">{seller.shopName}</p>
                             <p className="text-xs text-muted-foreground">{seller.followers} followers</p>
                         </div>
+                        <Button onClick={handleFollow} variant={isFollowing ? 'secondary' : 'default'} size="sm">{isFollowing ? 'Following' : 'Follow'}</Button>
                         <Button variant="outline" size="sm" asChild><Link href={`/sellers/${seller.sellerId}`}>Visit Shop</Link></Button>
                     </CardContent>
                 </Card>
@@ -223,9 +280,7 @@ export default function BuyerProductDetailPage() {
                 {/* 7. Product Description */}
                 <AccordionItem value="description">
                     <AccordionTrigger>Product Description</AccordionTrigger>
-                    <AccordionContent className="prose prose-sm dark:prose-invert">
-                        {product.description}
-                    </AccordionContent>
+                    <AccordionContent className="prose prose-sm dark:prose-invert">{product.description}</AccordionContent>
                 </AccordionItem>
                 {/* 8. Reviews & Ratings */}
                 <AccordionItem value="reviews">
@@ -233,10 +288,7 @@ export default function BuyerProductDetailPage() {
                     <AccordionContent>
                         {reviews && reviews.length > 0 ? reviews.map(r => (
                              <div key={r.id} className="py-4 border-b last:border-b-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <Avatar className="h-6 w-6"><AvatarFallback>B</AvatarFallback></Avatar>
-                                    <p className="text-xs font-semibold">A Buyer</p>
-                                </div>
+                                <div className="flex items-center gap-2 mb-1"><Avatar className="h-6 w-6"><AvatarFallback>B</AvatarFallback></Avatar><p className="text-xs font-semibold">A Buyer</p></div>
                                 <StarRating rating={r.rating} />
                                 <p className="mt-2 text-sm">{r.comment}</p>
                             </div>
@@ -246,9 +298,7 @@ export default function BuyerProductDetailPage() {
                 {/* 9. Q&A */}
                 <AccordionItem value="qa">
                     <AccordionTrigger>Questions & Answers</AccordionTrigger>
-                    <AccordionContent>
-                        <p className="text-muted-foreground text-sm text-center py-8">No questions have been asked yet.</p>
-                    </AccordionContent>
+                    <AccordionContent><p className="text-muted-foreground text-sm text-center py-8">No questions have been asked yet.</p></AccordionContent>
                 </AccordionItem>
             </Accordion>
         </div>
@@ -256,11 +306,13 @@ export default function BuyerProductDetailPage() {
 
       {/* 12. Bottom Sticky Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t p-2 flex items-center gap-2">
-            <Button variant="ghost" size="icon"><Link href={`/sellers/${product.sellerId}`}><Store className="h-5 w-5"/></Link></Button>
-            <Button variant="ghost" size="icon"><MessageSquare className="h-5 w-5" /></Button>
-            <Button variant="secondary" className="flex-1">Add to Cart</Button>
-            <Button className="flex-1 bg-red-600 hover:bg-red-700">Buy Now</Button>
+            <Button variant="ghost" size="icon"><Heart className="h-5 w-5"/></Button>
+            <Button variant="ghost" size="icon" onClick={handleChat}><MessageSquare className="h-5 w-5" /></Button>
+            <Button variant="secondary" className="flex-1" onClick={handleAddToCart}>Add to Cart</Button>
+            <Button className="flex-1 bg-red-600 hover:bg-red-700" onClick={handleBuyNow}>Buy Now</Button>
       </div>
     </MainLayout>
   );
 }
+
+    
