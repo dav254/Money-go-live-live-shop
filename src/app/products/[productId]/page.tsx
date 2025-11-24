@@ -1,3 +1,4 @@
+
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -15,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const ProductPageSkeleton = () => (
     <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
