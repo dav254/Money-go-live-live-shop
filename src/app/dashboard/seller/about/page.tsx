@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, ShoppingBag, Video, Users, MessageSquare, Package, BarChart, Bell, Settings, Award, Info, Rocket, Film, BookOpen, TrendingUp, Sparkles, Trophy, HelpCircle, ShieldAlert, User, Star, Zap } from 'lucide-react';
+import { CheckCircle, ShoppingBag, Video, Users, MessageSquare, Package, BarChart, Bell, Settings, Award, Info, Rocket, Film, BookOpen, TrendingUp, Sparkles, Trophy, HelpCircle, ShieldAlert, User, Star, Zap, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 
 const sellerBenefits = [
