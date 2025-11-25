@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -69,6 +69,21 @@ export function ProductCard({ product }: ProductCardProps) {
     });
   };
 
+  const handleLike = () => {
+    if (!firestore) return;
+    const productRef = doc(firestore, 'products', product.id);
+
+    // Non-blocking update for a simple action like a "like"
+    const batch = writeBatch(firestore);
+    batch.update(productRef, { likes: increment(1) });
+    batch.commit().catch(console.error);
+
+    toast({
+        title: "Liked!",
+        description: "You liked this product.",
+    });
+  };
+
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white">
       <div className="relative">
@@ -84,7 +99,7 @@ export function ProductCard({ product }: ProductCardProps) {
             {discountPercentage}% OFF
           </div>
         )}
-        <Button size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 hover:bg-black/70">
+        <Button onClick={handleLike} size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 hover:bg-black/70">
           <Heart className="h-4 w-4" />
         </Button>
         {isOutOfStock && (
