@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -19,7 +18,7 @@ import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile } from '@/firebase';
-import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, writeBatch } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -230,6 +229,22 @@ export default function BuyerProductPage() {
             });
         });
     };
+    
+    const handleLike = () => {
+        if (!firestore || !productId) return;
+        const productRef = doc(firestore, 'products', productId);
+        
+        // This is a non-blocking update. We don't wait for it to complete.
+        // It's a "fire-and-forget" operation for a simple action like a "like".
+        const batch = writeBatch(firestore);
+        batch.update(productRef, { likes: increment(1) });
+        batch.commit().catch(console.error);
+
+        toast({
+            title: "Liked!",
+            description: "You liked this product.",
+        });
+    };
 
 
     if (isProductLoading || isSellerShopLoading || isSellerProfileLoading) {
@@ -265,6 +280,7 @@ export default function BuyerProductPage() {
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
+                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70" onClick={handleLike}><Heart className="h-5 w-5" /></Button>
                         <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                     </div>
                     {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-bold">{discountPercentage}% OFF</Badge>}
@@ -385,3 +401,5 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
+
+    
