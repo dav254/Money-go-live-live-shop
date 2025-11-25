@@ -9,13 +9,13 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import {
-  Heart,
   Wallet,
   MessageSquare,
   Home,
   Package,
   User,
   Video,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -73,7 +73,20 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
-    <SidebarMenu className="mt-auto">
+     <SidebarGroup>
+        <SidebarGroupLabel>Resources</SidebarGroupLabel>
+        <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive('/buyer/about')}>
+                <Link href="/buyer/about">
+                  <Info />
+                  <span>About Go Earn</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+    <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
             <Link href="/dashboard/account">
@@ -86,5 +99,3 @@ export function BuyerSidebar() {
     </>
   );
 }
-
-    
