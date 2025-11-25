@@ -10,41 +10,55 @@ import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
 import { SidebarTrigger } from '../ui/sidebar';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useUserProfile } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { useMemo } from 'react';
+import type { SellerShop, UserProfile } from '@/lib/types';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
-interface SellerHeaderProps {
-  seller: Seller | null;
-  isLoading: boolean;
-}
 
+export function SellerHeader() {
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
 
-export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
+  const sellerShopRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return firestore ? doc(firestore, `sellerShops/${user.uid}`) : null;
+  }, [firestore, user]);
+  
+  const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
 
-  if (isLoading || !seller) {
-      return (
-           <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
-                <div className="flex items-center gap-2">
-                    <SidebarTrigger className="md:hidden"/>
-                    <Skeleton className="h-8 w-32" />
-                </div>
-                <div className="flex items-center gap-2">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                </div>
-            </header>
-      )
-  }
+  const sellerName = useMemo(() => {
+    return shopData?.shopName || userProfile?.fullName || 'Seller';
+  }, [shopData, userProfile]);
+
+  const sellerAvatar = useMemo(() => {
+    return shopData?.logoUrl || userProfile?.profilePictureUrl || getPlaceholderImage();
+  }, [shopData, userProfile]);
+  
+  const isLoading = isUserLoading || isProfileLoading || isShopLoading;
+
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="hidden md:flex" />
         <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={seller.avatar.imageUrl} />
-            <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <span className="text-sm font-semibold">{seller.name}</span>
+          {isLoading ? (
+            <>
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-5 w-24" />
+            </>
+          ) : (
+            <>
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={sellerAvatar} />
+                <AvatarFallback>{sellerName.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-semibold">{sellerName}</span>
+            </>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
