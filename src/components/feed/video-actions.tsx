@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, ShoppingBag, Bookmark, ChevronUp, ChevronDown } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, errorEmitter } from '@/firebase';
@@ -20,6 +20,8 @@ interface VideoActionsProps {
   onCommentClick?: () => void;
   onScroll?: (direction: 'up' | 'down') => void;
   onLike?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  isMuted: boolean;
+  onMuteToggle: () => void;
 }
 
 export function VideoActions({
@@ -30,6 +32,8 @@ export function VideoActions({
   onCommentClick,
   onScroll,
   onLike,
+  isMuted,
+  onMuteToggle,
 }: VideoActionsProps) {
   const [likes, setLikes] = useState(initialLikes);
   const { toast } = useToast();
@@ -138,8 +142,8 @@ export function VideoActions({
         </Button>
       </div>
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleSaveToWishlist}>
-          <Bookmark className="h-6 w-6 text-white" />
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onMuteToggle}>
+          {isMuted ? <VolumeX className="h-6 w-6 text-white" /> : <Volume2 className="h-6 w-6 text-white" />}
         </Button>
       </div>
        <div className="flex flex-col items-center">

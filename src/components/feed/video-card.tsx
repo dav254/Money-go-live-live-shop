@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
 import type { VideoFeedItem, Comment } from '@/lib/types';
 import { VideoInfo } from './video-info';
@@ -22,6 +22,8 @@ interface VideoCardProps {
 export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
 
@@ -60,11 +62,23 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     }
   };
 
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      // Set volume to 50% when unmuting for the first time
+      if(isMuted && videoRef.current.volume === 1) {
+          videoRef.current.volume = 0.5;
+      }
+    }
+  };
+
 
   return (
     <div className="relative h-full w-full bg-black">
       {item.video.mediaType === 'video' ? (
         <video 
+          ref={videoRef}
           src={item.video.imageUrl} // imageUrl now holds the media URL
           className="h-full w-full object-cover" 
           autoPlay 
@@ -72,6 +86,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
           loop 
           playsInline
           key={item.video.imageUrl}
+          onClick={toggleMute}
         />
       ) : (
         <Image
@@ -95,13 +110,15 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
        </div>
 
       <VideoActions 
+        product={item.product}
         initialLikes={item.likes}
         commentCount={comments?.length || 0}
-        productId={item.product.id}
         onLike={handleLike}
         onProductClick={() => setIsDrawerOpen(true)}
         onCommentClick={() => setIsCommentDrawerOpen(true)}
         onScroll={onScroll}
+        isMuted={isMuted}
+        onMuteToggle={toggleMute}
       />
 
       <ProductDrawer 
