@@ -215,8 +215,8 @@ export default function BuyerProductPage() {
     };
 
     const handleShare = () => {
-        const currentUrl = window.location.href;
-        navigator.clipboard.writeText(currentUrl).then(() => {
+        const productUrl = `https://goearnvid.shop/products/${productId}`;
+        navigator.clipboard.writeText(productUrl).then(() => {
             toast({
                 title: "Link Copied!",
                 description: "Product link copied to your clipboard.",
