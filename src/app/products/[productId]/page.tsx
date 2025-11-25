@@ -371,14 +371,14 @@ export default function BuyerProductPage() {
 
             {/* 12. Bottom Sticky Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-sm border-t border-neutral-800 p-2 flex items-center gap-2">
-                <div className="flex flex-col items-center">
-                    <Button variant="ghost" size="icon"><Store className="h-5 w-5 text-neutral-300"/></Button>
+                <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center p-2">
+                    <Store className="h-5 w-5 text-neutral-300"/>
                     <span className="text-xs text-neutral-400">Shop</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <Button variant="ghost" size="icon"><MessageSquare className="h-5 w-5 text-neutral-300" /></Button>
+                </Link>
+                <Link href={`/messages?chatWith=${sellerId}`} className="flex flex-col items-center p-2">
+                    <MessageSquare className="h-5 w-5 text-neutral-300" />
                      <span className="text-xs text-neutral-400">Chat</span>
-                </div>
+                </Link>
                 <Button variant="secondary" className="flex-1 bg-[#2a2a2a] text-white" onClick={handleAddToCart}>Add to Cart</Button>
                 <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleBuyNow}>Buy Now</Button>
             </div>
