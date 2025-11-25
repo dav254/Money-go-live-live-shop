@@ -31,7 +31,9 @@ service cloud.firestore {
     // Writes are restricted to the seller or an admin.
     match /sellerShops/{shopId} {
       allow read: if true;
-      // shopId should be the same as sellerId (user UID)
+      // Only the shop owner can update the details, EXCEPT for the follower count.
+      // Follower count must be updated by the backend.
+      allow update: if request.auth.uid == shopId && !('followers' in request.resource.data);
       allow write: if request.auth.uid == shopId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 

@@ -44,14 +44,16 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
     }
     if (!firestore || !seller) return;
 
-    setIsFollowing(!isFollowing); // Optimistic update
+    // Optimistic UI update
+    setIsFollowing(!isFollowing);
 
     try {
+        const token = await user.getIdToken();
         const response = await fetch('/api/follow', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${await user.getIdToken()}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 sellerId: seller.id,
@@ -64,7 +66,6 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
             throw new Error(errorData.error || 'Failed to update follow status.');
         }
 
-        // The local state will be updated optimistically, and the backend handles the database.
         toast({
             title: !isFollowing ? 'Followed!' : 'Unfollowed',
             description: `You are now ${!isFollowing ? 'following' : 'no longer following'} ${seller.name}.`,
@@ -72,7 +73,8 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
 
     } catch (error) {
         console.error('Follow action failed:', error);
-        setIsFollowing(isFollowing); // Revert optimistic update
+        // Revert optimistic update on failure
+        setIsFollowing(isFollowing); 
         toast({
             variant: 'destructive',
             title: 'Error',
