@@ -214,6 +214,23 @@ export default function BuyerProductPage() {
         }
     };
 
+    const handleShare = () => {
+        const currentUrl = window.location.href;
+        navigator.clipboard.writeText(currentUrl).then(() => {
+            toast({
+                title: "Link Copied!",
+                description: "Product link copied to your clipboard.",
+            });
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            toast({
+                variant: "destructive",
+                title: "Failed to Copy",
+                description: "Could not copy the link.",
+            });
+        });
+    };
+
 
     if (isProductLoading || isSellerShopLoading || isSellerProfileLoading) {
         return <MainLayout><ProductPageSkeleton /></MainLayout>;
@@ -248,7 +265,7 @@ export default function BuyerProductPage() {
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
-                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70"><Share2 className="h-5 w-5" /></Button>
+                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                     </div>
                     {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-bold">{discountPercentage}% OFF</Badge>}
                 </div>
