@@ -44,6 +44,7 @@ export function SellerSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
+              size="sm"
               isActive={isActive('/dashboard/seller') && pathname === '/dashboard/seller'}
             >
               <Link href="/dashboard/seller">
@@ -53,7 +54,7 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/products')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/products')}>
               <Link href="/dashboard/products">
                 <ShoppingBag />
                 <span>Products</span>
@@ -61,7 +62,7 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/orders')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/orders')}>
               <Link href="/dashboard/seller/orders">
                 <Package />
                 <span>Orders</span>
@@ -69,7 +70,7 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/messages')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/messages')}>
               <Link href="/dashboard/seller/messages">
                 <MessageSquare />
                 <span>Messages</span>
@@ -83,7 +84,7 @@ export function SellerSidebar() {
         <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/live') || isActive('/dashboard/seller/studio')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live') || isActive('/dashboard/seller/studio')}>
               <Link href="/dashboard/seller/studio">
                 <RadioTower />
                 <span>Live Studio</span>
@@ -91,7 +92,7 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
               <Link href="/dashboard/seller/earnings">
                 <Banknote />
                 <span>Sales & Payouts</span>
@@ -99,7 +100,7 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/reseller')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
               <Link href="/dashboard/seller/reseller/performance">
                 <Users />
                 <span>Reseller Center</span>
@@ -111,18 +112,39 @@ export function SellerSidebar() {
       
       <SidebarMenu className="mt-auto">
          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/dashboard/seller/help')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
               <Link href="/dashboard/seller/help">
                 <HelpCircle />
                 <span>Support</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/settings')}>
+              <Link href="/dashboard/seller/settings">
+                <Settings />
+                <span>Shop Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         <Separator className="my-2" />
         <SidebarMenuItem>
-           <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
+            <SidebarMenuButton
+                asChild
+                size="sm"
+                variant="outline"
+                isActive={isActive(`/sellers/${user?.uid}`)}
+            >
+                <Link href={`/sellers/${user?.uid}`} target="_blank">
+                    <Store />
+                    <span>View My Shop</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+           <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
             <Link href="/dashboard/account">
-              <Avatar className="h-7 w-7">
+              <Avatar className="h-6 w-6">
                 <AvatarImage src={userProfile?.profilePictureUrl} />
                 <AvatarFallback>{userProfile?.fullName?.[0]}</AvatarFallback>
               </Avatar>
