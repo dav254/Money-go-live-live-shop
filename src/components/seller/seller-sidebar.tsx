@@ -85,10 +85,18 @@ export function SellerSidebar() {
         <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live') || isActive('/dashboard/seller/studio')}>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/studio')}>
               <Link href="/dashboard/seller/studio">
                 <RadioTower />
                 <span>Live Studio</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live')}>
+              <Link href="/dashboard/seller/live">
+                <Video />
+                <span>Live Selling</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
