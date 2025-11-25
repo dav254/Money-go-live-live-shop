@@ -74,6 +74,11 @@ export default function SellerDashboardPage() {
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   const isLoading = isUserLoading || isShopLoading || areProductsLoading;
+
+  const totalLikes = React.useMemo(() => {
+    if (!products) return 0;
+    return products.reduce((sum, product) => sum + (product.likes || 0), 0);
+  }, [products]);
   
   const handleDelete = async (productId: string) => {
     if (!firestore) return;
@@ -137,7 +142,7 @@ export default function SellerDashboardPage() {
                 <Heart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">1,250</div>}
+                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{totalLikes.toLocaleString()}</div>}
                 <p className="text-xs text-muted-foreground">Across all products</p>
               </CardContent>
             </Card>
