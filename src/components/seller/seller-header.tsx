@@ -2,15 +2,14 @@
 'use client';
 
 import type { Seller } from '@/lib/types';
-import Image from 'next/image';
+import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { MessageSquare, Plus, Share2 } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useUserProfile } from '@/firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '../ui/skeleton';
 import { useRouter } from 'next/navigation';
@@ -22,10 +21,10 @@ interface SellerHeaderProps {
 }
 
 export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { userProfile } = useUserProfile(user?.uid);
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isFollowing, setIsFollowing] = useState(false);
   const router = useRouter();
 
@@ -36,36 +35,52 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
   }, [userProfile, seller]);
 
   const handleFollow = async () => {
-    if (!user || !firestore || !seller) {
-      toast({
-        variant: 'destructive',
-        title: 'Please log in to follow sellers.',
-      });
-      return;
+    if (!user) {
+        toast({
+            title: 'Authentication Required',
+            description: 'Please log in to follow sellers.',
+        });
+        return;
     }
+    if (!firestore || !seller) return;
 
-    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
-    const newFollowingState = !isFollowing;
+    setIsFollowing(!isFollowing); // Optimistic update
 
     try {
-      await updateDoc(userProfileRef, {
-        following: newFollowingState
-          ? arrayUnion(seller.id)
-          : arrayRemove(seller.id),
-      });
-      setIsFollowing(newFollowingState);
-      toast({
-        title: newFollowingState ? 'Followed!' : 'Unfollowed',
-        description: `You are now ${newFollowingState ? 'following' : 'no longer following'} ${seller.name}.`,
-      });
+        const response = await fetch('/api/follow', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await user.getIdToken()}`
+            },
+            body: JSON.stringify({
+                sellerId: seller.id,
+                action: isFollowing ? 'unfollow' : 'follow'
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update follow status.');
+        }
+
+        // The local state will be updated optimistically, and the backend handles the database.
+        toast({
+            title: !isFollowing ? 'Followed!' : 'Unfollowed',
+            description: `You are now ${!isFollowing ? 'following' : 'no longer following'} ${seller.name}.`,
+        });
+
     } catch (error) {
-      console.error('Error updating follow status:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Something went wrong',
-      });
+        console.error('Follow action failed:', error);
+        setIsFollowing(isFollowing); // Revert optimistic update
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not complete the action. Please try again.',
+        });
     }
-  };
+};
+
 
   const handleMessage = async () => {
     if (!user || !firestore || !seller || user.uid === seller.id) {
@@ -89,16 +104,16 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
     
     try {
         const querySnapshot = await getDocs(q);
-        let existingChat = null;
+        let existingChatId: string | null = null;
 
         querySnapshot.forEach(doc => {
             const chat = doc.data();
             if (chat.participantIds.includes(seller.id)) {
-                existingChat = { id: doc.id, ...chat };
+                existingChatId = doc.id;
             }
         });
         
-        if (existingChat) {
+        if (existingChatId) {
             router.push(`/messages?chatWith=${seller.id}`);
         } else {
             const newChatRef = doc(collection(firestore, 'chats'));
@@ -139,15 +154,17 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
     });
   };
   
-  if (isLoading || !seller) {
+  const loading = isLoading || isUserLoading || isProfileLoading;
+  
+  if (loading || !seller) {
       return (
-          <div className="relative w-full bg-neutral-900 text-white">
-              <div className="relative h-48 w-full md:h-64">
+          <div className="border-b border-neutral-800 bg-neutral-950 pb-4">
+              <div className="relative h-32 md:h-48 w-full bg-muted">
                 <Skeleton className="h-full w-full" />
               </div>
-               <div className="relative -mt-16 px-4 pb-6 sm:px-6 lg:px-8">
+               <div className="relative -mt-12 md:-mt-16 px-4 pb-6 sm:px-6 lg:px-8">
                  <div className="flex flex-col items-center text-center md:flex-row md:items-end md:text-left">
-                    <Skeleton className="relative h-32 w-32 flex-shrink-0 rounded-full border-4 border-neutral-900" />
+                    <Skeleton className="relative h-24 w-24 md:h-32 md:w-32 flex-shrink-0 rounded-full border-4 border-neutral-950" />
                      <div className="mt-4 md:ml-6 md:mt-0 space-y-2">
                         <Skeleton className="h-8 w-48" />
                         <Skeleton className="h-4 w-32" />
@@ -160,10 +177,10 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
 
 
   return (
-    <div className="relative w-full bg-neutral-900 text-white">
+    <div className="border-b border-neutral-800 bg-neutral-950 pb-4">
       {/* Banner Image */}
-      <div className="relative h-48 w-full md:h-64">
-        <Image
+      <div className="relative h-32 md:h-48 w-full bg-muted">
+        <NextImage
           src={seller.banner?.imageUrl || 'https://picsum.photos/seed/banner/1200/400'}
           alt={`${seller.name}'s banner`}
           fill
@@ -174,11 +191,11 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/50 to-transparent" />
       </div>
 
-      <div className="relative -mt-16 px-4 pb-6 sm:px-6 lg:px-8">
+      <div className="relative -mt-12 md:-mt-16 px-4 pb-6 sm:px-6 lg:px-8">
         {/* Avatar and Main Info */}
         <div className="flex flex-col items-center text-center md:flex-row md:items-end md:text-left">
-          <div className="relative h-32 w-32 flex-shrink-0 rounded-full border-4 border-neutral-900">
-            <Image
+          <div className="relative h-24 w-24 md:h-32 md:w-32 flex-shrink-0 rounded-full border-4 border-neutral-950">
+            <NextImage
               src={seller.avatar?.imageUrl || 'https://picsum.photos/seed/avatar/200'}
               alt={`${seller.name}'s avatar`}
               fill
@@ -187,13 +204,11 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
             />
           </div>
           <div className="mt-4 md:ml-6 md:mt-0">
-            <h1 className="font-headline text-3xl font-bold text-white">{seller.name}</h1>
+            <h1 className="font-headline text-2xl md:text-3xl font-bold text-white">{seller.name}</h1>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-neutral-300 md:justify-start">
               <span>{seller.followers.toLocaleString()} followers</span>
               <span>&middot;</span>
               <span>{(seller.reviewsCount || 0).toLocaleString()} reviews</span>
-              <span>&middot;</span>
-              <span>{(seller.rating || 0).toFixed(1)} <span className="text-yellow-400">★</span></span>
             </div>
           </div>
         </div>
@@ -221,5 +236,3 @@ export function SellerHeader({ seller, isLoading }: SellerHeaderProps) {
     </div>
   );
 }
-
-    
