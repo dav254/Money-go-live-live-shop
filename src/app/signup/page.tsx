@@ -87,6 +87,8 @@ export default function SignupPage() {
       
       if (values.role === 'seller') {
         router.push('/dashboard/seller/about');
+      } else if (values.role === 'buyer') {
+        router.push('/buyer/about');
       } else {
         router.push('/login');
       }
