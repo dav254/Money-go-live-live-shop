@@ -135,7 +135,7 @@ export function SellerSidebar() {
                 variant="outline"
                 isActive={isActive(`/sellers/${user?.uid}`)}
             >
-                <Link href={`/sellers/${user?.uid}`} target="_blank">
+                <Link href={`/sellers/${user?.uid}`}>
                     <Store />
                     <span>View My Shop</span>
                 </Link>
