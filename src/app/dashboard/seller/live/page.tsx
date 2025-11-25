@@ -91,10 +91,10 @@ export default function SellerLivePage() {
     const firestore = useFirestore();
 
     const productsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        // Query for products where the sellerId matches the current user's ID
-        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-    }, [firestore, user]);
+        if (!firestore) return null;
+        // Query for all products to create a full feed
+        return query(collection(firestore, 'products'));
+    }, [firestore]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
@@ -186,5 +186,3 @@ export default function SellerLivePage() {
         </SellerLayout>
     );
 }
-
-    
