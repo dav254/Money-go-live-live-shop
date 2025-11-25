@@ -1,6 +1,7 @@
 
+
 import { MainLayout } from '@/components/layout/main-layout';
-import { SellerHeader } from '@/components/seller/seller-header';
+import { SellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import { db } from '@/firebase/server';
 import { collection, doc, getDoc, getDocs, query, where, collectionGroup } from 'firebase/firestore';
@@ -55,7 +56,7 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
     reviewsCount: sellerData.reviewsCount || 0,
     followers: sellerData.followers || 0,
     joinedDate: userProfile.joinDate || new Date().toISOString(),
-    bio: sellerData.description || userProfile.bio || 'Welcome to my shop!',
+    bio: sellerData.description || userProfile.bio || 'Welcome!',
   };
 }
 
