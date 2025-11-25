@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -83,8 +84,13 @@ export default function SignupPage() {
         title: 'Account Created!',
         description: "You've successfully signed up.",
       });
+      
+      if (values.role === 'seller') {
+        router.push('/dashboard/seller/about');
+      } else {
+        router.push('/login');
+      }
 
-      router.push('/login');
 
     } catch (error: any) {
       console.error('Signup Error:', error);
