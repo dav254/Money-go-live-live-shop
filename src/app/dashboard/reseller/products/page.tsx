@@ -25,7 +25,9 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
             return;
         }
 
-        const shareUrl = `https://goearnvid.shop/products/${product.id}?ref=${user.uid}`;
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://goearnvid.shop`;
+        const shareUrl = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
+        
         navigator.clipboard.writeText(shareUrl).then(() => {
             toast({
                 title: 'Link Copied!',
