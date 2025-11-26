@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, ShoppingCart, RadioTower } from 'lucide-react';
+import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, ShoppingCart, RadioTower, Text } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -43,6 +43,14 @@ const tools = [
     href: "/dashboard/seller/ai-tools/image-to-video",
     cta: "Create Video",
     points: 200,
+  },
+  {
+    title: "Text-to-Video Generator",
+    description: "Create brand new video content from a simple text description.",
+    icon: Text,
+    href: "/dashboard/seller/ai-tools/text-to-video",
+    cta: "Create Video",
+    points: 250,
   },
   {
     title: "AI Caption Generator",
