@@ -172,7 +172,9 @@ export default function SellerDashboardPage() {
 
         {/* Add Buttons */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <Button className="font-semibold" style={{ backgroundColor: '#2563eb' }}>Add Product</Button>
+          <Button asChild className="font-semibold" style={{ backgroundColor: '#2563eb' }}>
+            <Link href="/dashboard/products?tab=add-new">Add Product</Link>
+          </Button>
           <Button className="font-semibold" style={{ backgroundColor: '#7c3aed' }}>Add Video</Button>
           <Button className="font-semibold" style={{ backgroundColor: '#16a34a' }}>Add Live</Button>
         </div>

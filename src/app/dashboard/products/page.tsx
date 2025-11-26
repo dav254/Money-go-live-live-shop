@@ -1,4 +1,8 @@
 
+'use client';
+
+import React, { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { MyProductsTable } from '@/components/seller/my-products-table';
@@ -6,14 +10,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
 import { LogisticsTable } from '@/components/seller/logistics-table';
 
-export default function ProductsPage() {
+function ProductsPageContent() {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'my-products';
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Products
         </h1>
-        <Tabs defaultValue="my-products" className="space-y-4">
+        <Tabs defaultValue={defaultTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="my-products">My Products</TabsTrigger>
             <TabsTrigger value="add-new">Add New</TabsTrigger>
@@ -36,4 +43,13 @@ export default function ProductsPage() {
       </div>
     </SellerLayout>
   );
+}
+
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<SellerLayout><div className="flex-1 space-y-4 p-8 pt-6">Loading...</div></SellerLayout>}>
+      <ProductsPageContent />
+    </Suspense>
+  )
 }
