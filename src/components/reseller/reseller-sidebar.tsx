@@ -51,7 +51,7 @@ export function ResellerSidebar() {
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/products')}>
             <Link href="/dashboard/reseller/products">
               <ShoppingBag />
-              <span>My Products</span>
+              <span>Products to Resell</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
