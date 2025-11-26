@@ -32,10 +32,12 @@ try {
 const db = getFirestore();
 
 async function createSeller() {
-  const sellerRef = db.collection('sellers').doc(SELLER_ID);
+  // Use the SELLER_ID as the document ID
+  const sellerShopRef = db.collection('sellerShops').doc(SELLER_ID);
+  const userProfileRef = db.collection('userProfiles').doc(SELLER_ID);
 
   console.log(`Checking for existing seller with ID: ${SELLER_ID}...`);
-  const doc = await sellerRef.get();
+  const doc = await sellerShopRef.get();
 
   if (doc.exists) {
     console.log(`Seller with ID ${SELLER_ID} already exists. Aborting.`);
@@ -45,30 +47,42 @@ async function createSeller() {
   console.log("No existing seller found. Creating a new one...");
 
   const newSellerData = {
-    name: "My Awesome Shop",
-    avatarUrl: 'https://picsum.photos/seed/seller-avatar/400/400',
+    id: SELLER_ID,
+    sellerId: SELLER_ID,
+    shopName: "My Awesome Shop",
+    logoUrl: 'https://picsum.photos/seed/seller-avatar/400/400',
     bannerUrl: 'https://picsum.photos/seed/seller-banner/1200/400',
     isVerified: true,
     rating: 4.8,
     reviewsCount: 150,
     followers: 2300,
     location: "Nairobi, Kenya",
-    joinedDate: new Date(),
     bio: "Welcome to my awesome shop! We sell the best products.",
+    description: "Welcome to my awesome shop! We sell the best products.",
     returnPolicy: "30-day returns accepted.",
     deliveryPolicy: "Ships nationwide in 2-3 business days.",
     storeHours: "9 AM - 5 PM, Mon-Fri",
     deliversFast: true,
   };
+  
+  const userProfileData = {
+      userRole: 'seller',
+      shopName: "My Awesome Shop"
+  }
 
   try {
-    await sellerRef.set(newSellerData);
-    console.log("\n✅ Successfully created new seller profile!");
-    console.log("New Seller Details:");
+    const batch = db.batch();
+    batch.set(sellerShopRef, newSellerData);
+    batch.set(userProfileRef, userProfileData, { merge: true });
+    
+    await batch.commit();
+
+    console.log("\n✅ Successfully created new seller shop and updated user profile!");
+    console.log("New Shop Details:");
     console.log(JSON.stringify(newSellerData, null, 2));
     console.log(`\nYou can now view your shop at: /sellers/${SELLER_ID}`);
   } catch (error) {
-    console.error("\n❌ Error creating seller document:", error);
+    console.error("\n❌ Error creating seller documents:", error);
   }
 }
 
