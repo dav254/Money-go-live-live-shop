@@ -75,7 +75,7 @@ const columns: ColumnDef<LiveSession>[] = [
     cell: ({ row }) => {
         const startTime = row.original.startTime?.toDate();
         if (!startTime) return <div className="text-right">-</div>;
-        return <div className="text-right">{formatDistanceToNow(startTime)}</div>
+        return <div className="text-right">{formatDistanceToNow(startTime, { addSuffix: true })}</div>
     },
   },
   {
@@ -189,5 +189,3 @@ export default function AdminLiveSessionsPage() {
     </AdminLayout>
   );
 }
-
-    

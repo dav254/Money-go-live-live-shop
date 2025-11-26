@@ -3,7 +3,7 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { LivePreview } from '@/components/live/live-preview';
-import { collection, query, where, getDocs, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import type { Seller, Product, LiveSession } from '@/lib/types';
 import { useEffect, useState, useRef } from 'react';
@@ -18,8 +18,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDotDashed } from 'lucide-react';
+import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDotDashed, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { query, where } from 'firebase/firestore';
+import { Badge } from '@/components/ui/badge';
 
 
 // --- The Page Component ---
@@ -28,7 +31,6 @@ export default function GoLivePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [streamTitle, setStreamTitle] = useState('');
@@ -136,7 +138,7 @@ export default function GoLivePage() {
           viewerCount: 0,
           muxStreamKey: muxStreamKey, // From Mux API
           muxPlaybackId: muxPlaybackId, // From Mux API
-          startTime: serverTimestamp(),
+          startTime: serverTimestamp() as any, // Cast to any to satisfy TS
       };
       
       try {
@@ -153,7 +155,7 @@ export default function GoLivePage() {
   };
   
   const handleEndLive = async () => {
-    if (!liveSession) return;
+    if (!liveSession || !firestore) return;
     setIsSubmitting(true);
     const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
     try {
@@ -288,5 +290,3 @@ export default function GoLivePage() {
      </SellerLayout>
   );
 }
-
-    
