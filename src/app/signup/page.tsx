@@ -69,7 +69,7 @@ export default function SignupPage() {
 
       const userDocRef = doc(firestore, "userProfiles", user.uid);
       
-      const userProfile = {
+      const userProfile: any = {
         id: user.uid,
         fullName: values.fullName,
         username: values.username,
@@ -77,6 +77,15 @@ export default function SignupPage() {
         joinDate: new Date().toISOString(),
         userRole: values.role,
       };
+
+      // Check for a referral ID in local storage
+      const resellerRefId = localStorage.getItem('resellerRefId');
+      if (resellerRefId) {
+          userProfile.referredBy = resellerRefId;
+          // Optional: remove the item after use to prevent re-attribution
+          localStorage.removeItem('resellerRefId');
+      }
+
 
       await setDoc(userDocRef, userProfile);
 

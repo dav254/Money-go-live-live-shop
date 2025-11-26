@@ -12,7 +12,7 @@ import { VideoCard } from '@/components/feed/video-card';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useUser } from '@/firebase/auth/use-user';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
@@ -172,6 +172,15 @@ export default function HomePage() {
     const { user, isLoading } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Capture and store the reseller referral ID from the URL
+    useEffect(() => {
+        const refId = searchParams.get('ref');
+        if (refId) {
+            localStorage.setItem('resellerRefId', refId);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (!isLoading && !isProfileLoading) {

@@ -73,6 +73,7 @@ export interface UserProfile {
   status?: 'active' | 'suspended';
   verificationStatus?: 'pending' | 'verified' | 'rejected';
   aiPoints?: number;
+  referredBy?: string; // ID of the reseller who referred this user
 }
 
 export interface Order {
