@@ -7,10 +7,12 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, LineChart, Users, BarChart, BadgePercent, CircleDollarSign, FolderKanban, Bot, Sparkles } from 'lucide-react';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
+import { ManageResellersTable } from '@/components/seller/manage-resellers-table';
 
 export default function ResellerPerformancePage() {
   return (
@@ -19,13 +21,11 @@ export default function ResellerPerformancePage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Reseller Center
         </h1>
-        <Tabs defaultValue="performance" className="space-y-4">
+        <Tabs defaultValue="commissions" className="space-y-4">
             <TabsList>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
-                <TabsTrigger value="commissions">Commissions</TabsTrigger>
-                <TabsTrigger value="payouts">Payouts</TabsTrigger>
-                <TabsTrigger value="media-kits">Media Kits</TabsTrigger>
-                <TabsTrigger value="ai-autoresell">AI Auto-Resell</TabsTrigger>
+                <TabsTrigger value="manage-resellers">Manage Resellers</TabsTrigger>
+                <TabsTrigger value="commissions">Commission Rules</TabsTrigger>
             </TabsList>
             <TabsContent value="performance" className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -79,70 +79,29 @@ export default function ResellerPerformancePage() {
                     </CardContent>
                 </Card>
             </TabsContent>
+             <TabsContent value="manage-resellers" className="space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Manage Resellers</CardTitle>
+                        <CardDescription>Approve or deny requests from users who want to resell your products.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ManageResellersTable />
+                    </CardContent>
+                </Card>
+            </TabsContent>
             <TabsContent value="commissions" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <BadgePercent />
-                      Set Commission Rules
+                      Set Product Commission Rates
                     </CardTitle>
+                    <CardDescription>Set the percentage a reseller will earn for selling each product. A rate of 0 means the product is not available for reselling.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <CommissionSettingsTable />
                   </CardContent>
-                </Card>
-            </TabsContent>
-             <TabsContent value="payouts" className="space-y-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                        <CircleDollarSign />
-                        Payout Control
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                        <p className="text-muted-foreground">
-                            View pending and released payouts to your resellers here.
-                        </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="media-kits" className="space-y-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                        <FolderKanban />
-                        Product Media for Resellers
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                        <p className="text-muted-foreground">
-                            Upload product videos, images, and descriptions for your resellers to use.
-                        </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="ai-autoresell" className="space-y-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                        <Bot />
-                        AI-Powered Reselling (Premium)
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                        <Sparkles className="h-12 w-12 text-primary mb-4" />
-                        <p className="text-muted-foreground max-w-md">
-                            Enable our AI to automatically promote your products across the platform, create ads, and generate marketing content.
-                        </p>
-                        <p className="text-sm text-primary font-bold mt-4">This is a premium feature.</p>
-                        </div>
-                    </CardContent>
                 </Card>
             </TabsContent>
         </Tabs>
@@ -150,3 +109,4 @@ export default function ResellerPerformancePage() {
     </SellerLayout>
   );
 }
+
