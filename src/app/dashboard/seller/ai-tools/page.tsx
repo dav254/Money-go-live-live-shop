@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const tools = [
   {
     title: "AI Product Description",
-    description: "Generate compelling, SEO-friendly descriptions for your products in seconds.",
+    description: "Generate compelling, SEO-friendly descriptions for your products.",
     icon: Sparkles,
     href: "/dashboard/seller/ai-tools#",
     cta: "Use Generator",
