@@ -2,10 +2,9 @@
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { LivePreview } from '@/components/live/live-preview';
-import { collection, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, serverTimestamp, updateDoc, getDocs } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
-import type { Seller, Product, LiveSession } from '@/lib/types';
+import type { Seller, Product, LiveSession, UserProfile } from '@/lib/types';
 import { useEffect, useState, useRef } from 'react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
@@ -20,7 +19,6 @@ import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDotDashed, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import { query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 
