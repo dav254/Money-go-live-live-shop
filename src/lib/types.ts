@@ -71,6 +71,7 @@ export interface UserProfile {
   shopName?: string; // Added to potentially hold shop name
   phoneNumber?: string; // Added for seller info
   status?: 'active' | 'suspended';
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
   aiPoints?: number;
 }
 
@@ -78,6 +79,7 @@ export interface Order {
   id: string;
   buyerId: string;
   sellerId: string;
+  resellerId?: string;
   productId: string;
   productName?: string;
   productImage?: string;
@@ -86,7 +88,8 @@ export interface Order {
   shippingCost: number;
   totalAmount: number;
   shippingAddress: string;
-  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'in-cart';
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'disputed' | 'in-cart';
+  disputeReason?: string;
   paymentMethod: string;
   quantity: number;
 }
