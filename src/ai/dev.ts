@@ -12,3 +12,4 @@ import '@/ai/flows/suggest-daily-content.ts';
 import '@/ai/flows/generate-product-description.ts';
 import '@/ai/flows/generate-deal-suggestion.ts';
 import '@/ai/flows/generate-video-from-image.ts';
+import '@/ai/flows/live-selling-copilot.ts';

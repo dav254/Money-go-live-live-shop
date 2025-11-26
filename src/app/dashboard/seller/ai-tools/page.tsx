@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, ShoppingCart } from 'lucide-react';
+import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, ShoppingCart, RadioTower } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -15,10 +15,18 @@ const tools = [
     title: "AI Product Description",
     description: "Generate compelling, SEO-friendly descriptions for your products in seconds.",
     icon: Sparkles,
-    href: "#",
+    href: "/dashboard/seller/ai-tools#",
     cta: "Use Generator",
     points: 25,
     isTab: true,
+  },
+  {
+    title: "AI Live Selling Co-Pilot",
+    description: "Get real-time suggestions and analysis of buyer comments during your live stream.",
+    icon: RadioTower,
+    href: "/dashboard/seller/ai-tools/live-copilot",
+    cta: "Launch Co-Pilot",
+    points: 500,
   },
   {
     title: "AI Deal Maker",
