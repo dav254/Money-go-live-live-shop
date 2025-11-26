@@ -40,14 +40,6 @@ export function ResellerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/find-sellers')}>
-            <Link href="/dashboard/reseller/find-sellers">
-              <Search />
-              <span>Find Sellers</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/products')}>
             <Link href="/dashboard/reseller/products">
               <ShoppingBag />
