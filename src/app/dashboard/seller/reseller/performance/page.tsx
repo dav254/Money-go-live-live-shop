@@ -11,6 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign, LineChart, Users, BarChart, BadgePercent, CircleDollarSign, FolderKanban, Bot, Sparkles } from 'lucide-react';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
+import { ManageResellersTable } from '@/components/seller/manage-resellers-table';
 
 export default function ResellerPerformancePage() {
   return (
@@ -94,19 +95,15 @@ export default function ResellerPerformancePage() {
                 </Card>
             </TabsContent>
              <TabsContent value="manage-resellers" className="space-y-4">
-                 <Card>
+                <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                        <Users />
-                        Reseller Approval & Management
+                            <Users />
+                            Reseller Approval & Management
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                        <p className="text-muted-foreground">
-                            Approve, block, and manage your network of resellers from this panel.
-                        </p>
-                        </div>
+                        <ManageResellersTable />
                     </CardContent>
                 </Card>
             </TabsContent>

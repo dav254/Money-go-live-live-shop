@@ -685,7 +685,25 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the review was submitted." }
       },
       "required": ["id", "productId", "buyerId", "sellerId", "rating", "createdAt"]
-    }
+    },
+    "ResellerApplication": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "ResellerApplication",
+        "type": "object",
+        "description": "Represents a reseller's application to sell products for a specific seller.",
+        "properties": {
+          "id": { "type": "string", "description": "Unique identifier for the application." },
+          "resellerId": { "type": "string", "description": "The ID of the user applying to be a reseller." },
+          "sellerId": { "type": "string", "description": "The ID of the seller the user wants to resell for." },
+          "status": {
+            "type": "string",
+            "description": "The status of the application.",
+            "enum": ["pending", "approved", "rejected"]
+          },
+          "applicationDate": { "type": "string", "format": "date-time", "description": "Timestamp of when the application was submitted." }
+        },
+        "required": ["id", "resellerId", "sellerId", "status", "applicationDate"]
+      }
   },
   "auth": {
     "providers": [
@@ -937,6 +955,22 @@
             {
               "name": "liveSessionId",
               "description": "The unique identifier for the live session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/resellerApplications/{applicationId}",
+        "definition": {
+          "entityName": "ResellerApplication",
+          "schema": {
+            "$ref": "#/backend/entities/ResellerApplication"
+          },
+          "description": "Stores applications from resellers to sellers.",
+          "params": [
+            {
+              "name": "applicationId",
+              "description": "The unique identifier for the application."
             }
           ]
         }
