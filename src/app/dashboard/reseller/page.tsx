@@ -21,10 +21,32 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Order, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// --- Static Placeholder Data ---
+
+const isLoading = false; // Set to false since we are using static data
+
+const earnings = {
+  today: 75.50,
+  month: 1240.25,
+  withdrawable: 820.00,
+};
+
+const stats = {
+  shared: 152,
+  clicks: 1843,
+  conversions: 34,
+};
+
+const topProducts = [
+  { name: 'Classic Leather Handbag', clicks: 450, orders: 15, commission: 187.50 },
+  { name: 'Urban Explorer Sneakers', clicks: 312, orders: 8, commission: 96.00 },
+  { name: 'NextGen Smartphone', clicks: 250, orders: 3, commission: 36.00 },
+  { name: 'Chronograph Watch', clicks: 180, orders: 2, commission: 17.50 },
+];
+
+// --- Component Definitions ---
 
 const StatCard = ({ title, value, isLoading }: { title: string; value: string; isLoading: boolean }) => (
     <Card>
@@ -51,67 +73,6 @@ const EarningsCard = ({ title, amount, icon: Icon, isPrimary, isLoading }: { tit
 
 
 export default function ResellerDashboardPage() {
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
-
-    const resellerOrdersQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
-    }, [firestore, user]);
-
-    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(resellerOrdersQuery);
-
-    const isLoading = isUserLoading || areOrdersLoading;
-
-    const { earnings, stats, topProducts } = React.useMemo(() => {
-        if (!orders) return { earnings: { today: 0, month: 0, withdrawable: 0 }, stats: { shared: 0, clicks: 0, conversions: 0 }, topProducts: [] };
-
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-        let todayEarnings = 0;
-        let monthEarnings = 0;
-        let withdrawable = 0;
-        const productPerformance: Record<string, { name: string; clicks: number; orders: number; commission: number; imageUrl?: string; }> = {};
-
-        orders.forEach(order => {
-            const commission = order.resellerCommission || 0;
-            const orderDate = order.orderDate.toDate();
-
-            if (orderDate >= todayStart) {
-                todayEarnings += commission;
-            }
-            if (orderDate >= monthStart) {
-                monthEarnings += commission;
-            }
-            if (order.orderStatus === 'delivered') {
-                withdrawable += commission;
-            }
-
-            if (!productPerformance[order.productId]) {
-                productPerformance[order.productId] = {
-                    name: order.productName || 'Unknown Product',
-                    clicks: 0, // Click tracking not implemented yet
-                    orders: 0,
-                    commission: 0,
-                    imageUrl: order.productImage,
-                };
-            }
-            productPerformance[order.productId].orders += 1;
-            productPerformance[order.productId].commission += commission;
-        });
-        
-        const sortedProducts = Object.values(productPerformance).sort((a, b) => b.commission - a.commission).slice(0, 5);
-
-        return {
-            earnings: { today: todayEarnings, month: monthEarnings, withdrawable },
-            stats: { shared: 0, clicks: 0, conversions: orders.length }, // Shared/Clicks are placeholders
-            topProducts: sortedProducts,
-        };
-    }, [orders]);
-
-
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
