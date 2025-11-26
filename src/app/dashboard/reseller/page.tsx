@@ -47,62 +47,19 @@ interface ProductPerformance {
     commission: number;
 }
 
+// Reverting to demo data as requested
+const topProducts: ProductPerformance[] = [
+    { name: 'Classic Leather Handbag', clicks: 450, orders: 35, commission: 4200 },
+    { name: 'Urban Explorer Sneakers', clicks: 310, orders: 22, commission: 2640 },
+    { name: 'NextGen Smartphone', clicks: 205, orders: 15, commission: 1800 },
+];
+
 
 export default function ResellerDashboardPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    // Query for orders attributed to this reseller
-    const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid), where('orderStatus', '==', 'delivered'));
-    }, [firestore, user]);
-    const { data: resellerOrders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-
-    // Get a list of unique product IDs from those orders
-    const productIds = React.useMemo(() => {
-        if (!resellerOrders) return [];
-        return [...new Set(resellerOrders.map(order => order.productId))];
-    }, [resellerOrders]);
-    
-    // Query for the details of those specific products
-    const productsQuery = useMemoFirebase(() => {
-        if (!productIds || productIds.length === 0) return null;
-        return query(collection(firestore, 'products'), where('id', 'in', productIds));
-    }, [firestore, productIds]);
-    const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-    
-    const isLoading = isUserLoading || areOrdersLoading || areProductsLoading;
-
-    // Calculate top performing products
-    const topProducts: ProductPerformance[] = React.useMemo(() => {
-        if (!resellerOrders || !products) return [];
-
-        const performanceMap: { [productId: string]: ProductPerformance } = {};
-
-        resellerOrders.forEach(order => {
-            const product = products.find(p => p.id === order.productId);
-            if (!product) return;
-
-            const commissionRate = product.commissionRate || 10; // Default to 10% if not set
-            const commission = order.totalAmount * (commissionRate / 100);
-
-            if (!performanceMap[order.productId]) {
-                performanceMap[order.productId] = {
-                    name: product.name,
-                    clicks: 'N/A', // Click tracking not implemented yet
-                    orders: 0,
-                    commission: 0,
-                };
-            }
-            performanceMap[order.productId].orders += 1;
-            performanceMap[order.productId].commission += commission;
-        });
-
-        return Object.values(performanceMap).sort((a, b) => b.commission - a.commission);
-
-    }, [resellerOrders, products]);
-
+    const isLoading = isUserLoading;
 
   return (
     <ResellerLayout>
@@ -235,3 +192,4 @@ export default function ResellerDashboardPage() {
     </ResellerLayout>
   );
 }
+
