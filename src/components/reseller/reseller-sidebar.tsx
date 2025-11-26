@@ -32,10 +32,18 @@ export function ResellerSidebar() {
       <SidebarGroupLabel>Reseller Hub</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit') && !isActive('/dashboard/reseller/commissions') && !isActive('/dashboard/reseller/wallet') && !isActive('/dashboard/reseller/support') && !isActive('/dashboard/reseller/find-sellers')}>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && pathname === '/dashboard/reseller'}>
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/find-sellers')}>
+            <Link href="/dashboard/reseller/find-sellers">
+              <Search />
+              <span>Find Sellers</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

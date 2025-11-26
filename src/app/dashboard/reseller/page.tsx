@@ -26,40 +26,91 @@ import { collection, query, where } from 'firebase/firestore';
 import type { Order, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const earningsData = [
-  { title: "Today's Earnings", amount: "1,250", icon: DollarSign },
-  { title: "This Week", amount: "8,600", icon: DollarSign },
-  { title: "This Month", amount: "22,300", icon: DollarSign },
-  { title: "Withdrawable", amount: "15,000", icon: DollarSign, isPrimary: true },
-];
+const StatCard = ({ title, value, isLoading }: { title: string; value: string; isLoading: boolean }) => (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">{value}</div>}
+      </CardContent>
+    </Card>
+);
 
-const statsData = [
-    { title: "Products Shared", value: "312" },
-    { title: "Total Clicks", value: "1,845" },
-    { title: "Conversions", value: "98" },
-    { title: "Avg. Commission", value: "12%" },
-]
-
-interface ProductPerformance {
-    name: string;
-    clicks: number | 'N/A';
-    orders: number;
-    commission: number;
-}
-
-// Reverting to demo data as requested
-const topProducts: ProductPerformance[] = [
-    { name: 'Classic Leather Handbag', clicks: 450, orders: 35, commission: 4200 },
-    { name: 'Urban Explorer Sneakers', clicks: 310, orders: 22, commission: 2640 },
-    { name: 'NextGen Smartphone', clicks: 205, orders: 15, commission: 1800 },
-];
+const EarningsCard = ({ title, amount, icon: Icon, isPrimary, isLoading }: { title: string, amount: number, icon: React.ElementType, isPrimary?: boolean, isLoading: boolean }) => (
+     <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            {isLoading ? <Skeleton className="h-8 w-3/4" /> : <div className="text-2xl font-bold">${amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>}
+        </CardContent>
+    </Card>
+);
 
 
 export default function ResellerDashboardPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    const isLoading = isUserLoading;
+    const resellerOrdersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(resellerOrdersQuery);
+
+    const isLoading = isUserLoading || areOrdersLoading;
+
+    const { earnings, stats, topProducts } = React.useMemo(() => {
+        if (!orders) return { earnings: { today: 0, month: 0, withdrawable: 0 }, stats: { shared: 0, clicks: 0, conversions: 0 }, topProducts: [] };
+
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        let todayEarnings = 0;
+        let monthEarnings = 0;
+        let withdrawable = 0;
+        const productPerformance: Record<string, { name: string; clicks: number; orders: number; commission: number; imageUrl?: string; }> = {};
+
+        orders.forEach(order => {
+            const commission = order.resellerCommission || 0;
+            const orderDate = order.orderDate.toDate();
+
+            if (orderDate >= todayStart) {
+                todayEarnings += commission;
+            }
+            if (orderDate >= monthStart) {
+                monthEarnings += commission;
+            }
+            if (order.orderStatus === 'delivered') {
+                withdrawable += commission;
+            }
+
+            if (!productPerformance[order.productId]) {
+                productPerformance[order.productId] = {
+                    name: order.productName || 'Unknown Product',
+                    clicks: 0, // Click tracking not implemented yet
+                    orders: 0,
+                    commission: 0,
+                    imageUrl: order.productImage,
+                };
+            }
+            productPerformance[order.productId].orders += 1;
+            productPerformance[order.productId].commission += commission;
+        });
+        
+        const sortedProducts = Object.values(productPerformance).sort((a, b) => b.commission - a.commission).slice(0, 5);
+
+        return {
+            earnings: { today: todayEarnings, month: monthEarnings, withdrawable },
+            stats: { shared: 0, clicks: 0, conversions: orders.length }, // Shared/Clicks are placeholders
+            topProducts: sortedProducts,
+        };
+    }, [orders]);
+
 
   return (
     <ResellerLayout>
@@ -69,43 +120,27 @@ export default function ResellerDashboardPage() {
                 Reseller Dashboard
             </h1>
             <div className="flex items-center space-x-2">
-                <Button>
-                    <LinkIcon className="mr-2 h-4 w-4" />
-                    Share New Product
+                <Button asChild>
+                    <Link href="/dashboard/reseller/products">
+                        <LinkIcon className="mr-2 h-4 w-4" />
+                        Share New Product
+                    </Link>
                 </Button>
-                <Button variant="secondary">Check Commission Rates</Button>
             </div>
         </div>
 
         {/* Earnings Overview */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {earningsData.map((data) => (
-            <Card key={data.title} className={data.isPrimary ? 'bg-primary/10 border-primary' : ''}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {data.title}
-                </CardTitle>
-                <data.icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.amount}</div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <EarningsCard title="Today's Earnings" amount={earnings.today} icon={DollarSign} isLoading={isLoading} />
+          <EarningsCard title="This Month" amount={earnings.month} icon={DollarSign} isLoading={isLoading} />
+          <EarningsCard title="Withdrawable" amount={earnings.withdrawable} icon={DollarSign} isPrimary isLoading={isLoading} />
         </div>
 
         {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {statsData.map((data) => (
-            <Card key={data.title}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">{data.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.value}</div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <StatCard title="Products Shared" value={stats.shared.toString()} isLoading={isLoading} />
+          <StatCard title="Total Clicks" value={stats.clicks.toString()} isLoading={isLoading} />
+          <StatCard title="Conversions" value={stats.conversions.toString()} isLoading={isLoading} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -192,4 +227,3 @@ export default function ResellerDashboardPage() {
     </ResellerLayout>
   );
 }
-
