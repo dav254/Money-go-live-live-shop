@@ -119,8 +119,8 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild>
-              <Link href="#">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-tools')}>
+              <Link href="/dashboard/seller/ai-tools">
                 <Sparkles />
                 <span>AI Tools</span>
               </Link>
