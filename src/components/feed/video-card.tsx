@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import type { VideoFeedItem, Comment } from '@/lib/types';
 import { VideoInfo } from './video-info';
@@ -11,7 +11,7 @@ import { Button } from '../ui/button';
 import Link from 'next/link';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { ProductInfo } from '../live/product-info';
-import { doc, increment, writeBatch, collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { doc, increment, writeBatch, collection, addDoc, serverTimestamp, query, orderBy, updateDoc } from 'firebase/firestore';
 import { CommentDrawer } from './comment-drawer';
 
 interface VideoCardProps {
@@ -26,6 +26,15 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
+
+  useEffect(() => {
+    // This effect runs when the component mounts, which is when a video is viewed.
+    if (firestore && item.product.id) {
+      const productRef = doc(firestore, 'products', item.product.id);
+      // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
+      updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
+    }
+  }, [firestore, item.product.id]);
 
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !item.product.id) return null;

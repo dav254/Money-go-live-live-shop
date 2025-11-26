@@ -44,11 +44,15 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // Allow product owner to update any field.
-      // Do not allow client to update sensitive fields like likes, inCartCount, etc.
+      // Allow product owner to update any field, but not likes, views, or cart counts.
       allow update: if resource.data.sellerId == request.auth.uid &&
                       !('likes' in request.resource.data) &&
-                      !('inCartCount' in request.resource.data);
+                      !('inCartCount' in request.resource.data) &&
+                      !('viewCount' in request.resource.data);
+
+      // Allow any authenticated user to increment likes or viewCount
+      allow update: if request.auth != null &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount']);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;

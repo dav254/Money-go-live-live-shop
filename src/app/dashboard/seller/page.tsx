@@ -75,9 +75,11 @@ export default function SellerDashboardPage() {
 
   const isLoading = isUserLoading || isShopLoading || areProductsLoading;
 
-  const totalLikes = React.useMemo(() => {
-    if (!products) return 0;
-    return products.reduce((sum, product) => sum + (product.likes || 0), 0);
+  const { totalLikes, totalViews } = React.useMemo(() => {
+    if (!products) return { totalLikes: 0, totalViews: 0 };
+    const likes = products.reduce((sum, product) => sum + (product.likes || 0), 0);
+    const views = products.reduce((sum, product) => sum + (product.viewCount || 0), 0);
+    return { totalLikes: likes, totalViews: views };
   }, [products]);
   
   const handleDelete = async (productId: string) => {
@@ -152,7 +154,7 @@ export default function SellerDashboardPage() {
                 <Eye className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">28,491</div>}
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{totalViews.toLocaleString()}</div>}
                 <p className="text-xs text-muted-foreground">In the last 30 days</p>
               </CardContent>
             </Card>
@@ -209,7 +211,7 @@ export default function SellerDashboardPage() {
 
                       <div className="text-sm text-muted-foreground mt-1 flex gap-4">
                           <span>Stock: {p.stock || 0}</span>
-                          <span>Views: 0</span>
+                          <span>Views: {p.viewCount || 0}</span>
                       </div>
                       
                       <p

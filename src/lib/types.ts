@@ -1,6 +1,3 @@
-
-
-
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -173,6 +170,7 @@ export interface Product {
   rating?: number; // Added for product-level rating
   likes?: number; // Added for product likes
   inCartCount?: number;
+  viewCount?: number; // Added to track product views
   profitEstimate?: number;
   trendingScore?: number;
   commissionRate?: number; // Added for reseller commissions
@@ -229,5 +227,3 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
-
-    
