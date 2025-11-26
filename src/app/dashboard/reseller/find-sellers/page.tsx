@@ -46,7 +46,7 @@ const SellerCard = ({ seller }: { seller: SellerShop }) => {
             await setDoc(applicationRef, {
                 id: applicationRef.id,
                 resellerId: user.uid,
-                sellerId: seller.sellerId,
+                sellerId: seller.id, // Correctly use seller.id which is the document ID of the sellerShop
                 status: 'pending',
                 applicationDate: serverTimestamp(),
             });
