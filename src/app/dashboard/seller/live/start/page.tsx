@@ -252,7 +252,7 @@ export default function GoLivePage() {
                                                     disabled={isLive}
                                                 />
                                                 <Label htmlFor={`prod-${product.id}`} className="flex items-center gap-3 cursor-pointer">
-                                                    <Image src={product.imageUrl || ''} alt={product.name || ''} width={40} height={40} className="rounded-md object-cover aspect-square" />
+                                                    <Image src={product.imageUrl || getPlaceholderImage()} alt={product.name || ''} width={40} height={40} className="rounded-md object-cover aspect-square" />
                                                     <span className="font-normal">{product.name}</span>
                                                 </Label>
                                             </div>
