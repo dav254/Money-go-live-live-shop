@@ -233,3 +233,5 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+    

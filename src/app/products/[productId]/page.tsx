@@ -423,3 +423,5 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
+
+    

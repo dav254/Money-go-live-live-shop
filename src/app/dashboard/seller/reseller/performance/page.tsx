@@ -24,7 +24,6 @@ export default function ResellerPerformancePage() {
         <Tabs defaultValue="commissions" className="space-y-4">
             <TabsList>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
-                <TabsTrigger value="manage-resellers">Manage Resellers</TabsTrigger>
                 <TabsTrigger value="commissions">Commission Rules</TabsTrigger>
             </TabsList>
             <TabsContent value="performance" className="space-y-4">
@@ -79,17 +78,6 @@ export default function ResellerPerformancePage() {
                     </CardContent>
                 </Card>
             </TabsContent>
-             <TabsContent value="manage-resellers" className="space-y-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Manage Resellers</CardTitle>
-                        <CardDescription>Approve or deny requests from users who want to resell your products.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <ManageResellersTable />
-                    </CardContent>
-                </Card>
-            </TabsContent>
             <TabsContent value="commissions" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -109,3 +97,5 @@ export default function ResellerPerformancePage() {
     </SellerLayout>
   );
 }
+
+    
