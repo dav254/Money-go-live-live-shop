@@ -8,36 +8,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState } from 'react';
-
-// Server Action to log the share event
-async function logResellerShare(resellerId: string, productId: string, sellerId: string) {
-  'use server';
-  // This is a simplified version. In a real app, you'd import db from a server-only file.
-  // For Studio's structure, we are dynamically initializing what's needed.
-  try {
-    const { initializeAdminApp } = await import('@/firebase/admin');
-    const { getFirestore } = await import('firebase-admin/firestore');
-    initializeAdminApp();
-    const db = getFirestore();
-    
-    await db.collection('resellActivities').add({
-      resellerId,
-      productId,
-      sellerId,
-      sharedAt: serverTimestamp(),
-    });
-  } catch (error) {
-    console.error("Failed to log reseller share:", error);
-    // This is a background task, so we don't throw to the user.
-  }
-}
+import { logResellerShare } from '@/app/actions/reseller-actions';
 
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
