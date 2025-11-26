@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -19,48 +18,13 @@ import { SellerHeader } from '../seller/seller-header';
 import { doc } from 'firebase/firestore';
 import type { Seller, SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { FirebaseErrorListener } from '../FirebaseErrorListener';
 
 export function SellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
   const firestore = useFirestore();
-
-  const sellerShopRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return firestore ? doc(firestore, `sellerShops/${user.uid}`) : null;
-  }, [firestore, user]);
-  
-  const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
-
-  const sellerData: Seller | null = useMemo(() => {
-    if (!user || !userProfile || !shopData) return null;
-    return {
-      id: user.uid,
-      sellerId: user.uid,
-      name: shopData.shopName || userProfile.fullName,
-      description: shopData.description || 'Welcome to my shop!',
-      avatar: {
-        id: 'avatar',
-        imageUrl: shopData.logoUrl || userProfile.profilePictureUrl || getPlaceholderImage(),
-        description: 'Seller avatar',
-        imageHint: 'seller avatar'
-      },
-      banner: {
-        id: 'banner',
-        imageUrl: shopData.bannerUrl || getPlaceholderImage(),
-        description: 'Seller banner',
-        imageHint: 'store banner'
-      },
-      isVerified: true, // Placeholder
-      rating: 4.8, // Placeholder
-      reviewsCount: shopData.reviewsCount || 0,
-      followers: shopData.followers || 0,
-      location: shopData.location || userProfile.location || 'Online',
-      joinedDate: userProfile.joinDate,
-      bio: shopData.description || userProfile.bio || 'Welcome!',
-    };
-  }, [user, userProfile, shopData]);
 
 
   useEffect(() => {
@@ -75,9 +39,9 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
-  const isLoading = isUserLoading || isProfileLoading || isShopLoading;
+  const isLoading = isUserLoading || isProfileLoading;
 
-  if (!user || (userProfile && userProfile.userRole !== 'seller')) {
+  if (isLoading || !user || (userProfile && userProfile.userRole !== 'seller')) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <p>Loading Seller Dashboard...</p>
@@ -97,8 +61,11 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <SellerHeader seller={sellerData} isLoading={isLoading} />
-        <main>{children}</main>
+        <SellerHeader />
+        <main>
+          <FirebaseErrorListener />
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

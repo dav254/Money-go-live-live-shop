@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -10,6 +9,7 @@ import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { Input } from '../ui/input';
 import { UserNav } from './user-nav';
+import { FirebaseErrorListener } from '../FirebaseErrorListener';
 
 export function MainLayout({ children, sidebar }: { children: React.ReactNode, sidebar?: React.ReactNode }) {
   return (
@@ -83,7 +83,10 @@ export function MainLayout({ children, sidebar }: { children: React.ReactNode, s
               </div>
             </aside>
           )}
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            <FirebaseErrorListener />
+            {children}
+          </main>
         </div>
         <Toaster />
       </div>

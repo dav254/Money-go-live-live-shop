@@ -17,6 +17,7 @@ import {
   BookOpen,
   HelpCircle,
   User,
+  Search,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -31,7 +32,7 @@ export function ResellerSidebar() {
       <SidebarGroupLabel>Reseller Hub</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit') && !isActive('/dashboard/reseller/commissions') && !isActive('/dashboard/reseller/wallet') && !isActive('/dashboard/reseller/support')}>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller') && !isActive('/dashboard/reseller/products') && !isActive('/dashboard/reseller/toolkit') && !isActive('/dashboard/reseller/commissions') && !isActive('/dashboard/reseller/wallet') && !isActive('/dashboard/reseller/support') && !isActive('/dashboard/reseller/find-sellers')}>
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
@@ -39,10 +40,18 @@ export function ResellerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/find-sellers')}>
+            <Link href="/dashboard/reseller/find-sellers">
+              <Search />
+              <span>Find Sellers</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/products')}>
             <Link href="/dashboard/reseller/products">
               <ShoppingBag />
-              <span>Products to Resell</span>
+              <span>My Products</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
