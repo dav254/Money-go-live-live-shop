@@ -1,9 +1,14 @@
 
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Button } from '@/components/ui/button';
+import { ProductUploadForm } from '@/components/seller/product-upload-form';
+import { MyProductsTable } from '@/components/seller/my-products-table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
+import { LogisticsTable } from '@/components/seller/logistics-table';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
@@ -30,8 +35,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 
 
 const ProductRowSkeleton = () => (
@@ -165,7 +170,6 @@ export default function SellerDashboardPage() {
         {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto mb-4 text-sm pb-2">
             <Button asChild variant="default" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller">My Products</Link></Button>
-            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/products">Live</Link></Button>
             <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/orders">Orders</Link></Button>
             <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/earnings">Analytics</Link></Button>
         </div>
@@ -175,8 +179,12 @@ export default function SellerDashboardPage() {
           <Button asChild className="font-semibold" style={{ backgroundColor: '#2563eb' }}>
             <Link href="/dashboard/products?tab=add-new">Add Product</Link>
           </Button>
-          <Button className="font-semibold" style={{ backgroundColor: '#7c3aed' }}>Add Video</Button>
-          <Button className="font-semibold" style={{ backgroundColor: '#16a34a' }}>Add Live</Button>
+          <Button asChild className="font-semibold" style={{ backgroundColor: '#7c3aed' }}>
+            <Link href="/dashboard/products?tab=add-new">Add Video</Link>
+          </Button>
+          <Button asChild className="font-semibold" style={{ backgroundColor: '#16a34a' }}>
+            <Link href="/dashboard/seller/studio">Add Live</Link>
+          </Button>
         </div>
 
         {/* Product List */}
@@ -268,5 +276,4 @@ export default function SellerDashboardPage() {
       </div>
     </SellerLayout>
   );
-
     
