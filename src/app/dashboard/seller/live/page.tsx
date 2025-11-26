@@ -3,7 +3,7 @@
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -11,18 +11,19 @@ import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
     
     const sellerShopRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
+        if (!firestore || !product.sellerId) return null;
+        return doc(firestore, 'sellerShops', product.sellerId);
     }, [firestore, product.sellerId]);
     
     const userProfileRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return product.sellerId ? doc(firestore, 'userProfiles', product.sellerId) : null;
+        if (!firestore || !product.sellerId) return null;
+        return doc(firestore, 'userProfiles', product.sellerId);
     }, [firestore, product.sellerId]);
 
     const { data: sellerData, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
@@ -31,31 +32,35 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
     if (isSellerLoading || isProfileLoading) {
         return (
              <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
-                <p className="text-white">Loading your feed...</p>
+                <Skeleton className="h-full w-full" />
             </div>
         )
     }
+    
+    const sellerName = sellerData?.shopName || userProfileData?.fullName || 'Seller Store';
+    const sellerFollowers = sellerData?.followers || 0;
+    const sellerReviews = sellerData?.reviewsCount || 0;
 
     const seller: Seller = {
         id: product.sellerId,
         sellerId: product.sellerId,
-        name: sellerData?.shopName || userProfileData?.fullName || 'Seller Store',
+        name: sellerName,
         avatar: {
             id: 'avatar',
             imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
-            description: 'Seller avatar',
+            description: `${sellerName}'s avatar`,
             imageHint: 'seller avatar'
         },
         banner: {
             id: 'banner',
             imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
-            description: 'Seller banner',
+            description: `${sellerName}'s banner`,
             imageHint: 'store banner'
         },
         bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
         rating: 4.8, // Placeholder
-        followers: sellerData?.followers || 0,
-        reviewsCount: 45, // Placeholder
+        followers: sellerFollowers,
+        reviewsCount: sellerReviews,
         isVerified: true, // Placeholder
         joinedDate: userProfileData?.joinDate || new Date().toISOString(),
         location: sellerData?.location || userProfileData?.location || 'Unknown',
@@ -159,9 +164,9 @@ export default function SellerLivePage() {
                     )}
                 >
                 {feedMediaItems && feedMediaItems.length > 0 ? (
-                    feedMediaItems.map((item) => (
+                    feedMediaItems.map((item, index) => (
                         <RealtimeVideoCard 
-                            key={item.product.id + item.mediaUrl} 
+                            key={`${item.product.id}-${index}`} 
                             product={item.product} 
                             mediaUrl={item.mediaUrl}
                             mediaType={item.mediaType}
@@ -186,3 +191,4 @@ export default function SellerLivePage() {
         </SellerLayout>
     );
 }
+
