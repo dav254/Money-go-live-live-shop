@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -24,7 +25,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
             return;
         }
 
-        const shareUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://goearnvid.shop'}/products/${product.id}?ref=${user.uid}`;
+        const shareUrl = `https://goearnvid.shop/products/${product.id}?ref=${user.uid}`;
         navigator.clipboard.writeText(shareUrl).then(() => {
             toast({
                 title: 'Link Copied!',
