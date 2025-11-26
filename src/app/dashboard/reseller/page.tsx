@@ -1,4 +1,7 @@
 
+'use client';
+
+import React from 'react';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
@@ -8,7 +11,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AreaChart, BarChart3, Bot, DollarSign, ExternalLink, Filter, FolderKanban, LinkIcon, TrendingUp, Users, Video } from 'lucide-react';
+import { BarChart3, DollarSign, ExternalLink, LinkIcon, TrendingUp } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -17,8 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Order, Product } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const earningsData = [
   { title: "Today's Earnings", amount: "1,250", icon: DollarSign },
@@ -34,14 +40,70 @@ const statsData = [
     { title: "Avg. Commission", value: "12%" },
 ]
 
-const topProducts = [
-    { name: "Classic Leather Handbag", clicks: 450, orders: 35, commission: 4200 },
-    { name: "Urban Explorer Sneakers", clicks: 310, orders: 22, commission: 2640 },
-    { name: "NextGen Smartphone", clicks: 205, orders: 15, commission: 1800 },
-];
+interface ProductPerformance {
+    name: string;
+    clicks: number | 'N/A';
+    orders: number;
+    commission: number;
+}
 
 
 export default function ResellerDashboardPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    // Query for orders attributed to this reseller
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid), where('orderStatus', '==', 'delivered'));
+    }, [firestore, user]);
+    const { data: resellerOrders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    // Get a list of unique product IDs from those orders
+    const productIds = React.useMemo(() => {
+        if (!resellerOrders) return [];
+        return [...new Set(resellerOrders.map(order => order.productId))];
+    }, [resellerOrders]);
+    
+    // Query for the details of those specific products
+    const productsQuery = useMemoFirebase(() => {
+        if (!productIds || productIds.length === 0) return null;
+        return query(collection(firestore, 'products'), where('id', 'in', productIds));
+    }, [firestore, productIds]);
+    const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+    
+    const isLoading = isUserLoading || areOrdersLoading || areProductsLoading;
+
+    // Calculate top performing products
+    const topProducts: ProductPerformance[] = React.useMemo(() => {
+        if (!resellerOrders || !products) return [];
+
+        const performanceMap: { [productId: string]: ProductPerformance } = {};
+
+        resellerOrders.forEach(order => {
+            const product = products.find(p => p.id === order.productId);
+            if (!product) return;
+
+            const commissionRate = product.commissionRate || 10; // Default to 10% if not set
+            const commission = order.totalAmount * (commissionRate / 100);
+
+            if (!performanceMap[order.productId]) {
+                performanceMap[order.productId] = {
+                    name: product.name,
+                    clicks: 'N/A', // Click tracking not implemented yet
+                    orders: 0,
+                    commission: 0,
+                };
+            }
+            performanceMap[order.productId].orders += 1;
+            performanceMap[order.productId].commission += commission;
+        });
+
+        return Object.values(performanceMap).sort((a, b) => b.commission - a.commission);
+
+    }, [resellerOrders, products]);
+
+
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
@@ -113,8 +175,8 @@ export default function ResellerDashboardPage() {
                         <CardTitle>Reseller Toolkit</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3">
-                        <Button variant="outline" className="justify-start"><Bot className="mr-2" /> AI Poster & Video Maker</Button>
-                        <Button variant="outline" className="justify-start"><LinkIcon className="mr-2" /> Link Shortener</Button>
+                         <Button variant="outline" className="justify-start">AI Poster & Video Maker</Button>
+                        <Button variant="outline" className="justify-start">Link Shortener</Button>
                         <Link href="/dashboard/reseller/products">
                              <Button variant="secondary" className="w-full justify-start"><ExternalLink className="mr-2" /> Find More Products</Button>
                         </Link>
@@ -139,14 +201,31 @@ export default function ResellerDashboardPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {topProducts.map((p) => (
-                        <TableRow key={p.name}>
-                            <TableCell className="font-medium">{p.name}</TableCell>
-                            <TableCell>{p.clicks}</TableCell>
-                            <TableCell>{p.orders}</TableCell>
-                            <TableCell className="text-right">{p.commission.toLocaleString()}</TableCell>
-                        </TableRow>
-                        ))}
+                        {isLoading ? (
+                            [...Array(3)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-5 w-24" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : topProducts.length > 0 ? (
+                            topProducts.map((p) => (
+                            <TableRow key={p.name}>
+                                <TableCell className="font-medium">{p.name}</TableCell>
+                                <TableCell>{p.clicks}</TableCell>
+                                <TableCell>{p.orders}</TableCell>
+                                <TableCell className="text-right font-semibold text-green-500">${p.commission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                    No sales data found. Share some products to get started!
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
