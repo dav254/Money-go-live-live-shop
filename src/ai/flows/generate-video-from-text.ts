@@ -2,9 +2,10 @@
 'use server';
 
 /**
- * @fileOverview An AI flow to generate a video from a text prompt.
+ * @fileOverview An AI flow to generate a video from a text prompt,
+ * upload it to Cloudinary, and save the URL to a product.
  *
- * - generateVideoFromText - Generates a video and returns it as a data URI.
+ * - generateVideoFromText - Generates a video and returns its permanent URL.
  * - GenerateVideoFromTextInput - Input type for the flow.
  * - GenerateVideoFromTextOutput - Output type for the flow.
  */
@@ -12,19 +13,44 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { initializeAdminApp } from '@/firebase/admin';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const GenerateVideoFromTextInputSchema = z.object({
+  productId: z.string().describe('The ID of the product to associate the video with.'),
   prompt: z.string().describe('A text prompt describing the desired video content.'),
 });
 export type GenerateVideoFromTextInput = z.infer<typeof GenerateVideoFromTextInputSchema>;
 
 const GenerateVideoFromTextOutputSchema = z.object({
-  videoDataUri: z.string().describe("The generated video as a data URI. Expected format: 'data:video/mp4;base64,<encoded_data>'."),
+  videoUrl: z.string().describe("The permanent URL of the generated video."),
 });
 export type GenerateVideoFromTextOutput = z.infer<typeof GenerateVideoFromTextOutputSchema>;
 
+async function uploadToCloudinary(videoDataUri: string, productId: string): Promise<string> {
+    const uploadResponse = await cloudinary.uploader.upload(videoDataUri, {
+      resource_type: 'video',
+      public_id: `products/${productId}/video_${Date.now()}`,
+    });
+    if (!uploadResponse || !uploadResponse.secure_url) {
+      throw new Error('Cloudinary upload failed.');
+    }
+    return uploadResponse.secure_url;
+}
 
 export async function generateVideoFromText(input: GenerateVideoFromTextInput): Promise<GenerateVideoFromTextOutput> {
+  // Initialize Firebase Admin for server-side operations
+  initializeAdminApp();
+  const firestore = getFirestore();
+
   // 1. Generate video using Veo
   let { operation } = await ai.generate({
     model: googleAI.model('veo-2.0-generate-001'),
@@ -64,6 +90,15 @@ export async function generateVideoFromText(input: GenerateVideoFromTextInput): 
   const videoBase64 = Buffer.from(videoBuffer).toString('base64');
   const videoDataUri = `data:video/mp4;base64,${videoBase64}`;
 
-  // 4. Return the data URI
-  return { videoDataUri };
+  // 4. Upload the video data URI to Cloudinary
+  const permanentVideoUrl = await uploadToCloudinary(videoDataUri, input.productId);
+  
+  // 5. Update the product document in Firestore
+  const productRef = firestore.collection('products').doc(input.productId);
+  await productRef.update({
+    videoUrls: FieldValue.arrayUnion(permanentVideoUrl),
+  });
+
+  // 6. Return the permanent URL
+  return { videoUrl: permanentVideoUrl };
 }
