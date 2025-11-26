@@ -166,7 +166,7 @@ export default function SellerDashboardPage() {
         <div className="flex gap-2 overflow-x-auto mb-4 text-sm pb-2">
             <Button asChild variant="default" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller">My Products</Link></Button>
             <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/live">Videos</Link></Button>
-            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/live">Live</Link></Button>
+            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/products">Live</Link></Button>
             <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/orders">Orders</Link></Button>
             <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/earnings">Analytics</Link></Button>
         </div>
@@ -267,5 +267,3 @@ export default function SellerDashboardPage() {
       </div>
     </SellerLayout>
   );
-
-    
