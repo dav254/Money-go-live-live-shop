@@ -56,7 +56,7 @@ const tools = [
     title: "AI Caption Generator",
     description: "Generate viral captions for TikTok, Instagram, and Facebook to boost engagement.",
     icon: Bot,
-    href: "#",
+    href: "/dashboard/seller/ai-tools/caption-generator",
     cta: "Generate Caption",
     points: 50,
   },
@@ -83,7 +83,7 @@ export default function SellerAIToolsPage() {
                     </div>
                     <div>
                         <p className="text-xs text-muted-foreground">Your Balance</p>
-                        <p className="text-xl font-bold">1,250 Points</p>
+                        <p className="text-xl font-bold">1,000 Points</p>
                     </div>
                      <Button size="sm" variant="outline">Get More</Button>
                 </CardContent>
