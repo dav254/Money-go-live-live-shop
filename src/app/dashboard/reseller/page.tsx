@@ -11,7 +11,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart3, DollarSign, ExternalLink, LinkIcon, TrendingUp } from 'lucide-react';
+import { BarChart3, DollarSign, ExternalLink, Link as LinkIcon, TrendingUp } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -169,8 +169,8 @@ export default function ResellerDashboardPage() {
                     <CardContent className="flex flex-col gap-3">
                          <Button variant="outline" className="justify-start">AI Poster & Video Maker</Button>
                         <Button variant="outline" className="justify-start">Link Shortener</Button>
-                        <Link href="/dashboard/reseller/products">
-                             <Button variant="secondary" className="w-full justify-start"><ExternalLink className="mr-2" /> Find More Products</Button>
+                        <Link href="/dashboard/reseller/find-sellers">
+                             <Button variant="secondary" className="w-full justify-start"><ExternalLink className="mr-2" /> Find More Sellers</Button>
                         </Link>
                     </CardContent>
                 </Card>
