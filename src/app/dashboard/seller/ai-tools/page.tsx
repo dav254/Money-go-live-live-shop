@@ -5,19 +5,19 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, ExternalLink } from 'lucide-react';
+import { Bot, Film, Sparkles, ExternalLink, Handshake } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const tools = [
   {
-    title: "AI Poster & Video Maker",
-    description: "Create stunning promotional posters and videos for your products in seconds.",
-    icon: Bot,
-    href: "#",
-    cta: "Launch Maker",
-    isPremium: true,
+    title: "AI Deal Maker",
+    description: "Generate strategic deal suggestions like bundles, flash sales, and tiered offers for your products.",
+    icon: Handshake,
+    href: "/dashboard/seller/ai-tools/deal-maker",
+    cta: "Launch Deal Maker",
+    isPremium: false,
   },
   {
     title: "AI Caption Generator",
@@ -26,6 +26,14 @@ const tools = [
     href: "#",
     cta: "Generate Caption",
     isPremium: false,
+  },
+  {
+    title: "AI Poster & Video Maker",
+    description: "Create stunning promotional posters and videos for your products in seconds.",
+    icon: Bot,
+    href: "#",
+    cta: "Launch Maker",
+    isPremium: true,
   },
   {
     title: "AI Video Enhancer",
@@ -52,7 +60,7 @@ export default function SellerAIToolsPage() {
         <Tabs defaultValue="description-generator" className="space-y-4">
             <TabsList>
                 <TabsTrigger value="description-generator">Product Description Generator</TabsTrigger>
-                <TabsTrigger value="content-creation">Content Creation Tools</TabsTrigger>
+                <TabsTrigger value="content-creation">Content & Strategy Tools</TabsTrigger>
             </TabsList>
             
             <TabsContent value="description-generator">
@@ -71,12 +79,11 @@ export default function SellerAIToolsPage() {
                                 <CardDescription>{tool.description}</CardDescription>
                             </CardHeader>
                             <CardContent className="flex-grow flex items-end">
-                                <Button className="w-full" disabled={tool.isPremium}>
+                                <Button className="w-full" disabled={tool.isPremium} asChild>
                                     <Link href={tool.href} className="flex items-center">
                                         {tool.cta}
                                         {!tool.isPremium && <ExternalLink className="ml-2 h-4 w-4" />}
                                     </Link>
-                                    {tool.isPremium && <span className="ml-2 text-xs">(Coming Soon)</span>}
                                 </Button>
                             </CardContent>
                         </Card>
