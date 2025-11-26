@@ -121,7 +121,6 @@ export default function SellerDashboardPage() {
             />
             <div>
               <h2 className="text-lg font-bold font-headline">{shopData?.shopName || 'Seller Store'}</h2>
-              <p className="text-sm text-muted-foreground">Wallet: 4,200</p>
             </div>
           </div>
 
@@ -171,7 +170,7 @@ export default function SellerDashboardPage() {
         <div className="flex gap-2 overflow-x-auto mb-4 text-sm pb-2">
             <Button asChild variant="default" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller">My Products</Link></Button>
             <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/orders">Orders</Link></Button>
-            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/earnings">Analytics</Link></Button>
+            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/products">Analytics</Link></Button>
         </div>
 
         {/* Add Buttons */}
