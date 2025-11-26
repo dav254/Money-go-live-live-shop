@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { db } from '@/firebase/server';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, increment } from 'firebase/firestore';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID!;
@@ -14,24 +14,52 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
-    // PayPal webhooks require more complex verification involving sending the webhook ID back to PayPal
-    // For this example, we'll focus on the logic post-verification.
-    // In a production app, you MUST verify the webhook signature.
-    // https://developer.paypal.com/docs/api/webhooks/v1/#webhooks_verify-signature
-
     try {
         const event = await request.json();
 
         if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
-            const orderId = event.resource.purchase_units[0].reference_id;
+            const purchaseUnit = event.resource.purchase_units[0];
+            const customId = purchaseUnit.custom_id;
+            let metadata;
+            
+            try {
+                metadata = JSON.parse(customId);
+            } catch (e) {
+                console.error("Could not parse PayPal custom_id JSON:", customId);
+                // Fallback to old method if JSON parsing fails
+                const orderId = purchaseUnit.reference_id;
+                if (orderId) {
+                   const orderRef = doc(db, 'orders', orderId);
+                   await updateDoc(orderRef, { orderStatus: 'processing', paymentMethod: 'paypal' });
+                   console.log(`Order ${orderId} updated to processing via PayPal webhook (fallback).`);
+                }
+                return NextResponse.json({ status: 'success' });
+            }
 
-             if (orderId) {
-                const orderRef = doc(db, 'orders', orderId);
-                await updateDoc(orderRef, {
-                    orderStatus: 'processing',
-                    paymentMethod: 'paypal'
-                });
-                console.log(`Order ${orderId} updated to processing via PayPal webhook.`);
+            const transactionType = metadata?.transactionType;
+            
+            if (transactionType === 'points-purchase') {
+                const userId = metadata.userId;
+                const points = metadata.points;
+
+                if (userId && points) {
+                    const userProfileRef = doc(db, 'userProfiles', userId);
+                    await updateDoc(userProfileRef, {
+                        aiPoints: increment(points)
+                    });
+                    console.log(`Credited ${points} points to user ${userId} via PayPal.`);
+                }
+
+            } else { // Default to product purchase
+                const orderId = metadata.orderId || purchaseUnit.reference_id;
+                if (orderId) {
+                    const orderRef = doc(db, 'orders', orderId);
+                    await updateDoc(orderRef, {
+                        orderStatus: 'processing',
+                        paymentMethod: 'paypal'
+                    });
+                    console.log(`Order ${orderId} updated to processing via PayPal webhook.`);
+                }
             }
         }
         

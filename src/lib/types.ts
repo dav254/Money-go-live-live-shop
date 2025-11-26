@@ -1,3 +1,4 @@
+
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -70,6 +71,7 @@ export interface UserProfile {
   shopName?: string; // Added to potentially hold shop name
   phoneNumber?: string; // Added for seller info
   status?: 'active' | 'suspended';
+  aiPoints?: number;
 }
 
 export interface Order {

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import Paystack from 'paystack';
 import paypal from '@paypal/checkout-server-sdk';
+import { randomBytes } from 'crypto';
 
 const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 
@@ -18,21 +19,31 @@ function getPayPalClient() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { orderId, amount, email, gateway } = body;
+        const { orderId, amount, email, gateway, transactionType = 'product-purchase', metadata } = body;
 
-        if (!orderId || !amount || !email || !gateway) {
+        if (!amount || !email || !gateway) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+        
+        // Use the provided orderId or generate a unique reference for other transaction types
+        const reference = orderId || `${transactionType}-${randomBytes(8).toString('hex')}`;
 
         let checkoutUrl;
+        
+        // Add transaction type to metadata for all transactions
+        const finalMetadata = {
+            ...metadata,
+            transactionType: transactionType,
+            orderId: orderId, // Keep original orderId if present
+        };
 
         if (gateway === 'paystack') {
             const response = await paystack.transaction.initialize({
                 email: email,
-                amount: amount * 100, // Paystack expects amount in the smallest currency unit (cents)
+                amount: amount * 100, // Paystack expects amount in the smallest currency unit
                 currency: 'USD',
-                reference: orderId,
-                metadata: { orderId },
+                reference: reference,
+                metadata: finalMetadata,
             });
             
             if (!response.status || !response.data.authorization_url) {
@@ -47,15 +58,16 @@ export async function POST(request: Request) {
             paypalRequest.requestBody({
                 intent: 'CAPTURE',
                 purchase_units: [{
-                    reference_id: orderId,
+                    invoice_id: reference, // Using invoice_id for our unique reference
                     amount: {
-                        currency_code: 'USD', // Changed to USD
+                        currency_code: 'USD',
                         value: amount.toString(),
                     },
+                     custom_id: JSON.stringify(finalMetadata), // Store metadata here
                 }],
                 application_context: {
-                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?orderId=${orderId}`,
-                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId}`,
+                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?ref=${reference}`,
+                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || ''}`,
                 },
             });
             
