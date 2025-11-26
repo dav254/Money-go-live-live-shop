@@ -67,7 +67,7 @@ export default function FindSellersPage() {
                                         <CardContent className="p-4 flex items-center gap-4">
                                             <Avatar className="h-12 w-12">
                                                 <AvatarImage src={seller.logoUrl} alt={seller.shopName} />
-                                                <AvatarFallback>{seller.shopName.charAt(0)}</AvatarFallback>
+                                                <AvatarFallback>{seller.shopName?.charAt(0)}</AvatarFallback>
                                             </Avatar>
                                             <div className="flex-1">
                                                 <p className="font-bold">{seller.shopName}</p>
