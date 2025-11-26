@@ -9,7 +9,7 @@ import { MessageSquare, Plus, Share2 } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 
@@ -23,12 +23,37 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     if (userProfile && userProfile.following && seller.id) {
       setIsFollowing(userProfile.following.includes(seller.id));
     }
   }, [userProfile, seller.id]);
+
+  const handleApplyToResell = async () => {
+    if (!user || !firestore) {
+      toast({ variant: 'destructive', title: 'Please log in to apply.' });
+      return;
+    }
+    setIsApplying(true);
+    const applicationRef = doc(collection(firestore, 'resellerApplications'));
+    try {
+      await setDoc(applicationRef, {
+        id: applicationRef.id,
+        resellerId: user.uid,
+        sellerId: seller.id,
+        status: 'pending',
+        applicationDate: serverTimestamp(),
+      });
+      toast({ title: 'Application Sent!', description: `Your request to resell for ${seller.name} has been sent.` });
+    } catch (error) {
+      console.error('Error creating reseller application:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your application.' });
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   const handleFollow = async () => {
     if (!user || !firestore) {
@@ -95,6 +120,11 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <Plus className="mr-2 h-4 w-4" />
             {isFollowing ? 'Following' : 'Follow'}
           </Button>
+          {userProfile?.userRole === 'reseller' && (
+            <Button onClick={handleApplyToResell} disabled={isApplying} variant="outline" className="w-full md:w-auto font-bold">
+              {isApplying ? 'Submitting...' : 'Apply to Resell'}
+            </Button>
+          )}
           <Button variant="secondary" className="w-full md:w-auto font-bold">
             <MessageSquare className="mr-2 h-4 w-4" />
             Message
