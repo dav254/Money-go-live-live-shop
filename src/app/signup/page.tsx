@@ -78,11 +78,11 @@ export default function SignupPage() {
         userRole: values.role,
       };
 
-      // Check for a referral ID in local storage
+      // Check for a referral ID in local storage and add it to the profile
       const resellerRefId = localStorage.getItem('resellerRefId');
       if (resellerRefId) {
           userProfile.referredBy = resellerRefId;
-          // Optional: remove the item after use to prevent re-attribution
+          // Optional: remove the item after use to prevent re-attribution on future signups
           localStorage.removeItem('resellerRefId');
       }
 

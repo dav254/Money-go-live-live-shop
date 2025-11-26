@@ -85,11 +85,11 @@ export default function BuyerProductPage() {
     const { toast } = useToast();
     const router = useRouter();
 
-    // Capture reseller ref from URL and store it
+    // Capture reseller ref from URL and store it in localStorage
     useEffect(() => {
         const resellerRef = searchParams.get('ref');
         if (resellerRef) {
-            localStorage.setItem('resellerRef', resellerRef);
+            localStorage.setItem('resellerRefId', resellerRef);
         }
     }, [searchParams]);
 
@@ -174,7 +174,7 @@ export default function BuyerProductPage() {
         const shippingCost = product.shippingCost || 0;
         
         // Check for a reseller ref in localStorage
-        const resellerId = localStorage.getItem('resellerRef');
+        const resellerId = localStorage.getItem('resellerRefId');
         
         const newOrderData: any = {
             id: newOrderRef.id,
@@ -203,7 +203,7 @@ export default function BuyerProductPage() {
           
           // Clear the reseller ref after it's used
           if (resellerId) {
-              localStorage.removeItem('resellerRef');
+              localStorage.removeItem('resellerRefId');
           }
 
           toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
