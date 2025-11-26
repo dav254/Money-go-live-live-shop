@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
@@ -13,8 +13,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Heart, Eye } from 'lucide-react';
-import type { SellerShop, Product } from '@/lib/types';
+import { Users, Heart, Eye, Wallet } from 'lucide-react';
+import type { SellerShop, Product, Order, Payout } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -76,17 +76,34 @@ export default function SellerDashboardPage() {
     return firestore ? query(collection(firestore, 'products'), where('sellerId', '==', user.uid)) : null;
   },[firestore, user]);
 
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('orderStatus', 'in', ['delivered', 'shipped']));
+  }, [firestore, user]);
+
+  const payoutsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
+  }, [firestore, user]);
+
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+  const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
 
-  const isLoading = isUserLoading || isShopLoading || areProductsLoading;
+  const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading;
 
-  const { totalLikes, totalViews } = React.useMemo(() => {
-    if (!products) return { totalLikes: 0, totalViews: 0 };
-    const likes = products.reduce((sum, product) => sum + (product.likes || 0), 0);
-    const views = products.reduce((sum, product) => sum + (product.viewCount || 0), 0);
-    return { totalLikes: likes, totalViews: views };
-  }, [products]);
+  const { totalLikes, totalViews, availableBalance } = React.useMemo(() => {
+    const likes = products?.reduce((sum, product) => sum + (product.likes || 0), 0) || 0;
+    const views = products?.reduce((sum, product) => sum + (product.viewCount || 0), 0) || 0;
+    
+    const totalRevenue = orders?.reduce((sum, order) => sum + order.totalAmount, 0) || 0;
+    const platformFees = totalRevenue * 0.10; // 10% platform fee
+    const totalPaidOut = payouts?.reduce((sum, payout) => sum + payout.amount, 0) || 0;
+    const balance = totalRevenue - platformFees - totalPaidOut;
+
+    return { totalLikes: likes, totalViews: views, availableBalance: balance };
+  }, [products, orders, payouts]);
   
   const handleDelete = async (productId: string) => {
     if (!firestore) return;
@@ -123,16 +140,12 @@ export default function SellerDashboardPage() {
               <h2 className="text-lg font-bold font-headline">{shopData?.shopName || 'Seller Store'}</h2>
             </div>
           </div>
-
-          <Button variant="destructive" className="rounded-xl font-bold">
-            Go Live
-          </Button>
         </div>
         
         {/* Shop Analytics Section */}
         <div className="mb-6">
           <h3 className="font-headline text-xl font-bold mb-4">Shop Analytics</h3>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Followers</CardTitle>
@@ -161,6 +174,16 @@ export default function SellerDashboardPage() {
               <CardContent>
                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{totalViews.toLocaleString()}</div>}
                 <p className="text-xs text-muted-foreground">In the last 30 days</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Available for Payout</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">${availableBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>}
+                <p className="text-xs text-muted-foreground">After platform fees</p>
               </CardContent>
             </Card>
           </div>
