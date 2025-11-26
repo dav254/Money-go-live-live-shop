@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -14,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateProductDescription } from '@/ai/flows/generate-product-description';
 import { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
@@ -70,7 +71,7 @@ export function GenerateDescriptionForm() {
           AI Product Description Generator
         </CardTitle>
         <CardDescription>
-          Fill in your product details and let our AI create a compelling description for you.
+          Fill in your product details and let our AI create a compelling description for you. This tool costs 25 points per generation.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -154,7 +155,7 @@ export function GenerateDescriptionForm() {
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Description
+                  Generate (25 Points)
                 </>
               )}
             </Button>
@@ -167,6 +168,7 @@ export function GenerateDescriptionForm() {
                 <div className="mt-2 p-4 bg-muted/50 rounded-md whitespace-pre-wrap text-sm">
                     {generatedDescription}
                 </div>
+                 <Button variant="outline" className="mt-4">Copy Description</Button>
             </div>
         )}
       </CardContent>

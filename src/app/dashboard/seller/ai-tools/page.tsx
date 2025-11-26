@@ -5,19 +5,28 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon } from 'lucide-react';
+import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const tools = [
   {
+    title: "AI Product Description",
+    description: "Generate compelling, SEO-friendly descriptions for your products in seconds.",
+    icon: Sparkles,
+    href: "#",
+    cta: "Use Generator",
+    points: 25,
+    isTab: true,
+  },
+  {
     title: "AI Deal Maker",
-    description: "Generate strategic deal suggestions like bundles, flash sales, and tiered offers for your products.",
+    description: "Generate strategic deal suggestions like bundles and flash sales to boost revenue.",
     icon: Handshake,
     href: "/dashboard/seller/ai-tools/deal-maker",
     cta: "Launch Deal Maker",
-    isPremium: false,
+    points: 100,
   },
   {
     title: "Image-to-Video Generator",
@@ -25,31 +34,15 @@ const tools = [
     icon: ImageIcon,
     href: "/dashboard/seller/ai-tools/image-to-video",
     cta: "Create Video",
-    isPremium: false, // Mark as enabled
+    points: 200,
   },
   {
     title: "AI Caption Generator",
     description: "Generate viral captions for TikTok, Instagram, and Facebook to boost engagement.",
-    icon: Sparkles,
-    href: "#",
-    cta: "Generate Caption",
-    isPremium: true,
-  },
-  {
-    title: "AI Poster Maker",
-    description: "Create stunning promotional posters for your products in seconds.",
     icon: Bot,
     href: "#",
-    cta: "Launch Maker",
-    isPremium: true,
-  },
-  {
-    title: "AI Video Enhancer",
-    description: "Add music, text, and effects to make your product videos pop.",
-    icon: Film,
-    href: "#",
-    cta: "Enhance Video",
-    isPremium: true,
+    cta: "Generate Caption",
+    points: 50,
   },
 ];
 
@@ -58,17 +51,34 @@ export default function SellerAIToolsPage() {
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          AI Seller Toolkit
-        </h1>
-        <p className="text-muted-foreground">
-          Use these AI-powered tools to create better content, write compelling descriptions, and sell more.
-        </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div>
+                 <h1 className="font-headline text-3xl font-bold tracking-tight">
+                    AI Seller Toolkit
+                </h1>
+                <p className="text-muted-foreground">
+                Use these AI-powered tools to create better content and sell more.
+                </p>
+            </div>
+            <Card className="mt-4 md:mt-0">
+                <CardContent className="p-3 flex items-center gap-4">
+                    <div className="p-3 bg-primary/10 rounded-md">
+                        <BadgeCent className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground">Your Balance</p>
+                        <p className="text-xl font-bold">1,250 Points</p>
+                    </div>
+                     <Button size="sm" variant="outline">Get More</Button>
+                </CardContent>
+            </Card>
+        </div>
+       
 
         <Tabs defaultValue="description-generator" className="space-y-4">
             <TabsList>
-                <TabsTrigger value="description-generator">Product Description Generator</TabsTrigger>
-                <TabsTrigger value="content-creation">Content & Strategy Tools</TabsTrigger>
+                <TabsTrigger value="description-generator">Product Description</TabsTrigger>
+                <TabsTrigger value="content-creation">Content & Strategy</TabsTrigger>
             </TabsList>
             
             <TabsContent value="description-generator">
@@ -77,7 +87,7 @@ export default function SellerAIToolsPage() {
 
             <TabsContent value="content-creation">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {tools.map((tool) => (
+                    {tools.filter(t => !t.isTab).map((tool) => (
                         <Card key={tool.title} className="flex flex-col">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">
@@ -86,13 +96,15 @@ export default function SellerAIToolsPage() {
                                 </CardTitle>
                                 <CardDescription>{tool.description}</CardDescription>
                             </CardHeader>
-                            <CardContent className="flex-grow flex items-end">
-                                <Button className="w-full" disabled={tool.isPremium} asChild>
+                            <CardContent className="flex-grow flex flex-col justify-end gap-2">
+                                <div className="text-center font-bold text-lg my-2">
+                                    {tool.points} Points
+                                </div>
+                                 <Button className="w-full" asChild>
                                     <Link href={tool.href} className="flex items-center">
                                         {tool.cta}
-                                        {!tool.isPremium && <ExternalLink className="ml-2 h-4 w-4" />}
                                     </Link>
-                                </Button>
+                                 </Button>
                             </CardContent>
                         </Card>
                     ))}
