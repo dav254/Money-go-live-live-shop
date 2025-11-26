@@ -93,6 +93,8 @@ export interface Order {
   disputeReason?: string;
   paymentMethod: string;
   quantity: number;
+  platformFee?: number;
+  resellerCommission?: number;
 }
 
 
@@ -233,5 +235,3 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
-
-    

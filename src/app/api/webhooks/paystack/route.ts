@@ -2,7 +2,10 @@
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';
-import { doc, updateDoc, increment } from 'firebase/firestore';
+import { doc, updateDoc, increment, getDoc, collection } from 'firebase/firestore';
+import type { Product } from '@/lib/types';
+
+const PLATFORM_FEE_RATE = 0.10; // 10%
 
 export async function POST(request: Request) {
   const paystackSecret = process.env.PAYSTACK_SECRET_KEY!;
@@ -41,11 +44,33 @@ export async function POST(request: Request) {
         
         if (orderId) {
           const orderRef = doc(db, 'orders', orderId);
+          const orderSnap = await getDoc(orderRef);
+          if (!orderSnap.exists()) {
+              throw new Error(`Order ${orderId} not found.`);
+          }
+          const orderData = orderSnap.data();
+          const productRef = doc(db, 'products', orderData.productId);
+          const productSnap = await getDoc(productRef);
+
+          if (!productSnap.exists()) {
+              throw new Error(`Product ${orderData.productId} not found for order ${orderId}.`);
+          }
+
+          const productData = productSnap.data() as Product;
+          const platformFee = orderData.productPrice * PLATFORM_FEE_RATE;
+          let resellerCommission = 0;
+
+          if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
+              resellerCommission = orderData.productPrice * (productData.commissionRate / 100);
+          }
+
           await updateDoc(orderRef, {
             orderStatus: 'processing',
             paymentMethod: `paystack_${event.data.channel}`,
+            platformFee: platformFee,
+            resellerCommission: resellerCommission > 0 ? resellerCommission : null,
           });
-          console.log(`Order ${orderId} updated to processing via Paystack webhook.`);
+          console.log(`Order ${orderId} updated to processing via Paystack webhook. Fees calculated.`);
         }
       }
     }
