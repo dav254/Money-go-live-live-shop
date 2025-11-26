@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -77,12 +77,21 @@ const ProductPageSkeleton = () => (
 
 export default function BuyerProductPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const productId = params.productId as string;
     const firestore = useFirestore();
     const { user } = useUser();
     const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
+
+    // Capture reseller ref from URL and store it
+    useEffect(() => {
+        const resellerRef = searchParams.get('ref');
+        if (resellerRef) {
+            localStorage.setItem('resellerRef', resellerRef);
+        }
+    }, [searchParams]);
 
     const productRef = useMemoFirebase(() => {
         return productId ? doc(firestore, 'products', productId) : null;
@@ -163,7 +172,11 @@ export default function BuyerProductPage() {
 
         const newOrderRef = doc(collection(firestore, 'orders'));
         const shippingCost = product.shippingCost || 0;
-        const newOrderData = {
+        
+        // Check for a reseller ref in localStorage
+        const resellerId = localStorage.getItem('resellerRef');
+        
+        const newOrderData: any = {
             id: newOrderRef.id,
             buyerId: user.uid,
             sellerId: product.sellerId,
@@ -180,8 +193,19 @@ export default function BuyerProductPage() {
             quantity: 1,
         };
 
+        // If a reseller ID exists, add it to the order
+        if (resellerId) {
+            newOrderData.resellerId = resellerId;
+        }
+
         try {
           await setDoc(newOrderRef, newOrderData);
+          
+          // Clear the reseller ref after it's used
+          if (resellerId) {
+              localStorage.removeItem('resellerRef');
+          }
+
           toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
           router.push(`/checkout/${newOrderRef.id}`);
         } catch (error) {
@@ -214,7 +238,7 @@ export default function BuyerProductPage() {
     };
 
     const handleShare = () => {
-        const productUrl = `https://goearnvid.shop/products/${productId}`;
+        const productUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://goearnvid.shop'}/products/${productId}`;
         navigator.clipboard.writeText(productUrl).then(() => {
             toast({
                 title: "Link Copied!",
@@ -234,8 +258,6 @@ export default function BuyerProductPage() {
         if (!firestore || !productId) return;
         const productRef = doc(firestore, 'products', productId);
         
-        // This is a non-blocking update. We don't wait for it to complete.
-        // It's a "fire-and-forget" operation for a simple action like a "like".
         const batch = writeBatch(firestore);
         batch.update(productRef, { likes: increment(1) });
         batch.commit().catch(console.error);
@@ -401,5 +423,3 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
-
-    

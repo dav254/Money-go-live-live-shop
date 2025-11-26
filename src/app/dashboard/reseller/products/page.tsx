@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -7,32 +6,58 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
-const ResellerProductCard = ({ product }: { product: Product }) => (
-    <Card className="overflow-hidden">
-        <div className="relative aspect-video">
-            <Image
-                src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
-                alt={product.name || 'product'}
-                fill
-                className="object-cover"
-            />
-            <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
-        </div>
-        <CardContent className="p-3">
-             <div className="flex gap-2">
-                <Button size="sm" className="flex-1"><Share2 className="mr-2 h-4 w-4" /> Share</Button>
-                <Button size="sm" variant="secondary" className="flex-1"><Sparkles className="mr-2 h-4 w-4" /> Get Media</Button>
+const ResellerProductCard = ({ product }: { product: Product }) => {
+    const { user } = useUser();
+    const { toast } = useToast();
+
+    const handleShare = () => {
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not identify reseller.' });
+            return;
+        }
+
+        const shareUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://goearnvid.shop'}/products/${product.id}?ref=${user.uid}`;
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            toast({
+                title: 'Link Copied!',
+                description: 'Your unique reseller link is ready to be shared.',
+            });
+        }).catch(err => {
+             toast({
+                variant: 'destructive',
+                title: 'Failed to copy link.',
+            });
+        });
+    };
+
+    return (
+        <Card className="overflow-hidden">
+            <div className="relative aspect-video">
+                <Image
+                    src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
+                    alt={product.name || 'product'}
+                    fill
+                    className="object-cover"
+                />
+                <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
             </div>
-        </CardContent>
-    </Card>
-);
+            <CardContent className="p-3">
+                 <div className="flex gap-2">
+                    <Button size="sm" className="flex-1" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share</Button>
+                    <Button size="sm" variant="secondary" className="flex-1"><Sparkles className="mr-2 h-4 w-4" /> Get Media</Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
 
 const ProductGridSkeleton = () => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
