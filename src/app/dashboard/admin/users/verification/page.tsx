@@ -1,21 +1,15 @@
-
 'use client';
 
 import * as React from 'react';
 import {
   CaretSortIcon,
-  ChevronDownIcon,
   DotsHorizontalIcon,
 } from '@radix-ui/react-icons';
 import {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
-  VisibilityState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
@@ -46,10 +40,7 @@ import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
-type VerificationRequest = UserProfile & {
-  // Assuming documents might be stored elsewhere, for now, we'll represent them as placeholders
-  documents?: string[];
-};
+type VerificationRequest = UserProfile;
 
 const DataTableSkeleton = () => (
     <div className="rounded-md border">

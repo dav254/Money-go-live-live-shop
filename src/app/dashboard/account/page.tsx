@@ -146,15 +146,7 @@ const SellerVerificationForm = () => {
             const userRef = doc(firestore, 'userProfiles', user.uid);
             const updateData = { verificationStatus: 'pending' };
             
-            await updateDoc(userRef, updateData).catch(error => {
-                 const permissionError = new FirestorePermissionError({
-                    path: userRef.path,
-                    operation: 'update',
-                    requestResourceData: updateData
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw permissionError;
-            });
+            await updateDoc(userRef, updateData);
             
             toast({ title: 'Submitted!', description: 'Your verification request has been sent for review.' });
             setFiles([]);
