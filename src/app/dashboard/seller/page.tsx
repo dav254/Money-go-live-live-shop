@@ -174,15 +174,12 @@ export default function SellerDashboardPage() {
         </div>
 
         {/* Add Buttons */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <Button asChild className="font-semibold" style={{ backgroundColor: '#2563eb' }}>
             <Link href="/dashboard/products?tab=add-new">Add Product</Link>
           </Button>
           <Button asChild className="font-semibold" style={{ backgroundColor: '#7c3aed' }}>
             <Link href="/dashboard/products?tab=add-new">Add Video</Link>
-          </Button>
-          <Button asChild className="font-semibold" style={{ backgroundColor: '#16a34a' }}>
-            <Link href="/dashboard/seller/studio">Add Live</Link>
           </Button>
         </div>
 
@@ -275,4 +272,6 @@ export default function SellerDashboardPage() {
       </div>
     </SellerLayout>
   );
+    
+
     

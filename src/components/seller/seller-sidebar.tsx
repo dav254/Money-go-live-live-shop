@@ -23,6 +23,8 @@ import {
   Bookmark,
   RadioTower,
   Info,
+  Wallet,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -96,15 +98,15 @@ export function SellerSidebar() {
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live')}>
               <Link href="/dashboard/seller/live">
                 <Video />
-                <span>Live Selling</span>
+                <span>Videos</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/earnings') || isActive('/dashboard/seller/wallet')}>
-              <Link href="/dashboard/seller/earnings">
-                <Banknote />
-                <span>Sales & Payouts</span>
+           <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/wallet')}>
+              <Link href="/dashboard/seller/wallet">
+                <Wallet />
+                <span>Wallet</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -113,6 +115,14 @@ export function SellerSidebar() {
               <Link href="/dashboard/seller/reseller/performance">
                 <Users />
                 <span>Reseller Center</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild>
+              <Link href="#">
+                <Sparkles />
+                <span>AI Tools</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -180,3 +190,5 @@ export function SellerSidebar() {
     </>
   );
 }
+
+    
