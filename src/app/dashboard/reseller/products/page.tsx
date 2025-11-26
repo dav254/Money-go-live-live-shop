@@ -8,37 +8,72 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles } from 'lucide-react';
+import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import React, { useState } from 'react';
+
+// Server Action to log the share event
+async function logResellerShare(resellerId: string, productId: string, sellerId: string) {
+  'use server';
+  // This is a simplified version. In a real app, you'd import db from a server-only file.
+  // For Studio's structure, we are dynamically initializing what's needed.
+  try {
+    const { initializeAdminApp } = await import('@/firebase/admin');
+    const { getFirestore } = await import('firebase-admin/firestore');
+    initializeAdminApp();
+    const db = getFirestore();
+    
+    await db.collection('resellActivities').add({
+      resellerId,
+      productId,
+      sellerId,
+      sharedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Failed to log reseller share:", error);
+    // This is a background task, so we don't throw to the user.
+  }
+}
+
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
     const { user } = useUser();
     const { toast } = useToast();
+    const [isSharing, setIsSharing] = useState(false);
 
-    const handleShare = () => {
+    const handleShare = async () => {
         if (!user) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not identify reseller.' });
             return;
         }
 
+        setIsSharing(true);
+
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `https://goearnvid.shop`;
         const shareUrl = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
         
-        navigator.clipboard.writeText(shareUrl).then(() => {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
             toast({
                 title: 'Link Copied!',
                 description: 'Your unique reseller link is ready to be shared.',
             });
-        }).catch(err => {
+
+            // Log the share event in the background (fire-and-forget)
+            logResellerShare(user.uid, product.id, product.sellerId);
+
+        } catch (err) {
              toast({
                 variant: 'destructive',
                 title: 'Failed to copy link.',
             });
-        });
+        } finally {
+            setIsSharing(false);
+        }
     };
 
     return (
@@ -54,7 +89,10 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
             </div>
             <CardContent className="p-3">
                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share</Button>
+                    <Button size="sm" className="flex-1" onClick={handleShare} disabled={isSharing}>
+                        {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+                        Share
+                    </Button>
                     <Button size="sm" variant="secondary" className="flex-1"><Sparkles className="mr-2 h-4 w-4" /> Get Media</Button>
                 </div>
             </CardContent>
