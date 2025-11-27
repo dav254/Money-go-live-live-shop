@@ -3,11 +3,10 @@
 
 import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import * as path from 'path';
 
 // IMPORTANT: The service-account.json file is gitignored.
 // You must download your own from the Firebase console and place it in the root directory.
-const serviceAccount = require(path.resolve(process.cwd(), 'service-account.json'));
+const serviceAccount = require('../../service-account.json');
 
 
 const appName = 'firebase-admin-app-server';
