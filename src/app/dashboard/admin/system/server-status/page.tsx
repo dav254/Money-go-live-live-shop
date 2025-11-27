@@ -32,7 +32,7 @@ import { Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 type Status = 'checking' | 'operational' | 'degraded' | 'outage';
 
-interface ServiceStatus {
+export interface ServiceStatus {
   name: string;
   status: Status;
   icon: React.ElementType;
@@ -75,80 +75,46 @@ export default function AdminServerStatusPage() {
   const [services, setServices] = useState<ServiceStatus[]>(initialServices);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [chartData, setChartData] = useState<{ time: string, responseTime: number }[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Function to simulate a health check for a single service
-  const runHealthCheck = useCallback((serviceName: string) => {
-    setServices(currentServices =>
-      currentServices.map(s =>
-        s.name === serviceName ? { ...s, status: 'checking' } : s
-      )
-    );
-
-    // Simulate network delay
-    setTimeout(() => {
-      const random = Math.random();
-      let newStatus: Status;
-      if (random < 0.9) { // 90% chance of being operational
-        newStatus = 'operational';
-      } else if (random < 0.97) { // 7% chance of being degraded
-        newStatus = 'degraded';
-      } else { // 3% chance of an outage
-        newStatus = 'outage';
+  const fetchStatus = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/system-status');
+      if (!response.ok) {
+        throw new Error('Failed to fetch status');
       }
-
-      setServices(currentServices =>
-        currentServices.map(s =>
-          s.name === serviceName ? { ...s, status: newStatus } : s
-        )
+      const data = await response.json();
+      setServices(prevServices => 
+        prevServices.map(ps => {
+            const newStatus = data.services.find((s: any) => s.name === ps.name);
+            return newStatus ? { ...ps, status: newStatus.status } : ps;
+        })
       );
-      setLastChecked(new Date());
-
-      // If not operational, simulate recovery after a while
-      if (newStatus !== 'operational') {
-        setTimeout(() => {
-          setServices(currentServices =>
-            currentServices.map(s =>
-              s.name === serviceName ? { ...s, status: 'operational' } : s
-            )
-          );
-        }, 5000 + Math.random() * 5000); // Recover after 5-10 seconds
-      }
-
-    }, 500 + Math.random() * 1000); // Check takes 0.5-1.5 seconds
-  }, []);
-  
-  const runAllHealthChecks = useCallback(() => {
-    initialServices.forEach(service => {
-        runHealthCheck(service.name);
-    });
-  }, [runHealthCheck]);
-
-  // Initial check and periodic checks for all services
-  useEffect(() => {
-    runAllHealthChecks(); // Initial run
-    const interval = setInterval(runAllHealthChecks, 30000); // Re-check all every 30 seconds
-    return () => clearInterval(interval);
-  }, [runAllHealthChecks]);
-
-  // Simulate real-time chart data
-  useEffect(() => {
-    const interval = setInterval(() => {
       setChartData(prevData => {
         const now = new Date();
-        // More realistic response time with occasional spikes
-        const baseResponse = 50 + Math.random() * 100; // 50-150ms
-        const spike = Math.random() > 0.95 ? Math.random() * 200 : 0; // 5% chance of a spike
         const newDataPoint = {
           time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          responseTime: Math.floor(baseResponse + spike),
+          responseTime: data.apiResponseTime,
         };
-        // Keep only the last 20 data points
         return [...prevData, newDataPoint].slice(-20);
       });
-    }, 2000);
 
-    return () => clearInterval(interval);
+      setLastChecked(new Date());
+    } catch (error) {
+      console.error("Error fetching server status:", error);
+      // Optionally set services to an error state
+    } finally {
+        setIsLoading(false);
+    }
   }, []);
+
+  // Initial fetch and periodic polling
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
 
 
   return (
@@ -163,8 +129,8 @@ export default function AdminServerStatusPage() {
                     {lastChecked ? `Last updated: ${lastChecked.toLocaleTimeString()}` : 'Running health checks...'}
                 </p>
             </div>
-            <Button variant="outline" onClick={runAllHealthChecks}>
-                <RefreshCw className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={fetchStatus} disabled={isLoading}>
+                <RefreshCw className={cn("mr-2 h-4 w-4", isLoading && "animate-spin")} />
                 Refresh All
             </Button>
         </div>
