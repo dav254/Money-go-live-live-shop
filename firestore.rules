@@ -163,7 +163,7 @@ service cloud.firestore {
       allow update: if request.auth != null && resource.data.sellerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
     }
     
-    // Allow admins to access system settings
+    // Allow admins to access all system settings
     match /systemSettings/{settingId} {
         allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
@@ -172,6 +172,12 @@ service cloud.firestore {
     match /fraudAlerts/{alertId} {
       allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
+    
+    // Content Moderation
+    match /contentModerationQueue/{itemId} {
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
 
     // Other collections, keeping them restricted.
     match /payments/{paymentId} {

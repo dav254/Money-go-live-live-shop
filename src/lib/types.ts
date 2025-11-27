@@ -268,3 +268,36 @@ export interface SupportTicket {
     status: 'pending' | 'open' | 'closed';
     createdAt: Timestamp;
 }
+
+export interface AIFraudAlert {
+    id: string;
+    type: 'High-Value Order' | 'Multiple Logins' | 'New Device Payment';
+    riskScore: number;
+    userId: string;
+    details: string;
+    timestamp: Timestamp;
+    status: 'open' | 'investigating' | 'resolved' | 'dismissed';
+}
+
+export interface FraudDetectionSettings {
+    isEngineActive: boolean;
+    sensitivity: number;
+}
+
+export interface ContentModerationItem {
+  id: string;
+  contentType: 'Product Description' | 'User Review' | 'Profile Bio';
+  userId: string;
+  reason: 'Potential Spam' | 'Inappropriate Language' | 'Policy Violation';
+  content: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Timestamp;
+}
+
+export interface ContentModerationSettings {
+  isSpamActive: boolean;
+  isLanguageActive: boolean;
+  isPolicyViolationActive: boolean;
+}
+
+    
