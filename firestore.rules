@@ -175,7 +175,7 @@ service cloud.firestore {
     
     // Content Moderation
     match /contentModerationQueue/{itemId} {
-      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow list, read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
 
@@ -209,5 +209,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
