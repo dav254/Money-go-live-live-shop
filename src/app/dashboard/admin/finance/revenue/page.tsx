@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -141,10 +142,6 @@ export default function AdminRevenuePage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Order ID</TableHead>
-                            <TableHead>Product</TableHead>
-                            <TableHead className="text-right">Gross Amount</TableHead>
-                            <TableHead className="text-right">Platform Fee</TableHead>
-                            <TableHead className="text-right">Net for Seller</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -152,29 +149,19 @@ export default function AdminRevenuePage() {
                              Array.from({length: 5}).map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                                 </TableRow>
                             ))
                         ) : recentTransactions.length > 0 ? (
                              recentTransactions.map(order => {
-                                 const fee = order.totalAmount * PLATFORM_COMMISSION_RATE;
-                                 const net = order.totalAmount - fee;
                                  return (
                                     <TableRow key={order.id}>
-                                        <TableCell className="font-mono text-xs text-muted-foreground">#{order.id.substring(0,6)}...</TableCell>
-                                        <TableCell className="font-medium">{order.productName}</TableCell>
-                                        <TableCell className="text-right">${order.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell className="text-right text-red-500">-${fee.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell className="text-right font-semibold text-green-500">${net.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="font-mono text-xs text-muted-foreground">#{order.id}</TableCell>
                                     </TableRow>
                                  )
                              })
                         ) : (
                            <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={1} className="h-24 text-center">
                                     No revenue data from completed orders yet.
                                 </TableCell>
                             </TableRow>
