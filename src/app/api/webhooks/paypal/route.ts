@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { db } from '@/firebase/server';
-import { doc, updateDoc, increment, getDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
@@ -21,7 +21,8 @@ export async function POST(request: Request) {
         const event = await request.json();
 
         if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
-            const purchaseUnit = event.resource.purchase_units[0];
+            const resource = event.resource;
+            const purchaseUnit = resource.purchase_units[0];
             const customId = purchaseUnit.custom_id;
             let metadata;
             
@@ -29,7 +30,6 @@ export async function POST(request: Request) {
                 metadata = JSON.parse(customId);
             } catch (e) {
                 console.error("Could not parse PayPal custom_id JSON:", customId);
-                // Fallback for older transactions without JSON metadata
                 return NextResponse.json({ status: 'success', message: 'Fallback handling, no metadata.' });
             }
 
@@ -38,13 +38,26 @@ export async function POST(request: Request) {
             if (transactionType === 'points-purchase') {
                 const userId = metadata.userId;
                 const points = metadata.points;
+                const amount = parseFloat(purchaseUnit.amount.value);
 
                 if (userId && points) {
                     const userProfileRef = doc(db, 'userProfiles', userId);
                     await updateDoc(userProfileRef, {
                         aiPoints: increment(points)
                     });
-                    console.log(`Credited ${points} points to user ${userId} via PayPal.`);
+                    
+                    // Create a payment log for this transaction
+                    const paymentRef = collection(db, 'payments');
+                    await addDoc(paymentRef, {
+                        userId: userId, // Link to the user who bought points
+                        amount: amount,
+                        paymentMethod: 'paypal',
+                        paymentStatus: 'completed',
+                        paymentDate: serverTimestamp(),
+                        transactionType: 'points-purchase',
+                        transactionId: resource.id, // PayPal order ID
+                    });
+                    console.log(`Credited ${points} points to user ${userId} and logged payment via PayPal.`);
                 }
 
             } else { // Default to product purchase
@@ -77,7 +90,18 @@ export async function POST(request: Request) {
                         platformFee: platformFee,
                         resellerCommission: resellerCommission > 0 ? resellerCommission : null,
                     });
-                    console.log(`Order ${orderId} updated to processing via PayPal webhook. Fees calculated.`);
+                     // Create a payment log for this transaction
+                    const paymentRef = collection(db, 'payments');
+                    await addDoc(paymentRef, {
+                        orderId: orderId,
+                        amount: orderData.totalAmount,
+                        paymentMethod: 'paypal',
+                        paymentStatus: 'completed',
+                        paymentDate: serverTimestamp(),
+                        transactionType: 'product-purchase',
+                        transactionId: resource.id, // PayPal order ID
+                    });
+                    console.log(`Order ${orderId} updated to processing and payment logged via PayPal webhook.`);
                 }
             }
         }

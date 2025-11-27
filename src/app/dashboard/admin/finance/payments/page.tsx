@@ -21,9 +21,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
-import type { Payment } from '@/lib/types';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
+import type { Payment, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CaretSortIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
@@ -33,7 +33,7 @@ const DataTableSkeleton = () => (
     <Table>
       <TableHeader>
         <TableRow>
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>
           ))}
         </TableRow>
@@ -41,7 +41,7 @@ const DataTableSkeleton = () => (
       <TableBody>
         {Array.from({ length: 10 }).map((_, i) => (
           <TableRow key={i}>
-            {Array.from({ length: 5 }).map((_, j) => (
+            {Array.from({ length: 6 }).map((_, j) => (
               <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
             ))}
           </TableRow>
@@ -65,17 +65,44 @@ const getStatusBadge = (status: string) => {
   }
 };
 
+const UserCell = ({ userId }: { userId: string }) => {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+
+  if (isLoading) return <Skeleton className="h-5 w-24" />;
+  return <span className="font-medium">{user?.fullName || 'N/A'}</span>;
+};
+
+
 const columns: ColumnDef<Payment>[] = [
   {
-    accessorKey: 'orderId',
-    header: 'Order ID',
-    cell: ({ row }) => (
-      <Button variant="link" asChild className="p-0 text-xs text-muted-foreground">
-        <Link href={`/dashboard/admin/orders/all?orderId=${row.original.orderId}`}>
-            #{row.original.orderId.substring(0, 8)}...
-        </Link>
-      </Button>
-    ),
+    accessorKey: 'transactionType',
+    header: 'Transaction Type',
+    cell: ({ row }) => {
+      const type = row.original.transactionType;
+      return <Badge variant={type === 'points-purchase' ? 'outline' : 'secondary'} className="capitalize">{type?.replace('-', ' ')}</Badge>
+    }
+  },
+   {
+    id: 'reference',
+    header: 'Reference',
+    cell: ({ row }) => {
+      const payment = row.original;
+      if (payment.transactionType === 'points-purchase' && payment.userId) {
+        return <UserCell userId={payment.userId} />
+      }
+      if (payment.orderId) {
+        return (
+          <Button variant="link" asChild className="p-0 text-xs text-muted-foreground">
+            <Link href={`/dashboard/admin/orders/all?orderId=${payment.orderId}`}>
+                #{payment.orderId.substring(0, 8)}...
+            </Link>
+          </Button>
+        );
+      }
+      return <span className="text-muted-foreground">N/A</span>
+    },
   },
   {
     accessorKey: 'paymentMethod',

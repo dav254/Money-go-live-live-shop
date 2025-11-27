@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';
-import { doc, updateDoc, increment, getDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
@@ -30,13 +30,27 @@ export async function POST(request: Request) {
       if (transactionType === 'points-purchase') {
         const userId = metadata.userId;
         const points = metadata.points;
+        const amount = event.data.amount / 100; // Convert from kobo to USD
 
         if (userId && points) {
           const userProfileRef = doc(db, 'userProfiles', userId);
           await updateDoc(userProfileRef, {
             aiPoints: increment(points)
           });
-          console.log(`Credited ${points} points to user ${userId} via Paystack.`);
+
+          // Create a payment log for this transaction
+          const paymentRef = collection(db, 'payments');
+          await addDoc(paymentRef, {
+            userId: userId, // Link to the user who bought points
+            amount: amount,
+            paymentMethod: `paystack_${event.data.channel}`,
+            paymentStatus: 'completed',
+            paymentDate: serverTimestamp(),
+            transactionType: 'points-purchase',
+            transactionId: event.data.id,
+          });
+
+          console.log(`Credited ${points} points to user ${userId} and logged payment via Paystack.`);
         }
 
       } else { // Default to product purchase
@@ -70,7 +84,20 @@ export async function POST(request: Request) {
             platformFee: platformFee,
             resellerCommission: resellerCommission > 0 ? resellerCommission : null,
           });
-          console.log(`Order ${orderId} updated to processing via Paystack webhook. Fees calculated.`);
+          
+          // Create a payment log for this transaction
+          const paymentRef = collection(db, 'payments');
+          await addDoc(paymentRef, {
+              orderId: orderId,
+              amount: orderData.totalAmount,
+              paymentMethod: `paystack_${event.data.channel}`,
+              paymentStatus: 'completed',
+              paymentDate: serverTimestamp(),
+              transactionType: 'product-purchase',
+              transactionId: event.data.id, // Paystack transaction ID
+          });
+          
+          console.log(`Order ${orderId} updated to processing and payment logged via Paystack webhook.`);
         }
       }
     }

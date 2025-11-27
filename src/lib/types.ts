@@ -195,13 +195,18 @@ export interface Product {
   uploadDate?: Timestamp;
 }
 
-export interface PaymentMethod {
+export interface Payment {
   id: string;
-  type: 'card' | 'paypal';
-  details: string; // e.g., 'Visa **** 4242' or 'user@example.com'
-  isDefault?: boolean;
-  providerToken?: string; // a token from Paystack/PayPal
+  orderId?: string; // Optional because points purchases don't have one
+  userId?: string; // Optional for user-specific payments like buying points
+  amount: number;
+  paymentMethod: string;
+  paymentStatus: 'completed' | 'pending' | 'failed';
+  paymentDate: Timestamp;
+  transactionType?: 'product-purchase' | 'points-purchase';
+  transactionId?: string; // The ID from the payment gateway
 }
+
 
 export interface PayoutMethod {
   id: string;
