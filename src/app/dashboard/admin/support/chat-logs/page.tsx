@@ -1,19 +1,15 @@
 
+'use client';
+
 import { AdminLayout } from '@/components/layout/admin-layout';
+import { ChatSystem } from '@/components/messages/chat-system';
 
 export default function AdminChatLogsPage() {
   return (
     <AdminLayout>
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Support & Moderation: Chat Logs
-        </h1>
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed p-12">
-            <p className="text-muted-foreground">Chat log viewer for disputes will be here.</p>
-        </div>
+      <div className="flex-1">
+        <ChatSystem />
       </div>
     </AdminLayout>
   );
 }
-
-    

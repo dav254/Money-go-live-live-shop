@@ -97,7 +97,7 @@ service cloud.firestore {
                        ( // Buyer's permissions
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
-                         request.resource.data.orderStatus == 'delivered'
+                         resource.data.orderStatus == 'delivered'
                        )
                      );
 
@@ -176,16 +176,18 @@ service cloud.firestore {
       allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     match /chats/{chatId} {
+      function isAdmin() {
+        return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      }
       // Allow create if the user is one of the two participants in the new chat.
       allow create: if request.auth != null && request.resource.data.participantIds.size() == 2 && request.auth.uid in request.resource.data.participantIds;
-      // Allow read/update if the user is a participant in the existing chat.
-      allow read, update: if request.auth != null && request.auth.uid in resource.data.participantIds;
+      // Allow read/update if the user is a participant OR if the user is an admin.
+      allow read, update: if (request.auth != null && request.auth.uid in resource.data.participantIds) || isAdmin();
       
       match /messages/{messageId} {
-        allow read, write: if request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        // Allow participants and admins to read/write messages.
+        allow read, write: if (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds) || isAdmin();
       }
     }
   }
 }
-
-    
