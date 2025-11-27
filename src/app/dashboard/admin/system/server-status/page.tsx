@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -55,7 +56,7 @@ const StatusIndicator = ({ status }: { status: Status }) => {
   const config = {
     checking: { icon: Loader2, color: 'text-muted-foreground', text: 'Checking...', animate: true },
     operational: { icon: CheckCircle2, color: 'text-green-500', text: 'Operational' },
-    degraded: { icon: Activity, color: 'text-yellow-500', text: 'Degraded Performance' },
+    degraded: { icon: Activity, color: 'text-yellow-500', text: 'Degraded' },
     outage: { icon: XCircle, color: 'text-destructive', text: 'Outage' },
   };
 
@@ -75,28 +76,71 @@ export default function AdminServerStatusPage() {
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
   const [chartData, setChartData] = useState<{ time: string, responseTime: number }[]>([]);
 
-  const runHealthChecks = useCallback(() => {
-    setServices(initialServices); // Reset to "checking"
-    setLastChecked(null);
+  // Function to simulate a health check for a single service
+  const runHealthCheck = useCallback((serviceName: string) => {
+    setServices(currentServices =>
+      currentServices.map(s =>
+        s.name === serviceName ? { ...s, status: 'checking' } : s
+      )
+    );
 
+    // Simulate network delay
     setTimeout(() => {
-      setServices(currentServices => currentServices.map(s => ({ ...s, status: 'operational' })));
-      setLastChecked(new Date());
-    }, 1500);
-  }, []);
+      const random = Math.random();
+      let newStatus: Status;
+      if (random < 0.9) { // 90% chance of being operational
+        newStatus = 'operational';
+      } else if (random < 0.97) { // 7% chance of being degraded
+        newStatus = 'degraded';
+      } else { // 3% chance of an outage
+        newStatus = 'outage';
+      }
 
+      setServices(currentServices =>
+        currentServices.map(s =>
+          s.name === serviceName ? { ...s, status: newStatus } : s
+        )
+      );
+      setLastChecked(new Date());
+
+      // If not operational, simulate recovery after a while
+      if (newStatus !== 'operational') {
+        setTimeout(() => {
+          setServices(currentServices =>
+            currentServices.map(s =>
+              s.name === serviceName ? { ...s, status: 'operational' } : s
+            )
+          );
+        }, 5000 + Math.random() * 5000); // Recover after 5-10 seconds
+      }
+
+    }, 500 + Math.random() * 1000); // Check takes 0.5-1.5 seconds
+  }, []);
+  
+  const runAllHealthChecks = useCallback(() => {
+    initialServices.forEach(service => {
+        runHealthCheck(service.name);
+    });
+  }, [runHealthCheck]);
+
+  // Initial check and periodic checks for all services
   useEffect(() => {
-    runHealthChecks();
-  }, [runHealthChecks]);
+    runAllHealthChecks(); // Initial run
+    const interval = setInterval(runAllHealthChecks, 30000); // Re-check all every 30 seconds
+    return () => clearInterval(interval);
+  }, [runAllHealthChecks]);
 
   // Simulate real-time chart data
   useEffect(() => {
     const interval = setInterval(() => {
       setChartData(prevData => {
         const now = new Date();
+        // More realistic response time with occasional spikes
+        const baseResponse = 50 + Math.random() * 100; // 50-150ms
+        const spike = Math.random() > 0.95 ? Math.random() * 200 : 0; // 5% chance of a spike
         const newDataPoint = {
           time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          responseTime: Math.floor(Math.random() * (150 - 50 + 1)) + 50, // Random between 50ms and 150ms
+          responseTime: Math.floor(baseResponse + spike),
         };
         // Keep only the last 20 data points
         return [...prevData, newDataPoint].slice(-20);
@@ -116,10 +160,10 @@ export default function AdminServerStatusPage() {
                     Server & Services Status
                 </h1>
                 <p className="text-muted-foreground">
-                    {lastChecked ? `Last checked: ${lastChecked.toLocaleTimeString()}` : 'Running health checks...'}
+                    {lastChecked ? `Last updated: ${lastChecked.toLocaleTimeString()}` : 'Running health checks...'}
                 </p>
             </div>
-            <Button variant="outline" onClick={runHealthChecks}>
+            <Button variant="outline" onClick={runAllHealthChecks}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh All
             </Button>
