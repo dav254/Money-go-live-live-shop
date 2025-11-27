@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { 
     DollarSign, 
     Users, 
@@ -15,11 +15,15 @@ import {
     Package,
     ShieldAlert
 } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, Timestamp, orderBy, limit, doc } from 'firebase/firestore';
 import type { UserProfile, Product, Order, Payout } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 const StatCard = ({ title, value, icon: Icon, color, isLoading }: { title: string, value: string, icon: React.ElementType, color?: string, isLoading: boolean }) => (
     <Card>
@@ -33,6 +37,24 @@ const StatCard = ({ title, value, icon: Icon, color, isLoading }: { title: strin
     </Card>
 );
 
+const BuyerCell = ({ userId }: { userId: string }) => {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+
+  if (isLoading) return <Skeleton className="h-6 w-24" />;
+  return (
+    <div className="flex items-center gap-2">
+      <Avatar className="h-6 w-6">
+        <AvatarImage src={user?.profilePictureUrl} />
+        <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
+      </Avatar>
+      <span className="text-xs font-medium">{user?.fullName}</span>
+    </div>
+  );
+};
+
+
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
 
@@ -43,6 +65,7 @@ export default function AdminDashboardPage() {
   const { data: products, isLoading: loadingProducts } = useCollection<Product>(useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]));
   const { data: orders, isLoading: loadingOrders } = useCollection<Order>(useMemoFirebase(() => query(collection(firestore, 'orders')), [firestore]));
   const { data: pendingPayouts, isLoading: loadingPayouts } = useCollection<Payout>(useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'pending')), [firestore]));
+  const { data: recentSales, isLoading: loadingRecentSales } = useCollection<Order>(useMemoFirebase(() => query(collection(firestore, 'orders'), where('orderStatus', '==', 'processing'), orderBy('orderDate', 'desc'), limit(5)), [firestore]));
   
   const isLoading = loadingBuyers || loadingSellers || loadingResellers || loadingProducts || loadingOrders || loadingPayouts;
 
@@ -62,7 +85,7 @@ export default function AdminDashboardPage() {
     { title: 'Total Products', value: (products?.length || 0).toLocaleString(), icon: ShoppingBag, isLoading },
     { title: 'Live Users Online', value: '1,890', icon: Video, color: 'text-red-500', isLoading: false }, // Placeholder
     { title: 'Today\'s Revenue', value: `$${todayStats.revenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-500', isLoading },
-    { title: 'Commission Paid', value: '22,500', icon: CircleDollarSign, color: 'text-green-500', isLoading: false }, // Placeholder
+    { title: 'Commission Paid', value: '$22,500', icon: CircleDollarSign, color: 'text-green-500', isLoading: false }, // Placeholder
     { title: 'Pending Payouts', value: `$${(pendingPayouts?.reduce((sum, p) => sum + p.amount, 0) || 0).toLocaleString()}`, icon: Clock, color: 'text-yellow-500', isLoading },
     { title: 'Daily Orders', value: todayStats.count.toLocaleString(), icon: Package, isLoading },
     { title: 'Flagged Issues', value: '12', icon: ShieldAlert, color: 'text-red-500', isLoading: false }, // Placeholder
@@ -82,18 +105,50 @@ export default function AdminDashboardPage() {
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
                 <CardHeader>
-                    <CardTitle>Sales Graph</CardTitle>
+                    <CardTitle>Recent Sales</CardTitle>
+                    <CardDescription>New orders that have been paid and are ready for processing.</CardDescription>
                 </CardHeader>
-                <CardContent className="h-96 flex items-center justify-center bg-muted/50 rounded-md">
-                    <p className="text-muted-foreground">Sales graph will be displayed here.</p>
+                <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Buyer</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingRecentSales ? (
+                            Array.from({length: 3}).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-4 w-12" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : recentSales && recentSales.length > 0 ? (
+                           recentSales.map(order => (
+                               <TableRow key={order.id}>
+                                   <TableCell className="font-medium">{order.productName}</TableCell>
+                                   <TableCell><BuyerCell userId={order.buyerId} /></TableCell>
+                                   <TableCell className="text-right">${order.totalAmount.toLocaleString()}</TableCell>
+                               </TableRow>
+                           ))
+                        ) : (
+                           <TableRow>
+                               <TableCell colSpan={3} className="h-24 text-center">No new sales right now.</TableCell>
+                           </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader>
-                    <CardTitle>Server Status</CardTitle>
+                    <CardTitle>Sales Graph</CardTitle>
                 </CardHeader>
                 <CardContent className="h-96 flex items-center justify-center bg-muted/50 rounded-md">
-                    <p className="text-muted-foreground">Server status will be displayed here.</p>
+                    <p className="text-muted-foreground">Sales graph will be displayed here.</p>
                 </CardContent>
             </Card>
         </div>
