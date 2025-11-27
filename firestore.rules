@@ -167,6 +167,11 @@ service cloud.firestore {
     match /systemSettings/{settingId} {
         allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
+    
+    // Fraud Alerts
+    match /fraudAlerts/{alertId} {
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
 
     // Other collections, keeping them restricted.
     match /payments/{paymentId} {
@@ -198,3 +203,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

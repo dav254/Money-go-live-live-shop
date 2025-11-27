@@ -1,6 +1,32 @@
 
 {
   "entities": {
+    "AIFraudAlert": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AI Fraud Alert",
+      "type": "object",
+      "description": "Represents a single fraudulent activity or high-risk event flagged by the AI.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the alert." },
+        "type": { "type": "string", "enum": ["High-Value Order", "Multiple Logins", "New Device Payment"], "description": "The category of the flagged event." },
+        "riskScore": { "type": "number", "description": "A numerical score (0-100) indicating the assessed risk level." },
+        "userId": { "type": "string", "description": "The ID of the user associated with the event." },
+        "details": { "type": "string", "description": "A human-readable summary of why the event was flagged." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the event occurred." },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved", "dismissed"], "description": "The current status of the alert." }
+      },
+      "required": ["id", "type", "riskScore", "userId", "details", "timestamp", "status"]
+    },
+    "FraudDetectionSettings": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "FraudDetectionSettings",
+        "type": "object",
+        "description": "Stores the configuration for the AI fraud detection engine.",
+        "properties": {
+          "isEngineActive": { "type": "boolean", "description": "Globally enables or disables the fraud detection engine." },
+          "sensitivity": { "type": "number", "description": "A value (0-100) to adjust how aggressively the model flags transactions." }
+        }
+    },
     "HelpArticle": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Help Article",
@@ -1116,6 +1142,23 @@
           "entityName": "RecommendationSettings",
           "schema": { "$ref": "#/backend/entities/RecommendationSettings" },
           "description": "A singleton document storing the global settings for the AI recommendation engine."
+        }
+      },
+      {
+        "path": "/systemSettings/fraudDetection",
+        "definition": {
+          "entityName": "FraudDetectionSettings",
+          "schema": { "$ref": "#/backend/entities/FraudDetectionSettings" },
+          "description": "A singleton document storing the global settings for the AI fraud detection engine."
+        }
+      },
+       {
+        "path": "/fraudAlerts/{alertId}",
+        "definition": {
+          "entityName": "AIFraudAlert",
+          "schema": { "$ref": "#/backend/entities/AIFraudAlert" },
+          "description": "Stores all high-risk events flagged by the AI fraud detection system.",
+          "params": [{ "name": "alertId", "description": "The unique ID for a fraud alert." }]
         }
       }
     ],

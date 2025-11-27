@@ -27,34 +27,24 @@ import {
   SlidersHorizontal,
   DollarSign,
   Users,
+  Loader2,
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, orderBy, setDoc } from 'firebase/firestore';
+import type { AIFraudAlert, FraudDetectionSettings } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// --- Mock Data and Types ---
-
-type Alert = {
-  id: string;
-  type: 'High-Value Order' | 'Multiple Logins' | 'New Device Payment';
-  riskScore: number;
-  user: string;
-  timestamp: string;
-  details: string;
+// --- Mock Data for stats ---
+const stats = {
+  valueAtRisk: "4,350",
+  blockedTransactions: "17",
+  accountsUnderReview: "5",
+  modelAccuracy: "99.2%",
 };
-
-type Activity = {
-  id: string;
-  type: 'Login' | 'Payment' | 'Profile Update';
-  status: 'Approved' | 'Flagged';
-  details: string;
-};
-
-const initialAlerts: Alert[] = [
-  { id: 'al-1', type: 'High-Value Order', riskScore: 92, user: 'user123', timestamp: '2m ago', details: '$2,500 order from a new account.' },
-  { id: 'al-2', type: 'Multiple Logins', riskScore: 85, user: 'seller_jane', timestamp: '15m ago', details: 'Logins from Kenya and Nigeria within 5 mins.' },
-  { id: 'al-3', type: 'New Device Payment', riskScore: 78, user: 'buyer_mike', timestamp: '1h ago', details: 'First payment from a new device.' },
-];
 
 const StatCard = ({ title, value, icon: Icon, description, color }: { title: string, value: string, icon: React.ElementType, description: string, color?: string }) => (
     <Card>
@@ -69,49 +59,105 @@ const StatCard = ({ title, value, icon: Icon, description, color }: { title: str
     </Card>
 );
 
-// --- Component ---
+const AlertsTableSkeleton = () => (
+    <div className="rounded-md border">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Risk</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {[...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-6 w-12" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-9 w-40 ml-auto" /></TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+)
 
 export default function AdminAIFraudPage() {
-    const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-    const [activity, setActivity] = useState<Activity[]>([]);
-    const [sensitivity, setSensitivity] = useState(75);
-    const [isRealtimeActive, setIsRealtimeActive] = useState(true);
+    const { toast } = useToast();
+    const firestore = useFirestore();
 
+    const settingsRef = useMemoFirebase(() => doc(firestore, 'systemSettings', 'fraudDetection'), [firestore]);
+    const alertsQuery = useMemoFirebase(() => query(collection(firestore, 'fraudAlerts'), orderBy('riskScore', 'desc')), [firestore]);
+
+    const { data: settingsData, isLoading: isLoadingSettings } = useDoc<FraudDetectionSettings>(settingsRef);
+    const { data: alerts, isLoading: isLoadingAlerts } = useCollection<AIFraudAlert>(alertsQuery);
+
+    const [isRealtimeActive, setIsRealtimeActive] = useState(true);
+    const [sensitivity, setSensitivity] = useState(75);
+    const [isSaving, setIsSaving] = useState(false);
+    const [activity, setActivity] = useState<{ id: string; type: string; status: 'Approved' | 'Flagged'; details: string }[]>([]);
+
+
+    useEffect(() => {
+        if (settingsData) {
+            setIsRealtimeActive(settingsData.isEngineActive ?? true);
+            setSensitivity(settingsData.sensitivity ?? 75);
+        }
+    }, [settingsData]);
+
+     const handleSaveChanges = async () => {
+        setIsSaving(true);
+        const newSettings = { isEngineActive: isRealtimeActive, sensitivity };
+        try {
+            await setDoc(settingsRef, newSettings, { merge: true });
+            toast({ title: 'Settings Saved', description: 'Fraud detection settings have been updated.' });
+        } catch (e) {
+            console.error("Failed to save settings: ", e);
+            toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not update settings.' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
     // Simulate live activity feed
     useEffect(() => {
         if (!isRealtimeActive) return;
-
-        const activityTypes = ['Login', 'Payment', 'Profile Update'];
-        const users = ['user_abc', 'seller_xyz', 'buyer_123', 'guest_user'];
-
         const interval = setInterval(() => {
-            const isFlagged = Math.random() > 0.95; // 5% chance of being flagged
-            const newActivity: Activity = {
+            const activityTypes = ['Login', 'Payment', 'Profile Update'];
+            const users = ['user_abc', 'seller_xyz', 'buyer_123', 'guest_user'];
+            const newActivity = {
                 id: `act-${Date.now()}`,
-                type: activityTypes[Math.floor(Math.random() * activityTypes.length)] as Activity['type'],
-                status: isFlagged ? 'Flagged' : 'Approved',
+                type: activityTypes[Math.floor(Math.random() * activityTypes.length)],
+                status: Math.random() > 0.95 ? 'Flagged' : 'Approved',
                 details: `${users[Math.floor(Math.random() * users.length)]} initiated an action.`
-            };
-
-            setActivity(prev => [newActivity, ...prev].slice(0, 10)); // Keep last 10 activities
-
-        }, 2500); // New activity every 2.5 seconds
-
+            } as any;
+            setActivity(prev => [newActivity, ...prev].slice(0, 10));
+        }, 2500);
         return () => clearInterval(interval);
     }, [isRealtimeActive]);
 
     return (
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          AI Fraud Detection Center
-        </h1>
+        <div className="flex items-center justify-between">
+            <h1 className="font-headline text-3xl font-bold tracking-tight">
+              AI Fraud Detection Center
+            </h1>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+            </Button>
+        </div>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Value at Risk (24h)" value="$4,350" icon={DollarSign} description="Total value of flagged transactions." color="text-destructive" />
-            <StatCard title="Blocked Transactions (24h)" value="17" icon={ShieldOff} description="High-confidence fraudulent payments stopped." />
-            <StatCard title="Accounts Under Review" value="5" icon={Users} description="Accounts flagged for manual review." />
-            <StatCard title="Model Accuracy" value="99.2%" icon={AlertTriangle} description="Based on historical data." />
+            <StatCard title="Value at Risk (24h)" value={`$${stats.valueAtRisk}`} icon={DollarSign} description="Total value of flagged transactions." color="text-destructive" />
+            <StatCard title="Blocked Transactions (24h)" value={stats.blockedTransactions} icon={ShieldOff} description="High-confidence fraudulent payments stopped." />
+            <StatCard title="Accounts Under Review" value={stats.accountsUnderReview} icon={Users} description="Accounts flagged for manual review." />
+            <StatCard title="Model Accuracy" value={stats.modelAccuracy} icon={AlertTriangle} description="Based on historical data." />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -122,31 +168,39 @@ export default function AdminAIFraudPage() {
                         <CardDescription>Actions requiring immediate attention, sorted by risk score.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead>Risk</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>User</TableHead>
-                                <TableHead>Details</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {alerts.map(alert => (
-                                <TableRow key={alert.id} className={alert.riskScore > 90 ? 'bg-destructive/10' : ''}>
-                                    <TableCell><Badge variant="destructive">{alert.riskScore}</Badge></TableCell>
-                                    <TableCell className="font-medium">{alert.type}</TableCell>
-                                    <TableCell>{alert.user}</TableCell>
-                                    <TableCell className="text-muted-foreground">{alert.details}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" className="mr-2">Investigate</Button>
-                                        <Button variant="secondary" size="sm">Dismiss</Button>
-                                    </TableCell>
-                                </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                         {isLoadingAlerts ? <AlertsTableSkeleton /> : (
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Risk</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Details</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {alerts && alerts.length > 0 ? alerts.map(alert => (
+                                    <TableRow key={alert.id} className={alert.riskScore > 90 ? 'bg-destructive/10' : ''}>
+                                        <TableCell><Badge variant="destructive">{alert.riskScore}</Badge></TableCell>
+                                        <TableCell className="font-medium">{alert.type}</TableCell>
+                                        <TableCell>{alert.userId}</TableCell>
+                                        <TableCell className="text-muted-foreground">{alert.details}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" className="mr-2">Investigate</Button>
+                                            <Button variant="secondary" size="sm">Dismiss</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-24 text-center">
+                                                No high-risk alerts at the moment.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                         )}
                     </CardContent>
                 </Card>
             </div>
@@ -156,21 +210,30 @@ export default function AdminAIFraudPage() {
                         <CardTitle className="flex items-center gap-2"><SlidersHorizontal /> Model Tuning</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                             <div className="flex justify-between">
-                                <Label>Fraud Sensitivity</Label>
-                                <span className="text-sm text-muted-foreground">{sensitivity}%</span>
+                        {isLoadingSettings ? (
+                            <div className="space-y-4">
+                                <Skeleton className="h-8 w-full" />
+                                <Skeleton className="h-12 w-full" />
                             </div>
-                            <Slider value={[sensitivity]} onValueChange={(val) => setSensitivity(val[0])} max={100} step={1} />
-                            <p className="text-xs text-muted-foreground">Higher values will flag more transactions but may increase false positives.</p>
-                        </div>
-                         <div className="flex items-center justify-between rounded-lg border p-3">
-                            <Label htmlFor="engine-status" className="flex flex-col">
-                                <span>Real-time Engine</span>
-                                <span className="font-normal text-xs text-muted-foreground">Enable or disable live analysis.</span>
-                            </Label>
-                            <Switch id="engine-status" checked={isRealtimeActive} onCheckedChange={setIsRealtimeActive} />
-                        </div>
+                        ) : (
+                            <>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <Label>Fraud Sensitivity</Label>
+                                        <span className="text-sm text-muted-foreground">{sensitivity}%</span>
+                                    </div>
+                                    <Slider value={[sensitivity]} onValueChange={(val) => setSensitivity(val[0])} max={100} step={1} />
+                                    <p className="text-xs text-muted-foreground">Higher values will flag more transactions but may increase false positives.</p>
+                                </div>
+                                <div className="flex items-center justify-between rounded-lg border p-3">
+                                    <Label htmlFor="engine-status" className="flex flex-col">
+                                        <span>Real-time Engine</span>
+                                        <span className="font-normal text-xs text-muted-foreground">Enable or disable live analysis.</span>
+                                    </Label>
+                                    <Switch id="engine-status" checked={isRealtimeActive} onCheckedChange={setIsRealtimeActive} />
+                                </div>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
                  <Card>
@@ -198,3 +261,5 @@ export default function AdminAIFraudPage() {
     </AdminLayout>
   );
 }
+
+    
