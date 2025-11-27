@@ -25,10 +25,13 @@ function getSimulatedApiResponseTime(): number {
 
 export async function GET(request: Request) {
   try {
+    // Now we simulate status for each major API endpoint
     const services: ServiceStatus[] = [
-      { name: 'Platform API', status: getSimulatedStatus() },
+      { name: 'API: Payments', status: getSimulatedStatus() },
+      { name: 'API: User Follows', status: getSimulatedStatus() },
+      { name: 'API: Image Uploads', status: getSimulatedStatus() },
       { name: 'Database (Firestore)', status: getSimulatedStatus() },
-      { name: 'Live Streaming', status: getSimulatedStatus() },
+      { name: 'Live Streaming (Mux)', status: getSimulatedStatus() },
       { name: 'AI Services (Genkit)', status: getSimulatedStatus() },
     ];
     

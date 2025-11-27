@@ -21,6 +21,9 @@ import {
   BrainCircuit,
   Radio,
   Loader2,
+  Cloud,
+  Users,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -35,14 +38,25 @@ type Status = 'checking' | 'operational' | 'degraded' | 'outage';
 export interface ServiceStatus {
   name: string;
   status: Status;
-  icon: React.ElementType;
+}
+
+const serviceIcons: { [key: string]: React.ElementType } = {
+  'API: Payments': DollarSign,
+  'API: User Follows': Users,
+  'API: Image Uploads': Cloud,
+  'Database (Firestore)': Database,
+  'Live Streaming (Mux)': Radio,
+  'AI Services (Genkit)': BrainCircuit,
+  default: Server,
 }
 
 const initialServices: ServiceStatus[] = [
-  { name: 'Platform API', status: 'checking', icon: Server },
-  { name: 'Database (Firestore)', status: 'checking', icon: Database },
-  { name: 'Live Streaming', status: 'checking', icon: Radio },
-  { name: 'AI Services (Genkit)', status: 'checking', icon: BrainCircuit },
+  { name: 'API: Payments', status: 'checking' },
+  { name: 'API: User Follows', status: 'checking' },
+  { name: 'API: Image Uploads', status: 'checking' },
+  { name: 'Database (Firestore)', status: 'checking' },
+  { name: 'Live Streaming (Mux)', status: 'checking' },
+  { name: 'AI Services (Genkit)', status: 'checking' },
 ];
 
 const chartConfig = {
@@ -85,12 +99,9 @@ export default function AdminServerStatusPage() {
         throw new Error('Failed to fetch status');
       }
       const data = await response.json();
-      setServices(prevServices => 
-        prevServices.map(ps => {
-            const newStatus = data.services.find((s: any) => s.name === ps.name);
-            return newStatus ? { ...ps, status: newStatus.status } : ps;
-        })
-      );
+
+      setServices(data.services); // Directly set the services from the API response
+
       setChartData(prevData => {
         const now = new Date();
         const newDataPoint = {
@@ -103,7 +114,8 @@ export default function AdminServerStatusPage() {
       setLastChecked(new Date());
     } catch (error) {
       console.error("Error fetching server status:", error);
-      // Optionally set services to an error state
+      // set all services to outage on error
+      setServices(prev => prev.map(s => ({ ...s, status: 'outage' })));
     } finally {
         setIsLoading(false);
     }
@@ -136,17 +148,20 @@ export default function AdminServerStatusPage() {
         </div>
         
         <div className="grid gap-6 md:grid-cols-2">
-          {services.map(service => (
-            <Card key={service.name}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <service.icon className="h-6 w-6 text-muted-foreground" />
-                  <span className="font-semibold">{service.name}</span>
-                </div>
-                <StatusIndicator status={service.status} />
-              </CardContent>
-            </Card>
-          ))}
+          {services.map(service => {
+            const Icon = serviceIcons[service.name] || serviceIcons.default;
+            return (
+              <Card key={service.name}>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Icon className="h-6 w-6 text-muted-foreground" />
+                    <span className="font-semibold">{service.name}</span>
+                  </div>
+                  <StatusIndicator status={service.status} />
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
         <Card>
