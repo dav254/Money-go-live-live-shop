@@ -3,10 +3,20 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/layout/main-layout';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+} from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { useUser } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { AdminHeader } from '../admin/admin-header';
+import { Logo } from '../logo';
+import { FirebaseErrorListener } from '../FirebaseErrorListener';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -39,7 +49,25 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   // If the user is confirmed to be an admin, render the layout.
   // Otherwise, render null because a redirect is in progress.
   if (user && userProfile && userProfile.userRole === 'admin') {
-    return <MainLayout sidebar={<AdminSidebar />}>{children}</MainLayout>;
+    return (
+        <SidebarProvider>
+            <Sidebar side="left" collapsible="icon">
+                <SidebarHeader>
+                    <Logo className="h-8 w-auto text-primary" />
+                </SidebarHeader>
+                <SidebarContent>
+                    <AdminSidebar />
+                </SidebarContent>
+            </Sidebar>
+            <SidebarInset>
+                <AdminHeader />
+                <main>
+                  <FirebaseErrorListener />
+                  {children}
+                </main>
+            </SidebarInset>
+        </SidebarProvider>
+    );
   }
 
   return (

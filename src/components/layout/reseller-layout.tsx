@@ -3,10 +3,19 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MainLayout } from '@/components/layout/main-layout';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarProvider,
+  SidebarInset,
+} from '@/components/ui/sidebar';
 import { ResellerSidebar } from '@/components/reseller/reseller-sidebar';
 import { useUser } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { FirebaseErrorListener } from '../FirebaseErrorListener';
+import { Logo } from '../logo';
+import { ResellerHeader } from '../reseller/reseller-header';
 
 export function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -40,5 +49,23 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  return <MainLayout sidebar={<ResellerSidebar />}>{children}</MainLayout>;
+  return (
+    <SidebarProvider>
+      <Sidebar side="left" collapsible="icon">
+        <SidebarHeader>
+          <Logo className="h-8 w-auto text-primary" />
+        </SidebarHeader>
+        <SidebarContent>
+          <ResellerSidebar />
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <ResellerHeader />
+        <main>
+          <FirebaseErrorListener />
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }
