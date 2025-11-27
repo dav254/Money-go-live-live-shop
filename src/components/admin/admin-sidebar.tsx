@@ -105,6 +105,7 @@ export function AdminSidebar() {
                 { href: 'buyers', label: 'Buyers' },
                 { href: 'sellers', label: 'Sellers' },
                 { href: 'resellers', label: 'Resellers' },
+                { href: 'referrals', label: 'Referrals' },
                 { href: 'suspended', label: 'Suspended' },
                 { href: 'verification', label: 'Verification' },
             ]}
