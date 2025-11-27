@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,88 +22,38 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, updateDoc } from 'firebase/firestore';
-import type { UserProfile } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 
-const RoleSelector = ({ user, currentRole }: { user: UserProfile, currentRole: string }) => {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [isUpdating, setIsUpdating] = React.useState(false);
-    
-    const handleRoleChange = async (newRole: string) => {
-        if (!firestore || newRole === currentRole) return;
+type UserRole = 'admin' | 'seller' | 'reseller' | 'buyer';
 
-        setIsUpdating(true);
-        const userRef = doc(firestore, 'userProfiles', user.id);
-        try {
-            await updateDoc(userRef, { userRole: newRole });
-            toast({ title: 'Success!', description: `${user.fullName}'s role has been updated to ${newRole}.`});
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not update user role.' });
-            console.error(error);
-        } finally {
-            setIsUpdating(false);
-        }
-    };
-
-    return (
-        <Select onValueChange={handleRoleChange} defaultValue={currentRole} disabled={isUpdating}>
-            <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="seller">Seller</SelectItem>
-                <SelectItem value="reseller">Reseller</SelectItem>
-                <SelectItem value="buyer">Buyer</SelectItem>
-            </SelectContent>
-        </Select>
-    );
+type MockUser = {
+    id: string;
+    fullName: string;
+    username: string;
+    email: string;
+    profilePictureUrl?: string;
+    joinDate: string;
+    userRole: UserRole;
 };
 
+// --- Mock Data ---
+const mockUsers: MockUser[] = [
+    { id: '1', fullName: 'Admin User', username: 'admin', email: 'admin@goearn.com', userRole: 'admin', joinDate: '2024-01-01', profilePictureUrl: 'https://picsum.photos/seed/user1/40' },
+    { id: '2', fullName: 'Aisha Seller', username: 'aishas_shop', email: 'aisha@example.com', userRole: 'seller', joinDate: '2024-02-15', profilePictureUrl: 'https://picsum.photos/seed/user2/40' },
+    { id: '3', fullName: 'Ben Reseller', username: 'ben_sells', email: 'ben@example.com', userRole: 'reseller', joinDate: '2024-03-10', profilePictureUrl: 'https://picsum.photos/seed/user3/40' },
+    { id: '4', fullName: 'Charlie Buyer', username: 'charlie_b', email: 'charlie@example.com', userRole: 'buyer', joinDate: '2024-05-20', profilePictureUrl: 'https://picsum.photos/seed/user4/40' },
+];
+// --- End Mock Data ---
 
-const DataTableSkeleton = () => (
-    <div className="rounded-md border">
-        <Table>
-        <TableHeader>
-            <TableRow>
-            {['User', 'Email', 'Role', 'Joined'].map((h) => <TableHead key={h}><Skeleton className="h-5 w-full" /></TableHead>)}
-            </TableRow>
-        </TableHeader>
-        <TableBody>
-            {[...Array(5)].map((_, i) => (
-            <TableRow key={i}>
-                {[...Array(4)].map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
-            </TableRow>
-            ))}
-        </TableBody>
-        </Table>
-    </div>
-);
 
 export default function AdminRolesPage() {
-    const firestore = useFirestore();
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-    const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
-    const { data: users, isLoading } = useCollection<UserProfile>(usersQuery);
-
-    const columns: ColumnDef<UserProfile>[] = React.useMemo(() => [
+    const columns: ColumnDef<MockUser>[] = React.useMemo(() => [
         {
             accessorKey: 'fullName',
             header: 'User',
@@ -126,17 +77,17 @@ export default function AdminRolesPage() {
         {
             accessorKey: 'userRole',
             header: 'Role',
-            cell: ({ row }) => <RoleSelector user={row.original} currentRole={row.original.userRole} />
+            cell: ({ row }) => <Badge variant="outline" className="capitalize">{row.original.userRole}</Badge>
         },
         {
             accessorKey: 'joinDate',
             header: 'Joined Date',
-            cell: ({ row }) => row.original.joinDate ? new Date(row.original.joinDate).toLocaleDateString() : 'N/A'
+            cell: ({ row }) => new Date(row.original.joinDate).toLocaleDateString()
         },
     ], []);
 
     const table = useReactTable({
-        data: users || [],
+        data: mockUsers,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -160,40 +111,38 @@ export default function AdminRolesPage() {
               className="max-w-sm"
             />
         </div>
-        {isLoading ? <DataTableSkeleton /> : (
-            <div className="rounded-md border">
-                <Table>
-                <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                        ))}
-                    </TableRow>
+        <div className="rounded-md border">
+            <Table>
+            <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
                     ))}
-                </TableHeader>
-                <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                        ))}
-                        </TableRow>
-                    ))
-                    ) : (
-                    <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
-                        No users found.
-                        </TableCell>
+                </TableRow>
+                ))}
+            </TableHeader>
+            <TableBody>
+                {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    ))}
                     </TableRow>
-                    )}
-                </TableBody>
-                </Table>
-            </div>
-        )}
+                ))
+                ) : (
+                <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No users found.
+                    </TableCell>
+                </TableRow>
+                )}
+            </TableBody>
+            </Table>
+        </div>
       </div>
     </AdminLayout>
   );
