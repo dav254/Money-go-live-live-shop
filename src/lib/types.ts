@@ -245,3 +245,21 @@ export interface Category {
   name: string;
   image: ImagePlaceholder;
 }
+
+export interface ResellerApplication {
+  id: string;
+  resellerId: string;
+  sellerId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  applicationDate: Timestamp;
+}
+
+export interface SupportTicket {
+    id: string;
+    userId: string;
+    issueType: string;
+    description: string;
+    contactNumber?: string;
+    status: 'pending' | 'open' | 'closed';
+    createdAt: Timestamp;
+}

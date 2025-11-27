@@ -83,7 +83,7 @@ export default function SignupPage() {
       if (resellerRefId) {
           userProfile.referredBy = resellerRefId;
           // Optional: remove the item after use to prevent re-attribution on future signups
-          localStorage.removeItem('resellerRefId');
+          // localStorage.removeItem('resellerRefId');
       }
 
 
@@ -225,5 +225,3 @@ export default function SignupPage() {
     </AuthLayout>
   );
 }
-
-    
