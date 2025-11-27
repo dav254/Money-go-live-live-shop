@@ -28,6 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
@@ -77,10 +78,52 @@ const DataTableSkeleton = () => (
   </div>
 );
 
+const TicketDetailsDialog = ({ ticket }: { ticket: SupportTicket | null }) => {
+    if (!ticket) return null;
+    return (
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Ticket Details: #{ticket.id.substring(0, 6)}</DialogTitle>
+                <DialogDescription>
+                    Review the details of the support ticket below.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                 <div className="space-y-1">
+                    <h4 className="font-semibold">User</h4>
+                    <UserCell userId={ticket.userId} />
+                 </div>
+                 <div className="space-y-1">
+                    <h4 className="font-semibold">Issue Type</h4>
+                    <p className="text-sm text-muted-foreground">{ticket.issueType}</p>
+                 </div>
+                 {ticket.contactNumber && (
+                     <div className="space-y-1">
+                        <h4 className="font-semibold">Contact Number</h4>
+                        <p className="text-sm text-muted-foreground">{ticket.contactNumber}</p>
+                     </div>
+                 )}
+                 <div className="space-y-1">
+                    <h4 className="font-semibold">Full Description</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{ticket.description}</p>
+                 </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button>Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    )
+}
+
 export default function AdminSupportTicketsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'createdAt', desc: true }]);
+  const [selectedTicket, setSelectedTicket] = React.useState<SupportTicket | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+
 
   const ticketsQuery = useMemoFirebase(() => {
     return query(collection(firestore, 'supportTickets'), orderBy('createdAt', 'desc'));
@@ -147,7 +190,12 @@ export default function AdminSupportTicketsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>View Details</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => {
+                  setSelectedTicket(ticket);
+                  setIsDialogOpen(true);
+              }}>
+                View Details
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               {ticket.status !== 'open' && <DropdownMenuItem onClick={() => handleStatusUpdate(ticket.id, 'open')}>Mark as Open</DropdownMenuItem>}
               {ticket.status !== 'closed' && <DropdownMenuItem onClick={() => handleStatusUpdate(ticket.id, 'closed')}>Mark as Closed</DropdownMenuItem>}
@@ -173,40 +221,43 @@ export default function AdminSupportTicketsPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Support Tickets Queue
         </h1>
-        {isLoading ? <DataTableSkeleton /> : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                      ))}
+         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            {isLoading ? <DataTableSkeleton /> : (
+            <div className="rounded-md border">
+                <Table>
+                <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                        ))}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No support tickets found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                    ))}
+                </TableHeader>
+                <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                        ))}
+                        </TableRow>
+                    ))
+                    ) : (
+                    <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                        No support tickets found.
+                        </TableCell>
+                    </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </div>
+            )}
+             <TicketDetailsDialog ticket={selectedTicket} />
+        </Dialog>
       </div>
     </AdminLayout>
   );
