@@ -209,6 +209,7 @@ export function AdminSidebar() {
           basePath="ai"
           items={[
             { href: 'about', label: 'About Go-AI' },
+            { href: 'chat', label: 'AI Chat' },
             { href: 'recommendations', label: 'Recommendation Engine' },
             { href: 'fraud-detection', label: 'Fraud Detection' },
             { href: 'content-moderation', label: 'Content Moderation' },
