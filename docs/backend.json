@@ -724,7 +724,26 @@
           "applicationDate": { "type": "string", "format": "date-time", "description": "Timestamp of when the application was submitted." }
         },
         "required": ["id", "resellerId", "sellerId", "status", "applicationDate"]
-      }
+    },
+    "SupportTicket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SupportTicket",
+      "type": "object",
+      "description": "Represents a support ticket submitted by a user.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string", "description": "The ID of the user who submitted the ticket." },
+        "issueType": { "type": "string", "description": "The category of the issue." },
+        "description": { "type": "string", "description": "The user's detailed description of the issue." },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "open", "closed"],
+          "description": "The current status of the ticket."
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the ticket was created." }
+      },
+      "required": ["id", "userId", "issueType", "description", "status", "createdAt"]
+    }
   },
   "auth": {
     "providers": [
@@ -1003,6 +1022,15 @@
           "schema": { "$ref": "#/backend/entities/HelpArticle" },
           "description": "Stores articles for the help center.",
           "params": [{ "name": "articleId", "description": "The unique ID for a help article." }]
+        }
+      },
+      {
+        "path": "/supportTickets/{ticketId}",
+        "definition": {
+          "entityName": "SupportTicket",
+          "schema": { "$ref": "#/backend/entities/SupportTicket" },
+          "description": "Stores support tickets submitted by users.",
+          "params": [{ "name": "ticketId", "description": "The unique ID for a support ticket." }]
         }
       }
     ],
