@@ -130,6 +130,13 @@ service cloud.firestore {
         allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
+    // Complaints can be created by any authenticated user.
+    // Admins can read, update, and delete them.
+    match /complaints/{complaintId} {
+      allow create: if request.auth != null && request.resource.data.complainantId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
     // Live Sessions
     match /liveSessions/{sessionId} {
         // Anyone can view a single live session document
@@ -180,3 +187,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

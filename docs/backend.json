@@ -760,6 +760,28 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the ticket was created." }
       },
       "required": ["id", "userId", "issueType", "description", "status", "createdAt"]
+    },
+    "Complaint": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Complaint",
+      "type": "object",
+      "description": "Represents a formal complaint submitted by a user against another user or a product.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the complaint." },
+        "complainantId": { "type": "string", "description": "The ID of the user making the complaint." },
+        "targetId": { "type": "string", "description": "The ID of the user or product being complained about." },
+        "targetType": { "type": "string", "enum": ["user", "product"], "description": "The type of entity being complained about." },
+        "orderId": { "type": "string", "description": "Optional: The ID of the order related to this complaint." },
+        "reason": { "type": "string", "description": "A short, categorized reason for the complaint (e.g., 'Spam', 'Harassment', 'Counterfeit')." },
+        "description": { "type": "string", "description": "The detailed description of the complaint provided by the user." },
+        "status": {
+          "type": "string",
+          "enum": ["open", "investigating", "resolved", "dismissed"],
+          "description": "The current status of the complaint."
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the complaint was submitted." }
+      },
+      "required": ["id", "complainantId", "targetId", "targetType", "reason", "description", "status", "createdAt"]
     }
   },
   "auth": {
@@ -1065,8 +1087,19 @@
           "description": "Stores support tickets submitted by users.",
           "params": [{ "name": "ticketId", "description": "The unique ID for a support ticket." }]
         }
+      },
+      {
+        "path": "/complaints/{complaintId}",
+        "definition": {
+          "entityName": "Complaint",
+          "schema": { "$ref": "#/backend/entities/Complaint" },
+          "description": "Stores formal complaints submitted by users against other users or products.",
+          "params": [{ "name": "complaintId", "description": "The unique ID for a complaint." }]
+        }
       }
     ],
     "reasoning": "The Firestore data structure is designed to support Go Earn's core features, including user profiles, product listings, orders, and payments. It prioritizes authorization independence and efficient data retrieval while maintaining security.  Each user has a dedicated profile document within the `userProfiles` collection. Products are stored in a `products` collection, and each product document includes the `sellerId` for easy association with the seller's profile. Orders are stored in the `orders` collection, and each order document includes `buyerId`, `sellerId`, and `productId` for relationship mapping. Payments are stored in the `payments` collection, linked to the `orderId`. AI-generated descriptions are linked to the products via the `aiProductDescriptions` collection. Categories are managed in a `categories` collection, and seller shops are linked to user profiles via the `sellerShops` collection. Chat messages are now structured in a scalable way, with a top-level `chats` collection containing metadata for each conversation, and a subcollection `messages` within each chat document to hold the actual messages. This allows for efficient querying and secure access control.  This structure achieves Authorization Independence by embedding authorization context directly into the documents, eliminating the need for `get()` calls in security rules. For instance, product documents include the `sellerId`, enabling direct access control based on user ID. It also supports QAPs through structural segregation, ensuring that data with different access needs are stored in separate collections. The use of path-based ownership (`/users/{userId}/...`) for private data ensures secure listing operations. The membership model is implemented implicitly through the relationships between users and their products, orders, and shops, enabling efficient access control based on these relationships."
   }
 }
+
+    
