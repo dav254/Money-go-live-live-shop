@@ -69,7 +69,7 @@ export function ChatSystem() {
         fetchedChats.forEach(chat => {
             chat.participantIds.forEach(id => {
                 if (id !== user.uid) {
-                ids.add(id);
+                  participantIds.add(id);
                 }
             });
         });
@@ -145,4 +145,3 @@ export function ChatSystem() {
     </div>
   );
 }
-
