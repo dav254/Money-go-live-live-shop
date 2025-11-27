@@ -23,11 +23,10 @@ import {
   Landmark,
 } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
-import { Badge } from '@/components/ui/badge';
 
 const StatCard = ({
   title,
@@ -67,10 +66,10 @@ export default function AdminRevenuePage() {
   const firestore = useFirestore();
   const PLATFORM_COMMISSION_RATE = 0.10; // 10%
 
+  // Simplified query to fetch all orders, sorted by date.
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Fetch only completed orders to calculate revenue
-    return query(collection(firestore, 'orders'), where('orderStatus', '==', 'delivered'), orderBy('orderDate', 'desc'));
+    return query(collection(firestore, 'orders'), orderBy('orderDate', 'desc'));
   }, [firestore]);
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
@@ -79,13 +78,19 @@ export default function AdminRevenuePage() {
     if (!orders) {
       return { grossValue: 0, platformCommission: 0, netToSellers: 0 };
     }
-    const grossValue = orders.reduce((acc, o) => acc + o.totalAmount, 0);
+    // Filter for completed orders on the client side
+    const completedOrders = orders.filter(o => o.orderStatus === 'delivered');
+    const grossValue = completedOrders.reduce((acc, o) => acc + o.totalAmount, 0);
     const platformCommission = grossValue * PLATFORM_COMMISSION_RATE;
     const netToSellers = grossValue - platformCommission;
     return { grossValue, platformCommission, netToSellers };
   }, [orders]);
 
-  const recentTransactions = React.useMemo(() => orders?.slice(0, 10) || [], [orders]);
+  const recentTransactions = React.useMemo(() => {
+     if (!orders) return [];
+     // Also filter for completed orders here for the recent transactions list
+    return orders.filter(o => o.orderStatus === 'delivered').slice(0, 10);
+  }, [orders]);
 
   return (
     <AdminLayout>
