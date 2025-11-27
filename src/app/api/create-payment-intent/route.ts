@@ -15,32 +15,51 @@ function getPayPalClient() {
     return new paypal.core.PayPalHttpClient(environment);
 }
 
+// Health check function for this API endpoint
+export async function healthCheck() {
+    // In a real scenario, you might check connectivity to PayPal/Paystack here.
+    // For now, we confirm the environment variables are present.
+    const paystackReady = !!process.env.PAYSTACK_SECRET_KEY;
+    const paypalReady = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
+    
+    if (paystackReady && paypalReady) {
+        return { status: 'operational' };
+    } else {
+        return { status: 'degraded', message: 'Payment gateway configuration is missing.' };
+    }
+}
+
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+        
+        // Handle health check requests
+        if (body.action === 'health_check') {
+            const health = await healthCheck();
+            return NextResponse.json(health);
+        }
+
         const { orderId, amount, email, gateway, transactionType = 'product-purchase', metadata } = body;
 
         if (!amount || !email || !gateway) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
         
-        // Use the provided orderId or generate a unique reference for other transaction types
         const reference = orderId || `${transactionType}-${randomBytes(8).toString('hex')}`;
 
         let checkoutUrl;
         
-        // Add transaction type to metadata for all transactions
         const finalMetadata = {
             ...metadata,
             transactionType: transactionType,
-            orderId: orderId, // Keep original orderId if present
+            orderId: orderId,
         };
 
         if (gateway === 'paystack') {
             const response = await paystack.transaction.initialize({
                 email: email,
-                amount: amount * 100, // Paystack expects amount in the smallest currency unit
+                amount: amount * 100,
                 currency: 'USD',
                 reference: reference,
                 metadata: finalMetadata,
@@ -58,12 +77,12 @@ export async function POST(request: Request) {
             paypalRequest.requestBody({
                 intent: 'CAPTURE',
                 purchase_units: [{
-                    invoice_id: reference, // Using invoice_id for our unique reference
+                    invoice_id: reference,
                     amount: {
                         currency_code: 'USD',
                         value: amount.toString(),
                     },
-                     custom_id: JSON.stringify(finalMetadata), // Store metadata here
+                     custom_id: JSON.stringify(finalMetadata),
                 }],
                 application_context: {
                     return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?ref=${reference}`,

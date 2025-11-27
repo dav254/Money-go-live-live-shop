@@ -1,5 +1,11 @@
 
 import { NextResponse } from 'next/server';
+import { healthCheck as paymentsHealthCheck } from '../create-payment-intent/route';
+import { healthCheck as followHealthCheck } from '../follow/route';
+import { healthCheck as uploadHealthCheck } from '../upload/route';
+import { db } from '@/firebase/server';
+import { collection, getDocs, limit } from 'firebase/firestore';
+
 
 type Status = 'operational' | 'degraded' | 'outage';
 
@@ -8,31 +14,76 @@ interface ServiceStatus {
   status: Status;
 }
 
-// This is where the simulation logic lives.
-// A backend engineer would replace this with real health checks.
-function getSimulatedStatus(): Status {
-    const random = Math.random();
-    if (random < 0.9) return 'operational';
-    if (random < 0.97) return 'degraded';
-    return 'outage';
+// --- Real Health Checks ---
+
+// Checks connectivity to Firestore by performing a simple, inexpensive read.
+async function checkFirestoreHealth(): Promise<Status> {
+    try {
+        const healthCheckRef = collection(db, 'userProfiles');
+        await getDocs(query(healthCheckRef, limit(1)));
+        return 'operational';
+    } catch (error) {
+        console.error("Firestore health check failed:", error);
+        return 'outage';
+    }
 }
 
+// A simple check for external services we can't truly ping.
+// This confirms our environment variables are set up.
+async function checkExternalService(name: string, envVars: string[]): Promise<Status> {
+    const isConfigured = envVars.every(v => !!process.env[v]);
+    if (isConfigured) {
+        return 'operational';
+    }
+    console.warn(`${name} is not configured. Missing environment variables.`);
+    return 'degraded';
+}
+
+// Simulates checking the AI services
+async function checkAiServices(): Promise<Status> {
+    return checkExternalService('Genkit (AI)', ['GEMINI_API_KEY']);
+}
+
+// Simulates checking the Live Streaming service
+async function checkLiveStreaming(): Promise<Status> {
+    // In a real scenario, you'd check for Mux keys or other live streaming provider keys
+    return 'operational'; // Assuming it's always ready for now
+}
+
+// Simulates an API response time check
 function getSimulatedApiResponseTime(): number {
     const baseResponse = 50 + Math.random() * 100; // 50-150ms
     const spike = Math.random() > 0.95 ? Math.random() * 200 : 0; // 5% chance of a spike
     return Math.floor(baseResponse + spike);
 }
 
+
 export async function GET(request: Request) {
   try {
-    // Now we simulate status for each major API endpoint
+    // Perform all health checks in parallel for speed
+    const [
+        payments,
+        follow,
+        upload,
+        firestore,
+        live,
+        ai
+    ] = await Promise.all([
+        paymentsHealthCheck(),
+        followHealthCheck(),
+        uploadHealthCheck(),
+        checkFirestoreHealth(),
+        checkLiveStreaming(),
+        checkAiServices()
+    ]);
+
     const services: ServiceStatus[] = [
-      { name: 'API: Payments', status: getSimulatedStatus() },
-      { name: 'API: User Follows', status: getSimulatedStatus() },
-      { name: 'API: Image Uploads', status: getSimulatedStatus() },
-      { name: 'Database (Firestore)', status: getSimulatedStatus() },
-      { name: 'Live Streaming (Mux)', status: getSimulatedStatus() },
-      { name: 'AI Services (Genkit)', status: getSimulatedStatus() },
+      { name: 'API: Payments', status: payments.status },
+      { name: 'API: User Follows', status: follow.status },
+      { name: 'API: Image Uploads', status: upload.status },
+      { name: 'Database (Firestore)', status: firestore },
+      { name: 'Live Streaming (Mux)', status: live },
+      { name: 'AI Services (Genkit)', status: ai },
     ];
     
     const apiResponseTime = getSimulatedApiResponseTime();
@@ -40,6 +91,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ services, apiResponseTime });
     
   } catch (error) {
+    console.error("System Status API Error:", error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

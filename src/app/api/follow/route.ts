@@ -4,12 +4,33 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
 
-// Initialize Firebase Admin SDK
-initializeAdminApp();
+// Health check function for this API endpoint
+export async function healthCheck() {
+    try {
+        // A simple check to see if the Admin SDK can be initialized
+        initializeAdminApp();
+        return { status: 'operational' };
+    } catch (e) {
+        console.error("Follow API Health Check Failed:", e);
+        return { status: 'outage', message: 'Firebase Admin SDK initialization failed.' };
+    }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    initializeAdminApp();
+
+    const body = await request.json();
+
+    // Handle health check requests
+    if (body.action === 'health_check') {
+        const health = await healthCheck();
+        return NextResponse.json(health);
+    }
+
+    const { sellerId, action } = body;
     const authHeader = request.headers.get('Authorization');
+    
     if (!authHeader) {
       return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
     }
@@ -17,8 +38,6 @@ export async function POST(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
     const buyerId = decodedToken.uid;
-
-    const { sellerId, action } = await request.json();
 
     if (!sellerId || !action || (action !== 'follow' && action !== 'unfollow')) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
@@ -36,7 +55,6 @@ export async function POST(request: NextRequest) {
     if (!sellerShopDoc.exists) {
         return NextResponse.json({ error: 'Seller shop not found' }, { status: 404 });
     }
-
 
     const batch = db.batch();
 
@@ -68,4 +86,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
