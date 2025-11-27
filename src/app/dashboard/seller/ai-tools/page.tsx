@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -10,9 +9,10 @@ import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, Rad
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useUser } from '@/firebase';
+import { useUser, useUserProfile } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const tools = [
   {
@@ -167,6 +167,9 @@ const BuyPointsDialog = () => {
 
 
 export default function SellerAIToolsPage() {
+  const { user } = useUser();
+  const { userProfile, isLoading } = useUserProfile(user?.uid);
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -187,7 +190,11 @@ export default function SellerAIToolsPage() {
                     </div>
                     <div>
                         <p className="text-xs text-muted-foreground">Your Balance</p>
-                        <p className="text-xl font-bold">1,000 Points</p>
+                        {isLoading ? (
+                            <Skeleton className="h-6 w-24" />
+                        ) : (
+                            <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
+                        )}
                     </div>
                      <DialogTrigger asChild>
                         <Button size="sm" variant="outline">Buy Points</Button>
