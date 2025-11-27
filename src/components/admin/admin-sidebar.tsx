@@ -155,6 +155,7 @@ export function AdminSidebar() {
           items={[
             { href: 'analytics', label: 'Sales Analytics' },
             { href: 'revenue', label: 'Platform Revenue' },
+            { href: 'payments', label: 'Payments' },
             { href: 'commissions', label: 'Commissions' },
             { href: 'seller-payouts', label: 'Seller Payouts' },
             { href: 'reseller-payouts', label: 'Reseller Payouts' },
