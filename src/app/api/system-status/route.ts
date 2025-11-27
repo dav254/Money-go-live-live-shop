@@ -4,7 +4,7 @@ import { healthCheck as paymentsHealthCheck } from '../create-payment-intent/rou
 import { healthCheck as followHealthCheck } from '../follow/route';
 import { healthCheck as uploadHealthCheck } from '../upload/route';
 import { db } from '@/firebase/server';
-import { collection, getDocs, limit } from 'firebase/firestore';
+import { collection, getDocs, limit, query } from 'firebase/firestore';
 
 
 type Status = 'operational' | 'degraded' | 'outage';
@@ -78,9 +78,9 @@ export async function GET(request: Request) {
     ]);
 
     const services: ServiceStatus[] = [
-      { name: 'API: Payments', status: payments.status },
-      { name: 'API: User Follows', status: follow.status },
-      { name: 'API: Image Uploads', status: upload.status },
+      { name: 'API: Payments', status: payments.status as Status },
+      { name: 'API: User Follows', status: follow.status as Status },
+      { name: 'API: Image Uploads', status: upload.status as Status },
       { name: 'Database (Firestore)', status: firestore },
       { name: 'Live Streaming (Mux)', status: live },
       { name: 'AI Services (Genkit)', status: ai },
