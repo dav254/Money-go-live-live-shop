@@ -1,63 +1,113 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Chat, ChatMessage, UserProfile } from '@/lib/types';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, query, where, getDocs, orderBy, limit, startAfter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
 import { useSearchParams } from 'next/navigation';
+import { useUserProfile } from '@/firebase/auth/use-user-profile';
+
+const CHAT_PAGE_SIZE = 25;
 
 export function ChatSystem() {
   const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const searchParams = useSearchParams();
+
+  const [allChats, setAllChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [participants, setParticipants] = useState<UserProfile[]>([]);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const chatsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
-  }, [firestore, user]);
+  const isAdmin = userProfile?.userRole === 'admin';
 
-  const { data: chats, isLoading: isLoadingChats } = useCollection<Chat>(chatsQuery);
+  const fetchChats = useCallback(async (loadMore = false) => {
+    if (!firestore || !user) return;
 
-  const participantIds = useMemo(() => {
-    if (!chats || !user) return [];
-    const ids = new Set<string>();
-    chats.forEach(chat => {
-      // Don't fetch profiles for chats the user has deleted
-      if (chat.deletedFor?.includes(user.uid)) {
-          return;
-      }
-      chat.participantIds.forEach(id => {
-        if (id !== user.uid) {
-          ids.add(id);
+    setIsLoading(true);
+
+    let chatsQuery;
+    if (isAdmin) {
+      chatsQuery = query(
+        collection(firestore, 'chats'),
+        orderBy('lastMessageTimestamp', 'desc'),
+        limit(CHAT_PAGE_SIZE)
+      );
+    } else {
+      chatsQuery = query(
+        collection(firestore, 'chats'),
+        where('participantIds', 'array-contains', user.uid),
+        orderBy('lastMessageTimestamp', 'desc'),
+        limit(CHAT_PAGE_SIZE)
+      );
+    }
+
+    if (loadMore && lastVisible) {
+      chatsQuery = query(chatsQuery, startAfter(lastVisible));
+    }
+    
+    try {
+        const querySnapshot = await getDocs(chatsQuery);
+        const fetchedChats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
+        
+        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        setHasMore(fetchedChats.length === CHAT_PAGE_SIZE);
+
+        if (loadMore) {
+            setAllChats(prev => [...prev, ...fetchedChats]);
+        } else {
+            setAllChats(fetchedChats);
         }
-      });
-    });
-    return Array.from(ids);
-  }, [chats, user]);
 
-  const usersQuery = useMemoFirebase(() => {
-    if (participantIds.length === 0) return null;
-    return query(collection(firestore, 'userProfiles'), where('id', 'in', participantIds));
-  }, [firestore, participantIds]);
+        const participantIds = new Set<string>();
+        fetchedChats.forEach(chat => {
+            chat.participantIds.forEach(id => {
+                if (id !== user.uid) {
+                ids.add(id);
+                }
+            });
+        });
+        
+        if (participantIds.size > 0) {
+            const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', Array.from(participantIds)));
+            const usersSnapshot = await getDocs(usersQuery);
+            const fetchedParticipants = usersSnapshot.docs.map(doc => doc.data() as UserProfile);
+            setParticipants(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const newParticipants = fetchedParticipants.filter(p => !existingIds.has(p.id));
+                return [...prev, ...newParticipants];
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching chats:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [firestore, user, lastVisible, isAdmin]);
 
-  const { data: participants, isLoading: isLoadingParticipants } = useCollection<UserProfile>(usersQuery);
+  useEffect(() => {
+    fetchChats();
+  }, [user, firestore, isAdmin]); // Initial fetch
+
 
   const chatsWithParticipants = useMemo(() => {
-    if (!chats || !participants || !user) return [];
+    if (!allChats || !participants || !user) return [];
     
-    return chats
-      .filter(chat => !chat.deletedFor?.includes(user.uid)) // Filter out deleted chats
+    return allChats
+      .filter(chat => isAdmin || !chat.deletedFor?.includes(user.uid)) // Filter out deleted chats for non-admins
       .map(chat => {
         const otherParticipantId = chat.participantIds.find(id => id !== user.uid);
         const otherParticipant = participants.find(p => p.id === otherParticipantId);
         return { ...chat, otherParticipant };
       });
 
-  }, [chats, participants, user]);
+  }, [allChats, participants, user, isAdmin]);
   
   useEffect(() => {
     const chatWithId = searchParams.get('chatWith');
@@ -72,9 +122,10 @@ export function ChatSystem() {
 
   const handleChatDeleted = () => {
       setSelectedChat(null);
-      // The useCollection hook will automatically refetch and update the list
+      // Refetch the initial list after a deletion
+      setLastVisible(null);
+      fetchChats();
   }
-
 
   return (
     <div className="flex h-[calc(100vh-4rem)] border-t">
@@ -82,7 +133,9 @@ export function ChatSystem() {
         chats={chatsWithParticipants}
         selectedChat={selectedChat}
         onSelectChat={setSelectedChat}
-        isLoading={isLoadingChats || isLoadingParticipants}
+        isLoading={isLoading}
+        loadMore={() => fetchChats(true)}
+        hasMore={hasMore}
       />
       <ChatWindow
         chat={selectedChat}
@@ -92,3 +145,4 @@ export function ChatSystem() {
     </div>
   );
 }
+

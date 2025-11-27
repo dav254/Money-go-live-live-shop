@@ -6,17 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import type { Chat } from '@/lib/types';
+import { Button } from '../ui/button';
 
 interface ConversationListProps {
   chats: Chat[];
   selectedChat: Chat | null;
   onSelectChat: (chat: Chat) => void;
   isLoading: boolean;
+  loadMore: () => void;
+  hasMore: boolean;
 }
 
-export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
+export function ConversationList({ chats, selectedChat, onSelectChat, isLoading, loadMore, hasMore }: ConversationListProps) {
   return (
     <div className="hidden h-full w-full max-w-xs flex-col border-r bg-muted/20 md:flex">
       <div className="flex items-center gap-2 border-b p-3">
@@ -31,7 +34,7 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col">
-          {isLoading ? (
+          {isLoading && chats.length === 0 ? (
             <div className="p-3 text-sm text-muted-foreground">Loading conversations...</div>
           ) : (
             chats.map((chat) => {
@@ -68,6 +71,13 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
             })
           )}
         </div>
+         {hasMore && (
+            <div className="p-3">
+                <Button variant="outline" className="w-full" onClick={loadMore} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Load More'}
+                </Button>
+            </div>
+        )}
       </ScrollArea>
     </div>
   );
