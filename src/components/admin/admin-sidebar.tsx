@@ -208,6 +208,7 @@ export function AdminSidebar() {
           icon={BrainCircuit}
           basePath="ai"
           items={[
+            { href: 'about', label: 'About Go-AI' },
             { href: 'recommendations', label: 'Recommendation Engine' },
             { href: 'fraud-detection', label: 'Fraud Detection' },
             { href: 'content-moderation', label: 'Content Moderation' },
