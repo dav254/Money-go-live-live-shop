@@ -1,8 +1,10 @@
 
+'use client';
+
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, Link as LinkIcon, Sparkles, Film, ExternalLink } from 'lucide-react';
+import { Bot, Sparkles, Film, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 const tools = [
@@ -10,28 +12,21 @@ const tools = [
     title: "AI Poster & Video Maker",
     description: "Create stunning promotional posters and videos for your products in seconds.",
     icon: Bot,
-    href: "#",
+    href: "/dashboard/seller/ai-tools/image-to-video",
     cta: "Launch Maker",
   },
   {
     title: "AI Caption Generator",
     description: "Generate viral captions for TikTok, Instagram, and Facebook to boost engagement.",
     icon: Sparkles,
-    href: "#",
+    href: "/dashboard/reseller/ai-tools/caption-generator",
     cta: "Generate Caption",
-  },
-  {
-    title: "Link Shortener & Tracker",
-    description: "Create short, trackable links to monitor your clicks and conversions.",
-    icon: LinkIcon,
-    href: "#",
-    cta: "Create Link",
   },
     {
     title: "AI Video Enhancer",
     description: "Add music, text, and effects to make your product videos pop.",
     icon: Film,
-    href: "#",
+    href: "/dashboard/seller/ai-tools/text-to-video",
     cta: "Enhance Video",
   },
 ];
@@ -44,7 +39,7 @@ export default function ResellerToolkitPage() {
             <h1 className="font-headline text-3xl font-bold tracking-tight">
                 Reseller Toolkit
             </h1>
-            <p className="text-muted-foreground">Your AI-powered tools for maximizing sales.</p>
+            <p className="text-muted-foreground">Your AI-powered tools for maximizing sales. Currently free for all resellers.</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -58,7 +53,7 @@ export default function ResellerToolkitPage() {
                         <CardDescription>{tool.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-grow flex items-end">
-                         <Button className="w-full">
+                         <Button className="w-full" asChild>
                             <Link href={tool.href} className="flex items-center">
                                 {tool.cta}
                                 <ExternalLink className="ml-2 h-4 w-4" />
