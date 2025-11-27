@@ -196,7 +196,6 @@ export function AdminSidebar() {
           items={[
             { href: 'roles', label: 'Roles & Permissions' },
             { href: 'security', label: 'Security & 2FA' },
-            { href: 'gateways', label: 'Payment Gateways' },
             { href: 'backup', label: 'Backup & Restore' },
             { href: 'api-keys', label: 'API Keys' },
             { href: 'theme', label: 'Themes' },
