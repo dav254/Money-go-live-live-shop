@@ -1,0 +1,59 @@
+
+[
+  {
+    "id": "reseller-getting-started-1",
+    "category": "Getting Started as a Reseller",
+    "audience": ["reseller"],
+    "question": "How do I pick products to resell?",
+    "answer": "Navigate to the 'Products to Resell' tab in your Reseller Hub. You can filter by trending, high-commission, or new arrivals to find products that suit your audience. Look for products with high commission rates and good sales history.",
+    "createdAt": "2024-08-01T10:00:00Z"
+  },
+  {
+    "id": "reseller-getting-started-2",
+    "category": "Getting Started as a Reseller",
+    "audience": ["reseller"],
+    "question": "How do my commissions work?",
+    "answer": "You earn a percentage of each sale made through your unique reseller link. Commissions are tracked in your 'Commissions' tab and paid out according to the payout schedule. A commission is marked as 'pending' until the order is successfully delivered to the customer.",
+    "createdAt": "2024-08-01T10:05:00Z"
+  },
+  {
+    "id": "reseller-getting-started-3",
+    "category": "Getting Started as a Reseller",
+    "audience": ["reseller"],
+    "question": "What if my sales are low?",
+    "answer": "Use the 'Reseller Toolkit' to create AI-powered posters and viral captions. Also, check out the 'Go Earn Academy' for free video courses on how to improve your marketing and sales techniques on platforms like WhatsApp and TikTok.",
+    "createdAt": "2024-08-01T10:10:00Z"
+  },
+  {
+    "id": "reseller-promotion-1",
+    "category": "How to Promote Products",
+    "audience": ["reseller"],
+    "question": "How do I share to WhatsApp?",
+    "answer": "On each product in the 'Products to Resell' section, click the 'Share' button. This will copy your unique reseller link to your clipboard. You can then paste this link directly into your WhatsApp status, chats, or groups.",
+    "createdAt": "2024-08-02T11:00:00Z"
+  },
+  {
+    "id": "reseller-promotion-2",
+    "category": "How to Promote Products",
+    "audience": ["reseller"],
+    "question": "What are Go Earn Smart Links?",
+    "answer": "These are special links that automatically include your unique reseller ID (e.g., ...?ref=yourId). They track every click and sale you generate. It's crucial to always use the links provided by the 'Share' button to ensure you get your commission.",
+    "createdAt": "2024-08-02T11:05:00Z"
+  },
+  {
+    "id": "reseller-payouts-1",
+    "category": "Earnings & Payouts",
+    "audience": ["reseller"],
+    "question": "When do I get paid?",
+    "answer": "Payouts are processed weekly for all cleared commissions. A commission is 'cleared' and becomes available in your wallet after the order is successfully delivered and the return period has passed. You can then request a withdrawal.",
+    "createdAt": "2024-08-03T12:00:00Z"
+  },
+  {
+    "id": "reseller-payouts-2",
+    "category": "Earnings & Payouts",
+    "audience": ["reseller"],
+    "question": "How is my commission calculated?",
+    "answer": "The commission is a percentage of the product's price, set by the seller. You can see the exact commission rate on each product card before you decide to share it. The platform does not take a cut from your commission.",
+    "createdAt": "2024-08-03T12:05:00Z"
+  }
+]

@@ -1,7 +1,28 @@
 
-
 {
   "entities": {
+    "HelpArticle": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Help Article",
+      "type": "object",
+      "description": "Represents a single article or Q&A in the help center.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the article." },
+        "category": { "type": "string", "description": "The category the article belongs to (e.g., 'Getting Started', 'Payments')." },
+        "audience": {
+          "type": "array",
+          "description": "Specifies who this article is for.",
+          "items": {
+            "type": "string",
+            "enum": ["buyer", "seller", "reseller"]
+          }
+        },
+        "question": { "type": "string", "description": "The question or title of the article." },
+        "answer": { "type": "string", "description": "The content or answer of the article." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the article was created." }
+      },
+      "required": ["id", "category", "audience", "question", "answer", "createdAt"]
+    },
     "AdminUser": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdminUser",
@@ -973,6 +994,15 @@
               "description": "The unique identifier for the application."
             }
           ]
+        }
+      },
+      {
+        "path": "/helpArticles/{articleId}",
+        "definition": {
+          "entityName": "HelpArticle",
+          "schema": { "$ref": "#/backend/entities/HelpArticle" },
+          "description": "Stores articles for the help center.",
+          "params": [{ "name": "articleId", "description": "The unique ID for a help article." }]
         }
       }
     ],

@@ -1,4 +1,6 @@
 
+'use client';
+
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Accordion,
@@ -11,33 +13,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { FileQuestion, MessageSquare, Search, ShieldAlert, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-
-const helpArticles = [
-    {
-        category: "Getting Started as a Reseller",
-        questions: [
-            { q: "How do I pick products to resell?", a: "Navigate to the 'Products to Resell' tab. You can filter by trending, high-commission, or new arrivals to find products that suit your audience." },
-            { q: "How do my commissions work?", a: "You earn a percentage of each sale made through your unique reseller link. Commissions are tracked in your 'Commissions' tab and paid out according to the payout schedule." },
-            { q: "What if my sales are low?", a: "Use the 'Reseller Toolkit' to create AI-powered posters and captions. Also, check out the 'Go Earn Academy' for tips on how to improve your marketing." },
-        ],
-    },
-    {
-        category: "How to Promote Products",
-        questions: [
-            { q: "How do I share to WhatsApp?", a: "On each product, click the 'Share' button and select the WhatsApp option to send it directly to your contacts or status." },
-            { q: "What are Go Earn Smart Links?", a: "These are special links that track every click and sale you generate. Always use the links from the 'Share' button to ensure you get your commission." },
-        ],
-    },
-    {
-        category: "Earnings & Payouts",
-        questions: [
-            { q: "When do I get paid?", a: "Payouts are processed weekly for all cleared commissions. A commission is 'cleared' after the order is successfully delivered and the return period has passed." },
-            { q: "How is my commission calculated?", a: "The commission is a percentage of the product's price, set by the seller. You can see the exact commission rate on each product card." },
-        ],
-    },
-];
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { HelpArticle } from '@/lib/types';
+import { useMemo } from 'react';
 
 export default function ResellerHelpCenterPage() {
+    const firestore = useFirestore();
+
+    const helpArticlesQuery = useMemoFirebase(() => {
+        return query(collection(firestore, 'helpArticles'), where('audience', 'array-contains', 'reseller'));
+    }, [firestore]);
+
+    const { data: articles, isLoading } = useCollection<HelpArticle>(helpArticlesQuery);
+
+    const articlesByCategory = useMemo(() => {
+        if (!articles) return {};
+        return articles.reduce((acc, article) => {
+            const category = article.category || 'General';
+            if (!acc[category]) {
+                acc[category] = [];
+            }
+            acc[category].push(article);
+            return acc;
+        }, {} as Record<string, HelpArticle[]>);
+    }, [articles]);
+
     return (
         <ResellerLayout>
             <div className="flex-1 space-y-8 p-8 pt-6">
@@ -74,16 +75,17 @@ export default function ResellerHelpCenterPage() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input placeholder="Search questions... (e.g., 'Why is my commission pending?')" className="pl-9" />
                         </div>
+                        {isLoading ? <p>Loading articles...</p> :
                         <Accordion type="single" collapsible className="w-full">
-                            {helpArticles.map(category => (
-                                <AccordionItem key={category.category} value={category.category}>
-                                    <AccordionTrigger className="font-semibold">{category.category}</AccordionTrigger>
+                            {Object.entries(articlesByCategory).map(([category, articles]) => (
+                                <AccordionItem key={category} value={category}>
+                                    <AccordionTrigger className="font-semibold">{category}</AccordionTrigger>
                                     <AccordionContent>
                                         <ul className="space-y-4 pl-4">
-                                        {category.questions.map(qa => (
-                                           <li key={qa.q}>
-                                                <p className="font-bold">{qa.q}</p>
-                                                <p className="text-muted-foreground">{qa.a}</p>
+                                        {articles.map(qa => (
+                                           <li key={qa.id}>
+                                                <p className="font-bold">{qa.question}</p>
+                                                <p className="text-muted-foreground">{qa.answer}</p>
                                            </li>
                                         ))}
                                         </ul>
@@ -91,6 +93,7 @@ export default function ResellerHelpCenterPage() {
                                 </AccordionItem>
                             ))}
                         </Accordion>
+                        }
                     </CardContent>
                 </Card>
                  <Card>

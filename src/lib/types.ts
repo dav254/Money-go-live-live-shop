@@ -1,4 +1,5 @@
 
+
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -9,6 +10,15 @@ export interface ThemeSettings {
   darkMode?: boolean;
   accentColor?: AccentColor;
   buttonStyle?: ButtonStyle;
+}
+
+export interface HelpArticle {
+  id: string;
+  category: string;
+  audience: ('buyer' | 'seller' | 'reseller')[];
+  question: string;
+  answer: string;
+  createdAt: Timestamp;
 }
 
 export interface SellerShop {

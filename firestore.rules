@@ -118,6 +118,12 @@ service cloud.firestore {
         allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     
+    // Help articles are publicly readable
+    match /helpArticles/{articleId} {
+        allow read: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
     // Live Sessions
     match /liveSessions/{sessionId} {
         // Anyone can view a single live session document
