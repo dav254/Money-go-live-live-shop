@@ -16,6 +16,7 @@ import {
   User,
   Video,
   Info,
+  HelpCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -81,6 +82,14 @@ export function BuyerSidebar() {
                 <Link href="/buyer/about">
                   <Info />
                   <span>About Go Earn</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive('/buyer/help')}>
+                <Link href="/buyer/help">
+                  <HelpCircle />
+                  <span>Help Center</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
