@@ -1,27 +1,24 @@
 // This file is designated for server-side Firebase initialization.
-// It is crucial that this file does not contain the ''use client';' directive.
+// It is crucial that this file does not contain the 'use client';' directive.
 
-import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, cert, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import * as path from 'path';
 
-// IMPORTANT: The service-account.json file is gitignored.
-// You must download your own from the Firebase console and place it in the root directory.
+// IMPORTANT: This file reads the service account key from the project root.
 const serviceAccount = require('../../service-account.json');
 
+const appName = `firebase-admin-app:${process.env.VERCEL_DEPLOYMENT_ID || 'local'}`;
 
-const appName = 'firebase-admin-app-server';
-
-let db: FirebaseFirestore.Firestore;
-
-// Correctly initialize the admin app if it doesn't already exist.
-if (getApps().length === 0) {
-    initializeApp({
-        credential: cert(serviceAccount)
-    });
+let app: App;
+if (getApps().some(existingApp => existingApp.name === appName)) {
+  app = getApp(appName);
+} else {
+  app = initializeApp({
+    credential: cert(serviceAccount)
+  }, appName);
 }
 
-// Get the initialized Firestore instance.
-db = getFirestore();
-
+const db = getFirestore(app);
 
 export { db };
