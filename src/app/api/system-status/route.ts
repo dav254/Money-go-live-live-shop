@@ -39,15 +39,15 @@ async function checkExternalService(name: string, envVars: string[]): Promise<St
     return 'degraded';
 }
 
-// Simulates checking the AI services
+// This is now a real check for the AI service configuration.
 async function checkAiServices(): Promise<Status> {
     return checkExternalService('Genkit (AI)', ['GEMINI_API_KEY']);
 }
 
-// Simulates checking the Live Streaming service
+// This is now a real check for the Live Streaming service configuration.
 async function checkLiveStreaming(): Promise<Status> {
     // In a real scenario, you'd check for Mux keys or other live streaming provider keys
-    return 'operational'; // Assuming it's always ready for now
+    return checkExternalService('Live Streaming (Mux)', ['MUX_TOKEN_ID', 'MUX_TOKEN_SECRET']);
 }
 
 // Simulates an API response time check

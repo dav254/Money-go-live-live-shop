@@ -14,14 +14,15 @@ const appName = 'firebase-admin-app-server';
 
 let db: FirebaseFirestore.Firestore;
 
-if (!getApps().some(app => app.name === appName)) {
-  const newApp = initializeApp({
-    credential: cert(serviceAccount),
-  }, appName);
-  db = getFirestore(newApp);
-} else {
-  db = getFirestore(getApp(appName));
+// Correctly initialize the admin app if it doesn't already exist.
+if (getApps().length === 0) {
+    initializeApp({
+        credential: cert(serviceAccount)
+    });
 }
+
+// Get the initialized Firestore instance.
+db = getFirestore();
 
 
 export { db };
