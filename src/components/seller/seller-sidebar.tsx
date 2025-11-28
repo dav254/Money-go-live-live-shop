@@ -25,6 +25,9 @@ import {
   Info,
   Wallet,
   Sparkles,
+  AreaChart,
+  FolderKanban,
+  Megaphone,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -72,6 +75,14 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/analytics')}>
+              <Link href="/dashboard/seller/analytics">
+                <AreaChart />
+                <span>Analytics</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/messages')}>
               <Link href="/dashboard/seller/messages">
@@ -112,9 +123,17 @@ export function SellerSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
-              <Link href="/dashboard/seller/reseller/performance">
+              <Link href="/dashboard/seller/reseller">
                 <Users />
                 <span>Reseller Center</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ads')}>
+              <Link href="/dashboard/seller/ads">
+                <Megaphone />
+                <span>Ads Manager</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -190,5 +209,3 @@ export function SellerSidebar() {
     </>
   );
 }
-
-    
