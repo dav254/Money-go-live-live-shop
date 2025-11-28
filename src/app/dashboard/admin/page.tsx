@@ -110,8 +110,9 @@ const StatCard = ({
 export default function AdminDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const [salesChartData, setSalesChartData] = useState([]);
+  const [salesChartData, setSalesChartData] = useState<{ date: string; revenue: number; orders: number }[]>([]);
   const [todaysRevenue, setTodaysRevenue] = useState(0);
+  const [dailyOrders, setDailyOrders] = useState(0);
   const [isChartLoading, setIsChartLoading] = useState(true);
 
   const buyersQuery = useMemoFirebase(
@@ -152,13 +153,14 @@ export default function AdminDashboardPage() {
         });
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to fetch sales data');
+            throw new Error(errorData.details || 'Failed to fetch sales data');
         }
         const data = await response.json();
         setSalesChartData(data);
         if (data && data.length > 0) {
             const todayData = data[data.length - 1];
             setTodaysRevenue(todayData.revenue);
+            setDailyOrders(todayData.orders);
         }
 
       } catch (error: any) {
@@ -179,9 +181,9 @@ export default function AdminDashboardPage() {
     },
      {
       title: 'Daily Orders',
-      value: '89',
+      value: dailyOrders.toLocaleString(),
       icon: Package,
-      isLoading: false,
+      isLoading: isChartLoading,
     },
     {
       title: 'Pending Payouts',

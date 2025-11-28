@@ -54,6 +54,7 @@ export async function GET(request: Request) {
       .get();
       
     const salesByDay: Record<string, number> = {};
+    const ordersByDay: Record<string, number> = {};
     
     // Initialize the last 7 days with 0 revenue
     for (let i = 0; i < 7; i++) {
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
         date.setDate(sevenDaysAgo.getDate() + i);
         const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
         salesByDay[dateString] = 0;
+        ordersByDay[dateString] = 0;
     }
 
 
@@ -71,6 +73,7 @@ export async function GET(request: Request) {
         const dateString = (order.orderDate as any).toDate().toISOString().split('T')[0];
         if (salesByDay[dateString] !== undefined) {
              salesByDay[dateString] += order.totalAmount;
+             ordersByDay[dateString] += 1;
         }
       }
     });
@@ -78,6 +81,7 @@ export async function GET(request: Request) {
     const chartData = Object.entries(salesByDay).map(([date, revenue]) => ({
       date,
       revenue,
+      orders: ordersByDay[date] || 0,
     })).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return NextResponse.json(chartData);
