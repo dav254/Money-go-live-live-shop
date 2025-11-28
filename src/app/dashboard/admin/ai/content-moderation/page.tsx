@@ -112,12 +112,7 @@ export default function AdminAIContentPage() {
 
   const handleSettingChange = (key: keyof ContentModerationSettings, value: boolean) => {
       setSettings(prev => ({...prev, [key]: value }));
-  };
-
-  const handleSaveChanges = async () => {
-    setIsSaving(true);
-    toast({ title: 'Simulating Save', description: 'In a real app, this would save to the database.' });
-    setTimeout(() => setIsSaving(false), 1000);
+      toast({ title: 'Setting Changed', description: 'This is a UI-only change for now.' });
   };
 
   const handleAction = (itemId: string, newStatus: 'approved' | 'rejected') => {
@@ -132,10 +127,6 @@ export default function AdminAIContentPage() {
             <h1 className="font-headline text-3xl font-bold tracking-tight">
             AI Content Moderation
             </h1>
-             <Button onClick={handleSaveChanges} disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-            </Button>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
