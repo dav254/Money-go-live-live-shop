@@ -22,12 +22,12 @@ import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
   PlusCircle,
-  DotsHorizontalIcon,
   BarChart2,
   MousePointerClick,
   DollarSign,
   TrendingUp,
 } from 'lucide-react';
+import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
   DropdownMenu,
   DropdownMenuContent,
