@@ -5,14 +5,15 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { Order } from '@/lib/types';
 
-// Initialize Firebase Admin SDK
-try {
-  initializeAdminApp();
-} catch (error) {
-  console.error('Failed to initialize Firebase Admin SDK in API route', error);
-}
-
 export async function GET(request: Request) {
+  // Initialize Firebase Admin SDK within the handler
+  try {
+    initializeAdminApp();
+  } catch (error) {
+    console.error('Failed to initialize Firebase Admin SDK in API route', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
+  }
+    
   const authHeader = request.headers.get('Authorization');
   if (!authHeader) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
