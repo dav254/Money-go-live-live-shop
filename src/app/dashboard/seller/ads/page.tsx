@@ -26,6 +26,7 @@ import {
   MousePointerClick,
   DollarSign,
   TrendingUp,
+  Loader2,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -48,7 +49,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
     productId: z.string().min(1, 'Please select a product to advertise.'),
