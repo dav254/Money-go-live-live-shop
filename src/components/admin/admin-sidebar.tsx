@@ -153,8 +153,7 @@ export function AdminSidebar() {
           icon={CircleDollarSign}
           basePath="finance"
           items={[
-            { href: 'analytics', label: 'Sales Analytics' },
-            { href: 'revenue', label: 'Platform Revenue' },
+            { href: 'analytics', label: 'Financial Analytics' },
             { href: 'payments', label: 'Payments' },
             { href: 'commissions', label: 'Commissions' },
             { href: 'seller-payouts', label: 'Seller Payouts' },
@@ -221,7 +220,7 @@ export function AdminSidebar() {
           icon={BarChart}
           basePath="analytics"
           items={[
-            { href: 'revenue', label: 'Revenue Charts' },
+            { href: 'revenue', label: 'Sales Analytics' },
             { href: 'activity', label: 'User Activity Logs' },
             { href: 'errors', label: 'Error Logs' },
           ]}
@@ -241,5 +240,3 @@ export function AdminSidebar() {
     </>
   );
 }
-
-    
