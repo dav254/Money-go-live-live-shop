@@ -550,6 +550,25 @@
       },
       "required": ["id", "type", "details"]
     },
+    "Payout": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payout",
+      "type": "object",
+      "description": "Represents a request from a seller to withdraw their earnings.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the payout request." },
+        "sellerId": { "type": "string", "description": "The ID of the seller requesting the payout." },
+        "amount": { "type": "number", "description": "The amount to be paid out in USD." },
+        "payoutMethodId": { "type": "string", "description": "The ID of the PayoutMethod to use." },
+        "payoutMethodInfo": { "type": "string", "description": "A snapshot of the payout method details for auditing (e.g., 'PayPal: seller@example.com')." },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed", "failed"], "description": "The current status of the payout request." },
+        "requestedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the request was made." },
+        "processedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the payout was processed." },
+        "transactionId": { "type": "string", "description": "The transaction ID from the payment provider (e.g., PayPal, Paystack) after completion." },
+        "adminNotes": { "type": "string", "description": "Private notes from the admin regarding this payout." }
+      },
+      "required": ["id", "sellerId", "amount", "payoutMethodId", "payoutMethodInfo", "status", "requestedAt"]
+    },
     "AIProductDescription": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AIProductDescription",
@@ -1117,6 +1136,15 @@
               "description": "The unique identifier for the payment."
             }
           ]
+        }
+      },
+      {
+        "path": "/payouts/{payoutId}",
+        "definition": {
+          "entityName": "Payout",
+          "schema": { "$ref": "#/backend/entities/Payout" },
+          "description": "Stores seller payout requests for admin processing.",
+          "params": [{ "name": "payoutId", "description": "The unique ID for the payout request." }]
         }
       },
       {
