@@ -151,7 +151,7 @@ export default function AdminDashboardPage() {
         });
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.details || errorData.error || 'Failed to fetch sales data');
+            throw new Error(errorData.error || 'Failed to fetch sales data');
         }
         const data = await response.json();
         setSalesChartData(data);
@@ -165,6 +165,37 @@ export default function AdminDashboardPage() {
   }, [user]);
 
   const stats = [
+     {
+      title: "Today's Revenue",
+      value: '$1,420',
+      icon: DollarSign,
+      isLoading: false,
+    },
+     {
+      title: 'Daily Orders',
+      value: '89',
+      icon: Package,
+      isLoading: false,
+    },
+    {
+      title: 'Pending Payouts',
+      value: '$4,200',
+      icon: Clock,
+      isLoading: false,
+    },
+    {
+      title: 'Commission Paid',
+      value: '$22,500',
+      icon: CircleDollarSign,
+      isLoading: false,
+    },
+     {
+      title: 'Flagged Issues',
+      value: '12',
+      icon: ShieldAlert,
+      isLoading: false,
+      color: 'text-destructive',
+    },
     {
       title: 'Total Buyers',
       value: (buyers?.length || 0).toLocaleString(),
@@ -204,7 +235,7 @@ export default function AdminDashboardPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Admin Dashboard
         </h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
