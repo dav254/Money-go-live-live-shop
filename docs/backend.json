@@ -1,6 +1,27 @@
 
 {
   "entities": {
+    "AdCampaign": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ad Campaign",
+      "type": "object",
+      "description": "Represents an advertising campaign created by a seller for a product.",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string", "description": "The ID of the seller who created the campaign." },
+        "productId": { "type": "string", "description": "The ID of the product being advertised." },
+        "productName": { "type": "string" },
+        "productImageUrl": { "type": "string", "format": "uri" },
+        "status": { "type": "string", "enum": ["active", "paused", "completed", "draft"] },
+        "budget": { "type": "number", "description": "The total budget for the campaign in USD." },
+        "spend": { "type": "number", "description": "The amount spent so far." },
+        "clicks": { "type": "number" },
+        "conversions": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "sellerId", "productId", "status", "budget", "startDate"]
+    },
     "HomepageSlide": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Homepage Slide",
@@ -903,6 +924,15 @@
   },
   "firestore": {
     "structure": [
+      {
+        "path": "/adCampaigns/{campaignId}",
+        "definition": {
+          "entityName": "AdCampaign",
+          "schema": { "$ref": "#/backend/entities/AdCampaign" },
+          "description": "Stores advertising campaigns created by sellers.",
+          "params": [{ "name": "campaignId", "description": "The unique ID for the ad campaign." }]
+        }
+      },
       {
         "path": "/admins/{adminId}",
         "definition": {

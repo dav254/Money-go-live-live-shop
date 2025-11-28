@@ -176,6 +176,14 @@ service cloud.firestore {
       // Admins can read, update, and delete requests.
       allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
+
+    // Ad Campaigns
+    match /adCampaigns/{campaignId} {
+      // Sellers can create, read, and update their own ad campaigns.
+      allow create, read, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      // Admins can read all campaigns.
+      allow read, list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
     
     // Allow admins to access all system settings
     match /systemSettings/{settingId} {
@@ -230,5 +238,4 @@ service cloud.firestore {
     }
   }
 }
-
     

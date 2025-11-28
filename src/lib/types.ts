@@ -12,6 +12,21 @@ export interface ThemeSettings {
   buttonStyle?: ButtonStyle;
 }
 
+export interface AdCampaign {
+    id: string;
+    sellerId: string;
+    productId: string;
+    productName: string;
+    productImageUrl: string;
+    status: 'active' | 'paused' | 'completed' | 'draft';
+    budget: number;
+    spend: number;
+    clicks: number;
+    conversions: number;
+    startDate: Timestamp;
+    endDate?: Timestamp;
+}
+
 export interface HomepageSlide {
   id: string;
   title: string;
