@@ -224,7 +224,7 @@ export default function SellerAnalyticsPage() {
                             ) : topProducts.map(product => (
                                 <TableRow key={product.id}>
                                     <TableCell className="font-medium flex items-center gap-2">
-                                        <Image src={product.imageUrl || ''} alt={product.name} width={40} height={40} className="rounded-md" />
+                                        <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'product image'} width={40} height={40} className="rounded-md" />
                                         <span>{product.name}</span>
                                     </TableCell>
                                     <TableCell className="text-right">${product.price.toLocaleString()}</TableCell>
