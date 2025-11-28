@@ -67,7 +67,8 @@ export async function GET(request: Request) {
     ordersSnapshot.forEach(doc => {
       const order = doc.data() as Order;
       if (order.orderDate) {
-        const dateString = (order.orderDate as unknown as Timestamp).toDate().toISOString().split('T')[0];
+        // Correctly convert Firestore Timestamp to JS Date before processing
+        const dateString = (order.orderDate as any).toDate().toISOString().split('T')[0];
         if (salesByDay[dateString] !== undefined) {
              salesByDay[dateString] += order.totalAmount;
         }
