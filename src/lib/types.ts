@@ -1,5 +1,4 @@
 
-
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -324,3 +323,5 @@ export interface ContentModerationSettings {
   isLanguageActive: boolean;
   isPolicyViolationActive: boolean;
 }
+
+    
