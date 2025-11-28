@@ -8,7 +8,6 @@ import {
     DollarSign, 
     Users, 
     ShoppingBag, 
-    BarChart, 
     Video, 
     CircleDollarSign,
     Clock,
@@ -16,33 +15,11 @@ import {
     ShieldAlert
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import Link from 'next/link';
-
-// --- Static Placeholder Data ---
-
-const isLoading = false; // Set to false since we are using static data
-
-const stats = [
-    { title: 'Total Buyers', value: '1,250', icon: Users, isLoading },
-    { title: 'Total Sellers', value: '150', icon: Users, isLoading },
-    { title: 'Total Resellers', value: '300', icon: Users, isLoading },
-    { title: 'Total Products', value: '2,400', icon: ShoppingBag, isLoading },
-    { title: 'Live Users Online', value: '1,890', icon: Video, color: 'text-red-500', isLoading: false },
-    { title: 'Today\'s Revenue', value: '$1,420', icon: DollarSign, color: 'text-green-500', isLoading },
-    { title: 'Commission Paid', value: '$22,500', icon: CircleDollarSign, color: 'text-green-500', isLoading: false },
-    { title: 'Pending Payouts', value: '$4,200', icon: Clock, color: 'text-yellow-500', isLoading },
-    { title: 'Daily Orders', value: '89', icon: Package, isLoading },
-    { title: 'Flagged Issues', value: '12', icon: ShieldAlert, color: 'text-red-500', isLoading: false },
-];
-
-const recentSales = [
-    { id: 'ORD-001', productName: 'Classic Handbag', buyerName: 'Alice', totalAmount: 850 },
-    { id: 'ORD-002', productName: 'NextGen Smartphone', buyerName: 'Bob', totalAmount: 1200 },
-    { id: 'ORD-003', productName: 'Gourmet Pasta Kit', buyerName: 'Charlie', totalAmount: 45 },
-];
-
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // --- Component Definitions ---
 
@@ -53,7 +30,7 @@ const StatCard = ({ title, value, icon: Icon, color, isLoading }: { title: strin
             <Icon className={cn('h-4 w-4 text-muted-foreground', color)} />
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
+            {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
         </CardContent>
     </Card>
 );
@@ -69,8 +46,40 @@ const BuyerCell = ({ name }: { name: string }) => {
   );
 };
 
+const recentSales = [
+    { id: 'ORD-001', productName: 'Classic Handbag', buyerName: 'Alice', totalAmount: 850 },
+    { id: 'ORD-002', productName: 'NextGen Smartphone', buyerName: 'Bob', totalAmount: 1200 },
+    { id: 'ORD-003', productName: 'Gourmet Pasta Kit', buyerName: 'Charlie', totalAmount: 45 },
+];
+
 
 export default function AdminDashboardPage() {
+  const firestore = useFirestore();
+
+  const buyersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'buyer')), [firestore]);
+  const sellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller')), [firestore]);
+  const resellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')), [firestore]);
+  const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
+
+  const { data: buyers, isLoading: isLoadingBuyers } = useCollection(buyersQuery);
+  const { data: sellers, isLoading: isLoadingSellers } = useCollection(sellersQuery);
+  const { data: resellers, isLoading: isLoadingResellers } = useCollection(resellersQuery);
+  const { data: products, isLoading: isLoadingProducts } = useCollection(productsQuery);
+  
+  const isLoading = isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts;
+
+  const stats = [
+    { title: 'Total Buyers', value: (buyers?.length || 0).toLocaleString(), icon: Users, isLoading },
+    { title: 'Total Sellers', value: (sellers?.length || 0).toLocaleString(), icon: Users, isLoading },
+    { title: 'Total Resellers', value: (resellers?.length || 0).toLocaleString(), icon: Users, isLoading },
+    { title: 'Total Products', value: (products?.length || 0).toLocaleString(), icon: ShoppingBag, isLoading },
+    { title: 'Live Users Online', value: '1,890', icon: Video, color: 'text-red-500', isLoading: false }, // Placeholder
+    { title: 'Today\'s Revenue', value: '$1,420', icon: DollarSign, color: 'text-green-500', isLoading: false }, // Placeholder
+    { title: 'Commission Paid', value: '$22,500', icon: CircleDollarSign, color: 'text-green-500', isLoading: false }, // Placeholder
+    { title: 'Pending Payouts', value: '$4,200', icon: Clock, color: 'text-yellow-500', isLoading: false }, // Placeholder
+    { title: 'Daily Orders', value: '89', icon: Package, isLoading: false }, // Placeholder
+    { title: 'Flagged Issues', value: '12', icon: ShieldAlert, color: 'text-red-500', isLoading: false }, // Placeholder
+  ];
 
   return (
     <AdminLayout>
