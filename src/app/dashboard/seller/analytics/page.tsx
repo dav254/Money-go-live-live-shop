@@ -33,6 +33,10 @@ import {
 import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import Image from 'next/image';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import type { Order, Product, SellerShop } from '@/lib/types';
+
 
 const chartConfig = {
   revenue: {
@@ -41,41 +45,18 @@ const chartConfig = {
   },
 };
 
-const mockStats = {
-  totalRevenue: 7850.50,
-  totalSales: 125,
-  totalProducts: 42,
-  followers: 2345,
-};
-
-const mockChartData = [
-  { date: 'Jan 23', revenue: 650 },
-  { date: 'Jan 24', revenue: 700 },
-  { date: 'Jan 25', revenue: 550 },
-  { date: 'Jan 26', revenue: 800 },
-  { date: 'Jan 27', revenue: 950 },
-  { date: 'Jan 28', revenue: 750 },
-  { date: 'Jan 29', revenue: 1100 },
-];
-
-const mockTopProducts = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', price: 850, imageUrl: 'https://picsum.photos/seed/p1/40' },
-    { id: 'prod-2', name: 'Urban Explorer Sneakers', price: 120, imageUrl: 'https://picsum.photos/seed/p2/40' },
-    { id: 'prod-5', name: 'Chronograph Watch', price: 350, imageUrl: 'https://picsum.photos/seed/p5/40' },
-    { id: 'prod-6', name: 'Noise-Cancelling Headphones', price: 250, imageUrl: 'https://picsum.photos/seed/p6/40' },
-];
-
-
 const StatCard = ({
   title,
   value,
   icon: Icon,
   description,
+  isLoading,
 }: {
   title: string;
   value: string;
   icon: React.ElementType;
   description: string;
+  isLoading: boolean;
 }) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -83,13 +64,80 @@ const StatCard = ({
       <Icon className="h-4 w-4 text-muted-foreground" />
     </CardHeader>
     <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+      {isLoading ? (
+        <>
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="mt-1 h-3 w-full" />
+        </>
+      ) : (
+        <>
+          <div className="text-2xl font-bold">{value}</div>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </>
+      )}
     </CardContent>
   </Card>
 );
 
 export default function SellerAnalyticsPage() {
+  const { user, isLoading: isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+  
+  const shopQuery = useMemoFirebase(() => {
+    if(!user) return null;
+    return doc(firestore, 'sellerShops', user.uid);
+  }, [firestore, user]);
+
+
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+  const { data: shop, isLoading: isShopLoading } = useDoc<SellerShop>(shopQuery);
+
+  const isLoading = isUserLoading || areProductsLoading || areOrdersLoading || isShopLoading;
+
+  const stats = React.useMemo(() => {
+    if (!orders || !products || !shop) {
+      return { totalRevenue: 0, totalSales: 0, totalProducts: 0, followers: 0 };
+    }
+    const totalRevenue = orders
+        .filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped')
+        .reduce((acc, o) => acc + o.totalAmount, 0);
+        
+    const totalSales = orders.length;
+    const totalProducts = products.length;
+    const followers = shop?.followers || 0;
+
+    return { totalRevenue, totalSales, totalProducts, followers };
+  }, [orders, products, shop]);
+
+  const chartData = React.useMemo(() => {
+    if (!orders) return [];
+    const salesByDay: { [key: string]: number } = {};
+    orders.forEach((order) => {
+      if (order.orderDate) {
+        const date = order.orderDate.toDate().toLocaleDateString();
+        salesByDay[date] = (salesByDay[date] || 0) + order.totalAmount;
+      }
+    });
+    return Object.entries(salesByDay)
+      .map(([date, revenue]) => ({ date, revenue }))
+      .slice(0, 10) 
+      .reverse();
+  }, [orders]);
+  
+  const topProducts = React.useMemo(() => products?.slice(0, 5) || [], [products]);
+
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -102,29 +150,33 @@ export default function SellerAnalyticsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Revenue"
-            value={`$${mockStats.totalRevenue.toLocaleString(undefined, {
+            value={`$${stats.totalRevenue.toLocaleString(undefined, {
               minimumFractionDigits: 2,
             })}`}
             icon={DollarSign}
             description="Lifetime revenue from all sales."
+            isLoading={isLoading}
           />
           <StatCard
             title="Total Sales"
-            value={mockStats.totalSales.toLocaleString()}
+            value={stats.totalSales.toLocaleString()}
             icon={ShoppingBag}
             description="Total number of orders processed."
+            isLoading={isLoading}
           />
           <StatCard
             title="Total Products"
-            value={mockStats.totalProducts.toLocaleString()}
+            value={stats.totalProducts.toLocaleString()}
             icon={Package}
             description="Number of products in your shop."
+            isLoading={isLoading}
           />
            <StatCard
             title="Followers"
-            value={mockStats.followers.toLocaleString()}
+            value={stats.followers.toLocaleString()}
             icon={Users}
             description="Total number of shop followers."
+            isLoading={isLoading}
           />
         </div>
         
@@ -137,14 +189,16 @@ export default function SellerAnalyticsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
-                    <ChartContainer config={chartConfig} className="h-80 w-full">
-                        <RechartsBarChart data={mockChartData}>
-                            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
-                            <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                            <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                        </RechartsBarChart>
-                    </ChartContainer>
+                    {isLoading ? <Skeleton className="h-80 w-full" /> : (
+                        <ChartContainer config={chartConfig} className="h-80 w-full">
+                            <RechartsBarChart data={chartData}>
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                                <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+                            </RechartsBarChart>
+                        </ChartContainer>
+                    )}
                 </CardContent>
             </Card>
             <Card className="lg:col-span-3">
@@ -160,7 +214,14 @@ export default function SellerAnalyticsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {mockTopProducts.map(product => (
+                            {isLoading ? (
+                                Array.from({length: 4}).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-10 w-full" /></TableCell>
+                                        <TableCell className="text-right"><Skeleton className="h-5 w-12 ml-auto" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : topProducts.map(product => (
                                 <TableRow key={product.id}>
                                     <TableCell className="font-medium flex items-center gap-2">
                                         <Image src={product.imageUrl || ''} alt={product.name} width={40} height={40} className="rounded-md" />
