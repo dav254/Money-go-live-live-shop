@@ -23,9 +23,10 @@ import {
   ShoppingBag,
   CreditCard,
   BarChart,
+  XCircle,
 } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit, where } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -91,25 +92,40 @@ export default function AdminRevenueChartsPage() {
 
   const stats = React.useMemo(() => {
     if (!orders) {
-      return { totalRevenue: 0, totalSales: 0, avgOrderValue: 0 };
+      return { totalRevenue: 0, totalSales: 0, avgOrderValue: 0, cancellations: 0 };
     }
-    const totalRevenue = orders.reduce((acc, o) => acc + o.totalAmount, 0);
-    const totalSales = orders.length;
+    const completedOrders = orders.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped' || o.orderStatus === 'processing');
+    const totalRevenue = completedOrders.reduce((acc, o) => acc + o.totalAmount, 0);
+    const totalSales = completedOrders.length;
     const avgOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
-    return { totalRevenue, totalSales, avgOrderValue };
+    const cancellations = orders.filter(o => o.orderStatus === 'cancelled').length;
+    return { totalRevenue, totalSales, avgOrderValue, cancellations };
   }, [orders]);
 
   const chartData = React.useMemo(() => {
     if (!orders) return [];
     const salesByDay: { [key: string]: number } = {};
-    orders.forEach((order) => {
-      const date = order.orderDate.toDate().toLocaleDateString();
-      salesByDay[date] = (salesByDay[date] || 0) + order.totalAmount;
+    const completedOrders = orders.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped' || o.orderStatus === 'processing');
+    
+    // Initialize last 7 days with 0 revenue
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateString = d.toLocaleDateString();
+        salesByDay[dateString] = 0;
+    }
+
+    completedOrders.forEach((order) => {
+      if (order.orderDate) {
+          const date = order.orderDate.toDate().toLocaleDateString();
+           if (salesByDay.hasOwnProperty(date)) {
+              salesByDay[date] += order.totalAmount;
+           }
+      }
     });
     return Object.entries(salesByDay)
       .map(([date, revenue]) => ({ date, revenue }))
-      .slice(0, 10) // Limit to most recent 10 days for clarity
-      .reverse();
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [orders]);
   
   const recentOrders = React.useMemo(() => orders?.slice(0, 5) || [], [orders]);
@@ -131,7 +147,7 @@ export default function AdminRevenueChartsPage() {
               minimumFractionDigits: 2,
             })}`}
             icon={DollarSign}
-            description="Total revenue from all sales."
+            description="From all non-cancelled sales."
             isLoading={isLoading}
           />
           <StatCard
@@ -152,8 +168,8 @@ export default function AdminRevenueChartsPage() {
           />
            <StatCard
             title="Cancellations"
-            value={'0'}
-            icon={BarChart}
+            value={stats.cancellations.toString()}
+            icon={XCircle}
             description="Number of cancelled orders."
             isLoading={isLoading}
           />
@@ -164,14 +180,14 @@ export default function AdminRevenueChartsPage() {
                 <CardHeader>
                     <CardTitle>Sales Overview</CardTitle>
                      <CardDescription>
-                        Revenue from the last 10 days of sales activity.
+                        Revenue from the last 7 days of sales activity.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
                     {isLoading ? <Skeleton className="h-80 w-full" /> : (
                         <ChartContainer config={chartConfig} className="h-80 w-full">
                             <RechartsBarChart data={chartData}>
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}/>
                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                                 <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
