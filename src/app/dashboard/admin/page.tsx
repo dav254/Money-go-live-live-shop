@@ -111,6 +111,7 @@ export default function AdminDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [salesChartData, setSalesChartData] = useState([]);
+  const [todaysRevenue, setTodaysRevenue] = useState(0);
   const [isChartLoading, setIsChartLoading] = useState(true);
 
   const buyersQuery = useMemoFirebase(
@@ -155,8 +156,13 @@ export default function AdminDashboardPage() {
         }
         const data = await response.json();
         setSalesChartData(data);
-      } catch (error) {
-        console.error(error);
+        if (data && data.length > 0) {
+            const todayData = data[data.length - 1];
+            setTodaysRevenue(todayData.revenue);
+        }
+
+      } catch (error: any) {
+        console.error(error.message);
       } finally {
         setIsChartLoading(false);
       }
@@ -167,9 +173,9 @@ export default function AdminDashboardPage() {
   const stats = [
      {
       title: "Today's Revenue",
-      value: '$1,420',
+      value: `$${todaysRevenue.toLocaleString()}`,
       icon: DollarSign,
-      isLoading: false,
+      isLoading: isChartLoading,
     },
      {
       title: 'Daily Orders',
