@@ -1,46 +1,61 @@
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bot, Send, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 
 interface Message {
-  id: number;
+  id: string;
   text: string;
   sender: 'user' | 'ai';
+  timestamp?: any;
 }
 
 export default function AIChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "Hello! This is our private space. How can I help you plan the future of Go Earn today?", sender: 'ai' }
-  ]);
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const messagesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'admins', user.uid, 'adminChat'), orderBy('timestamp', 'asc'));
+  }, [user, firestore]);
+
+  const { data: messages, isLoading } = useCollection<Message>(messagesQuery);
   const [input, setInput] = useState('');
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || !user) return;
 
-    const userMessage: Message = {
-      id: Date.now(),
+    const userMessage: Omit<Message, 'id'> = {
       text: input,
       sender: 'user',
+      timestamp: serverTimestamp(),
     };
-
-    // Here you would typically send the message to the AI backend
-    // For now, we'll just mock a response.
-    const aiResponse: Message = {
-      id: Date.now() + 1,
+    
+    // For now, we mock the AI response immediately for a better user experience.
+    // In a real scenario, this would come from a backend flow.
+    const aiResponse: Omit<Message, 'id'> = {
       text: `I have stored your message: "${input}". Let's continue building our plan. What is the next step?`,
       sender: 'ai',
+      timestamp: serverTimestamp(),
     };
 
-    setMessages(prev => [...prev, userMessage, aiResponse]);
+    const chatCollection = collection(firestore, 'admins', user.uid, 'adminChat');
+    
+    // Add both messages to Firestore
+    await addDoc(chatCollection, userMessage);
+    await addDoc(chatCollection, aiResponse);
+    
     setInput('');
   };
 
@@ -58,7 +73,8 @@ export default function AIChatPage() {
               <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
                 <ScrollArea className="flex-1 pr-4 -mr-4">
                   <div className="space-y-6">
-                    {messages.map((msg) => (
+                    {isLoading && <p className="text-center text-muted-foreground">Loading conversation...</p>}
+                    {messages?.map((msg) => (
                       <div key={msg.id} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : '')}>
                         {msg.sender === 'ai' && (
                            <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
@@ -98,3 +114,5 @@ export default function AIChatPage() {
     </AdminLayout>
   );
 }
+
+    

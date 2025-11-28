@@ -42,7 +42,7 @@ const capabilities = [
         title: 'Fraud & Content Moderation',
         icon: ShieldCheck,
         description: 'I monitor transactions for fraudulent patterns and review user-generated content to flag potential policy violations for your review.',
-        href: '/dashboard/admin/ai/fraud-detection',
+        href: '/dashboard/admin/ai/content-moderation',
     },
 ];
 
@@ -106,3 +106,5 @@ export default function AboutGoAIPage() {
         </AdminLayout>
     );
 }
+
+    

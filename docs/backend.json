@@ -105,6 +105,19 @@
       },
       "required": ["uid", "displayName", "email", "role"]
     },
+    "AdminChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin Chat Message",
+      "type": "object",
+      "description": "Represents a single message in the private admin-AI chat.",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string" },
+        "sender": { "type": "string", "enum": ["user", "ai"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "text", "sender", "timestamp"]
+    },
     "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
@@ -870,6 +883,19 @@
             {
               "name": "adminId",
               "description": "The user's Firebase Auth UID."
+            }
+          ],
+          "subcollections": [
+            {
+              "path": "adminChat/{messageId}",
+              "definition": {
+                "entityName": "AdminChatMessage",
+                "schema": { "$ref": "#/backend/entities/AdminChatMessage" },
+                "description": "Stores the private chat history between the admin and the AI.",
+                "params": [
+                  { "name": "messageId", "description": "The unique ID for a chat message." }
+                ]
+              }
             }
           ]
         }

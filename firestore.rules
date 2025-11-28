@@ -192,6 +192,11 @@ service cloud.firestore {
     match /admins/{adminId} {
       // Allow read/write access to the admins collection if the user has the 'admin' role in their userProfile.
       allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      
+      // Admin Chat subcollection
+      match /adminChat/{messageId} {
+        allow read, write: if request.auth != null && request.auth.uid == adminId;
+      }
     }
     match /chats/{chatId} {
       function isAdmin() {
@@ -209,3 +214,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
