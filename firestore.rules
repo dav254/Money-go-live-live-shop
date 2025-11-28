@@ -163,6 +163,14 @@ service cloud.firestore {
       allow update: if request.auth != null && resource.data.sellerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
     }
     
+    // AI Poster Requests
+    match /aiPosterRequests/{requestId} {
+      // A user can create their own request.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Admins can read, update, and delete requests.
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
     // Allow admins to access all system settings
     match /systemSettings/{settingId} {
         allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';

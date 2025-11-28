@@ -1,6 +1,22 @@
 
 {
   "entities": {
+    "AIPosterRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AI Poster Request",
+      "type": "object",
+      "description": "Represents a request from a seller for an AI-generated promotional poster.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the request." },
+        "userId": { "type": "string", "description": "The ID of the user who requested the poster." },
+        "productId": { "type": "string", "description": "The ID of the product the poster is for." },
+        "prompt": { "type": "string", "description": "The user-provided prompt or style for the poster." },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "The current status of the request." },
+        "generatedImageUrl": { "type": "string", "format": "uri", "description": "The URL of the final generated image, available after approval." },
+        "requestedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the request was made." }
+      },
+      "required": ["id", "userId", "productId", "prompt", "status", "requestedAt"]
+    },
     "AIFraudAlert": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AI Fraud Alert",
@@ -1187,6 +1203,15 @@
           "schema": { "$ref": "#/backend/entities/Complaint" },
           "description": "Stores formal complaints submitted by users against other users or products.",
           "params": [{ "name": "complaintId", "description": "The unique ID for a complaint." }]
+        }
+      },
+       {
+        "path": "/aiPosterRequests/{requestId}",
+        "definition": {
+          "entityName": "AIPosterRequest",
+          "schema": { "$ref": "#/backend/entities/AIPosterRequest" },
+          "description": "Stores requests from sellers for AI-generated posters.",
+          "params": [{ "name": "requestId", "description": "The unique ID for a poster request." }]
         }
       },
       {
