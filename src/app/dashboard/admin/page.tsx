@@ -17,10 +17,18 @@ import {
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, orderBy, limit } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, UserProfile } from '@/lib/types';
+
+
+// --- Static Placeholder Data ---
+const mockRecentSales = [
+    { id: 'ORD-001', productName: 'Classic Handbag', buyerName: 'Alice', buyerAvatar: 'A', amount: 850 },
+    { id: 'ORD-002', productName: 'NextGen Smartphone', buyerName: 'Bob', buyerAvatar: 'B', amount: 1200 },
+    { id: 'ORD-003', productName: 'Gourmet Pasta Kit', buyerName: 'Charlie', buyerAvatar: 'C', amount: 45 },
+];
 
 
 // --- Component Definitions ---
@@ -37,32 +45,6 @@ const StatCard = ({ title, value, icon: Icon, color, isLoading }: { title: strin
     </Card>
 );
 
-const BuyerCell = ({ userId }: { userId: string }) => {
-  const firestore = useFirestore();
-  const userProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
-  const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
-
-  if (isLoading) {
-    return (
-        <div className="flex items-center gap-2">
-            <Skeleton className="h-6 w-6 rounded-full" />
-            <Skeleton className="h-4 w-20" />
-        </div>
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <Avatar className="h-6 w-6">
-        <AvatarImage src={userProfile?.profilePictureUrl} />
-        <AvatarFallback>{userProfile?.fullName?.charAt(0)}</AvatarFallback>
-      </Avatar>
-      <span className="text-xs font-medium">{userProfile?.fullName || 'Unknown User'}</span>
-    </div>
-  );
-};
-
-
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
 
@@ -70,16 +52,13 @@ export default function AdminDashboardPage() {
   const sellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller')), [firestore]);
   const resellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')), [firestore]);
   const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
-  const recentOrdersQuery = useMemoFirebase(() => query(collection(firestore, 'orders'), where('orderStatus', '==', 'processing'), orderBy('orderDate', 'desc'), limit(5)), [firestore]);
-
 
   const { data: buyers, isLoading: isLoadingBuyers } = useCollection(buyersQuery);
   const { data: sellers, isLoading: isLoadingSellers } = useCollection(sellersQuery);
   const { data: resellers, isLoading: isLoadingResellers } = useCollection(resellersQuery);
   const { data: products, isLoading: isLoadingProducts } = useCollection(productsQuery);
-  const { data: recentOrders, isLoading: isLoadingOrders } = useCollection<Order>(recentOrdersQuery);
   
-  const isLoading = isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingOrders;
+  const isLoading = isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts;
 
   const stats = [
     { title: 'Total Buyers', value: (buyers?.length || 0).toLocaleString(), icon: Users, isLoading },
@@ -121,27 +100,20 @@ export default function AdminDashboardPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {isLoading ? (
-                            [...Array(3)].map((_, i) => (
-                                 <TableRow key={i}>
-                                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                   <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                                   <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                               </TableRow>
-                            ))
-                        ) : recentOrders && recentOrders.length > 0 ? (
-                           recentOrders.map(order => (
+                         {mockRecentSales.map(order => (
                            <TableRow key={order.id}>
                                <TableCell className="font-medium">{order.productName}</TableCell>
-                               <TableCell><BuyerCell userId={order.buyerId} /></TableCell>
-                               <TableCell className="text-right">${order.totalAmount.toLocaleString()}</TableCell>
+                               <TableCell>
+                                   <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                            <AvatarFallback>{order.buyerAvatar}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-xs font-medium">{order.buyerName}</span>
+                                    </div>
+                               </TableCell>
+                               <TableCell className="text-right">${order.amount.toLocaleString()}</TableCell>
                            </TableRow>
-                       ))
-                       ) : (
-                         <TableRow>
-                            <TableCell colSpan={3} className="h-24 text-center">No recent orders to process.</TableCell>
-                         </TableRow>
-                       )}
+                       ))}
                       </TableBody>
                     </Table>
                 </CardContent>
