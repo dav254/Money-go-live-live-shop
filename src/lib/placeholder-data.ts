@@ -12,6 +12,33 @@ const getImage = (id: string) => {
   return image;
 };
 
+export const homepageSlides = [
+    {
+        id: 'slide-1',
+        title: 'The Summer Collection',
+        description: 'Discover the latest trends and vibrant styles to refresh your summer wardrobe. Limited time offers available now!',
+        imageUrl: 'https://picsum.photos/seed/slide1/1600/700',
+        imageHint: 'summer fashion collection',
+        href: '/categories/fashion'
+    },
+    {
+        id: 'slide-2',
+        title: 'Top Tech Deals',
+        description: 'Upgrade your gear with our exclusive discounts on the latest smartphones, headphones, and accessories.',
+        imageUrl: 'https://picsum.photos/seed/slide2/1600/700',
+        imageHint: 'tech gadgets sale',
+        href: '/categories/electronics'
+    },
+    {
+        id: 'slide-3',
+        title: 'Home & Living Essentials',
+        description: 'Transform your space with our curated collection of home decor, kitchenware, and more.',
+        imageUrl: 'https://picsum.photos/seed/slide3/1600/700',
+        imageHint: 'modern living room',
+        href: '/categories/home'
+    }
+];
+
 export const sellers: Seller[] = [
   {
     id: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -19,6 +18,7 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, limit } from 'firebase/firestore';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { homepageSlides } from '@/lib/placeholder-data';
 
 const shortcuts = [
   {
@@ -40,6 +40,40 @@ const shortcuts = [
     color: 'bg-purple-500/20 text-purple-500',
   },
 ];
+
+const HomepageCarousel = () => (
+    <Carousel
+        opts={{ loop: true }}
+        className="w-full"
+    >
+        <CarouselContent>
+            {homepageSlides.map(slide => (
+                <CarouselItem key={slide.id}>
+                    <div className="relative aspect-[16/7] w-full overflow-hidden rounded-lg">
+                        <Image
+                            src={slide.imageUrl}
+                            alt={slide.title}
+                            fill
+                            className="object-cover"
+                            priority
+                            data-ai-hint={slide.imageHint}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-0 left-0 p-8 text-white">
+                            <h2 className="font-headline text-4xl font-bold">{slide.title}</h2>
+                            <p className="mt-2 max-w-md">{slide.description}</p>
+                            <Button asChild className="mt-4">
+                                <Link href={slide.href}>Shop Now</Link>
+                            </Button>
+                        </div>
+                    </div>
+                </CarouselItem>
+            ))}
+        </CarouselContent>
+        <CarouselPrevious className="left-4" />
+        <CarouselNext className="right-4" />
+    </Carousel>
+);
 
 const ProductCarouselSkeleton = () => (
     <Carousel className="w-full">
@@ -86,14 +120,7 @@ export default function BuyerDashboardPage() {
   return (
     <BuyerLayout>
       <div className="flex-1 space-y-8 p-4 pt-6 md:p-8">
-        <div className="flex items-center justify-between space-y-2">
-          <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Welcome, Buyer!
-          </h1>
-          <div className="flex items-center space-x-2">
-            <Button>Explore</Button>
-          </div>
-        </div>
+        <HomepageCarousel />
 
         {/* Quick Shortcuts */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -211,5 +238,3 @@ export default function BuyerDashboardPage() {
     </BuyerLayout>
   );
 }
-
-    
