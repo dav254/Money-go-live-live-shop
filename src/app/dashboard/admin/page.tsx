@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useEffect, useState } from 'react';
@@ -148,7 +149,10 @@ export default function AdminDashboardPage() {
             Authorization: `Bearer ${token}`,
           },
         });
-        if (!response.ok) throw new Error('Failed to fetch sales data');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch sales data');
+        }
         const data = await response.json();
         setSalesChartData(data);
       } catch (error) {
