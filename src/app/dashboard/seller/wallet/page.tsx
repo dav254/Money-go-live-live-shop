@@ -82,7 +82,7 @@ const bankFormSchema = z.object({
 });
 
 const withdrawSchema = (maxAmount: number) => z.object({
-  amount: z.coerce.number().min(1, 'Amount must be greater than 0.').max(maxAmount, `Amount cannot exceed available balance of ${maxAmount}.`),
+  amount: z.coerce.number().min(1, 'Amount must be greater than 0.').max(maxAmount, `Amount cannot exceed available balance of $${maxAmount.toFixed(2)}.`),
   payoutMethodId: z.string().min(1, 'You must select a payout method.'),
 });
 
@@ -196,18 +196,18 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
     );
 };
 
-const WithdrawFundsDialog = ({ balance, payoutMethods }: { balance: number, payoutMethods: PayoutMethod[] }) => {
+const WithdrawFundsDialog = ({ balance, payoutMethods, onWithdrawal }: { balance: number, payoutMethods: PayoutMethod[], onWithdrawal: () => void }) => {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isRequesting, setIsRequesting] = useState(false);
 
-    const form = useForm<z.infer<typeof withdrawSchema>>({
+    const form = useForm<z.infer<ReturnType<typeof withdrawSchema>>>({
         resolver: zodResolver(withdrawSchema(balance)),
         defaultValues: { amount: balance, payoutMethodId: '' },
     });
     
-    const handleWithdraw = async (values: z.infer<typeof withdrawSchema>) => {
+    const handleWithdraw = async (values: z.infer<ReturnType<typeof withdrawSchema>>) => {
         if (!user || !firestore) return;
         setIsRequesting(true);
 
@@ -239,7 +239,7 @@ const WithdrawFundsDialog = ({ balance, payoutMethods }: { balance: number, payo
             });
 
             toast({ title: 'Success', description: 'Your withdrawal request has been submitted for processing.' });
-            // Here you would typically close the dialog
+            onWithdrawal();
         } catch (error) {
              console.error("Error submitting payout request:", error);
              toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your withdrawal request.' });
@@ -408,7 +408,7 @@ export default function SellerWalletPage() {
                     Withdraw Funds <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </DialogTrigger>
-              {payoutMethods && <WithdrawFundsDialog balance={availableBalance} payoutMethods={payoutMethods} />}
+              {payoutMethods && <WithdrawFundsDialog balance={availableBalance} payoutMethods={payoutMethods} onWithdrawal={() => setIsWithdrawOpen(false)} />}
             </Dialog>
         </div>
 
@@ -468,7 +468,7 @@ export default function SellerWalletPage() {
                           <TableRow key={payout.id}>
                             <TableCell>{payout.requestedAt?.toDate().toLocaleDateString()}</TableCell>
                             <TableCell className="font-semibold">${payout.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell><Badge variant={payout.status === 'completed' ? 'default' : 'secondary'} className={payout.status === 'completed' ? 'bg-green-600/80' : ''}>{payout.status}</Badge></TableCell>
+                            <TableCell><Badge variant={payout.status === 'completed' ? 'default' : payout.status === 'pending' ? 'secondary' : 'destructive'} className={payout.status === 'completed' ? 'bg-green-600/80' : payout.status === 'pending' ? 'bg-yellow-500/80' : ''}>{payout.status}</Badge></TableCell>
                             <TableCell className="text-sm text-muted-foreground">{payout.payoutMethodInfo}</TableCell>
                             <TableCell className="text-right text-xs text-muted-foreground">{payout.transactionId || 'N/A'}</TableCell>
                           </TableRow>
