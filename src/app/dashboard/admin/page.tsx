@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 
 // --- Static Placeholder Data ---
@@ -32,6 +34,23 @@ const mockRecentSales = [
     { id: 'ORD-002', productName: 'NextGen Smartphone', buyerName: 'Bob', buyerAvatar: 'B', amount: 1200 },
     { id: 'ORD-003', productName: 'Gourmet Pasta Kit', buyerName: 'Charlie', buyerAvatar: 'C', amount: 45 },
 ];
+
+const chartData = [
+  { date: "Jan 23", revenue: Math.floor(Math.random() * 900) + 100 },
+  { date: "Jan 24", revenue: Math.floor(Math.random() * 900) + 100 },
+  { date: "Jan 25", revenue: Math.floor(Math.random() * 900) + 100 },
+  { date: "Jan 26", revenue: Math.floor(Math.random() * 900) + 100 },
+  { date: "Jan 27", revenue: Math.floor(Math.random() * 900) + 100 },
+  { date: "Jan 28", revenue: Math.floor(Math.random() * 900) + 100 },
+  { date: "Jan 29", revenue: Math.floor(Math.random() * 900) + 100 },
+]
+
+const chartConfig = {
+  revenue: {
+    label: "Revenue",
+    color: "hsl(var(--primary))",
+  },
+}
 
 
 // --- Component Definitions ---
@@ -132,9 +151,36 @@ export default function AdminDashboardPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Sales Graph</CardTitle>
+                     <CardDescription>Revenue from the last 7 days.</CardDescription>
                 </CardHeader>
-                <CardContent className="h-96 flex items-center justify-center bg-muted/50 rounded-md">
-                    <p className="text-muted-foreground">Sales graph will be displayed here.</p>
+                <CardContent className="h-96">
+                   <ChartContainer config={chartConfig} className="w-full h-full">
+                      <BarChart accessibilityLayer data={chartData}>
+                        <XAxis
+                          dataKey="date"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={8}
+                          tickFormatter={(value) => value.slice(0, 3)}
+                        />
+                         <YAxis
+                          stroke="#888888"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `$${value}`}
+                        />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent indicator="dot" />}
+                        />
+                        <Bar
+                          dataKey="revenue"
+                          fill="var(--color-revenue)"
+                          radius={4}
+                        />
+                      </BarChart>
+                    </ChartContainer>
                 </CardContent>
             </Card>
         </div>
