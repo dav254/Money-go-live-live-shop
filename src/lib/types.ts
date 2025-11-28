@@ -12,6 +12,16 @@ export interface ThemeSettings {
   buttonStyle?: ButtonStyle;
 }
 
+export interface HomepageSlide {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl: string;
+  imageHint?: string;
+  href: string;
+  order: number;
+}
+
 export interface HelpArticle {
   id: string;
   category: string;
@@ -299,5 +309,3 @@ export interface ContentModerationSettings {
   isLanguageActive: boolean;
   isPolicyViolationActive: boolean;
 }
-
-    

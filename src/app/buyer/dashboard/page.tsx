@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -15,10 +16,9 @@ import { Heart, Package, Video, Wallet } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, limit } from 'firebase/firestore';
-import type { Product, SellerShop, UserProfile } from '@/lib/types';
+import { collection, query, limit, orderBy } from 'firebase/firestore';
+import type { Product, SellerShop, UserProfile, HomepageSlide } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { homepageSlides } from '@/lib/placeholder-data';
 
 const shortcuts = [
   {
@@ -41,39 +41,56 @@ const shortcuts = [
   },
 ];
 
-const HomepageCarousel = () => (
-    <Carousel
-        opts={{ loop: true }}
-        className="w-full"
-    >
-        <CarouselContent>
-            {homepageSlides.map(slide => (
-                <CarouselItem key={slide.id}>
-                    <div className="relative aspect-[16/7] w-full overflow-hidden rounded-lg">
-                        <Image
-                            src={slide.imageUrl}
-                            alt={slide.title}
-                            fill
-                            className="object-cover"
-                            priority
-                            data-ai-hint={slide.imageHint}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        <div className="absolute bottom-0 left-0 p-8 text-white">
-                            <h2 className="font-headline text-4xl font-bold">{slide.title}</h2>
-                            <p className="mt-2 max-w-md">{slide.description}</p>
-                            <Button asChild className="mt-4">
-                                <Link href={slide.href}>Shop Now</Link>
-                            </Button>
+const HomepageCarousel = () => {
+    const firestore = useFirestore();
+    const slidesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'homepageSlides'), orderBy('order'));
+    }, [firestore]);
+    const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
+
+    if (isLoading) {
+        return <Skeleton className="w-full aspect-[16/7] rounded-lg" />;
+    }
+
+    if (!slides || slides.length === 0) {
+        return null; // Don't render the carousel if there are no slides
+    }
+
+    return (
+        <Carousel
+            opts={{ loop: true }}
+            className="w-full"
+        >
+            <CarouselContent>
+                {slides.map(slide => (
+                    <CarouselItem key={slide.id}>
+                        <div className="relative aspect-[16/7] w-full overflow-hidden rounded-lg">
+                            <Image
+                                src={slide.imageUrl}
+                                alt={slide.title}
+                                fill
+                                className="object-cover"
+                                priority
+                                data-ai-hint={slide.imageHint}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                            <div className="absolute bottom-0 left-0 p-8 text-white">
+                                <h2 className="font-headline text-4xl font-bold">{slide.title}</h2>
+                                <p className="mt-2 max-w-md">{slide.description}</p>
+                                <Button asChild className="mt-4">
+                                    <Link href={slide.href}>Shop Now</Link>
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-                </CarouselItem>
-            ))}
-        </CarouselContent>
-        <CarouselPrevious className="left-4" />
-        <CarouselNext className="right-4" />
-    </Carousel>
-);
+                    </CarouselItem>
+                ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-4" />
+            <CarouselNext className="right-4" />
+        </Carousel>
+    );
+};
 
 const ProductCarouselSkeleton = () => (
     <Carousel className="w-full">
