@@ -182,32 +182,6 @@ export default function HomePage() {
         }
     }, [searchParams]);
 
-    useEffect(() => {
-        if (!isLoading && !isProfileLoading) {
-            if (user && userProfile) {
-                 switch (userProfile.userRole) {
-                    case 'admin':
-                        router.replace('/dashboard/admin');
-                        break;
-                    case 'seller':
-                        router.replace('/dashboard/seller');
-                        break;
-                    case 'reseller':
-                        router.replace('/dashboard/reseller');
-                        break;
-                    case 'buyer':
-                        router.replace('/buyer/dashboard');
-                        break;
-                    default:
-                        // Fallback for any other roles.
-                        // The component will render the default MainLayout below.
-                        break;
-                }
-            }
-        }
-    }, [user, userProfile, isLoading, isProfileLoading, router]);
-
-
     // Show a loading state while we determine the user's role and redirect
     if (isLoading || isProfileLoading) {
         return (
@@ -225,6 +199,19 @@ export default function HomePage() {
             </BuyerLayout>
         )
     }
+    
+    if (user && userProfile?.userRole === 'admin') {
+        router.replace('/dashboard/admin');
+        return null;
+    }
+    if (user && userProfile?.userRole === 'seller') {
+        router.replace('/dashboard/seller');
+        return null;
+    }
+    if (user && userProfile?.userRole === 'reseller') {
+        router.replace('/dashboard/reseller');
+        return null;
+    }
 
     // Default view for guests or roles that are about to be redirected.
     return (
@@ -233,5 +220,3 @@ export default function HomePage() {
         </MainLayout>
     );
 }
-
-    
