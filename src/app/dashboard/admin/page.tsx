@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, UserProfile } from '@/lib/types';
@@ -107,6 +107,7 @@ const StatCard = ({
 );
 
 export default function AdminDashboardPage() {
+  const { user } = useUser();
   const firestore = useFirestore();
   const [salesChartData, setSalesChartData] = useState([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
@@ -137,9 +138,16 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     async function fetchSalesData() {
+      if (!user) return; // Don't fetch if user is not logged in
+
       setIsChartLoading(true);
       try {
-        const response = await fetch('/api/admin/sales-analytics');
+        const token = await user.getIdToken();
+        const response = await fetch('/api/admin/sales-analytics', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (!response.ok) throw new Error('Failed to fetch sales data');
         const data = await response.json();
         setSalesChartData(data);
@@ -150,7 +158,7 @@ export default function AdminDashboardPage() {
       }
     }
     fetchSalesData();
-  }, []);
+  }, [user]);
 
   const stats = [
     {
