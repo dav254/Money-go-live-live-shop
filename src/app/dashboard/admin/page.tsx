@@ -3,16 +3,17 @@
 
 import React, { useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { 
-    DollarSign, 
-    Users, 
-    ShoppingBag, 
-    Video, 
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import {
+    DollarSign,
+    Users,
+    ShoppingBag,
+    Video,
     CircleDollarSign,
     Clock,
     Package,
-    ShieldAlert
+    ShieldAlert,
+    ArrowRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -21,6 +22,8 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, UserProfile } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 
 // --- Static Placeholder Data ---
@@ -117,6 +120,14 @@ export default function AdminDashboardPage() {
                       </TableBody>
                     </Table>
                 </CardContent>
+                <CardFooter>
+                    <Button asChild className="w-full">
+                        <Link href="/dashboard/admin/orders/all">
+                            View All Orders
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </CardFooter>
             </Card>
             <Card>
                 <CardHeader>
