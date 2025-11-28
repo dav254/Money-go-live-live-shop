@@ -8,6 +8,8 @@ import {
   getCoreRowModel,
   useReactTable,
   getFilteredRowModel,
+  getSortedRowModel,
+  SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
 
@@ -23,53 +25,64 @@ import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, orderBy, Timestamp } from 'firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { UserProfile } from '@/lib/types';
 
-type ActivityLog = {
+
+interface ActivityLog {
   id: string;
-  user: {
-    name: string;
-    avatar: string;
-    role: 'seller' | 'buyer' | 'reseller';
-  };
-  action: 'Login' | 'Product Upload' | 'Order Placed' | 'Profile Update' | 'Payout Request';
+  userId: string;
+  action: 'Login' | 'Product Upload' | 'Order Placed' | 'Profile Update' | 'Payout Request' | 'Admin Action';
   status: 'Success' | 'Failure';
   details: string;
-  timestamp: string;
-};
+  timestamp: Timestamp;
+}
 
-// --- Mock Data ---
-const mockActivityLogs: ActivityLog[] = [
-  { id: 'log-1', user: { name: 'Aisha K.', avatar: 'https://picsum.photos/seed/user1/40', role: 'seller' }, action: 'Product Upload', status: 'Success', details: 'Uploaded "Classic Leather Handbag"', timestamp: '2 minutes ago' },
-  { id: 'log-2', user: { name: 'Ben O.', avatar: 'https://picsum.photos/seed/user2/40', role: 'buyer' }, action: 'Order Placed', status: 'Success', details: 'Order #ORD-123 for $850', timestamp: '5 minutes ago' },
-  { id: 'log-3', user: { name: 'Charlie D.', avatar: 'https://picsum.photos/seed/user3/40', role: 'reseller' }, action: 'Payout Request', status: 'Success', details: 'Requested $250.00', timestamp: '1 hour ago' },
-  { id: 'log-4', user: { name: 'David E.', avatar: 'https://picsum.photos/seed/user4/40', role: 'buyer' }, action: 'Login', status: 'Success', details: 'From Nairobi, Kenya', timestamp: '2 hours ago' },
-  { id: 'log-5', user: { name: 'Aisha K.', avatar: 'https://picsum.photos/seed/user1/40', role: 'seller' }, action: 'Profile Update', status: 'Success', details: 'Updated shop description', timestamp: 'Yesterday' },
-  { id: 'log-6', user: { name: 'Frank G.', avatar: 'https://picsum.photos/seed/user5/40', role: 'buyer' }, action: 'Login', status: 'Failure', details: 'Failed login attempt', timestamp: 'Yesterday' },
-];
-// --- End Mock Data ---
+const UserCell = ({ userId }: { userId: string }) => {
+    const firestore = useFirestore();
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return doc(firestore, 'userProfiles', userId);
+    }, [firestore, userId]);
+    
+    const { data: user, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+    if (isLoading) {
+        return <Skeleton className="h-8 w-24" />
+    }
+
+    if (!user) {
+        return <span className="text-muted-foreground">Unknown User</span>
+    }
+
+    return (
+        <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+                <AvatarImage src={user.profilePictureUrl} />
+                <AvatarFallback>{user.fullName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div>
+                <p className="font-semibold">{user.fullName}</p>
+                <p className="text-xs text-muted-foreground capitalize">{user.userRole}</p>
+            </div>
+        </div>
+    );
+};
 
 
 const columns: ColumnDef<ActivityLog>[] = [
   {
-    accessorKey: 'user',
+    accessorKey: 'userId',
     header: 'User',
     cell: ({ row }) => {
-        const user = row.original.user;
-        return (
-             <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <p className="font-semibold">{user.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
-                </div>
-            </div>
-        )
+        return <UserCell userId={row.original.userId} />;
     },
     filterFn: (row, id, value) => {
-      return row.original.user.name.toLowerCase().includes(value.toLowerCase());
+      // This is a placeholder for a more complex filter that would need user data
+      return row.original.userId.toLowerCase().includes(value.toLowerCase());
     },
   },
   {
@@ -91,15 +104,27 @@ const columns: ColumnDef<ActivityLog>[] = [
   {
     accessorKey: 'timestamp',
     header: 'Timestamp',
+     cell: ({ row }) => {
+        const timestamp = row.original.timestamp?.toDate();
+        return timestamp ? formatDistanceToNow(timestamp, { addSuffix: true }) : 'N/A';
+    },
   },
 ];
 
 
 export default function AdminActivityLogsPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const firestore = useFirestore();
+  
+  const activityQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(collection(firestore, 'activityLogs'), orderBy('timestamp', 'desc'));
+  }, [firestore]);
+
+  const { data: activityLogs, isLoading } = useCollection<ActivityLog>(activityQuery);
 
   const table = useReactTable({
-    data: mockActivityLogs,
+    data: activityLogs || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     onColumnFiltersChange: setColumnFilters,
@@ -118,10 +143,10 @@ export default function AdminActivityLogsPage() {
         <div className="w-full">
             <div className="flex items-center py-4">
                 <Input
-                placeholder="Filter by user name..."
-                value={(table.getColumn('user')?.getFilterValue() as string) ?? ''}
+                placeholder="Filter by user ID..."
+                value={(table.getColumn('userId')?.getFilterValue() as string) ?? ''}
                 onChange={(event) =>
-                    table.getColumn('user')?.setFilterValue(event.target.value)
+                    table.getColumn('userId')?.setFilterValue(event.target.value)
                 }
                 className="max-w-sm"
                 />
@@ -145,7 +170,13 @@ export default function AdminActivityLogsPage() {
                 ))}
                 </TableHeader>
                 <TableBody>
-                {table.getRowModel().rows?.length ? (
+                {isLoading ? (
+                     <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                            Loading activity logs...
+                        </TableCell>
+                    </TableRow>
+                ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
                         {row.getVisibleCells().map((cell) => (
@@ -173,4 +204,3 @@ export default function AdminActivityLogsPage() {
     </AdminLayout>
   );
 }
-
