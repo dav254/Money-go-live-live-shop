@@ -42,6 +42,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Pencil, Trash2, Loader2, UploadCloud } from 'lucide-react';
 import Image from 'next/image';
+import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from '@tanstack/react-table';
+
 
 const slideFormSchema = z.object({
   title: z.string().min(3, 'Title is required.'),
