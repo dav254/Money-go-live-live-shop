@@ -25,8 +25,6 @@ import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, orderBy, Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UserProfile } from '@/lib/types';
@@ -38,21 +36,28 @@ interface ActivityLog {
   action: 'Login' | 'Product Upload' | 'Order Placed' | 'Profile Update' | 'Payout Request' | 'Admin Action';
   status: 'Success' | 'Failure';
   details: string;
-  timestamp: Timestamp;
+  timestamp: Date; // Use Date for mock data
 }
 
-const UserCell = ({ userId }: { userId: string }) => {
-    const firestore = useFirestore();
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return doc(firestore, 'userProfiles', userId);
-    }, [firestore, userId]);
-    
-    const { data: user, isLoading } = useDoc<UserProfile>(userProfileRef);
+// --- Mock Data ---
+const mockUsers: { [key: string]: { fullName: string; profilePictureUrl?: string; userRole: string } } = {
+  'user-1': { fullName: 'Alice Johnson', userRole: 'buyer' },
+  'user-2': { fullName: 'Bob Williams', userRole: 'seller' },
+  'user-3': { fullName: 'Charlie Brown', userRole: 'admin' },
+};
 
-    if (isLoading) {
-        return <Skeleton className="h-8 w-24" />
-    }
+const mockActivityLogs: ActivityLog[] = [
+  { id: 'log-1', userId: 'user-1', action: 'Order Placed', status: 'Success', details: 'Order #ORD-123 placed for "Classic Handbag"', timestamp: new Date(new Date().getTime() - 2 * 60 * 1000) },
+  { id: 'log-2', userId: 'user-2', action: 'Product Upload', status: 'Success', details: 'Uploaded new product: "Summer Dress"', timestamp: new Date(new Date().getTime() - 15 * 60 * 1000) },
+  { id: 'log-3', userId: 'user-3', action: 'Admin Action', status: 'Success', details: 'Updated system settings for promotions', timestamp: new Date(new Date().getTime() - 60 * 60 * 1000) },
+  { id: 'log-4', userId: 'user-1', action: 'Login', status: 'Failure', details: 'Failed login attempt from IP 192.168.1.1', timestamp: new Date(new Date().getTime() - 2 * 60 * 60 * 1000) },
+  { id: 'log-5', userId: 'user-2', action: 'Payout Request', status: 'Success', details: 'Requested payout of $250.00', timestamp: new Date(new Date().getTime() - 5 * 60 * 60 * 1000) },
+];
+// --- End Mock Data ---
+
+
+const UserCell = ({ userId }: { userId: string }) => {
+    const user = mockUsers[userId];
 
     if (!user) {
         return <span className="text-muted-foreground">Unknown User</span>
@@ -105,7 +110,7 @@ const columns: ColumnDef<ActivityLog>[] = [
     accessorKey: 'timestamp',
     header: 'Timestamp',
      cell: ({ row }) => {
-        const timestamp = row.original.timestamp?.toDate();
+        const timestamp = row.original.timestamp;
         return timestamp ? formatDistanceToNow(timestamp, { addSuffix: true }) : 'N/A';
     },
   },
@@ -114,17 +119,11 @@ const columns: ColumnDef<ActivityLog>[] = [
 
 export default function AdminActivityLogsPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const firestore = useFirestore();
-  
-  const activityQuery = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return query(collection(firestore, 'activityLogs'), orderBy('timestamp', 'desc'));
-  }, [firestore]);
-
-  const { data: activityLogs, isLoading } = useCollection<ActivityLog>(activityQuery);
+  const [activityLogs, setActivityLogs] = React.useState(mockActivityLogs); // Use state for mock data
+  const isLoading = false; // Data is now static
 
   const table = useReactTable({
-    data: activityLogs || [],
+    data: activityLogs,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onColumnFiltersChange: setColumnFilters,
