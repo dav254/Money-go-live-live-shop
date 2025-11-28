@@ -31,7 +31,7 @@ import {
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, doc, updateDoc, orderBy, where } from 'firebase/firestore';
+import { collection, query, doc, updateDoc, orderBy, where, getDocs } from 'firebase/firestore';
 import type { Payout, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -188,7 +188,7 @@ export default function AdminResellerPayoutsPage() {
         );
       },
     },
-  ], [handleStatusUpdate]);
+  ], []);
 
   const table = useReactTable({
     data: resellerPayouts || [],
