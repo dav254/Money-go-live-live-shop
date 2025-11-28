@@ -293,6 +293,17 @@ export interface SupportTicket {
     createdAt: Timestamp;
 }
 
+export interface AIPosterRequest {
+  id: string;
+  userId: string;
+  productId: string;
+  prompt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  generatedImageUrl?: string;
+  requestedAt: Timestamp;
+}
+
+
 export interface AIFraudAlert {
     id: string;
     type: 'High-Value Order' | 'Multiple Logins' | 'New Device Payment';
