@@ -17,6 +17,7 @@ import {
   Video,
   Info,
   HelpCircle,
+  ShoppingCart,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -43,6 +44,14 @@ export function BuyerSidebar() {
             <Link href="/live">
               <Video />
               <span>Live Selling</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/cart')}>
+            <Link href="/cart">
+              <ShoppingCart />
+              <span>My Cart</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
