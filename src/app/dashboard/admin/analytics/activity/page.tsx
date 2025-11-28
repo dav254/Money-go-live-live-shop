@@ -28,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UserProfile } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 
 interface ActivityLog {
@@ -40,12 +42,6 @@ interface ActivityLog {
 }
 
 // --- Mock Data ---
-const mockUsers: { [key: string]: { fullName: string; profilePictureUrl?: string; userRole: string } } = {
-  'user-1': { fullName: 'Alice Johnson', userRole: 'buyer' },
-  'user-2': { fullName: 'Bob Williams', userRole: 'seller' },
-  'user-3': { fullName: 'Charlie Brown', userRole: 'admin' },
-};
-
 const mockActivityLogs: ActivityLog[] = [
   { id: 'log-1', userId: 'user-1', action: 'Order Placed', status: 'Success', details: 'Order #ORD-123 placed for "Classic Handbag"', timestamp: new Date(new Date().getTime() - 2 * 60 * 1000) },
   { id: 'log-2', userId: 'user-2', action: 'Product Upload', status: 'Success', details: 'Uploaded new product: "Summer Dress"', timestamp: new Date(new Date().getTime() - 15 * 60 * 1000) },
@@ -57,7 +53,25 @@ const mockActivityLogs: ActivityLog[] = [
 
 
 const UserCell = ({ userId }: { userId: string }) => {
-    const user = mockUsers[userId];
+    const firestore = useFirestore();
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !userId) return null;
+        return doc(firestore, 'userProfiles', userId);
+    }, [firestore, userId]);
+    
+    const { data: user, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="space-y-1">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-3 w-12" />
+                </div>
+            </div>
+        );
+    }
 
     if (!user) {
         return <span className="text-muted-foreground">Unknown User</span>
