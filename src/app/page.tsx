@@ -182,6 +182,23 @@ export default function HomePage() {
         }
     }, [searchParams]);
 
+    // This effect handles role-based redirection after the component has rendered.
+    useEffect(() => {
+        if (isLoading || isProfileLoading) {
+            return; // Wait until user data is loaded
+        }
+
+        if (user && userProfile) {
+            if (userProfile.userRole === 'admin') {
+                router.replace('/dashboard/admin');
+            } else if (userProfile.userRole === 'seller') {
+                router.replace('/dashboard/seller');
+            } else if (userProfile.userRole === 'reseller') {
+                router.replace('/dashboard/reseller');
+            }
+        }
+    }, [user, userProfile, isLoading, isProfileLoading, router]);
+
     // Show a loading state while we determine the user's role and redirect
     if (isLoading || isProfileLoading) {
         return (
@@ -198,19 +215,6 @@ export default function HomePage() {
                 <VideoFeed />
             </BuyerLayout>
         )
-    }
-    
-    if (user && userProfile?.userRole === 'admin') {
-        router.replace('/dashboard/admin');
-        return null;
-    }
-    if (user && userProfile?.userRole === 'seller') {
-        router.replace('/dashboard/seller');
-        return null;
-    }
-    if (user && userProfile?.userRole === 'reseller') {
-        router.replace('/dashboard/reseller');
-        return null;
     }
 
     // Default view for guests or roles that are about to be redirected.
