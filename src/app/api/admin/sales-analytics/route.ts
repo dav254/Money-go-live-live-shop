@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
@@ -85,6 +86,6 @@ export async function GET(request: Request) {
      if (error.code === 'auth/id-token-expired') {
       return NextResponse.json({ error: 'Token expired, please log in again.' }, { status: 401 });
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }
