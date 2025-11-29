@@ -27,12 +27,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, PlusCircle, Printer, Send } from 'lucide-react';
+import { Trash2, PlusCircle, Printer, Send, Loader2 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { sendInvoiceNotification } from '@/app/actions/invoice-actions';
 
 const invoiceItemSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
@@ -55,8 +57,10 @@ const invoiceFormSchema = z.object({
 
 export default function AdminInvoiceGeneratorPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
-  
+  const [isSending, setIsSending] = React.useState(false);
+
   const ordersQuery = useMemoFirebase(() => query(collection(firestore, 'orders'), orderBy('orderDate', 'desc')), [firestore]);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
@@ -90,7 +94,6 @@ export default function AdminInvoiceGeneratorPage() {
     name: 'items',
   });
   
-  // Effect to auto-fill form when an order is selected
   React.useEffect(() => {
     if (selectedOrder && buyerProfile) {
       form.reset({
@@ -120,12 +123,49 @@ export default function AdminInvoiceGeneratorPage() {
   }, [watchAllFields.items]);
 
   const shipping = watchAllFields.shippingCost || 0;
-  const platformFee = (subtotal + shipping) * 0.10; // 10% platform fee
+  const platformFee = (subtotal + shipping) * 0.10;
   const total = subtotal + shipping;
   const netForSeller = total - platformFee;
 
   const handlePrint = () => {
     window.print();
+  }
+  
+  const handleSendInvoice = async () => {
+    if (!selectedOrder) {
+        toast({
+            variant: 'destructive',
+            title: 'No Order Selected',
+            description: 'Please select an order to send an invoice.'
+        });
+        return;
+    }
+    setIsSending(true);
+
+    try {
+        const result = await sendInvoiceNotification({
+            sellerId: selectedOrder.sellerId,
+            orderId: selectedOrder.id,
+            productName: selectedOrder.productName || 'your product',
+        });
+        if (result.success) {
+            toast({
+                title: 'Invoice Sent!',
+                description: `A notification has been sent to the seller for order #${selectedOrder.id.substring(0, 6)}...`
+            });
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Failed to Send Invoice',
+            description: 'Could not send the notification. Please check server logs.'
+        });
+        console.error("Failed to send invoice:", error);
+    } finally {
+        setIsSending(false);
+    }
   }
 
   return (
@@ -157,7 +197,10 @@ export default function AdminInvoiceGeneratorPage() {
             </h1>
             <div className="flex gap-2">
                 <Button onClick={handlePrint} variant="outline"><Printer className="mr-2 h-4 w-4" /> Print Invoice</Button>
-                <Button><Send className="mr-2 h-4 w-4" /> Send Invoice to Seller</Button>
+                <Button onClick={handleSendInvoice} disabled={isSending || !selectedOrder}>
+                    {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Send Invoice to Seller
+                </Button>
             </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">

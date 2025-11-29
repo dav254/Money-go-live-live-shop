@@ -132,7 +132,7 @@ export default function SellerEarningsPage() {
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Sales &amp; Payouts
+            Earnings & Invoices
           </h1>
           <div className="flex items-center space-x-2">
             <DateRangePicker />
@@ -197,6 +197,7 @@ export default function SellerEarningsPage() {
                   <TableHead className="text-right">Reseller Fee</TableHead>
                   <TableHead className="text-right">Your Net</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Invoice</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -209,6 +210,7 @@ export default function SellerEarningsPage() {
                             <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                             <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
                         </TableRow>
                     ))
                 ) : recentTransactions.length > 0 ? (
@@ -232,12 +234,17 @@ export default function SellerEarningsPage() {
                                     {order.orderStatus}
                                 </Badge>
                                 </TableCell>
+                                <TableCell className="text-right">
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={`/invoice/${order.id}`}>View</Link>
+                                    </Button>
+                                </TableCell>
                             </TableRow>
                        );
                     })
                 ) : (
                      <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
+                        <TableCell colSpan={7} className="h-24 text-center">
                             No transactions yet.
                         </TableCell>
                     </TableRow>
