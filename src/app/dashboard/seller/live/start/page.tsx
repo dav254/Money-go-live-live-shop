@@ -13,11 +13,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDotDashed, Users } from 'lucide-react';
+import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDotDashed, Users, ClipboardCopy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -189,6 +189,12 @@ export default function GoLivePage() {
         setIsSubmitting(false);
     }
   };
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+        toast({ description: 'Copied to clipboard!' });
+    });
+  };
 
 
   if (isLoading || isUserLoading) {
@@ -216,8 +222,8 @@ export default function GoLivePage() {
      <SellerLayout>
         <div className="container mx-auto max-w-6xl py-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left side: Preview */}
-                <div className="lg:col-span-2">
+                {/* Left side: Preview & Broadcast Info */}
+                <div className="lg:col-span-2 space-y-6">
                     <Card className="overflow-hidden">
                         <div className="relative aspect-video bg-black">
                             <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
@@ -241,6 +247,36 @@ export default function GoLivePage() {
                             <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
                         </div>
                     </Card>
+
+                    {isLive && liveSession && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Broadcast Details</CardTitle>
+                                <CardDescription>Use this information in your broadcasting software (e.g., OBS) to start streaming.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Mux Stream URL</Label>
+                                    <div className="flex gap-2">
+                                        <Input readOnly value="rtmps://global-live.mux.com:443/app" />
+                                        <Button variant="outline" size="icon" onClick={() => copyToClipboard('rtmps://global-live.mux.com:443/app')}><ClipboardCopy className="h-4 w-4" /></Button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Mux Stream Key</Label>
+                                    <div className="flex gap-2">
+                                        <Input type="password" readOnly value={liveSession.muxStreamKey} />
+                                         <Button variant="outline" size="icon" onClick={() => copyToClipboard(liveSession.muxStreamKey)}><ClipboardCopy className="h-4 w-4" /></Button>
+                                    </div>
+                                </div>
+                                <Alert>
+                                    <AlertDescription>
+                                        In OBS, go to Settings &gt; Stream. Select 'Custom' as the service. Paste the Stream URL in 'Server' and the Stream Key in 'Stream Key'. Then click 'Start Streaming' in OBS.
+                                    </AlertDescription>
+                                </Alert>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
                 {/* Right side: Controls */}
                 <div className="space-y-6">
