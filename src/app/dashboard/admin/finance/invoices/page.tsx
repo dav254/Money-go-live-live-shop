@@ -185,6 +185,9 @@ export default function AdminInvoiceGeneratorPage() {
                 top: 0;
                 width: 100%;
               }
+              .no-print {
+                  display: none !important;
+              }
               @page {
                 size: auto;
                 margin: 0mm;
@@ -195,13 +198,6 @@ export default function AdminInvoiceGeneratorPage() {
             <h1 className="font-headline text-3xl font-bold tracking-tight">
             Invoice Generator
             </h1>
-            <div className="flex gap-2">
-                <Button onClick={handlePrint} variant="outline"><Printer className="mr-2 h-4 w-4" /> Print Invoice</Button>
-                <Button onClick={handleSendInvoice} disabled={isSending || !selectedOrder}>
-                    {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    Send Invoice to Seller
-                </Button>
-            </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
             <div className="lg:col-span-2">
@@ -293,6 +289,13 @@ export default function AdminInvoiceGeneratorPage() {
                 </Form>
             </div>
             <div id="invoice-preview" className="lg:col-span-3">
+                <div className="flex gap-2 justify-end mb-4 no-print">
+                    <Button onClick={handlePrint} variant="outline"><Printer className="mr-2 h-4 w-4" /> Print Invoice</Button>
+                    <Button onClick={handleSendInvoice} disabled={isSending || !selectedOrder}>
+                        {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Send Invoice to Seller
+                    </Button>
+                </div>
                  <Card className="shadow-lg p-8">
                      <div className="flex justify-between items-start">
                         <div>
