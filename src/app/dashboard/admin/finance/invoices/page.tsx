@@ -29,6 +29,10 @@ import { DatePicker } from '@/components/dashboard/date-picker';
 import { Separator } from '@/components/ui/separator';
 import { Trash2, PlusCircle, Printer } from 'lucide-react';
 import { Logo } from '@/components/logo';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, orderBy, doc } from 'firebase/firestore';
+import type { Order, UserProfile } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const invoiceItemSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
@@ -46,9 +50,25 @@ const invoiceFormSchema = z.object({
   sellerAddress: z.string().min(1, 'Seller address is required.'),
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required.'),
   notes: z.string().optional(),
+  shippingCost: z.coerce.number().optional().default(0),
 });
 
 export default function AdminInvoiceGeneratorPage() {
+  const firestore = useFirestore();
+  const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
+  
+  const ordersQuery = useMemoFirebase(() => query(collection(firestore, 'orders'), orderBy('orderDate', 'desc')), [firestore]);
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const selectedOrder = React.useMemo(() => orders?.find(o => o.id === selectedOrderId), [orders, selectedOrderId]);
+
+  const buyerProfileRef = useMemoFirebase(() => {
+    if (!selectedOrder?.buyerId) return null;
+    return doc(firestore, 'userProfiles', selectedOrder.buyerId);
+  }, [firestore, selectedOrder]);
+  
+  const { data: buyerProfile } = useDoc<UserProfile>(buyerProfileRef);
+
   const form = useForm<z.infer<typeof invoiceFormSchema>>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
@@ -61,13 +81,37 @@ export default function AdminInvoiceGeneratorPage() {
       sellerAddress: 'Nairobi, Kenya',
       items: [{ description: '', quantity: 1, price: 0 }],
       notes: 'Thank you for your business!',
+      shippingCost: 0,
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'items',
   });
+  
+  // Effect to auto-fill form when an order is selected
+  React.useEffect(() => {
+    if (selectedOrder && buyerProfile) {
+      form.reset({
+        invoiceNumber: selectedOrder.id,
+        issueDate: selectedOrder.orderDate.toDate(),
+        dueDate: new Date(selectedOrder.orderDate.toDate().setDate(selectedOrder.orderDate.toDate().getDate() + 30)),
+        billToName: buyerProfile.fullName,
+        billToAddress: selectedOrder.shippingAddress,
+        items: [{
+          description: selectedOrder.productName || 'Product',
+          quantity: selectedOrder.quantity || 1,
+          price: selectedOrder.productPrice || 0,
+        }],
+        shippingCost: selectedOrder.shippingCost || 0,
+        notes: 'Thank you for your business!',
+        sellerName: 'Go Earn Platform',
+        sellerAddress: 'Nairobi, Kenya',
+      })
+    }
+  }, [selectedOrder, buyerProfile, form]);
+
 
   const watchAllFields = form.watch();
 
@@ -75,8 +119,10 @@ export default function AdminInvoiceGeneratorPage() {
     return watchAllFields.items?.reduce((acc, item) => acc + (item.quantity || 0) * (item.price || 0), 0) || 0;
   }, [watchAllFields.items]);
 
-  const tax = subtotal * 0.16; // Example 16% tax
-  const total = subtotal + tax;
+  const shipping = watchAllFields.shippingCost || 0;
+  const platformFee = (subtotal + shipping) * 0.10; // 10% platform fee
+  const total = subtotal + shipping;
+  const netForSeller = total - platformFee;
 
   const handlePrint = () => {
     window.print();
@@ -115,6 +161,24 @@ export default function AdminInvoiceGeneratorPage() {
             <div className="lg:col-span-2">
                 <Form {...form}>
                     <form className="space-y-6">
+                       <Card>
+                          <CardHeader><CardTitle>Load from Order</CardTitle></CardHeader>
+                          <CardContent>
+                            <Select onValueChange={setSelectedOrderId} disabled={areOrdersLoading}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={areOrdersLoading ? "Loading orders..." : "Select an order to auto-fill"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {orders?.map(order => (
+                                    <SelectItem key={order.id} value={order.id}>
+                                      #{order.id.substring(0, 6)}... - {order.productName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                            </Select>
+                          </CardContent>
+                       </Card>
+
                         <Card>
                              <CardHeader><CardTitle>Invoice Details</CardTitle></CardHeader>
                              <CardContent className="space-y-4">
@@ -232,9 +296,12 @@ export default function AdminInvoiceGeneratorPage() {
                      <div className="flex justify-end mt-8">
                         <div className="w-full max-w-sm space-y-2">
                              <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-                             <div className="flex justify-between"><span>Tax (16%)</span><span>${tax.toFixed(2)}</span></div>
+                             <div className="flex justify-between"><span>Shipping</span><span>${shipping.toFixed(2)}</span></div>
                              <Separator />
-                             <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${total.toFixed(2)}</span></div>
+                             <div className="flex justify-between font-bold text-lg"><span>Total Paid by Buyer</span><span>${total.toFixed(2)}</span></div>
+                              <Separator />
+                              <div className="flex justify-between text-sm"><span>Platform Fee (10%)</span><span className="text-destructive">-${platformFee.toFixed(2)}</span></div>
+                              <div className="flex justify-between font-bold text-lg"><span>Net Amount for Seller</span><span className="text-primary">${netForSeller.toFixed(2)}</span></div>
                         </div>
                      </div>
                      <div className="mt-8">
@@ -248,4 +315,3 @@ export default function AdminInvoiceGeneratorPage() {
     </AdminLayout>
   );
 }
-
