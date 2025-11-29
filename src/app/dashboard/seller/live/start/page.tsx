@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
@@ -36,7 +37,7 @@ export default function GoLivePage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState(true); // Assume true initially
 
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
   const [isLive, setIsLive] = useState(false);
