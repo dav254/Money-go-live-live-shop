@@ -27,7 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, PlusCircle, Printer } from 'lucide-react';
+import { Trash2, PlusCircle, Printer, Send } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
@@ -155,7 +155,10 @@ export default function AdminInvoiceGeneratorPage() {
             <h1 className="font-headline text-3xl font-bold tracking-tight">
             Invoice Generator
             </h1>
-            <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print Invoice</Button>
+            <div className="flex gap-2">
+                <Button onClick={handlePrint} variant="outline"><Printer className="mr-2 h-4 w-4" /> Print Invoice</Button>
+                <Button><Send className="mr-2 h-4 w-4" /> Send Invoice to Seller</Button>
+            </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
             <div className="lg:col-span-2">
@@ -315,3 +318,5 @@ export default function AdminInvoiceGeneratorPage() {
     </AdminLayout>
   );
 }
+
+    
