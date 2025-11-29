@@ -9,9 +9,10 @@ import { MessageSquare, Plus, Share2 } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, setDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface SellerHeaderProps {
   seller: Seller;
@@ -22,6 +23,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
   const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
 
@@ -81,6 +83,47 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
       toast({ variant: 'destructive', title: 'Something went wrong' });
     }
   };
+  
+    const handleMessageSeller = async () => {
+        if (!user || !firestore) {
+            toast({ title: 'Please log in', description: 'You need to be logged in to send a message.' });
+            router.push('/login');
+            return;
+        }
+        if (seller.id === user.uid) {
+            toast({ title: 'Cannot start chat', description: 'You cannot message yourself.' });
+            return;
+        }
+
+        const chatsRef = collection(firestore, 'chats');
+        const q = query(chatsRef, where('participantIds', 'array-contains', user.uid));
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            let existingChatId: string | null = null;
+            querySnapshot.forEach(doc => {
+                if (doc.data().participantIds.includes(seller.id)) {
+                    existingChatId = doc.id;
+                }
+            });
+
+            if (existingChatId) {
+                router.push(`/messages?chatWith=${seller.id}`);
+            } else {
+                const newChatRef = doc(collection(firestore, 'chats'));
+                await setDoc(newChatRef, {
+                    id: newChatRef.id,
+                    participantIds: [user.uid, seller.id],
+                    lastMessage: 'Conversation started.',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+                router.push(`/messages?chatWith=${seller.id}`);
+            }
+        } catch (error) {
+            console.error("Error handling message seller: ", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat.' });
+        }
+    };
 
   return (
     <div className="bg-neutral-950">
@@ -98,7 +141,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
       </div>
 
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-20 relative z-10">
-        <div className="flex flex-col items-center text-center md:flex-row md:items-end md:text-left md:gap-6">
+        <div className="flex flex-col items-center text-center md:flex-row md:items-end md:gap-6">
           <Avatar className="h-32 w-32 border-4 border-neutral-950">
             <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} />
             <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
@@ -126,7 +169,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
               {isApplying ? 'Submitting...' : 'Apply to Resell'}
             </Button>
           )}
-          <Button variant="secondary" className="w-full md:w-auto font-bold">
+          <Button onClick={handleMessageSeller} variant="secondary" className="w-full md:w-auto font-bold">
             <MessageSquare className="mr-2 h-4 w-4" />
             Message
           </Button>
