@@ -37,42 +37,11 @@ export default function GoLivePage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState(true); // Assume true initially
+  const [hasCameraPermission, setHasCameraPermission] = useState(true); 
 
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Get Camera Permissions
-  useEffect(() => {
-    const getCameraPermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        mediaStreamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setHasCameraPermission(true);
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera and mic permissions in your browser settings to go live.',
-        });
-      }
-    };
-
-    getCameraPermission();
-
-    // Cleanup function to stop media tracks when the component unmounts
-    return () => {
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [toast]);
 
 
   // Fetch Seller and Product Data
@@ -113,6 +82,28 @@ export default function GoLivePage() {
     fetchData();
   }, [user, firestore, isUserLoading]);
   
+  const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        mediaStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        setHasCameraPermission(true);
+        return stream; // Return the stream on success
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera and mic permissions in your browser settings to go live.',
+        });
+        return null; // Return null on failure
+      }
+  };
+
+
   const handleGoLive = async () => {
       if (!user || !firestore || !streamTitle) {
           toast({ variant: 'destructive', title: 'Stream title is required.' });
@@ -120,6 +111,13 @@ export default function GoLivePage() {
       }
       setIsSubmitting(true);
       
+      // Request camera permission on click
+      const stream = await getCameraPermission();
+      if (!stream) {
+          setIsSubmitting(false);
+          return; // Stop if permission is denied
+      }
+
       try {
         const token = await user.getIdToken();
         const response = await fetch('/api/mux', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }});
@@ -162,6 +160,15 @@ export default function GoLivePage() {
     if (!liveSession || !firestore) return;
     setIsSubmitting(true);
     
+    // Stop camera and microphone tracks
+    if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+        if(videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    }
+
     const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
     try {
         await updateDoc(sessionRef, {
@@ -217,7 +224,7 @@ export default function GoLivePage() {
                                    <Alert variant="destructive" className="max-w-sm">
                                         <AlertTitle>Camera Access Required</AlertTitle>
                                         <AlertDescription>
-                                            Please allow camera and microphone access in your browser to use the live studio.
+                                            Please allow camera and microphone access in your browser to go live.
                                         </AlertDescription>
                                     </Alert>
                                </div>
@@ -299,7 +306,7 @@ export default function GoLivePage() {
                                 End Live Session
                             </Button>
                          ) : (
-                            <Button onClick={handleGoLive} size="lg" className="font-bold" disabled={isSubmitting || !streamTitle || !hasCameraPermission}>
+                            <Button onClick={handleGoLive} size="lg" className="font-bold" disabled={isSubmitting || !streamTitle}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Video className="mr-2 h-4 w-4"/>}
                                 Go Live Now
                             </Button>
