@@ -132,7 +132,7 @@ export default function SellerEarningsPage() {
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Sales & Payouts
+            Sales &amp; Payouts
           </h1>
           <div className="flex items-center space-x-2">
             <DateRangePicker />
@@ -184,50 +184,57 @@ export default function SellerEarningsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Recent Sales Transactions</CardTitle>
-            <CardDescription>This history reflects completed sales where payment has been processed.</CardDescription>
+            <CardTitle>Sales Ledger &amp; Invoice History</CardTitle>
+            <CardDescription>A real-time breakdown of every sale you've made.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Amount</TableHead>
+                  <TableHead>Order</TableHead>
+                  <TableHead className="text-right">Total Amount</TableHead>
+                  <TableHead className="text-right">Platform Fee</TableHead>
+                  <TableHead className="text-right">Reseller Fee</TableHead>
+                  <TableHead className="text-right">Your Net</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                      [...Array(5)].map((_, i) => (
                         <TableRow key={i}>
-                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                         </TableRow>
                     ))
                 ) : recentTransactions.length > 0 ? (
-                    recentTransactions.map((tx) => (
-                    <TableRow key={tx.id}>
-                        <TableCell className="font-medium">#{tx.id.substring(0,6)}...</TableCell>
-                        <TableCell>${tx.totalAmount.toLocaleString()}</TableCell>
-                        <TableCell>
-                        <Badge variant={'default'} className={'bg-green-600/80'}>
-                            {tx.orderStatus}
-                        </Badge>
-                        </TableCell>
-                        <TableCell>{tx.paymentMethod}</TableCell>
-                        <TableCell>{tx.orderDate.toDate().toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">View Order</Button>
-                        </TableCell>
-                    </TableRow>
-                    ))
+                    recentTransactions.map((order) => {
+                       const platformFee = order.platformFee || order.totalAmount * 0.10;
+                       const resellerCommission = order.resellerCommission || 0;
+                       const netEarning = order.totalAmount - platformFee - resellerCommission;
+
+                       return (
+                            <TableRow key={order.id}>
+                                <TableCell>
+                                    <div className="font-medium">{order.productName}</div>
+                                    <div className="text-xs text-muted-foreground">#{order.id.substring(0,6)}...</div>
+                                </TableCell>
+                                <TableCell className="text-right font-semibold">${order.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="text-right text-red-500">-${platformFee.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="text-right text-orange-400">-${resellerCommission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell className="text-right font-bold text-green-500">${netEarning.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                <TableCell>
+                                <Badge variant={order.orderStatus === 'delivered' ? 'default' : 'secondary'} className={order.orderStatus === 'delivered' ? 'bg-green-600/80' : ''}>
+                                    {order.orderStatus}
+                                </Badge>
+                                </TableCell>
+                            </TableRow>
+                       );
+                    })
                 ) : (
                      <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center">
