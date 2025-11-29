@@ -70,6 +70,7 @@ const HomepageCarousel = () => {
                                 src={slide.imageUrl}
                                 alt={slide.title}
                                 fill
+                                sizes="100vw"
                                 className="object-cover"
                                 priority
                                 data-ai-hint={slide.imageHint}
@@ -205,6 +206,7 @@ export default function BuyerDashboardPage() {
                         src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
                         alt={seller.shopName}
                         fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         className="object-cover transition-transform group-hover:scale-105"
                         data-ai-hint="store banner"
                     />

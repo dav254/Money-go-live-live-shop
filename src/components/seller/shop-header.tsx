@@ -89,6 +89,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           src={seller.banner.imageUrl}
           alt={`${seller.name}'s banner`}
           fill
+          sizes="100vw"
           className="object-cover"
           priority
           data-ai-hint={seller.banner.imageHint}

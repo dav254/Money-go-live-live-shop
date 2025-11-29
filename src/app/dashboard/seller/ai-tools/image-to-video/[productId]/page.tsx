@@ -99,7 +99,7 @@ export default function GenerateVideoPage() {
                             <RadioGroup onValueChange={setSelectedImage} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                 {product.imageUrls?.map((url, index) => (
                                     <Label key={index} htmlFor={`img-${index}`} className="block relative aspect-square rounded-md overflow-hidden cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-primary">
-                                        <Image src={url} alt={`Product image ${index + 1}`} fill className="object-cover" />
+                                        <Image src={url} alt={`Product image ${index + 1}`} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" />
                                         <RadioGroupItem value={url} id={`img-${index}`} className="absolute top-2 right-2" />
                                     </Label>
                                 ))}

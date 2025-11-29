@@ -102,6 +102,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
           src={item.video.imageUrl}
           alt={item.video.description || item.product.name || 'Product image'}
           fill
+          sizes="100vw"
           className="object-cover"
           priority
           data-ai-hint={item.video.imageHint}

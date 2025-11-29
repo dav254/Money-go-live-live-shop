@@ -298,7 +298,7 @@ export default function BuyerProductPage() {
                         {selectedMedia?.type === 'video' ? (
                             <video src={selectedMedia.url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
                         ) : (
-                            <Image src={selectedMedia?.url || 'https://picsum.photos/seed/placeholder/1000/1000'} alt={product.name || "Product image"} fill className="object-contain" priority />
+                            <Image src={selectedMedia?.url || 'https://picsum.photos/seed/placeholder/1000/1000'} alt={product.name || "Product image"} fill sizes="100vw" className="object-contain" priority />
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
@@ -315,7 +315,7 @@ export default function BuyerProductPage() {
                                     <CarouselItem key={i} className="basis-1/4 sm:basis-1/5 pl-1">
                                         <Card onClick={() => setSelectedMedia(media)} className={cn("overflow-hidden cursor-pointer bg-neutral-800", selectedMedia?.url === media.url && "ring-2 ring-red-500")}>
                                             <CardContent className="p-0 aspect-square relative">
-                                                <Image src={media.url} alt={`thumbnail ${i}`} fill className="object-cover" />
+                                                <Image src={media.url} alt={`thumbnail ${i}`} fill sizes="(max-width: 640px) 25vw, 20vw" className="object-cover" />
                                                 {media.type === 'video' && <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white" /></div>}
                                             </CardContent>
                                         </Card>
@@ -423,5 +423,3 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
-
-    

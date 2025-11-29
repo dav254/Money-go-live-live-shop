@@ -16,7 +16,8 @@ export default function CategoriesPage() {
                 <Image 
                   src={category.image.imageUrl} 
                   alt={category.name} 
-                  fill 
+                  fill
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 16vw"
                   className="object-cover transition-transform group-hover:scale-105"
                   data-ai-hint={category.image.imageHint}
                 />
