@@ -1,5 +1,4 @@
 
-
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
@@ -9,8 +8,8 @@ import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
 
 
 async function getSellerData(sellerId: string): Promise<Seller | null> {
-  initializeAdminApp();
-  const db = getFirestore();
+  const adminApp = initializeAdminApp();
+  const db = getFirestore(adminApp);
   const sellerDocRef = doc(db, 'sellerShops', sellerId);
   const sellerDocSnap = await getDoc(sellerDocRef);
 
@@ -63,8 +62,8 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
 }
 
 async function getSellerProducts(sellerId: string): Promise<Product[]> {
-  initializeAdminApp();
-  const db = getFirestore();
+  const adminApp = initializeAdminApp();
+  const db = getFirestore(adminApp);
   const productsRef = collection(db, 'products');
   const q = query(productsRef, where('sellerId', '==', sellerId));
   const querySnapshot = await getDocs(q);
