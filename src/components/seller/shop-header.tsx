@@ -124,6 +124,23 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat.' });
         }
     };
+    
+  const handleShare = () => {
+    const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
+    navigator.clipboard.writeText(shopUrl).then(() => {
+      toast({
+        title: "Link Copied!",
+        description: "The shop link has been copied to your clipboard.",
+      });
+    }).catch(err => {
+      console.error('Failed to copy shop link: ', err);
+      toast({
+        variant: "destructive",
+        title: "Failed to Copy",
+        description: "Could not copy the shop link.",
+      });
+    });
+  };
 
   return (
     <div className="bg-neutral-950">
@@ -173,7 +190,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <MessageSquare className="mr-2 h-4 w-4" />
             Message
           </Button>
-          <Button variant="secondary" className="w-full md:w-auto font-bold">
+          <Button onClick={handleShare} variant="secondary" className="w-full md:w-auto font-bold">
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
