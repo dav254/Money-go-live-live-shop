@@ -1,11 +1,10 @@
-
 'use client';
 
-import { SellerLayout } from '@/components/layout/seller-layout';
+import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
+import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, getDoc, setDoc, serverTimestamp, updateDoc, getDocs } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
 import type { Seller, Product, LiveSession, UserProfile } from '@/lib/types';
-import { useEffect, useState, useRef } from 'react';
+import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,13 +20,15 @@ import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDot
 import { useToast } from '@/hooks/use-toast';
 import { query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-import MuxPlayer from "@mux/mux-player-react";
+import { SellerLayout } from '@/components/layout/seller-layout';
 
 // --- The Page Component ---
 export default function GoLivePage() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -35,6 +36,7 @@ export default function GoLivePage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(false);
 
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
   const [isLive, setIsLive] = useState(false);
@@ -42,23 +44,33 @@ export default function GoLivePage() {
 
   // Get Camera Permissions
   useEffect(() => {
-    const init = async () => {
-      if (typeof window !== 'undefined' && navigator.mediaDevices) {
-        try {
-          // Requesting just to check, not to use directly yet.
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-           stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately after permission granted
-        } catch (error) {
-          console.error('Error accessing camera:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Camera Access Denied',
-            description: 'Please enable camera and mic permissions in your browser to go live.',
-          });
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        mediaStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
         }
+        setHasCameraPermission(true);
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera and mic permissions in your browser settings to go live.',
+        });
       }
     };
-    init();
+
+    getCameraPermission();
+
+    // Cleanup function to stop media tracks when the component unmounts
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [toast]);
 
 
@@ -135,7 +147,7 @@ export default function GoLivePage() {
         await setDoc(newSessionRef, newSessionData);
         setLiveSession(newSessionData);
         setIsLive(true);
-        toast({ title: "You are now live!", description: "Your stream has started successfully." });
+        toast({ title: "You are now live!", description: "Your stream has started successfully. You can now use a broadcast software with your stream key." });
 
       } catch (error: any) {
           console.error("Failed to start live session:", error);
@@ -197,20 +209,19 @@ export default function GoLivePage() {
                 <div className="lg:col-span-2 space-y-6">
                     <Card className="overflow-hidden">
                         <div className="relative aspect-video bg-black">
-                            {isLive && liveSession?.muxStreamKey ? (
-                                 <MuxPlayer
-                                    streamType="ll-live"
-                                    playbackId={liveSession.muxPlaybackId}
-                                    streamKey={liveSession.muxStreamKey}
-                                    className="w-full h-full"
-                                    autoPlay
-                                    muted
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-black">
-                                    <p className="text-muted-foreground">Your live stream preview will appear here.</p>
-                                </div>
-                            )}
+                           <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                           
+                           { !hasCameraPermission && (
+                               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                   <Alert variant="destructive" className="max-w-sm">
+                                        <AlertTitle>Camera Access Required</AlertTitle>
+                                        <AlertDescription>
+                                            Please allow camera and microphone access in your browser to use the live studio.
+                                        </AlertDescription>
+                                    </Alert>
+                               </div>
+                           )}
+
                              {isLive && (
                                 <div className="absolute top-4 left-4 flex items-center gap-2">
                                     <Badge className="bg-red-500 hover:bg-red-600 border-none"><CircleDotDashed className="mr-2 h-4 w-4 animate-pulse" /> LIVE</Badge>
@@ -219,6 +230,30 @@ export default function GoLivePage() {
                             )}
                         </div>
                     </Card>
+                    {isLive && liveSession?.muxStreamKey && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Broadcasting Info</CardTitle>
+                                <CardDescription>Use this info in your broadcasting software (e.g., OBS, Streamlabs) to send your video feed to Go Earn.</CardDescription>
+                            </CardHeader>
+                             <CardContent className="space-y-4">
+                                <div>
+                                    <Label>Server URL (RTMPs)</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input readOnly value="rtmps://global-live.mux.com:443/app" />
+                                        <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText("rtmps://global-live.mux.com:443/app").then(() => toast({ title: 'Copied!' }))}><ClipboardCopy className="h-4 w-4" /></Button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <Label>Stream Key</Label>
+                                     <div className="flex items-center gap-2">
+                                        <Input readOnly value={liveSession.muxStreamKey} type="password" />
+                                         <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(liveSession.muxStreamKey).then(() => toast({ title: 'Copied!' }))}><ClipboardCopy className="h-4 w-4" /></Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
                 {/* Right side: Controls */}
                 <div className="space-y-6">
@@ -263,7 +298,7 @@ export default function GoLivePage() {
                                 End Live Session
                             </Button>
                          ) : (
-                            <Button onClick={handleGoLive} size="lg" className="font-bold" disabled={isSubmitting || !streamTitle}>
+                            <Button onClick={handleGoLive} size="lg" className="font-bold" disabled={isSubmitting || !streamTitle || !hasCameraPermission}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Video className="mr-2 h-4 w-4"/>}
                                 Go Live Now
                             </Button>
