@@ -3,19 +3,19 @@ import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import { initializeAdminApp } from '@/firebase/admin';
-import { getFirestore, collection, doc, getDoc, getDocs, query, where } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
 
 
 async function getSellerData(sellerId: string): Promise<Seller | null> {
   const adminApp = initializeAdminApp();
   const db = getFirestore(adminApp);
-  const sellerDocRef = doc(db, 'sellerShops', sellerId);
-  const sellerDocSnap = await getDoc(sellerDocRef);
+  const sellerDocRef = db.collection('sellerShops').doc(sellerId);
+  const sellerDocSnap = await sellerDocRef.get();
 
   if (!sellerDocSnap.exists()) {
-    const userProfileRef = doc(db, 'userProfiles', sellerId);
-    const userProfileSnap = await getDoc(userProfileRef);
+    const userProfileRef = db.collection('userProfiles').doc(sellerId);
+    const userProfileSnap = await userProfileRef.get();
     if (!userProfileSnap.exists()) {
         return null;
     }
@@ -38,8 +38,8 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
   }
 
   const sellerData = sellerDocSnap.data() as SellerShop;
-  const userProfileRef = doc(db, 'userProfiles', sellerId);
-  const userProfileSnap = await getDoc(userProfileRef);
+  const userProfileRef = db.collection('userProfiles').doc(sellerId);
+  const userProfileSnap = await userProfileRef.get();
   const userProfile = userProfileSnap.exists() ? userProfileSnap.data() as UserProfile : {};
 
   return {
@@ -64,9 +64,9 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
 async function getSellerProducts(sellerId: string): Promise<Product[]> {
   const adminApp = initializeAdminApp();
   const db = getFirestore(adminApp);
-  const productsRef = collection(db, 'products');
-  const q = query(productsRef, where('sellerId', '==', sellerId));
-  const querySnapshot = await getDocs(q);
+  const productsRef = db.collection('products');
+  const q = productsRef.where('sellerId', '==', sellerId);
+  const querySnapshot = await q.get();
   
   if (querySnapshot.empty) {
     return [];
