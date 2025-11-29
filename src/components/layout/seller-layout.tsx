@@ -19,6 +19,7 @@ import { SellerHeader } from '../seller/seller-header';
 import { doc } from 'firebase/firestore';
 import type { Seller, SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { FirebaseErrorListener } from '../FirebaseErrorListener';
 
 export function SellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -52,7 +53,7 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar side="left" collapsible="icon">
+      <Sidebar side="left" collapsible="offcanvas">
         <SidebarHeader>
           <Logo className="h-8 w-auto text-primary" />
         </SidebarHeader>

@@ -5,7 +5,7 @@
 import type { Seller } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video } from 'lucide-react';
+import { Bell, MessageSquare, Video, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
@@ -43,8 +43,8 @@ export function SellerHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2">
-        <SidebarTrigger className="hidden md:flex" />
-        <div className="flex items-center gap-3">
+        <SidebarTrigger className="md:hidden" />
+        <div className="hidden md:flex items-center gap-3">
           {isLoading ? (
             <>
               <Skeleton className="h-8 w-8 rounded-full" />
