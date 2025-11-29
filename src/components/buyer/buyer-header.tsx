@@ -3,16 +3,36 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video, Search } from 'lucide-react';
+import { Bell, MessageSquare, Video, Search, Menu } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { BuyerSidebar } from './buyer-sidebar';
 
 export function BuyerHeader() {
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2 md:gap-4">
-        <Link href="/buyer/dashboard" className="md:block">
+        {/* Mobile Sidebar */}
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="md:hidden">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0">
+                <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card p-4">
+                    <div className="p-2">
+                         <Logo className="h-8 w-auto text-primary" />
+                    </div>
+                    <BuyerSidebar />
+                </div>
+            </SheetContent>
+        </Sheet>
+        
+        <Link href="/buyer/dashboard" className="hidden md:block">
           <Logo className="h-8 w-auto text-primary" />
         </Link>
       </div>
