@@ -89,7 +89,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
         <video 
           ref={videoRef}
           src={item.video.imageUrl} // imageUrl now holds the media URL
-          className="h-full w-full object-cover" 
+          className="h-full w-full object-contain" 
           autoPlay 
           muted 
           loop 
@@ -103,7 +103,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
           alt={item.video.description || item.product.name || 'Product image'}
           fill
           sizes="100vw"
-          className="object-cover"
+          className="object-contain"
           priority
           data-ai-hint={item.video.imageHint}
           key={item.video.imageUrl}

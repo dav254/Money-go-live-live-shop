@@ -1,18 +1,18 @@
 
-
 import type { Product } from '@/lib/types';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
-import { Badge } from '@/components/ui/badge'; // Import Badge component
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 interface ProductCardProps {
   product: Product;
+  priority?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, priority = false }: ProductCardProps) {
   const isOutOfStock = product.stock !== undefined && product.stock <= 0;
   const mediaUrl = product.videoUrl || product.imageUrl || product.image?.imageUrl || '/placeholder.svg';
   const isVideo = product.videoUrl;
@@ -37,6 +37,8 @@ export function ProductCard({ product }: ProductCardProps) {
               alt={product.name || 'Product image'}
               fill
               className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              priority={priority}
               data-ai-hint={product.image?.imageHint}
             />
           )}

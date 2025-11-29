@@ -2,7 +2,7 @@
 'use client';
 
 import type { Product } from '@/lib/types';
-import { ProductCard } from './product-card';
+import { ProductCard } from '@/components/seller/product-card';
 
 interface ProductGridProps {
   products: Product[];
@@ -19,8 +19,8 @@ export function ProductGrid({ products }: ProductGridProps) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {products.map(product => (
-        <ProductCard key={product.id} product={product} />
+      {products.map((product, index) => (
+        <ProductCard key={product.id} product={product} priority={index < 4} />
       ))}
     </div>
   );

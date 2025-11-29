@@ -3,12 +3,14 @@
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
-import { db } from '@/firebase/server';
-import { collection, doc, getDoc, getDocs, query, where, collectionGroup } from 'firebase/firestore';
+import { initializeAdminApp } from '@/firebase/admin';
+import { getFirestore, collection, doc, getDoc, getDocs, query, where } from 'firebase-admin/firestore';
 import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
 
 
 async function getSellerData(sellerId: string): Promise<Seller | null> {
+  initializeAdminApp();
+  const db = getFirestore();
   const sellerDocRef = doc(db, 'sellerShops', sellerId);
   const sellerDocSnap = await getDoc(sellerDocRef);
 
@@ -61,6 +63,8 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
 }
 
 async function getSellerProducts(sellerId: string): Promise<Product[]> {
+  initializeAdminApp();
+  const db = getFirestore();
   const productsRef = collection(db, 'products');
   const q = query(productsRef, where('sellerId', '==', sellerId));
   const querySnapshot = await getDocs(q);
@@ -91,7 +95,7 @@ async function getSellerProducts(sellerId: string): Promise<Product[]> {
 }
 
 export default async function SellerShopPage({ params }: { params: { sellerId: string } }) {
-  const { sellerId } = params;
+  const sellerId = params.sellerId;
   const seller = await getSellerData(sellerId);
   
   if (!seller) {

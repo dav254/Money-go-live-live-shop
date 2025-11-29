@@ -6,7 +6,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import * as path from 'path';
 import * as fs from 'fs';
 
-let serviceAccount;
+let serviceAccount: any;
 try {
   // Construct a reliable, absolute path to the service-account.json file
   const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
@@ -20,7 +20,7 @@ try {
 
 const appName = `firebase-admin-app:${process.env.VERCEL_DEPLOYMENT_ID || 'local'}`;
 
-let app: App;
+let app: App | undefined;
 
 if (!getApps().some(existingApp => existingApp.name === appName)) {
   if (serviceAccount) {
@@ -36,7 +36,6 @@ if (!getApps().some(existingApp => existingApp.name === appName)) {
 }
 
 // Conditionally export db only if the app was initialized
-// @ts-ignore
 const db = app ? getFirestore(app) : null;
 
 export { db };
