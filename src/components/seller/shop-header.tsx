@@ -5,7 +5,7 @@ import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Plus, Share2 } from 'lucide-react';
+import { MessageSquare, Plus, Share2, Eye } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
@@ -176,21 +176,25 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col md:flex-row items-center justify-center md:justify-start gap-2">
-          <Button onClick={handleFollow} className="w-full md:w-auto font-bold bg-primary hover:bg-primary/90">
+        <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-2">
+          <Button onClick={handleFollow} className="font-bold bg-primary hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" />
             {isFollowing ? 'Following' : 'Follow'}
           </Button>
           {userProfile?.userRole === 'reseller' && (
-            <Button onClick={handleApplyToResell} disabled={isApplying} variant="outline" className="w-full md:w-auto font-bold">
+            <Button onClick={handleApplyToResell} disabled={isApplying} variant="outline" className="font-bold">
               {isApplying ? 'Submitting...' : 'Apply to Resell'}
             </Button>
           )}
-          <Button onClick={handleMessageSeller} variant="secondary" className="w-full md:w-auto font-bold">
+          <Button onClick={handleMessageSeller} variant="secondary" className="font-bold">
             <MessageSquare className="mr-2 h-4 w-4" />
             Message
           </Button>
-          <Button onClick={handleShare} variant="secondary" className="w-full md:w-auto font-bold">
+          <Button variant="secondary" className="font-bold">
+            <Eye className="mr-2 h-4 w-4" />
+            View Products
+          </Button>
+          <Button onClick={handleShare} variant="secondary" className="font-bold">
             <Share2 className="mr-2 h-4 w-4" />
             Share
           </Button>
