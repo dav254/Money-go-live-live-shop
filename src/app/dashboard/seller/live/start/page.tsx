@@ -21,7 +21,7 @@ import { Video, Loader2, Mic, MicOff, VideoOff, Settings, CheckCircle, CircleDot
 import { useToast } from '@/hooks/use-toast';
 import { query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-
+import MuxPlayer from "@mux/mux-player-react";
 
 // --- The Page Component ---
 export default function GoLivePage() {
@@ -46,7 +46,7 @@ export default function GoLivePage() {
 
   // Get Camera Permissions
   useEffect(() => {
-    const getCameraPermission = async () => {
+    const init = async () => {
       if (typeof window !== 'undefined' && navigator.mediaDevices) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -65,7 +65,7 @@ export default function GoLivePage() {
         }
       }
     };
-    getCameraPermission();
+    init();
      // Cleanup function to stop media tracks when component unmounts
     return () => {
         if (videoRef.current && videoRef.current.srcObject) {
@@ -122,16 +122,8 @@ export default function GoLivePage() {
       setIsSubmitting(true);
       
       try {
-        // 1. Get auth token from the current user
         const token = await user.getIdToken();
-
-        // 2. Call our backend API to get Mux stream details
-        const response = await fetch('/api/mux', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const response = await fetch('/api/mux', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }});
         
         if (!response.ok) {
            const errorData = await response.json();
@@ -139,8 +131,7 @@ export default function GoLivePage() {
         }
 
         const { streamKey, playbackId, streamId } = await response.json();
-
-        // 3. Create the LiveSession document in Firestore
+        
         const newSessionRef = doc(collection(firestore, 'liveSessions'));
         const newSessionData: LiveSession = {
             id: newSessionRef.id,
@@ -149,7 +140,7 @@ export default function GoLivePage() {
             status: 'live',
             productIds: selectedProducts,
             viewerCount: 0,
-            muxStreamId: streamId, // Store Mux stream ID
+            muxStreamId: streamId,
             muxStreamKey: streamKey,
             muxPlaybackId: playbackId,
             startTime: serverTimestamp() as any,
@@ -171,6 +162,7 @@ export default function GoLivePage() {
   const handleEndLive = async () => {
     if (!liveSession || !firestore) return;
     setIsSubmitting(true);
+    
     const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
     try {
         await updateDoc(sessionRef, {
@@ -189,10 +181,10 @@ export default function GoLivePage() {
         setIsSubmitting(false);
     }
   };
-  
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-        toast({ description: 'Copied to clipboard!' });
+      toast({ title: 'Copied!', description: 'Stream key copied to clipboard.' });
     });
   };
 
@@ -241,42 +233,31 @@ export default function GoLivePage() {
                                 </div>
                             )}
                         </div>
-                         <div className="p-4 border-t flex items-center justify-end gap-2">
-                            <Button variant="outline" size="icon"><Mic className="h-4 w-4"/></Button>
-                            <Button variant="outline" size="icon"><Video className="h-4 w-4"/></Button>
-                            <Button variant="outline" size="icon"><Settings className="h-4 w-4"/></Button>
-                        </div>
                     </Card>
-
-                    {isLive && liveSession && (
+                     {isLive && liveSession?.muxStreamKey && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Broadcast Details</CardTitle>
-                                <CardDescription>Use this information in your broadcasting software (e.g., OBS) to start streaming.</CardDescription>
+                                <CardTitle>Broadcasting Details</CardTitle>
+                                <CardDescription>Use these details in your broadcasting software (e.g., OBS) to start streaming.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Mux Stream URL</Label>
+                                <div className="space-y-1">
+                                    <Label>Server URL (RTMPs)</Label>
                                     <div className="flex gap-2">
                                         <Input readOnly value="rtmps://global-live.mux.com:443/app" />
-                                        <Button variant="outline" size="icon" onClick={() => copyToClipboard('rtmps://global-live.mux.com:443/app')}><ClipboardCopy className="h-4 w-4" /></Button>
+                                         <Button variant="outline" size="icon" onClick={() => copyToClipboard('rtmps://global-live.mux.com:443/app')}><ClipboardCopy className="h-4 w-4" /></Button>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Mux Stream Key</Label>
+                                <div className="space-y-1">
+                                    <Label>Stream Key</Label>
                                     <div className="flex gap-2">
-                                        <Input type="password" readOnly value={liveSession.muxStreamKey} />
+                                        <Input readOnly type="password" value={liveSession.muxStreamKey} />
                                          <Button variant="outline" size="icon" onClick={() => copyToClipboard(liveSession.muxStreamKey)}><ClipboardCopy className="h-4 w-4" /></Button>
                                     </div>
                                 </div>
-                                <Alert>
-                                    <AlertDescription>
-                                        In OBS, go to Settings &gt; Stream. Select 'Custom' as the service. Paste the Stream URL in 'Server' and the Stream Key in 'Stream Key'. Then click 'Start Streaming' in OBS.
-                                    </AlertDescription>
-                                </Alert>
                             </CardContent>
                         </Card>
-                    )}
+                     )}
                 </div>
                 {/* Right side: Controls */}
                 <div className="space-y-6">
