@@ -60,7 +60,7 @@ export default function GoLivePage() {
           toast({
             variant: 'destructive',
             title: 'Camera Access Denied',
-            description: 'Please enable camera and mic permissions in your browser settings to go live.',
+            description: 'Please enable camera and mic permissions in your browser to go live.',
           });
         }
       }
@@ -120,33 +120,49 @@ export default function GoLivePage() {
           return;
       }
       setIsSubmitting(true);
-
-      // In a real app, you would first call your backend to get a Mux stream key.
-      // const muxStreamKey = await getMuxStreamKey();
-      const muxStreamKey = `sk_test_${Math.random().toString(36).substring(2)}`;
-      const muxPlaybackId = `pb_test_${Math.random().toString(36).substring(2)}`;
-
-      const newSessionRef = doc(collection(firestore, 'liveSessions'));
-      const newSessionData: LiveSession = {
-          id: newSessionRef.id,
-          sellerId: user.uid,
-          title: streamTitle,
-          status: 'live',
-          productIds: selectedProducts,
-          viewerCount: 0,
-          muxStreamKey: muxStreamKey, // From Mux API
-          muxPlaybackId: muxPlaybackId, // From Mux API
-          startTime: serverTimestamp() as any, // Cast to any to satisfy TS
-      };
       
       try {
-          await setDoc(newSessionRef, newSessionData);
-          setLiveSession(newSessionData);
-          setIsLive(true);
-          toast({ title: "You are now live!", description: "Your stream has started successfully." });
-      } catch (error) {
+        // 1. Get auth token from the current user
+        const token = await user.getIdToken();
+
+        // 2. Call our backend API to get Mux stream details
+        const response = await fetch('/api/mux', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+           const errorData = await response.json();
+           throw new Error(errorData.error || 'Failed to create Mux live stream.');
+        }
+
+        const { streamKey, playbackId, streamId } = await response.json();
+
+        // 3. Create the LiveSession document in Firestore
+        const newSessionRef = doc(collection(firestore, 'liveSessions'));
+        const newSessionData: LiveSession = {
+            id: newSessionRef.id,
+            sellerId: user.uid,
+            title: streamTitle,
+            status: 'live',
+            productIds: selectedProducts,
+            viewerCount: 0,
+            muxStreamId: streamId, // Store Mux stream ID
+            muxStreamKey: streamKey,
+            muxPlaybackId: playbackId,
+            startTime: serverTimestamp() as any,
+        };
+
+        await setDoc(newSessionRef, newSessionData);
+        setLiveSession(newSessionData);
+        setIsLive(true);
+        toast({ title: "You are now live!", description: "Your stream has started successfully." });
+
+      } catch (error: any) {
           console.error("Failed to start live session:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not start the live session.' });
+          toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not start the live session.' });
       } finally {
           setIsSubmitting(false);
       }

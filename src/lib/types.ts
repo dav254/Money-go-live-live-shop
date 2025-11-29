@@ -1,4 +1,5 @@
 
+
 import type { ImagePlaceholder } from './placeholder-images';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -256,6 +257,21 @@ export interface Payout {
     processedAt?: Timestamp;
     transactionId?: string; // ID from payment gateway
     adminNotes?: string;
+}
+
+
+export interface LiveSession {
+  id: string;
+  sellerId: string;
+  title: string;
+  status: 'upcoming' | 'live' | 'ended';
+  muxStreamId?: string;
+  muxStreamKey: string;
+  muxPlaybackId: string;
+  productIds: string[];
+  viewerCount: number;
+  startTime: Timestamp;
+  endTime?: Timestamp;
 }
 
 
