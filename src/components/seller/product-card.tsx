@@ -1,66 +1,86 @@
 
+'use client';
+
 import type { Product } from '@/lib/types';
-import Image from 'next/image';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Heart, ShoppingCart, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { doc, setDoc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface ProductCardProps {
   product: Product;
-  priority?: boolean;
 }
 
-export function ProductCard({ product, priority = false }: ProductCardProps) {
+export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock !== undefined && product.stock <= 0;
-  const mediaUrl = product.videoUrl || product.imageUrl || product.image?.imageUrl || '/placeholder.svg';
-  const isVideo = product.videoUrl;
+  const discountPercentage = product.originalPrice && product.price ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+  
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleLike = () => {
+    if (!firestore) return;
+    const productRef = doc(firestore, 'products', product.id);
+
+    // Non-blocking update for a simple action like a "like"
+    const batch = writeBatch(firestore);
+    batch.update(productRef, { likes: increment(1) });
+    batch.commit().catch(console.error);
+
+    toast({
+        title: "Liked!",
+        description: "You liked this product.",
+    });
+  };
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1 h-full flex flex-col">
-      <CardContent className="p-0 flex flex-col flex-grow">
-        <Link href={`/products/${product.id}`} className="block relative aspect-[4/3] w-full bg-black">
-          {isVideo ? (
-             <video
-              src={mediaUrl}
-              className="h-full w-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              key={mediaUrl}
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white">
+      <div className="relative">
+        <Link href={`/products/${product.id}`} className="cursor-pointer">
+            <img
+            src={product.image?.imageUrl || '/placeholder.svg'}
+            alt={product.name || 'Product image'}
+            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
             />
-          ) : (
-            <Image
-              src={mediaUrl}
-              alt={product.name || 'Product image'}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              priority={priority}
-              data-ai-hint={product.image?.imageHint}
-            />
-          )}
-          {isOutOfStock && (
-            <Badge variant="destructive" className="absolute top-2 right-2">Out of Stock</Badge>
-          )}
         </Link>
-        <div className="p-3 flex flex-col flex-grow">
-          <h3 className="font-headline font-semibold truncate text-sm">{product.name}</h3>
-          <div className="mt-auto pt-2 flex items-baseline justify-between">
-            <div>
-                <p className="text-base font-bold text-primary">{product.price.toLocaleString()}</p>
-                {(product.originalPrice || product.wasPrice) && (
-                    <p className="text-xs text-muted-foreground line-through">{(product.originalPrice || product.wasPrice)?.toLocaleString()}</p>
-                )}
-            </div>
-            <Button size="icon" variant={isOutOfStock ? "secondary" : "ghost"} disabled={isOutOfStock}>
-              <ShoppingCart className="h-4 w-4" />
-            </Button>
+        {discountPercentage > 0 && (
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+            {discountPercentage}% OFF
           </div>
+        )}
+        <Button onClick={handleLike} size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 hover:bg-black/70">
+          <Heart className="h-4 w-4" />
+        </Button>
+        {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-white font-bold">Out of Stock</span>
+            </div>
+        )}
+      </div>
+      <div className="p-3">
+        <h3 className="text-sm font-semibold truncate group-hover:text-red-400">
+            <Link href={`/products/${product.id}`}>{product.name}</Link>
+        </h3>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-lg font-bold text-primary">{product.price?.toLocaleString()}</span>
+          {product.originalPrice && (
+            <span className="text-sm text-neutral-400 line-through">{product.originalPrice.toLocaleString()}</span>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className="mt-3 flex gap-2">
+            <Button asChild size="sm" className="w-full bg-primary hover:bg-primary/90 text-white" disabled={isOutOfStock}>
+                <Link href={`/products/${product.id}`}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Product
+                </Link>
+            </Button>
+        </div>
+      </div>
+    </div>
   );
 }
