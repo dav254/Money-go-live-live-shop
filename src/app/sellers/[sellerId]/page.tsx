@@ -13,10 +13,10 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
   const sellerDocRef = db.collection('sellerShops').doc(sellerId);
   const sellerDocSnap = await sellerDocRef.get();
 
-  if (!sellerDocSnap.exists()) {
+  if (!sellerDocSnap.exists) {
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
     const userProfileSnap = await userProfileRef.get();
-    if (!userProfileSnap.exists()) {
+    if (!userProfileSnap.exists) {
         return null;
     }
      const userProfile = userProfileSnap.data() as UserProfile;
@@ -40,7 +40,7 @@ async function getSellerData(sellerId: string): Promise<Seller | null> {
   const sellerData = sellerDocSnap.data() as SellerShop;
   const userProfileRef = db.collection('userProfiles').doc(sellerId);
   const userProfileSnap = await userProfileRef.get();
-  const userProfile = userProfileSnap.exists() ? userProfileSnap.data() as UserProfile : {};
+  const userProfile = userProfileSnap.exists ? userProfileSnap.data() as UserProfile : {};
 
   return {
     id: sellerDocSnap.id,
