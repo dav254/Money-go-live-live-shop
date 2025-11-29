@@ -40,23 +40,16 @@ export default function GoLivePage() {
   const [isLive, setIsLive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState(false);
-
-
   // Get Camera Permissions
   useEffect(() => {
     const init = async () => {
       if (typeof window !== 'undefined' && navigator.mediaDevices) {
         try {
+          // Requesting just to check, not to use directly yet.
           const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          setHasCameraPermission(true);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-          }
+           stream.getTracks().forEach(track => track.stop()); // Stop tracks immediately after permission granted
         } catch (error) {
           console.error('Error accessing camera:', error);
-          setHasCameraPermission(false);
           toast({
             variant: 'destructive',
             title: 'Camera Access Denied',
@@ -66,13 +59,6 @@ export default function GoLivePage() {
       }
     };
     init();
-     // Cleanup function to stop media tracks when component unmounts
-    return () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
-        }
-    };
   }, [toast]);
 
 
@@ -182,13 +168,6 @@ export default function GoLivePage() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({ title: 'Copied!', description: 'Stream key copied to clipboard.' });
-    });
-  };
-
-
   if (isLoading || isUserLoading) {
     return (
       <SellerLayout>
@@ -218,12 +197,18 @@ export default function GoLivePage() {
                 <div className="lg:col-span-2 space-y-6">
                     <Card className="overflow-hidden">
                         <div className="relative aspect-video bg-black">
-                            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                            {!hasCameraPermission && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-4">
-                                    <VideoOff className="h-12 w-12 text-destructive mb-4" />
-                                    <h3 className="font-bold text-lg">Camera Access Required</h3>
-                                    <p className="text-sm text-muted-foreground text-center">Please enable camera and microphone permissions in your browser to go live.</p>
+                            {isLive && liveSession?.muxStreamKey ? (
+                                 <MuxPlayer
+                                    streamType="ll-live"
+                                    playbackId={liveSession.muxPlaybackId}
+                                    streamKey={liveSession.muxStreamKey}
+                                    className="w-full h-full"
+                                    autoPlay
+                                    muted
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-black">
+                                    <p className="text-muted-foreground">Your live stream preview will appear here.</p>
                                 </div>
                             )}
                              {isLive && (
@@ -234,30 +219,6 @@ export default function GoLivePage() {
                             )}
                         </div>
                     </Card>
-                     {isLive && liveSession?.muxStreamKey && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Broadcasting Details</CardTitle>
-                                <CardDescription>Use these details in your broadcasting software (e.g., OBS) to start streaming.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-1">
-                                    <Label>Server URL (RTMPs)</Label>
-                                    <div className="flex gap-2">
-                                        <Input readOnly value="rtmps://global-live.mux.com:443/app" />
-                                         <Button variant="outline" size="icon" onClick={() => copyToClipboard('rtmps://global-live.mux.com:443/app')}><ClipboardCopy className="h-4 w-4" /></Button>
-                                    </div>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label>Stream Key</Label>
-                                    <div className="flex gap-2">
-                                        <Input readOnly type="password" value={liveSession.muxStreamKey} />
-                                         <Button variant="outline" size="icon" onClick={() => copyToClipboard(liveSession.muxStreamKey)}><ClipboardCopy className="h-4 w-4" /></Button>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                     )}
                 </div>
                 {/* Right side: Controls */}
                 <div className="space-y-6">
@@ -302,7 +263,7 @@ export default function GoLivePage() {
                                 End Live Session
                             </Button>
                          ) : (
-                            <Button onClick={handleGoLive} size="lg" className="font-bold" disabled={!hasCameraPermission || isSubmitting}>
+                            <Button onClick={handleGoLive} size="lg" className="font-bold" disabled={isSubmitting || !streamTitle}>
                                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Video className="mr-2 h-4 w-4"/>}
                                 Go Live Now
                             </Button>
