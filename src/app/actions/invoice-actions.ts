@@ -13,8 +13,8 @@ interface InvoiceNotificationPayload {
 
 export async function sendInvoiceNotification(payload: InvoiceNotificationPayload): Promise<{ success: boolean; error?: string }> {
     try {
-        initializeAdminApp();
-        const db = getFirestore();
+        const adminApp = initializeAdminApp();
+        const db = getFirestore(adminApp);
 
         const notificationsRef = collection(db, 'notifications');
         
