@@ -16,7 +16,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const isOutOfStock = product.stock !== undefined && product.stock <= 0;
-  const discountPercentage = product.originalPrice && product.price ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+  const discountPercentage = product.wasPrice && product.price ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
   
   const { user } = useUser();
   const firestore = useFirestore();
@@ -47,7 +47,7 @@ export function ProductCard({ product }: ProductCardProps) {
       quantity: increment(1),
       price: product.price,
       name: product.name || '',
-      imageUrl: product.imageUrl || product.image?.imageUrl || '',
+      imageUrl: product.imageUrl || '',
       addedAt: serverTimestamp(),
     };
 
@@ -89,7 +89,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="relative">
         <Link href={`/products/${product.id}`} className="cursor-pointer">
             <img
-            src={product.image?.imageUrl || '/placeholder.svg'}
+            src={product.imageUrl || '/placeholder.svg'}
             alt={product.name || 'Product image'}
             className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -114,8 +114,8 @@ export function ProductCard({ product }: ProductCardProps) {
         </h3>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-lg font-bold text-primary">{product.price?.toLocaleString()}</span>
-          {product.originalPrice && (
-            <span className="text-sm text-neutral-400 line-through">{product.originalPrice.toLocaleString()}</span>
+          {product.wasPrice && (
+            <span className="text-sm text-neutral-400 line-through">{product.wasPrice.toLocaleString()}</span>
           )}
         </div>
         <div className="mt-3 flex gap-2">
