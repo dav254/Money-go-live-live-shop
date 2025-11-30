@@ -4,53 +4,63 @@
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader as PublicSellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
-import { initializeAdminApp } from '@/firebase/admin';
-import { getFirestore } from 'firebase-admin/firestore';
 import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
-import { useUser, useUserProfile } from '@/firebase';
+import { useUser, useUserProfile, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
-import { useEffect, useState } from 'react';
-
-// NOTE: The data fetching functions getSellerData and getSellerProducts are no longer used
-// as this is now a client component. Data will be fetched on the client side inside components.
-// We will mock the data for now.
-
-const mockSeller: Seller = {
-    id: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
-    sellerId: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
-    name: "Aisha's Handbags",
-    description: "Curated collection of handcrafted leather bags and accessories. Made with love, built to last. We believe in sustainable fashion and timeless design.",
-    avatar: { id: 'logo', imageUrl: 'https://picsum.photos/seed/CKmHD5jv0dOevUJhJ8tM7akpSlF2/200', description: 'Shop Logo', imageHint: 'shop logo' },
-    banner: { id: 'banner', imageUrl: 'https://picsum.photos/seed/CKmHD5jv0dOevUJhJ8tM7akpSlF2/1200/400', description: 'Shop Banner', imageHint: 'shop banner' },
-    location: "Nairobi, Kenya",
-    isVerified: true,
-    rating: 4.8,
-    reviewsCount: 150,
-    followers: 2300,
-    joinedDate: new Date().toISOString(),
-    bio: "Welcome to my awesome shop! We sell the best products.",
-    returnPolicy: "30-day returns accepted.",
-    deliveryPolicy: "Ships nationwide in 2-3 business days.",
-    storeHours: "9 AM - 5 PM, Mon-Fri",
-    deliversFast: true,
-};
-
-const mockProducts: Product[] = [];
-
+import { useEffect, useState, useMemo } from 'react';
+import { doc, query, collection, where } from 'firebase/firestore';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 export default function SellerShopPage({ params }: { params: { sellerId: string } }) {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
 
-  const [seller, setSeller] = useState<Seller | null>(mockSeller);
-  const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [isLoading, setIsLoading] = useState(true);
+  const [seller, setSeller] = useState<Seller | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  
+  const sellerId = params.sellerId;
 
+  // --- Data Fetching ---
+  const sellerShopRef = useMemoFirebase(() => doc(firestore, 'sellerShops', sellerId), [firestore, sellerId]);
+  const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
+  const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products'), where('sellerId', '==', sellerId)), [firestore, sellerId]);
+
+  const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
+  const { data: profileData, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
+  const { data: productData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  const isLoading = isUserLoading || isProfileLoading || isShopLoading || isSellerProfileLoading || areProductsLoading;
+
+  // --- Data Composition ---
   useEffect(() => {
-      // In a real implementation, you would fetch seller and product data here
-      // based on params.sellerId. For now, we use mock data.
-      setIsLoading(isUserLoading || isProfileLoading);
-  }, [isUserLoading, isProfileLoading]);
+    if (shopData && profileData) {
+      const composedSeller: Seller = {
+        id: sellerId,
+        sellerId: sellerId,
+        name: shopData.shopName || profileData.fullName || 'Unnamed Shop',
+        description: shopData.description || profileData.bio || 'No description available.',
+        avatar: { id: 'logo', imageUrl: shopData.logoUrl || profileData.profilePictureUrl || getPlaceholderImage(), description: 'Shop Logo', imageHint: 'shop logo' },
+        banner: { id: 'banner', imageUrl: shopData.bannerUrl || getPlaceholderImage(), description: 'Shop Banner', imageHint: 'store banner' },
+        location: shopData.location || profileData.location || 'Not specified',
+        isVerified: profileData.verificationStatus === 'verified',
+        rating: 4.8, // This should come from an aggregation in a real app
+        reviewsCount: shopData.reviewsCount || 0,
+        followers: shopData.followers || 0,
+        joinedDate: profileData.joinDate,
+        bio: profileData.bio || 'Welcome!',
+        returnPolicy: "30-day returns accepted.", // Placeholder
+        deliveryPolicy: "Ships nationwide in 2-3 business days.", // Placeholder
+        storeHours: "9 AM - 5 PM, Mon-Fri", // Placeholder
+        deliversFast: true, // Placeholder
+      };
+      setSeller(composedSeller);
+    }
+
+    if (productData) {
+      setProducts(productData);
+    }
+  }, [shopData, profileData, productData, sellerId]);
 
 
   if (isLoading) {
@@ -87,4 +97,3 @@ export default function SellerShopPage({ params }: { params: { sellerId: string 
     </MainLayout>
   );
 }
-
