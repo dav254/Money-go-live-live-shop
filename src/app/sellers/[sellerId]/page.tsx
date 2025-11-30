@@ -10,8 +10,12 @@ import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useEffect, useState, useMemo } from 'react';
 import { doc, query, collection, where } from 'firebase/firestore';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { useParams } from 'next/navigation';
 
-export default function SellerShopPage({ params }: { params: { sellerId: string } }) {
+export default function SellerShopPage() {
+  const params = useParams();
+  const sellerId = params.sellerId as string;
+
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
@@ -19,8 +23,6 @@ export default function SellerShopPage({ params }: { params: { sellerId: string 
   const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   
-  const sellerId = params.sellerId;
-
   // --- Data Fetching ---
   const sellerShopRef = useMemoFirebase(() => doc(firestore, 'sellerShops', sellerId), [firestore, sellerId]);
   const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
