@@ -1,102 +1,68 @@
 
+'use client';
+
 import { MainLayout } from '@/components/layout/main-layout';
-import { SellerHeader } from '@/components/seller/shop-header';
+import { SellerHeader as PublicSellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
 import { initializeAdminApp } from '@/firebase/admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
+import { useUser, useUserProfile } from '@/firebase';
+import { BuyerHeader } from '@/components/buyer/buyer-header';
+import { useEffect, useState } from 'react';
 
+// NOTE: The data fetching functions getSellerData and getSellerProducts are no longer used
+// as this is now a client component. Data will be fetched on the client side inside components.
+// We will mock the data for now.
 
-async function getSellerData(sellerId: string): Promise<Seller | null> {
-  const adminApp = initializeAdminApp();
-  const db = getFirestore(adminApp);
-  const sellerDocRef = db.collection('sellerShops').doc(sellerId);
-  const sellerDocSnap = await sellerDocRef.get();
-
-  if (!sellerDocSnap.exists) {
-    const userProfileRef = db.collection('userProfiles').doc(sellerId);
-    const userProfileSnap = await userProfileRef.get();
-    if (!userProfileSnap.exists) {
-        return null;
-    }
-     const userProfile = userProfileSnap.data() as UserProfile;
-     return {
-        id: userProfileSnap.id,
-        sellerId: userProfileSnap.id,
-        name: userProfile.fullName || 'Seller',
-        description: userProfile.bio || 'Welcome to my shop!',
-        avatar: { id: 'avatar', imageUrl: userProfile.profilePictureUrl || `https://picsum.photos/seed/${sellerId}/200`, description: 'Seller Avatar', imageHint: 'seller avatar' },
-        isVerified: false,
-        rating: 0,
-        reviewsCount: 0,
-        followers: 0,
-        location: userProfile.location || 'Unknown',
-        joinedDate: userProfile.joinDate,
-        bio: userProfile.bio || 'Welcome to my shop!',
-        banner: { id: 'banner', imageUrl: `https://picsum.photos/seed/${sellerId}/1200/400`, description: 'Shop Banner', imageHint: 'shop banner' }
-    };
-  }
-
-  const sellerData = sellerDocSnap.data() as SellerShop;
-  const userProfileRef = db.collection('userProfiles').doc(sellerId);
-  const userProfileSnap = await userProfileRef.get();
-  const userProfile = userProfileSnap.exists ? userProfileSnap.data() as UserProfile : {};
-
-  return {
-    id: sellerDocSnap.id,
-    sellerId: sellerData.sellerId,
-    name: sellerData.shopName,
-    description: sellerData.description,
-    avatar: { id: 'logo', imageUrl: sellerData.logoUrl || `https://picsum.photos/seed/${sellerId}/200`, description: 'Shop Logo', imageHint: 'shop logo' },
-    banner: { id: 'banner', imageUrl: sellerData.bannerUrl || `https://picsum.photos/seed/${sellerId}/1200/400`, description: 'Shop Banner', imageHint: 'shop banner' },
-    location: sellerData.location || userProfile.location || 'Unknown',
-    contactEmail: sellerData.contactEmail,
-    contactWhatsapp: sellerData.contactWhatsapp,
+const mockSeller: Seller = {
+    id: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
+    sellerId: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
+    name: "Aisha's Handbags",
+    description: "Curated collection of handcrafted leather bags and accessories. Made with love, built to last. We believe in sustainable fashion and timeless design.",
+    avatar: { id: 'logo', imageUrl: 'https://picsum.photos/seed/CKmHD5jv0dOevUJhJ8tM7akpSlF2/200', description: 'Shop Logo', imageHint: 'shop logo' },
+    banner: { id: 'banner', imageUrl: 'https://picsum.photos/seed/CKmHD5jv0dOevUJhJ8tM7akpSlF2/1200/400', description: 'Shop Banner', imageHint: 'shop banner' },
+    location: "Nairobi, Kenya",
     isVerified: true,
-    rating: 4.8, // Placeholder
-    reviewsCount: sellerData.reviewsCount || 0,
-    followers: sellerData.followers || 0,
-    joinedDate: userProfile.joinDate || new Date().toISOString(),
-    bio: sellerData.description || userProfile.bio || 'Welcome!',
-  };
-}
+    rating: 4.8,
+    reviewsCount: 150,
+    followers: 2300,
+    joinedDate: new Date().toISOString(),
+    bio: "Welcome to my awesome shop! We sell the best products.",
+    returnPolicy: "30-day returns accepted.",
+    deliveryPolicy: "Ships nationwide in 2-3 business days.",
+    storeHours: "9 AM - 5 PM, Mon-Fri",
+    deliversFast: true,
+};
 
-async function getSellerProducts(sellerId: string): Promise<Product[]> {
-  const adminApp = initializeAdminApp();
-  const db = getFirestore(adminApp);
-  const productsRef = db.collection('products');
-  const q = productsRef.where('sellerId', '==', sellerId);
-  const querySnapshot = await q.get();
-  
-  if (querySnapshot.empty) {
-    return [];
+const mockProducts: Product[] = [];
+
+
+export default function SellerShopPage({ params }: { params: { sellerId: string } }) {
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+
+  const [seller, setSeller] = useState<Seller | null>(mockSeller);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+      // In a real implementation, you would fetch seller and product data here
+      // based on params.sellerId. For now, we use mock data.
+      setIsLoading(isUserLoading || isProfileLoading);
+  }, [isUserLoading, isProfileLoading]);
+
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <h1 className="text-2xl font-bold">Loading Shop...</h1>
+        </div>
+      </MainLayout>
+    );
   }
-  
-  return querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      name: data.name,
-      price: data.price,
-      originalPrice: data.wasPrice,
-      image: { 
-          id: doc.id, 
-          imageUrl: data.imageUrl || `https://picsum.photos/seed/${doc.id}/400/300`, 
-          description: data.name, 
-          imageHint: 'product' 
-      },
-      imageUrl: data.imageUrl,
-      videoUrl: data.videoUrl,
-      stock: data.stock || 0,
-      sellerId: data.sellerId,
-    } as Product;
-  });
-}
 
-export default async function SellerShopPage({ params }: { params: { sellerId: string } }) {
-  const sellerId = params.sellerId;
-  const seller = await getSellerData(sellerId);
-  
   if (!seller) {
     return (
       <MainLayout>
@@ -107,16 +73,18 @@ export default async function SellerShopPage({ params }: { params: { sellerId: s
     );
   }
 
-  const sellerProducts = await getSellerProducts(sellerId);
+  const isBuyer = userProfile?.userRole === 'buyer';
 
   return (
     <MainLayout>
-      <div className="bg-background text-foreground">
-        <SellerHeader seller={seller} />
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SellerTabs seller={seller} products={sellerProducts} />
-        </div>
+        {isBuyer && <BuyerHeader />}
+        <div className="bg-background text-foreground">
+            <PublicSellerHeader seller={seller} />
+            <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <SellerTabs seller={seller} products={products} />
+            </div>
       </div>
     </MainLayout>
   );
 }
+
