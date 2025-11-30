@@ -37,10 +37,28 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   }, [firestore, item.product.id]);
 
   useEffect(() => {
-    // When the video source changes, explicitly load and play it.
-    if (videoRef.current && item.video.mediaType === 'video') {
-      videoRef.current.load();
-      videoRef.current.play().catch(error => console.error("Autoplay was prevented:", error));
+    const videoElement = videoRef.current;
+    if (videoElement && item.video.mediaType === 'video') {
+      const handleCanPlay = () => {
+        videoElement.play().catch(error => {
+          // Autoplay was prevented, which is common. User interaction will be needed.
+          console.error("Autoplay was prevented:", error);
+        });
+      };
+
+      // Set the source
+      if (videoElement.src !== item.video.imageUrl) {
+        videoElement.src = item.video.imageUrl;
+        videoElement.load();
+      }
+
+      // Add event listener to play when ready
+      videoElement.addEventListener('canplay', handleCanPlay);
+
+      // Clean up the event listener when the component unmounts or the video source changes
+      return () => {
+        videoElement.removeEventListener('canplay', handleCanPlay);
+      };
     }
   }, [item.video.imageUrl, item.video.mediaType]);
 
