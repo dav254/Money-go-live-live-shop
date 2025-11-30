@@ -36,6 +36,14 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     }
   }, [firestore, item.product.id]);
 
+  useEffect(() => {
+    // When the video source changes, explicitly load and play it.
+    if (videoRef.current && item.video.mediaType === 'video') {
+      videoRef.current.load();
+      videoRef.current.play().catch(error => console.error("Autoplay was prevented:", error));
+    }
+  }, [item.video.imageUrl, item.video.mediaType]);
+
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !item.product.id) return null;
     return query(collection(firestore, 'products', item.product.id, 'comments'), orderBy('timestamp', 'asc'));
@@ -91,7 +99,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
           src={item.video.imageUrl} // imageUrl now holds the media URL
           className="h-full w-full object-contain" 
           autoPlay 
-          muted 
+          muted={isMuted} 
           loop 
           playsInline
           key={item.video.imageUrl}
