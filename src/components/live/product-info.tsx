@@ -27,6 +27,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
                     src={imageUrl}
                     alt={product.name || 'Product Image'}
                     fill
+                    sizes="100vw"
+                    priority
                     className="object-cover"
                 />
             </div>

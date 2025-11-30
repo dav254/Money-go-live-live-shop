@@ -128,13 +128,13 @@ export default function BuyerProductPage() {
         ];
     }, [product]);
 
-    const [selectedMedia, setSelectedMedia] = useState(allMedia[0]);
+    const [selectedMedia, setSelectedMedia] = useState(allMedia.length > 0 ? allMedia[0] : null);
 
     useEffect(() => {
-        if (allMedia.length > 0 && !selectedMedia) {
+        if (allMedia.length > 0) {
             setSelectedMedia(allMedia[0]);
         }
-    }, [allMedia, selectedMedia]);
+    }, [allMedia]);
 
     const handleAddToCart = async () => {
         if (!user) {

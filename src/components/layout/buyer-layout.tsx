@@ -4,16 +4,10 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import Link from 'next/link';
-import { Button } from '../ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { Menu } from 'lucide-react';
 import { Toaster } from '../ui/toaster';
-import { Logo } from '../logo';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
-import { useUser } from '@/firebase';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
+import { useUser, useUserProfile } from '@/firebase';
 
 export function BuyerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -23,10 +17,8 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading) {
       if (!user) {
-        // Not logged in, redirect to login page
         router.replace('/login');
       } else if (userProfile && userProfile.userRole !== 'buyer') {
-        // Logged in, but not a buyer, redirect to homepage for role-based routing
         router.replace('/');
       }
     }
@@ -42,22 +34,23 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // Render nothing if we are about to redirect
   if (!user || (userProfile && userProfile.userRole !== 'buyer')) {
     return null;
   }
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full flex-col bg-background">
-        <BuyerHeader />
-        <div className="flex flex-1">
-          <aside className="hidden w-64 flex-col border-r bg-card md:flex">
-            <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
-              <BuyerSidebar />
-            </div>
-          </aside>
-          <main className="flex-1">{children}</main>
+      <div className="flex min-h-screen w-full bg-background">
+        <aside className="hidden w-64 flex-col border-r bg-card md:flex">
+          <div className="flex-1 flex-col gap-y-4 overflow-y-auto p-4">
+            <BuyerSidebar />
+          </div>
+        </aside>
+        <div className="flex flex-1 flex-col">
+          <BuyerHeader />
+          <main className="flex-1 p-4 sm:p-6">
+            <div className="mx-auto max-w-7xl">{children}</div>
+          </main>
         </div>
         <Toaster />
       </div>

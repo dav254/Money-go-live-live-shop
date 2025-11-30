@@ -78,8 +78,7 @@ service cloud.firestore {
     // Buyers can create orders.
     match /orders/{orderId} {
       allow list: if request.auth != null && 
-                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
-                      request.query.where.sellerId == request.auth.uid); // <-- ADD THIS LINE
+                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow read: if request.auth != null && 
                      (resource.data.buyerId == request.auth.uid || 
                       resource.data.sellerId == request.auth.uid ||
