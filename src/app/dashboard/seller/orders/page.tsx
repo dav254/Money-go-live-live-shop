@@ -44,7 +44,7 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 
 
 const AllOrdersTable = () => {
-    const { user } = useUser();
+    const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -53,7 +53,9 @@ const AllOrdersTable = () => {
         return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { data: orders, isLoading } = useCollection<ManagedOrder>(ordersQuery);
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<ManagedOrder>(ordersQuery);
+
+    const isLoading = isUserLoading || areOrdersLoading;
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
