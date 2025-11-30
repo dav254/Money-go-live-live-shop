@@ -113,9 +113,9 @@ export function ProductCard({ product }: ProductCardProps) {
             <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-lg font-bold text-primary">{product.price?.toLocaleString()}</span>
+          <span className="text-lg font-bold text-primary">${product.price?.toLocaleString()}</span>
           {product.wasPrice && (
-            <span className="text-sm text-neutral-400 line-through">{product.wasPrice.toLocaleString()}</span>
+            <span className="text-sm text-neutral-400 line-through">${product.wasPrice.toLocaleString()}</span>
           )}
         </div>
         <div className="mt-3 flex gap-2">
