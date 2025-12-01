@@ -43,7 +43,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import type { Product, AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,7 +103,7 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                 productId: selectedProduct.id,
                 productName: selectedProduct.name,
                 productImageUrl: selectedProduct.imageUrl || '',
-                status: 'draft',
+                status: 'draft' as const,
                 budget: costInPoints, // Storing points as budget
                 spend: 0,
                 clicks: 0,
@@ -247,7 +247,8 @@ export const columns: ColumnDef<AdCampaign>[] = [
 ];
 
 export default function SellerAdsPage() {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
 
   const campaignsQuery = useMemoFirebase(() => {
@@ -298,7 +299,7 @@ export default function SellerAdsPage() {
                     <Button><PlusCircle className="mr-2 h-4 w-4" /> Create New Ad</Button>
                 </DialogTrigger>
             </div>
-            <CreateAdDialog videoProducts={videoProducts} isLoading={isLoadingProducts} userProfile={user} />
+            <CreateAdDialog videoProducts={videoProducts} isLoading={isLoadingProducts} userProfile={userProfile} />
         </Dialog>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -362,3 +363,5 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
+
+    
