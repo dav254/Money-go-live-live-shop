@@ -26,6 +26,7 @@ import {
   MousePointerClick,
   DollarSign,
   TrendingUp,
+  ClipboardCopy,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -36,11 +37,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import type { AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 
 const StatCard = ({ title, value, icon: Icon, description, color }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string }) => (
     <Card>
@@ -74,9 +88,67 @@ const DataTableSkeleton = () => (
     </div>
 );
 
+const ApproveCampaignDialog = ({ campaign, onOpenChange }: { campaign: AdCampaign | null; onOpenChange: (open: boolean) => void }) => {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  if (!campaign) return null;
+
+  const trackingUrl = `https://goearnvid.shop/products/${campaign.productId}?campaignId=${campaign.id}`;
+
+  const handleApprove = async () => {
+    const campaignRef = doc(firestore, 'adCampaigns', campaign.id);
+    try {
+      await updateDoc(campaignRef, { status: 'active' });
+      toast({ title: 'Campaign Approved!', description: 'The campaign is now marked as active.' });
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error approving campaign:', error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not approve the campaign.' });
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(trackingUrl).then(() => {
+        toast({ title: 'Copied to Clipboard!' });
+    });
+  }
+
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Approve Ad Campaign</DialogTitle>
+        <DialogDescription>
+          Review the campaign and use the generated link for your ad setup on TikTok.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4 py-4">
+        <div>
+          <h4 className="font-semibold">{campaign.productName}</h4>
+          <p className="text-sm text-muted-foreground">Budget: ${campaign.budget.toLocaleString()}</p>
+        </div>
+        <div>
+            <Label htmlFor="tracking-url">TikTok Ad Tracking URL</Label>
+            <div className="flex items-center gap-2">
+                <Input id="tracking-url" readOnly value={trackingUrl} />
+                <Button size="icon" variant="outline" onClick={copyToClipboard}><ClipboardCopy className="h-4 w-4" /></Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Use this exact URL as the destination for your TikTok ad.</p>
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+        <DialogClose asChild><Button onClick={handleApprove}>Approve & Set Live</Button></DialogClose>
+      </DialogFooter>
+    </DialogContent>
+  );
+};
 
 export default function AdminAdsPage() {
   const firestore = useFirestore();
+  const [selectedCampaign, setSelectedCampaign] = React.useState<AdCampaign | null>(null);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false);
+
 
   const campaignsQuery = useMemoFirebase(() => {
     return query(collection(firestore, 'adCampaigns'), orderBy('startDate', 'desc'));
@@ -114,6 +186,7 @@ export default function AdminAdsPage() {
       },
     },
     { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <p className="text-xs font-mono">{row.original.sellerId}</p> },
+    { accessorKey: 'budget', header: 'Budget (USD)', cell: ({ row }) => `$${row.original.budget.toLocaleString()}` },
     { accessorKey: 'spend', header: 'Spend (USD)', cell: ({ row }) => `$${row.original.spend.toLocaleString()}` },
     { accessorKey: 'clicks', header: 'Clicks' },
     { accessorKey: 'conversions', header: 'Conversions' },
@@ -128,8 +201,15 @@ export default function AdminAdsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            {row.original.status === 'draft' && (
+                <DropdownMenuItem onSelect={() => {
+                    setSelectedCampaign(row.original);
+                    setIsApproveDialogOpen(true);
+                }}>
+                    Approve Campaign
+                </DropdownMenuItem>
+            )}
             <DropdownMenuItem>Update Stats</DropdownMenuItem>
-            <DropdownMenuItem>Mark as Active</DropdownMenuItem>
             <DropdownMenuItem>Pause Campaign</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive">End Campaign</DropdownMenuItem>
@@ -160,53 +240,54 @@ export default function AdminAdsPage() {
             <StatCard title="Total Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} />
             <StatCard title="Average CPC" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} />
         </div>
-
-        {isLoading ? <DataTableSkeleton /> : (
-            <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                        {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                            )}
-                        </TableHead>
-                    ))}
-                    </TableRow>
-                ))}
-                </TableHeader>
-                <TableBody>
-                {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                            {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                            )}
-                        </TableCell>
+        <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+            {isLoading ? <DataTableSkeleton /> : (
+                <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                            <TableHead key={header.id}>
+                            {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                )}
+                            </TableHead>
                         ))}
-                    </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                        No ad campaigns found.
-                    </TableCell>
-                    </TableRow>
-                )}
-                </TableBody>
-            </Table>
-            </div>
-        )}
+                        </TableRow>
+                    ))}
+                    </TableHeader>
+                    <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                        table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                            {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                                {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                                )}
+                            </TableCell>
+                            ))}
+                        </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                            No ad campaigns found.
+                        </TableCell>
+                        </TableRow>
+                    )}
+                    </TableBody>
+                </Table>
+                </div>
+            )}
+             <ApproveCampaignDialog campaign={selectedCampaign} onOpenChange={setIsApproveDialogOpen} />
+        </Dialog>
       </div>
     </AdminLayout>
   );
 }
-
