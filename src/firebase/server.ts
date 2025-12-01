@@ -20,22 +20,21 @@ try {
 
 const appName = `firebase-admin-app:${process.env.VERCEL_DEPLOYMENT_ID || 'local'}`;
 
-let app: App | undefined;
-
-if (!getApps().some(existingApp => existingApp.name === appName)) {
-  if (serviceAccount) {
-    app = initializeApp({
-      credential: cert(serviceAccount)
-    }, appName);
-  } else {
-    // Cannot initialize without service account
+function createAdminApp(): App | null {
+    if (serviceAccount) {
+        const existingApp = getApps().find(app => app.name === appName);
+        if (existingApp) {
+            return existingApp;
+        }
+        return initializeApp({
+            credential: cert(serviceAccount)
+        }, appName);
+    }
     console.error("Firebase Admin SDK could not be initialized because service-account.json is missing or invalid.");
-  }
-} else {
-  app = getApp(appName);
+    return null;
 }
 
-// Conditionally export db only if the app was initialized
+const app = createAdminApp();
 const db = app ? getFirestore(app) : null;
 
 export { db };
