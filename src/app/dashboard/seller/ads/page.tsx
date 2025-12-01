@@ -28,6 +28,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Loader2,
+  ClipboardCopy,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -39,12 +40,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Product, AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // --- Mock Data ---
 
@@ -188,7 +200,7 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                     </Alert>
                 </div>
                 <DialogFooter>
-                    <Button type="button" variant="ghost">Cancel</Button>
+                    <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
                     <Button onClick={handleSubmit} disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Create Campaign (5000 Points)
@@ -290,7 +302,7 @@ export default function SellerAdsPage() {
             <StatCard isLoading={isLoading} title="Total Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
             <StatCard isLoading={isLoading} title="Total Clicks" value={`${stats.totalClicks.toLocaleString()}`} icon={MousePointerClick} description="Lifetime" />
             <StatCard isLoading={isLoading} title="Conversions" value={`${stats.totalConversions.toLocaleString()}`} icon={TrendingUp} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
         </div>
 
         <div className="rounded-md border">
