@@ -72,6 +72,14 @@ service cloud.firestore {
           allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       }
     }
+    
+    match /errorLogs/{errorId} {
+      allow list, read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+     match /activityLogs/{logId} {
+      allow list, read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
 
     // Orders can be read by the buyer, the seller, or an admin.
     // Admins can list all orders.
