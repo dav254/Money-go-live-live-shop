@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -26,34 +25,49 @@ import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
-
-type UserRole = 'admin' | 'seller' | 'reseller' | 'buyer';
-
-type MockUser = {
-    id: string;
-    fullName: string;
-    username: string;
-    email: string;
-    profilePictureUrl?: string;
-    joinDate: string;
-    userRole: UserRole;
-};
-
-// --- Mock Data ---
-const mockUsers: MockUser[] = [
-    { id: '1', fullName: 'Admin User', username: 'admin', email: 'admin@goearn.com', userRole: 'admin', joinDate: '2024-01-01', profilePictureUrl: 'https://picsum.photos/seed/user1/40' },
-    { id: '2', fullName: 'Aisha Seller', username: 'aishas_shop', email: 'aisha@example.com', userRole: 'seller', joinDate: '2024-02-15', profilePictureUrl: 'https://picsum.photos/seed/user2/40' },
-    { id: '3', fullName: 'Ben Reseller', username: 'ben_sells', email: 'ben@example.com', userRole: 'reseller', joinDate: '2024-03-10', profilePictureUrl: 'https://picsum.photos/seed/user3/40' },
-    { id: '4', fullName: 'Charlie Buyer', username: 'charlie_b', email: 'charlie@example.com', userRole: 'buyer', joinDate: '2024-05-20', profilePictureUrl: 'https://picsum.photos/seed/user4/40' },
-];
-// --- End Mock Data ---
-
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, doc, updateDoc } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { DotsHorizontalIcon } from '@radix-ui/react-icons';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminRolesPage() {
+    const firestore = useFirestore();
+    const { toast } = useToast();
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-    const columns: ColumnDef<MockUser>[] = React.useMemo(() => [
+    const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
+    const { data: users, isLoading } = useCollection<UserProfile>(usersQuery);
+
+    const handleRoleChange = async (userId: string, newRole: UserProfile['userRole']) => {
+        const userDocRef = doc(firestore, 'userProfiles', userId);
+        try {
+            await updateDoc(userDocRef, { userRole: newRole });
+            toast({
+                title: 'Role Updated',
+                description: `User has been assigned the ${newRole} role.`,
+            });
+        } catch (error) {
+            console.error("Failed to update role:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: 'Could not update user role. Check console for errors.',
+            });
+        }
+    };
+
+    const columns: ColumnDef<UserProfile>[] = React.useMemo(() => [
         {
             accessorKey: 'fullName',
             header: 'User',
@@ -82,12 +96,36 @@ export default function AdminRolesPage() {
         {
             accessorKey: 'joinDate',
             header: 'Joined Date',
-            cell: ({ row }) => new Date(row.original.joinDate).toLocaleDateString()
+            cell: ({ row }) => row.original.joinDate ? new Date(row.original.joinDate).toLocaleDateString() : 'N/A'
         },
-    ], []);
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const user = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <DotsHorizontalIcon className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Change Role</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'buyer')}>Set as Buyer</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'seller')}>Set as Seller</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'reseller')}>Set as Reseller</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleRoleChange(user.id, 'admin')} className="text-destructive">Set as Admin</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            }
+        }
+    ], [handleRoleChange]);
 
     const table = useReactTable({
-        data: mockUsers,
+        data: users || [],
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -125,7 +163,11 @@ export default function AdminRolesPage() {
                 ))}
             </TableHeader>
             <TableBody>
-                {table.getRowModel().rows?.length ? (
+                {isLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">Loading users...</TableCell>
+                    </TableRow>
+                ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
