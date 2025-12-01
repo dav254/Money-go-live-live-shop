@@ -189,8 +189,10 @@ service cloud.firestore {
     // Ad Campaigns
     match /adCampaigns/{campaignId} {
       // Sellers can create, read, and update their own ad campaigns.
+      // List permission is crucial for sellers to see all of their own campaigns.
       allow create, read, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      // Admins can read all campaigns.
+      allow list: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' || (request.query.where.size() > 0 && request.query.where[0][2] == request.auth.uid));
+      // Admins can list and read all campaigns.
       allow read, list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     
