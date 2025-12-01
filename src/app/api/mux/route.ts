@@ -2,8 +2,7 @@
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import Mux from '@mux/mux-node';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+// Do NOT import firebase-admin services at the top level.
 
 let mux: Mux | null = null;
 if (process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET) {
@@ -16,27 +15,24 @@ if (process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET) {
 export async function POST(request: Request) {
   try {
     initializeAdminApp();
-  } catch (error) {
-    console.error('Failed to initialize Firebase Admin SDK in API route', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
-  }
+    const { getAuth } = await import('firebase-admin/auth');
+    const { getFirestore } = await import('firebase-admin/firestore');
     
-  if (!mux) {
-      console.error('Mux API credentials are not configured.');
-      return NextResponse.json({ error: 'Live streaming service is not configured.' }, { status: 503 });
-  }
+    if (!mux) {
+        console.error('Mux API credentials are not configured.');
+        return NextResponse.json({ error: 'Live streaming service is not configured.' }, { status: 503 });
+    }
 
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader) {
-    return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
-  }
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
+    }
 
-  const token = authHeader.split('Bearer ')[1];
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized: Malformed token' }, { status: 401 });
-  }
+    const token = authHeader.split('Bearer ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized: Malformed token' }, { status: 401 });
+    }
 
-  try {
     const decodedToken = await getAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 

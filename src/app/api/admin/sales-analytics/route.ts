@@ -3,30 +3,26 @@ import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { Order } from '@/lib/types';
 
-// IMPORTANT: Import 'getAuth', 'getFirestore', etc., inside the function
-// to ensure the app is initialized first.
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+// Do NOT import firebase-admin services at the top level.
+// They will be imported dynamically after initialization.
 
 export async function GET(request: Request) {
   try {
     initializeAdminApp(); 
-  } catch (error) {
-    console.error('Failed to initialize Firebase Admin SDK in API route', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
-  }
+    // Dynamically import services AFTER initialization
+    const { getAuth } = await import('firebase-admin/auth');
+    const { getFirestore, Timestamp } = await import('firebase-admin/firestore');
     
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const token = authHeader.split('Bearer ')[1];
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    const token = authHeader.split('Bearer ')[1];
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  try {
     const decodedToken = await getAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 
@@ -83,7 +79,7 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error('API Sales Analytics Error:', error);
-     if (error.code === 'auth/id-token-expired') {
+    if (error.code === 'auth/id-token-expired') {
       return NextResponse.json({ error: 'Token expired, please log in again.' }, { status: 401 });
     }
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });

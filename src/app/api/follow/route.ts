@@ -1,8 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+// Do NOT import firebase-admin services at the top level.
 
 // Health check function for this API endpoint
 export async function healthCheck() {
@@ -18,10 +17,8 @@ export async function healthCheck() {
 export async function POST(request: NextRequest) {
   try {
     initializeAdminApp(); // Ensure app is initialized
-  } catch (error) {
-    console.error('Failed to initialize Firebase Admin SDK in API route', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
-  }
+    const { getAuth } = await import('firebase-admin/auth');
+    const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
 
     const body = await request.json();
 
@@ -37,7 +34,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
     }
 
-  try {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
     const buyerId = decodedToken.uid;
