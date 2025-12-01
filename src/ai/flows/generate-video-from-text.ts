@@ -14,7 +14,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { initializeAdminApp } from '@/firebase/admin';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+// Do not import from 'firebase-admin' at the top level
 import { v2 as cloudinary } from 'cloudinary';
 
 // Configure Cloudinary
@@ -49,6 +49,7 @@ async function uploadToCloudinary(videoDataUri: string, productId: string): Prom
 export async function generateVideoFromText(input: GenerateVideoFromTextInput): Promise<GenerateVideoFromTextOutput> {
   // Initialize Firebase Admin for server-side operations
   initializeAdminApp();
+  const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
   const firestore = getFirestore();
 
   // 1. Generate video using Veo

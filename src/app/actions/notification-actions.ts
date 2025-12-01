@@ -1,8 +1,8 @@
 
 'use server';
 
-import { getFirestore, writeBatch, collection, query, where, getDocs, doc } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
+// Do not import from 'firebase-admin' at the top level
 
 interface NotificationPayload {
     targetAudience: 'all' | 'buyers' | 'sellers' | 'resellers';
@@ -13,7 +13,8 @@ interface NotificationPayload {
 
 export async function sendBulkNotifications(payload: NotificationPayload): Promise<{ success: boolean; count?: number; error?: string }> {
     try {
-        initializeAdminApp(); // Ensure app is initialized
+        initializeAdminApp();
+        const { getFirestore, writeBatch, collection, query, where, getDocs, doc } = await import('firebase-admin/firestore');
         const db = getFirestore();
 
         const usersRef = collection(db, 'userProfiles');

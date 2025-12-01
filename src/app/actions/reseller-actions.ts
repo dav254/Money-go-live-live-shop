@@ -7,11 +7,12 @@
  */
 
 import { initializeAdminApp } from '@/firebase/admin';
-import { getFirestore, serverTimestamp } from 'firebase-admin/firestore';
+// Do not import from 'firebase-admin' at the top level
 
 export async function logResellerShare(resellerId: string, productId: string, sellerId: string) {
   try {
-    initializeAdminApp(); // Ensure app is initialized
+    initializeAdminApp();
+    const { getFirestore, serverTimestamp } = await import('firebase-admin/firestore');
     const db = getFirestore();
     
     await db.collection('resellActivities').add({

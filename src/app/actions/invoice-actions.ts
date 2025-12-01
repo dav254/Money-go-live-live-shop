@@ -2,8 +2,8 @@
 'use server';
 
 import { initializeAdminApp } from '@/firebase/admin';
-import { getFirestore, serverTimestamp } from 'firebase-admin/firestore';
-import { collection, addDoc } from 'firebase/firestore'; // Use client SDK for types, but admin for execution
+// Do not import from 'firebase-admin' at the top level
+import type { Order } from '@/lib/types';
 
 interface InvoiceNotificationPayload {
     sellerId: string;
@@ -13,11 +13,10 @@ interface InvoiceNotificationPayload {
 
 export async function sendInvoiceNotification(payload: InvoiceNotificationPayload): Promise<{ success: boolean; error?: string }> {
     try {
-        const adminApp = initializeAdminApp(); // Ensure app is initialized
-        const db = getFirestore(adminApp);
+        initializeAdminApp();
+        const { getFirestore, serverTimestamp } = await import('firebase-admin/firestore');
+        const db = getFirestore();
 
-        // This should use the admin SDK `addDoc`, which is different from the client's.
-        // We'll point to the collection path directly.
         await db.collection('notifications').add({
             userId: payload.sellerId,
             type: 'invoice',

@@ -5,9 +5,9 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from './admin';
 
 // Initialize the app using the centralized function
-const app = initializeAdminApp();
+initializeAdminApp();
 
 // Get the Firestore instance from the initialized app
-const db = getFirestore(app);
+const db = getFirestore();
 
 export { db };
