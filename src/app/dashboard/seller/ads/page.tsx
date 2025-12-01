@@ -88,6 +88,16 @@ const StatCard = ({ title, value, icon: Icon, description, color }: { title: str
 
 const CreateAdDialog = () => {
     const { toast } = useToast();
+    const [campaignCost, setCampaignCost] = React.useState(4200);
+
+    const handleDurationChange = (value: string) => {
+        const costs: { [key: string]: number } = {
+            '3': 4200,
+            '7': 7200,
+            '14': 13200,
+        };
+        setCampaignCost(costs[value] || 4200);
+    };
 
     const handleSubmit = () => {
         toast({
@@ -101,7 +111,7 @@ const CreateAdDialog = () => {
             <DialogHeader>
                 <DialogTitle>Create New Ad Campaign</DialogTitle>
                 <DialogDescription>
-                    Select a product, set a budget, and submit for admin review. This costs 4,200 AI Points.
+                    Select a product and campaign duration, then submit for admin review.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -119,14 +129,9 @@ const CreateAdDialog = () => {
                         </SelectContent>
                     </Select>
                 </div>
-                <div className="space-y-2">
-                    <Label>Set Your Budget (USD)</Label>
-                    <Input type="number" defaultValue={20} min={20} step={5}/>
-                    <p className="text-xs text-muted-foreground">Minimum budget is $20. This includes a platform fee.</p>
-                </div>
                  <div className="space-y-2">
                     <Label>Campaign Duration</Label>
-                    <Select defaultValue="7">
+                    <Select defaultValue="3" onValueChange={handleDurationChange}>
                         <SelectTrigger>
                             <SelectValue placeholder="Choose a duration..." />
                         </SelectTrigger>
@@ -136,7 +141,7 @@ const CreateAdDialog = () => {
                             <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
                         </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Your $20 budget will be spread evenly over this period.</p>
+                    <p className="text-xs text-muted-foreground">Your ad budget will be spread evenly over this period.</p>
                 </div>
 
                 <Alert variant="default" className="bg-blue-950/50 border-blue-500/30">
@@ -153,7 +158,7 @@ const CreateAdDialog = () => {
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                <DialogClose asChild><Button onClick={handleSubmit}>Create Campaign (4,200 Points)</Button></DialogClose>
+                <DialogClose asChild><Button onClick={handleSubmit}>Create Campaign ({campaignCost.toLocaleString()} Points)</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
     )
