@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { Suspense, useMemo, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
   Card,
@@ -35,7 +35,7 @@ import {
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Order, UserProfile } from '@/lib/types';
+import type { Order, Payout, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
@@ -115,29 +115,51 @@ export default function AdminDashboardPage() {
   const [dailyOrders, setDailyOrders] = useState(0);
   const [isChartLoading, setIsChartLoading] = useState(true);
 
-  const buyersQuery = useMemoFirebase(
-    () => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'buyer')),
-    [firestore]
-  );
-  const sellersQuery = useMemoFirebase(
-    () => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller')),
-    [firestore]
-  );
-  const resellersQuery = useMemoFirebase(
-    () => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')),
-    [firestore]
-  );
-  const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [
-    firestore,
-  ]);
+  // Queries for dashboard stats
+  const buyersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'buyer')), [firestore]);
+  const sellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller')), [firestore]);
+  const resellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')), [firestore]);
+  const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
+  const completedPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'completed')), [firestore]);
 
   const { data: buyers, isLoading: isLoadingBuyers } = useCollection(buyersQuery);
   const { data: sellers, isLoading: isLoadingSellers } = useCollection(sellersQuery);
   const { data: resellers, isLoading: isLoadingResellers } = useCollection(resellersQuery);
   const { data: products, isLoading: isLoadingProducts } = useCollection(productsQuery);
+  const { data: completedPayouts, isLoading: isLoadingPayouts } = useCollection<Payout>(completedPayoutsQuery);
+
+  const [resellerProfiles, setResellerProfiles] = React.useState<Map<string, UserProfile>>(new Map());
+
+  // Fetch profiles of users who have completed payouts to identify resellers
+  React.useEffect(() => {
+    if (completedPayouts && completedPayouts.length > 0) {
+      const userIds = [...new Set(completedPayouts.map(p => p.sellerId))];
+      if (userIds.length > 0) {
+        const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', userIds));
+        getDocs(usersQuery).then(snapshot => {
+          const profiles = new Map<string, UserProfile>();
+          snapshot.forEach(doc => profiles.set(doc.id, doc.data() as UserProfile));
+          setResellerProfiles(profiles);
+        });
+      }
+    }
+  }, [completedPayouts, firestore]);
+
+  const commissionPaid = useMemo(() => {
+      if (!completedPayouts || resellerProfiles.size === 0) return 0;
+      
+      return completedPayouts.reduce((total, payout) => {
+          const profile = resellerProfiles.get(payout.sellerId);
+          if (profile && profile.userRole === 'reseller') {
+              return total + payout.amount;
+          }
+          return total;
+      }, 0);
+  }, [completedPayouts, resellerProfiles]);
+
 
   const isLoading =
-    isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts;
+    isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingPayouts;
 
   useEffect(() => {
     async function fetchSalesData() {
@@ -193,9 +215,9 @@ export default function AdminDashboardPage() {
     },
     {
       title: 'Commission Paid',
-      value: '$22,500',
+      value: `$${commissionPaid.toLocaleString(undefined, { minimumFractionDigits: 2})}`,
       icon: CircleDollarSign,
-      isLoading: false,
+      isLoading: isLoading,
     },
      {
       title: 'Flagged Issues',
