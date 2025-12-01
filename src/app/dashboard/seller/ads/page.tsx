@@ -246,7 +246,11 @@ export default function SellerAdsPage() {
 
   const campaignsQuery = useMemoFirebase(() => {
       if (!user) return null;
-      return query(collection(firestore, 'adCampaigns'), where('sellerId', '==', user.uid), orderBy('startDate', 'desc'));
+      return query(
+          collection(firestore, 'adCampaigns'), 
+          where('sellerId', '==', user.uid), 
+          orderBy('startDate', 'desc')
+      );
   }, [user, firestore]);
 
   const productsQuery = useMemoFirebase(() => {
