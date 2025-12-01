@@ -111,19 +111,6 @@ const columns: ColumnDef<ErrorLog>[] = [
   }
 ];
 
-const StatCard = ({ title, value, icon: Icon, description, color }: { title: string, value: string, icon: React.ElementType, description: string, color?: string }) => (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className={`h-4 w-4 text-muted-foreground ${color}`} />
-        </CardHeader>
-        <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
-            <p className="text-xs text-muted-foreground">{description}</p>
-        </CardContent>
-    </Card>
-);
-
 export default function AdminErrorLogsPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const firestore = useFirestore();
@@ -151,11 +138,6 @@ export default function AdminErrorLogsPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Error & Stability Logs
         </h1>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Errors (24h)" value={errorLogs?.filter(e => e.severity === 'error' || e.severity === 'critical').length.toString() || '0'} icon={AlertCircle} description="+5% from yesterday" color="text-destructive" />
-            <StatCard title="Uptime (30d)" value="99.98%" icon={Clock} description="System-wide operational status." />
-        </div>
         
         <div className="w-full">
              <div className="flex items-center py-4">
