@@ -121,7 +121,7 @@ const CreateAdDialog = () => {
                 </div>
                 <div className="space-y-2">
                     <Label>Set Your Budget (USD)</Label>
-                    <Input type="number" defaultValue={50} min={20} step={5}/>
+                    <Input type="number" defaultValue={20} min={20} step={5}/>
                     <p className="text-xs text-muted-foreground">Minimum budget is $20. This includes a platform fee.</p>
                 </div>
                  <div className="space-y-2">
@@ -132,10 +132,11 @@ const CreateAdDialog = () => {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="3">3 Days</SelectItem>
-                            <SelectItem value="7">7 Days</SelectItem>
-                            <SelectItem value="14">14 Days</SelectItem>
+                            <SelectItem value="7">7 Days (1 Week)</SelectItem>
+                            <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
                         </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">Your $20 budget will be spread evenly over this period.</p>
                 </div>
 
                 <Alert variant="default" className="bg-blue-950/50 border-blue-500/30">
