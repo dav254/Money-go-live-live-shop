@@ -295,6 +295,4 @@ export default function SellerDashboardPage() {
       </div>
     </SellerLayout>
   );
-    
-
-    
+}
