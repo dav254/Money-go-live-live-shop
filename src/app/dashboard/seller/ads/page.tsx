@@ -101,7 +101,7 @@ const CreateAdDialog = () => {
             <DialogHeader>
                 <DialogTitle>Create New Ad Campaign</DialogTitle>
                 <DialogDescription>
-                    Select a product, set a budget, and submit for admin review. This costs 150 AI Points.
+                    Select a product, set a budget, and submit for admin review. This costs 4,200 AI Points.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -122,7 +122,7 @@ const CreateAdDialog = () => {
                 <div className="space-y-2">
                     <Label>Set Your Budget (USD)</Label>
                     <Input type="number" defaultValue={50} min={20} step={5}/>
-                    <p className="text-xs text-muted-foreground">Minimum budget is $20. This amount will be used to run your TikTok ad campaign.</p>
+                    <p className="text-xs text-muted-foreground">Minimum budget is $20. This includes a platform fee.</p>
                 </div>
                  <div className="space-y-2">
                     <Label>Campaign Duration</Label>
@@ -152,7 +152,7 @@ const CreateAdDialog = () => {
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                <DialogClose asChild><Button onClick={handleSubmit}>Create Campaign (150 Points)</Button></DialogClose>
+                <DialogClose asChild><Button onClick={handleSubmit}>Create Campaign (4,200 Points)</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
     )
