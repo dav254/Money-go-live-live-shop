@@ -1,9 +1,9 @@
 
 import { NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
 import Mux from '@mux/mux-node';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
 let mux: Mux | null = null;
 if (process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET) {
@@ -15,7 +15,7 @@ if (process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET) {
 
 export async function POST(request: Request) {
   try {
-    initializeAdminApp(); // Ensure app is initialized
+    initializeAdminApp();
   } catch (error) {
     console.error('Failed to initialize Firebase Admin SDK in API route', error);
     return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });

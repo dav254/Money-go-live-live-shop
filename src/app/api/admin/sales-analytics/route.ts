@@ -1,13 +1,16 @@
 
 import { NextResponse } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { Order } from '@/lib/types';
 
+// IMPORTANT: Import 'getAuth', 'getFirestore', etc., inside the function
+// to ensure the app is initialized first.
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+
 export async function GET(request: Request) {
   try {
-    initializeAdminApp(); // Ensure app is initialized at the start
+    initializeAdminApp(); 
   } catch (error) {
     console.error('Failed to initialize Firebase Admin SDK in API route', error);
     return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
