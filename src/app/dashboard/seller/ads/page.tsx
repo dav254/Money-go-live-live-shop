@@ -27,6 +27,7 @@ import {
   DollarSign,
   TrendingUp,
   ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -39,39 +40,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-
-type AdCampaign = {
-  id: string;
-  name: string;
-  status: 'active' | 'paused' | 'completed' | 'draft';
-  spend: number;
-  clicks: number;
-  cpc: number; // Cost Per Click
-  conversions: number;
-};
-
-// --- Mock Data ---
-const mockAdCampaigns: AdCampaign[] = [
-  { id: 'ad-1', name: 'Summer Handbag Sale', status: 'active', spend: 450.75, clicks: 1250, cpc: 0.36, conversions: 80 },
-  { id: 'ad-2', name: 'Tech Gadget Launch - Q3', status: 'completed', spend: 1200.00, clicks: 3400, cpc: 0.35, conversions: 150 },
-  { id: 'ad-3', name: 'Holiday Fashion Promo', status: 'paused', spend: 200.00, clicks: 500, cpc: 0.40, conversions: 25 },
-  { id: 'ad-4', name: 'New Year, New Gear', status: 'draft', spend: 0, clicks: 0, cpc: 0, conversions: 0 },
-];
-
-const mockStats = {
-    totalSpend: 1850.75,
-    totalClicks: 5150,
-    totalConversions: 255,
-    avgCpc: 0.36
-}
-// --- End Mock Data ---
-
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import type { Product, AdCampaign } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const StatCard = ({ title, value, icon: Icon, description, color }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string }) => (
     <Card>
@@ -86,59 +61,101 @@ const StatCard = ({ title, value, icon: Icon, description, color }: { title: str
     </Card>
 );
 
-const CreateAdDialog = () => {
+const CreateAdDialog = ({ videoProducts, isLoading }: { videoProducts: Product[], isLoading: boolean }) => {
     const { toast } = useToast();
-    const [campaignCost, setCampaignCost] = React.useState(4200);
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-    const handleDurationChange = (value: string) => {
-        const costs: { [key: string]: number } = {
-            '3': 4200,
-            '7': 7200,
-            '14': 13200,
-        };
-        setCampaignCost(costs[value] || 4200);
+    const [selectedProductId, setSelectedProductId] = React.useState('');
+    const [selectedDuration, setSelectedDuration] = React.useState('3');
+
+    const durationOptions: { [key: string]: { label: string; points: number } } = {
+        '3': { label: '3 Days', points: 4200 },
+        '7': { label: '7 Days (1 Week)', points: 7200 },
+        '14': { label: '14 Days (2 Weeks)', points: 13200 },
     };
 
-    const handleSubmit = () => {
-        toast({
-            title: "Campaign Submitted for Review (Mock)",
-            description: "Your ad campaign request has been sent to the admin team for approval."
-        });
+    const handleSubmit = async () => {
+        if (!user || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Not authenticated.' });
+            return;
+        }
+        if (!selectedProductId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Please select a product to promote.' });
+            return;
+        }
+        
+        setIsSubmitting(true);
+        
+        const selectedProduct = videoProducts.find(p => p.id === selectedProductId);
+        if (!selectedProduct) return;
+
+        try {
+            const adCampaignData = {
+                sellerId: user.uid,
+                productId: selectedProduct.id,
+                productName: selectedProduct.name,
+                productImageUrl: selectedProduct.imageUrl || '',
+                status: 'draft',
+                budget: durationOptions[selectedDuration].points, // Storing points as budget for now
+                spend: 0,
+                clicks: 0,
+                conversions: 0,
+                startDate: serverTimestamp(),
+            };
+
+            await addDoc(collection(firestore, 'adCampaigns'), adCampaignData);
+
+            toast({
+                title: "Campaign Submitted for Review",
+                description: "Your ad campaign request has been sent to the admin team for approval."
+            });
+        } catch (error) {
+            console.error("Error creating ad campaign:", error);
+            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not create campaign.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
+    const costInPoints = durationOptions[selectedDuration].points;
 
     return (
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>Create New Ad Campaign</DialogTitle>
                 <DialogDescription>
-                    Select a product and campaign duration, then submit for admin review.
+                    Promote your product on TikTok. Your ad will be reviewed by our team before going live.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                    <Label>Select Product to Promote</Label>
-                    <Select>
+                    <label className="text-sm font-medium">Select Product with Video</label>
+                    <Select onValueChange={setSelectedProductId} disabled={isLoading}>
                         <SelectTrigger>
-                            <SelectValue placeholder="Choose one of your products..." />
+                            <SelectValue placeholder={isLoading ? "Loading products..." : "Choose a product..."} />
                         </SelectTrigger>
                         <SelectContent>
-                            {/* In a live version, this would be populated with the seller's actual products */}
-                            <SelectItem value="prod-1">Classic Leather Handbag</SelectItem>
-                            <SelectItem value="prod-2">Urban Explorer Sneakers</SelectItem>
-                             <SelectItem value="prod-3">Gourmet Pasta Kit</SelectItem>
+                            {videoProducts.map(product => (
+                                <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
+                            ))}
+                            {!isLoading && videoProducts.length === 0 && (
+                                <div className="p-4 text-center text-sm text-muted-foreground">No products with videos found.</div>
+                            )}
                         </SelectContent>
                     </Select>
                 </div>
                  <div className="space-y-2">
-                    <Label>Campaign Duration</Label>
-                    <Select defaultValue="3" onValueChange={handleDurationChange}>
+                    <label className="text-sm font-medium">Campaign Duration</label>
+                    <Select defaultValue="3" onValueChange={setSelectedDuration}>
                         <SelectTrigger>
                             <SelectValue placeholder="Choose a duration..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="3">3 Days</SelectItem>
-                            <SelectItem value="7">7 Days (1 Week)</SelectItem>
-                            <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
+                           {Object.entries(durationOptions).map(([days, { label }]) => (
+                                <SelectItem key={days} value={days}>{label}</SelectItem>
+                           ))}
                         </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">Your ad budget will be spread evenly over this period.</p>
@@ -158,7 +175,12 @@ const CreateAdDialog = () => {
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                <DialogClose asChild><Button onClick={handleSubmit}>Create Campaign ({campaignCost.toLocaleString()} Points)</Button></DialogClose>
+                <DialogClose asChild>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !selectedProductId}>
+                        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                        Create Campaign ({costInPoints.toLocaleString()} Points)
+                    </Button>
+                </DialogClose>
             </DialogFooter>
         </DialogContent>
     )
@@ -166,16 +188,16 @@ const CreateAdDialog = () => {
 
 export const columns: ColumnDef<AdCampaign>[] = [
   {
-    accessorKey: 'name',
+    accessorKey: 'productName',
     header: 'Campaign',
-    cell: ({ row }) => <div className="font-semibold">{row.original.name}</div>,
+    cell: ({ row }) => <div className="font-semibold">{row.original.productName}</div>,
   },
   {
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
       const status = row.original.status;
-      const variant: 'default' | 'secondary' | 'outline' = {
+      const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
         active: 'default',
         completed: 'outline',
         paused: 'secondary',
@@ -219,8 +241,37 @@ export const columns: ColumnDef<AdCampaign>[] = [
 ];
 
 export default function SellerAdsPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const campaignsQuery = useMemoFirebase(() => {
+      if (!user) return null;
+      return query(collection(firestore, 'adCampaigns'), where('sellerId', '==', user.uid), orderBy('startDate', 'desc'));
+  }, [user, firestore]);
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [user, firestore]);
+
+  const { data: campaigns, isLoading: isLoadingCampaigns } = useCollection<AdCampaign>(campaignsQuery);
+  const { data: allProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+
+  const videoProducts = React.useMemo(() => {
+      return allProducts?.filter(p => p.videoUrl || (p.videoUrls && p.videoUrls.length > 0)) || [];
+  }, [allProducts]);
+
+  const stats = React.useMemo(() => {
+      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
+      const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
+      const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
+      const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
+      const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
+      return { totalSpend, totalClicks, totalConversions, avgCpc };
+  }, [campaigns]);
+
   const table = useReactTable({
-    data: mockAdCampaigns,
+    data: campaigns || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -237,57 +288,65 @@ export default function SellerAdsPage() {
                     <Button><PlusCircle className="mr-2 h-4 w-4" /> Create New Ad</Button>
                 </DialogTrigger>
             </div>
-            <CreateAdDialog />
+            <CreateAdDialog videoProducts={videoProducts} isLoading={isLoadingProducts} />
         </Dialog>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Spend" value={`$${mockStats.totalSpend.toLocaleString()}`} icon={DollarSign} description="Lifetime" />
-            <StatCard title="Total Clicks" value={mockStats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
-            <StatCard title="Conversions" value={mockStats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
-            <StatCard title="Average CPC" value={`$${mockStats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
+            <StatCard title="Total Spend" value={`$${stats.totalSpend.toLocaleString()}`} icon={DollarSign} description="Lifetime" />
+            <StatCard title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
+            <StatCard title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
+            <StatCard title="Average CPC" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
         </div>
 
         <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
+          {isLoadingCampaigns ? (
+            <div className="p-4 space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+            </div>
+          ) : (
+            <Table>
+                <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                        {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                            )}
+                        </TableHead>
                     ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    You have not created any ad campaigns.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    </TableRow>
+                ))}
+                </TableHeader>
+                <TableBody>
+                {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                            {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                            )}
+                        </TableCell>
+                        ))}
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                        You have not created any ad campaigns.
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+          )}
         </div>
       </div>
     </SellerLayout>
