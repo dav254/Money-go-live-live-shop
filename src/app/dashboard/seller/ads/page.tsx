@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -144,7 +145,6 @@ const CreateAdDialog = () => {
                         <li>**No Misleading Claims:** Do not guarantee results.</li>
                         <li>**High-Quality Video:** Use clear, well-lit video.</li>
                         <li>**No Copyrighted Music:** Use royalty-free audio.</li>
-                        <li>**Match Your Product Page:** The ad must match the linked product.</li>
                     </ul>
                   </AlertDescription>
                 </Alert>
