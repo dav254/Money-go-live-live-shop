@@ -39,14 +39,68 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Product, AdCampaign, UserProfile } from '@/lib/types';
+import type { Product, AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+
+// --- Mock Data ---
+
+const mockCampaigns: AdCampaign[] = [
+    {
+        id: 'camp-1',
+        sellerId: 'seller-1',
+        productId: 'prod-1',
+        productName: 'Classic Handbag Campaign',
+        productImageUrl: 'https://picsum.photos/seed/ad1/400',
+        status: 'active',
+        budget: 5000,
+        spend: 2500,
+        clicks: 1250,
+        conversions: 50,
+        startDate: new Date() as any,
+    },
+    {
+        id: 'camp-2',
+        sellerId: 'seller-1',
+        productId: 'prod-2',
+        productName: 'Sneaker Launch',
+        productImageUrl: 'https://picsum.photos/seed/ad2/400',
+        status: 'completed',
+        budget: 10000,
+        spend: 10000,
+        clicks: 4500,
+        conversions: 150,
+        startDate: new Date() as any,
+    },
+     {
+        id: 'camp-3',
+        sellerId: 'seller-1',
+        productId: 'prod-3',
+        productName: 'Watch Promotion (Draft)',
+        productImageUrl: 'https://picsum.photos/seed/ad3/400',
+        status: 'draft',
+        budget: 7000,
+        spend: 0,
+        clicks: 0,
+        conversions: 0,
+        startDate: new Date() as any,
+    },
+];
+
+const mockProducts: Product[] = [
+    { id: 'prod-1', name: 'Classic Handbag', price: 100, stock: 10, sellerId: 'seller-1', videoUrls: ['/video.mp4'] },
+    { id: 'prod-2', name: 'Urban Explorer Sneakers', price: 120, stock: 20, sellerId: 'seller-1', videoUrls: ['/video.mp4'] },
+    { id: 'prod-3', name: 'Chronograph Watch', price: 350, stock: 5, sellerId: 'seller-1' }, // No video
+];
+
+const mockUser = {
+    aiPoints: 15000,
+};
+
+// --- Components ---
 
 
 const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
@@ -62,82 +116,23 @@ const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: {
     </Card>
 );
 
-const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProducts: Product[], isLoading: boolean, userProfile: UserProfile | null }) => {
+const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProducts: Product[], isLoading: boolean, userProfile: any }) => {
     const { toast } = useToast();
-    const { user } = useUser();
-    const firestore = useFirestore();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [selectedProductId, setSelectedProductId] = React.useState('');
-    const [selectedDuration, setSelectedDuration] = React.useState('3');
-    const [isOpen, setIsOpen] = React.useState(false);
-
-    const durationOptions: { [key: string]: { label: string; points: number } } = {
-        '3': { label: '3 Days', points: 4200 },
-        '7': { label: '7 Days (1 Week)', points: 7200 },
-        '14': { label: '14 Days (2 Weeks)', points: 13200 },
-    };
 
     const handleSubmit = async () => {
-        if (!user || !firestore) {
-            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
-            return;
-        }
-        if (!selectedProductId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Please select a product to promote.' });
-            return;
-        }
-        
-        const costInPoints = durationOptions[selectedDuration].points;
-        if ((userProfile?.aiPoints || 0) < costInPoints) {
-            toast({ variant: 'destructive', title: 'Insufficient Points', description: `You need ${costInPoints.toLocaleString()} AI points for this campaign.` });
-            return;
-        }
-
         setIsSubmitting(true);
-        
-        const selectedProduct = videoProducts.find(p => p.id === selectedProductId);
-        if (!selectedProduct) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Selected product not found.' });
-            setIsSubmitting(false);
-            return;
-        }
-
-        try {
-            const adCampaignData = {
-                sellerId: user.uid,
-                productId: selectedProductId,
-                productName: selectedProduct.name,
-                productImageUrl: selectedProduct.imageUrl || selectedProduct.imageUrls?.[0] || '',
-                status: 'draft' as const,
-                budget: durationOptions[selectedDuration].points, // Using points as budget for now
-                spend: 0,
-                clicks: 0,
-                conversions: 0,
-                startDate: serverTimestamp(),
-            };
-            await addDoc(collection(firestore, 'adCampaigns'), adCampaignData);
-
-            toast({
-                title: "Campaign Submitted for Review",
-                description: "Your ad campaign request has been sent to the admin team for approval."
-            });
-
-            setIsOpen(false);
-            setSelectedProductId('');
-            setSelectedDuration('3');
-
-        } catch (error) {
-            console.error("Error creating ad campaign:", error);
-            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not create the campaign.' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        toast({
+            title: "Campaign Submitted for Review",
+            description: "This is a frontend demo. No data was actually sent."
+        });
+        setIsSubmitting(false);
     };
 
-    const costInPoints = durationOptions[selectedDuration].points;
-
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog>
             <DialogTrigger asChild>
                 <Button><PlusCircle className="mr-2 h-4 w-4" /> Create New Ad</Button>
             </DialogTrigger>
@@ -151,7 +146,7 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Select Product with Video</label>
-                        <Select onValueChange={setSelectedProductId} disabled={isLoading}>
+                        <Select disabled={isLoading}>
                             <SelectTrigger>
                                 <SelectValue placeholder={isLoading ? "Loading products..." : "Choose a product..."} />
                             </SelectTrigger>
@@ -167,14 +162,14 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                     </div>
                      <div className="space-y-2">
                         <label className="text-sm font-medium">Campaign Duration</label>
-                        <Select defaultValue="3" onValueChange={setSelectedDuration}>
+                        <Select defaultValue="3">
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
                             </SelectTrigger>
                             <SelectContent>
-                               {Object.entries(durationOptions).map(([days, { label }]) => (
-                                    <SelectItem key={days} value={days}>{label}</SelectItem>
-                               ))}
+                                <SelectItem value="3">3 Days</SelectItem>
+                                <SelectItem value="7">7 Days (1 Week)</SelectItem>
+                                <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
                             </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">Your ad budget will be spread evenly over this period.</p>
@@ -193,10 +188,10 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                     </Alert>
                 </div>
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !selectedProductId}>
+                    <Button type="button" variant="ghost">Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                        Create Campaign ({costInPoints.toLocaleString()} Points)
+                        Create Campaign (5000 Points)
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -259,43 +254,20 @@ export const columns: ColumnDef<AdCampaign>[] = [
 ];
 
 export default function SellerAdsPage() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  const firestore = useFirestore();
-
-  const productsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-  }, [firestore, user]);
-
-  const campaignsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(
-        collection(firestore, 'adCampaigns'), 
-        where('sellerId', '==', user.uid)
-    );
-  }, [firestore, user]);
+  const isLoading = false; // Set to false for frontend-only
   
-  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-  const { data: campaigns, isLoading: areCampaignsLoading } = useCollection<AdCampaign>(campaignsQuery);
-
-  const isLoading = isUserLoading || isProfileLoading || areProductsLoading || areCampaignsLoading;
-  
-  const videoProducts = React.useMemo(() => {
-      return products?.filter(p => p.videoUrls && p.videoUrls.length > 0) || [];
-  }, [products]);
+  const videoProducts = mockProducts.filter(p => p.videoUrls && p.videoUrls.length > 0);
 
   const stats = React.useMemo(() => {
-      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
-      const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
-      const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
-      const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
+      const totalSpend = mockCampaigns.reduce((acc, c) => acc + c.spend, 0);
+      const totalClicks = mockCampaigns.reduce((acc, c) => acc + c.clicks, 0);
+      const totalConversions = mockCampaigns.reduce((acc, c) => acc + c.conversions, 0);
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       return { totalSpend, totalClicks, totalConversions, avgCpc };
-  }, [campaigns]);
+  }, []);
 
   const table = useReactTable({
-    data: campaigns || [],
+    data: mockCampaigns,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -309,8 +281,8 @@ export default function SellerAdsPage() {
             </h1>
             <CreateAdDialog 
                 videoProducts={videoProducts} 
-                isLoading={areProductsLoading} 
-                userProfile={userProfile}
+                isLoading={isLoading} 
+                userProfile={mockUser}
             />
         </div>
 
@@ -322,13 +294,6 @@ export default function SellerAdsPage() {
         </div>
 
         <div className="rounded-md border">
-          {isLoading ? (
-            <div className="p-4 space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-            </div>
-          ) : (
             <Table>
                 <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -369,7 +334,6 @@ export default function SellerAdsPage() {
                 )}
                 </TableBody>
             </Table>
-          )}
         </div>
       </div>
     </SellerLayout>
