@@ -1,39 +1,53 @@
+
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, collectionGroup } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { doc } from 'firebase/firestore';
+import type { CartItem, UserProfile } from '@/lib/types';
 
-// This is a hypothetical type. We are assuming the structure of documents in the 'orders' collection.
-interface CartItem {
-  id: string;
-  productName: string;
-  productImage: string;
-  buyerName: string;
-  buyerAvatar: string;
-  addedAt: any; // Firestore Timestamp
-  quantity: number;
-}
+
+const BuyerCell = ({ userId }: { userId: string }) => {
+    const firestore = useFirestore();
+    const userProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
+    const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+    if (isLoading) return <Skeleton className="h-8 w-24" />;
+
+    return (
+        <div className="flex items-center gap-2">
+            <Avatar className="h-8 w-8">
+                <AvatarImage src={userProfile?.profilePictureUrl} alt={userProfile?.fullName} />
+                <AvatarFallback>{userProfile?.fullName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <span>{userProfile?.fullName}</span>
+        </div>
+    );
+};
+
 
 export function InCartsTable() {
   const { user, isLoading: isUserLoading } = useUser();
   const db = useFirestore();
 
+  // Query the 'cart' subcollection across all 'userProfiles' documents
+  // and filter by the sellerId of the items within.
   const cartItemsQuery = useMemoFirebase(
     () =>
       user
         ? query(
-            collection(db, 'orders'), // Target the 'orders' collection.
-            where('sellerId', '==', user.uid), // Filter by the current seller.
-            where('status', '==', 'in-cart') // Filter by status.
+            collectionGroup(db, 'cart'),
+            where('sellerId', '==', user.uid)
           )
-        : null, // Pass null if the user is not loaded yet to prevent the query from running.
-    [user]
+        : null,
+    [user, db]
   );
 
   const { data: cartItems, isLoading: isDataLoading, error } = useCollection<CartItem>(cartItemsQuery);
@@ -53,7 +67,7 @@ export function InCartsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {[...Array(5)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <TableRow key={i}>
                 <TableCell>
                   <Skeleton className="h-10 w-24" />
@@ -113,19 +127,13 @@ export function InCartsTable() {
             <TableRow key={item.id}>
               <TableCell className="hidden sm:table-cell">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={item.productImage} alt={item.productName} />
-                  <AvatarFallback>{item.productName.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={item.imageUrl} alt={item.name} />
+                  <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
                 </Avatar>
               </TableCell>
-              <TableCell className="font-medium">{item.productName}</TableCell>
+              <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={item.buyerAvatar} alt={item.buyerName} />
-                    <AvatarFallback>{item.buyerName.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <span>{item.buyerName}</span>
-                </div>
+                <BuyerCell userId={item.buyerId} />
               </TableCell>
               <TableCell className="text-center">
                 <Badge variant="outline">{item.quantity}</Badge>
