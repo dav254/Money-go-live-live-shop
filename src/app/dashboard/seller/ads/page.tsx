@@ -88,38 +88,56 @@ const CreateAdDialog = () => {
 
     const handleSubmit = () => {
         toast({
-            title: "Request Submitted (Mock)",
-            description: "In a live app, this would be sent to an admin for review."
+            title: "Campaign Submitted for Review (Mock)",
+            description: "Your ad campaign request has been sent to the admin team for approval."
         });
     };
 
     return (
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>Create New Ad Campaign</DialogTitle>
-                <DialogDescription>Select a product and set a budget. This is a UI mockup.</DialogDescription>
+                <DialogDescription>
+                    Select a product, set a budget, and submit for admin review. This costs 150 AI Points.
+                </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
                 <div className="space-y-2">
                     <Label>Select Product to Promote</Label>
                     <Select>
                         <SelectTrigger>
-                            <SelectValue placeholder="Choose a product..." />
+                            <SelectValue placeholder="Choose one of your products..." />
                         </SelectTrigger>
                         <SelectContent>
+                            {/* In a live version, this would be populated with the seller's actual products */}
                             <SelectItem value="prod-1">Classic Leather Handbag</SelectItem>
                             <SelectItem value="prod-2">Urban Explorer Sneakers</SelectItem>
+                             <SelectItem value="prod-3">Gourmet Pasta Kit</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 <div className="space-y-2">
                     <Label>Set Your Budget (USD)</Label>
                     <Input type="number" defaultValue={50} min={10} step={5}/>
+                    <p className="text-xs text-muted-foreground">This amount will be used to run your TikTok ad campaign.</p>
+                </div>
+                 <div className="space-y-2">
+                    <Label>Campaign Duration</Label>
+                    <Select defaultValue="7">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Choose a duration..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="3">3 Days</SelectItem>
+                            <SelectItem value="7">7 Days</SelectItem>
+                            <SelectItem value="14">14 Days</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                <DialogClose asChild><Button onClick={handleSubmit}>Submit Request</Button></DialogClose>
+                <DialogClose asChild><Button onClick={handleSubmit}>Create Campaign (150 Points)</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
     )
