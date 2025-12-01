@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -38,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
 import type { AdCampaign, Product } from '@/lib/types';
 import { collection, doc, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -50,6 +49,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 const formSchema = z.object({
     productId: z.string().min(1, 'Please select a product to advertise.'),
@@ -77,7 +79,9 @@ const CreateAdDialog = ({ products, open, onOpenChange, onCampaignCreated }: { p
         }
 
         setIsCreating(true);
-        const newCampaign: Omit<AdCampaign, 'id'> = {
+        
+        const campaignsCollection = collection(firestore, 'adCampaigns');
+        const newCampaignData: Omit<AdCampaign, 'id'> = {
             sellerId: user.uid,
             productId: values.productId,
             productName: selectedProduct.name,
@@ -88,17 +92,20 @@ const CreateAdDialog = ({ products, open, onOpenChange, onCampaignCreated }: { p
             clicks: 0,
             conversions: 0,
             startDate: serverTimestamp() as any,
-            endDate: serverTimestamp() as any, // Placeholder
         };
         
         try {
-            await addDoc(collection(firestore, 'adCampaigns'), newCampaign);
+            await addDoc(campaignsCollection, newCampaignData);
             toast({ title: 'Campaign Created!', description: 'Your new ad campaign is now active.' });
             onCampaignCreated();
             onOpenChange(false);
+            form.reset();
         } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not create campaign.' });
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'adCampaigns',
+                operation: 'create',
+                requestResourceData: newCampaignData,
+            }));
         } finally {
             setIsCreating(false);
         }
@@ -161,15 +168,15 @@ const CreateAdDialog = ({ products, open, onOpenChange, onCampaignCreated }: { p
     );
 };
 
-const StatCard = ({ title, value, icon: Icon, description, color }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string }) => (
+const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading: boolean }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
             <Icon className={cn('h-4 w-4 text-muted-foreground', color)} />
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+             {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
+             {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </CardContent>
     </Card>
 );
@@ -277,10 +284,10 @@ export default function SellerAdsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Spend" value={`$${stats.totalSpend.toLocaleString()}`} icon={DollarSign} description="Lifetime" />
-            <StatCard title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
-            <StatCard title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
-            <StatCard title="Average CPC" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
+            <StatCard isLoading={areCampaignsLoading} title="Total Spend" value={`$${stats.totalSpend.toLocaleString()}`} icon={DollarSign} description="Lifetime" />
+            <StatCard isLoading={areCampaignsLoading} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
+            <StatCard isLoading={areCampaignsLoading} title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
+            <StatCard isLoading={areCampaignsLoading} title="Average CPC" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
         </div>
 
         <div className="rounded-md border">
@@ -305,7 +312,10 @@ export default function SellerAdsPage() {
               {areCampaignsLoading ? (
                  <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                        Loading campaigns...
+                        <div className="flex justify-center items-center">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading campaigns...
+                        </div>
                     </TableCell>
                 </TableRow>
               ) : table.getRowModel().rows?.length ? (
