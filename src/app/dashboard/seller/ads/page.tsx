@@ -61,7 +61,7 @@ const StatCard = ({ title, value, icon: Icon, description, color }: { title: str
     </Card>
 );
 
-const CreateAdDialog = ({ videoProducts, isLoading }: { videoProducts: Product[], isLoading: boolean }) => {
+const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProducts: Product[], isLoading: boolean, userProfile: any }) => {
     const { toast } = useToast();
     const { user } = useUser();
     const firestore = useFirestore();
@@ -86,6 +86,12 @@ const CreateAdDialog = ({ videoProducts, isLoading }: { videoProducts: Product[]
             return;
         }
         
+        const costInPoints = durationOptions[selectedDuration].points;
+        if ((userProfile?.aiPoints || 0) < costInPoints) {
+            toast({ variant: 'destructive', title: 'Insufficient Points', description: `You need ${costInPoints.toLocaleString()} AI points for this campaign.` });
+            return;
+        }
+
         setIsSubmitting(true);
         
         const selectedProduct = videoProducts.find(p => p.id === selectedProductId);
@@ -98,7 +104,7 @@ const CreateAdDialog = ({ videoProducts, isLoading }: { videoProducts: Product[]
                 productName: selectedProduct.name,
                 productImageUrl: selectedProduct.imageUrl || '',
                 status: 'draft',
-                budget: durationOptions[selectedDuration].points, // Storing points as budget for now
+                budget: costInPoints, // Storing points as budget
                 spend: 0,
                 clicks: 0,
                 conversions: 0,
@@ -292,7 +298,7 @@ export default function SellerAdsPage() {
                     <Button><PlusCircle className="mr-2 h-4 w-4" /> Create New Ad</Button>
                 </DialogTrigger>
             </div>
-            <CreateAdDialog videoProducts={videoProducts} isLoading={isLoadingProducts} />
+            <CreateAdDialog videoProducts={videoProducts} isLoading={isLoadingProducts} userProfile={user} />
         </Dialog>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
