@@ -317,8 +317,8 @@ export default function SellerAdsPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard isLoading={isLoading} title="Total Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Total Clicks" value={`${stats.totalClicks.toLocaleString()}`} icon={MousePointerClick} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Conversions" value={`${stats.totalConversions.toLocaleString()}`} icon={TrendingUp} description="Lifetime" />
             <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
         </div>
 
