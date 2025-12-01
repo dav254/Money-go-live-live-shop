@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -26,6 +25,7 @@ import {
   MousePointerClick,
   DollarSign,
   TrendingUp,
+  ShieldCheck,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -42,6 +42,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 type AdCampaign = {
@@ -134,6 +135,19 @@ const CreateAdDialog = () => {
                         </SelectContent>
                     </Select>
                 </div>
+
+                <Alert variant="default" className="bg-blue-950/50 border-blue-500/30">
+                  <ShieldCheck className="h-4 w-4 !text-blue-400" />
+                  <AlertTitle className="font-semibold !text-blue-300">TikTok Ad Guidelines</AlertTitle>
+                  <AlertDescription className="text-blue-300/80">
+                    <ul className="list-disc pl-4 space-y-1 text-xs mt-2">
+                        <li>**No Misleading Claims:** Do not guarantee results.</li>
+                        <li>**High-Quality Video:** Use clear, well-lit video.</li>
+                        <li>**No Copyrighted Music:** Use royalty-free audio.</li>
+                        <li>**Match Your Product Page:** The ad must match the linked product.</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
