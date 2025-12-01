@@ -8,6 +8,8 @@ import {
   getCoreRowModel,
   useReactTable,
   getFilteredRowModel,
+  getSortedRowModel,
+  SortingState,
   ColumnFiltersState,
 } from '@tanstack/react-table';
 
@@ -40,27 +42,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 
 type ErrorLog = {
   id: string;
   code: string;
   message: string;
-  user: string;
+  userId: string;
   severity: 'critical' | 'error' | 'warning' | 'info';
-  timestamp: string;
+  timestamp: Timestamp;
 };
-
-// --- Mock Data ---
-const mockErrorLogs: ErrorLog[] = [
-  { id: 'err-1', code: 'API-500', message: "Failed to process payment for order #ORD-123", user: 'Ben O.', severity: 'critical', timestamp: '2m ago' },
-  { id: 'err-2', code: 'AUTH-003', message: "Token expiration for user session.", user: 'Aisha K.', severity: 'warning', timestamp: '15m ago' },
-  { id: 'err-3', code: 'CLIENT-012', message: "Null reference in ProductImage component.", user: 'guest_user', severity: 'error', timestamp: '1h ago' },
-  { id: 'err-4', code: 'DB-002', message: "Firestore query timeout on 'products' collection.", user: 'N/A', severity: 'error', timestamp: '3h ago' },
-  { id: 'err-5', code: 'API-404', message: "Endpoint /api/seller/stats not found.", user: 'David E.', severity: 'warning', timestamp: 'Yesterday' },
-  { id: 'err-6', code: 'INFO-001', message: "User password reset successful.", user: 'Charlie D.', severity: 'info', timestamp: 'Yesterday' },
-];
-// --- End Mock Data ---
 
 
 const columns: ColumnDef<ErrorLog>[] = [
@@ -97,12 +89,14 @@ const columns: ColumnDef<ErrorLog>[] = [
     header: 'Message',
   },
   {
-    accessorKey: 'user',
+    accessorKey: 'userId',
     header: 'User',
+     cell: ({ row }) => <p className="text-xs font-mono">{row.original.userId || 'N/A'}</p>
   },
   {
     accessorKey: 'timestamp',
     header: 'Timestamp',
+    cell: ({ row }) => row.original.timestamp?.toDate().toLocaleString() || 'N/A'
   },
   {
       id: 'actions',
@@ -140,9 +134,16 @@ const StatCard = ({ title, value, icon: Icon, description, color }: { title: str
 
 export default function AdminErrorLogsPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const firestore = useFirestore();
+
+  const errorLogsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'errorLogs'), orderBy('timestamp', 'desc'));
+  }, [firestore]);
+
+  const { data: errorLogs, isLoading } = useCollection<ErrorLog>(errorLogsQuery);
 
   const table = useReactTable({
-    data: mockErrorLogs,
+    data: errorLogs || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     onColumnFiltersChange: setColumnFilters,
@@ -160,7 +161,7 @@ export default function AdminErrorLogsPage() {
         </h1>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Errors (24h)" value="12" icon={AlertCircle} description="+5% from yesterday" color="text-destructive" />
+            <StatCard title="Errors (24h)" value={errorLogs?.filter(e => e.severity === 'error' || e.severity === 'critical').length.toString() || '0'} icon={AlertCircle} description="+5% from yesterday" color="text-destructive" />
             <StatCard title="Uptime (30d)" value="99.98%" icon={Clock} description="System-wide operational status." />
         </div>
         
@@ -194,7 +195,13 @@ export default function AdminErrorLogsPage() {
                 ))}
                 </TableHeader>
                 <TableBody>
-                {table.getRowModel().rows?.length ? (
+                {isLoading ? (
+                     <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                            Loading error logs...
+                        </TableCell>
+                    </TableRow>
+                ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
                         {row.getVisibleCells().map((cell) => (

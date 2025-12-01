@@ -1,6 +1,21 @@
 
 {
   "entities": {
+    "ErrorLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Error Log",
+      "type": "object",
+      "description": "Represents a single logged error from the application for debugging.",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string", "description": "A short, unique code for the error type (e.g., 'API-500')." },
+        "message": { "type": "string", "description": "The primary error message." },
+        "userId": { "type": "string", "description": "The ID of the user who encountered the error, if any." },
+        "severity": { "type": "string", "enum": ["critical", "error", "warning", "info"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "message", "severity", "timestamp"]
+    },
     "ActivityLog": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Activity Log",
@@ -959,6 +974,15 @@
   },
   "firestore": {
     "structure": [
+      {
+        "path": "/errorLogs/{errorId}",
+        "definition": {
+          "entityName": "ErrorLog",
+          "schema": { "$ref": "#/backend/entities/ErrorLog" },
+          "description": "Stores application-level errors for debugging and stability analysis.",
+          "params": [{ "name": "errorId", "description": "The unique ID for the error log entry." }]
+        }
+      },
       {
         "path": "/activityLogs/{logId}",
         "definition": {
