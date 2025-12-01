@@ -1,17 +1,20 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import type { CartItem } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
+import { collection, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import type { CartItem, Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
-import { Trash2, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import React from 'react';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const CartItemRow = ({ item }: { item: CartItem }) => {
     const { user } = useUser();
@@ -91,6 +94,9 @@ const CartSkeleton = () => (
 export default function CartPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [isCheckingOut, setIsCheckingOut] = React.useState(false);
 
     const cartItemsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -108,6 +114,56 @@ export default function CartPage() {
     // This is a simplified shipping cost calculation. A real app would be more complex.
     const shippingCost = subtotal > 0 ? 5 : 0; 
     const total = subtotal + shippingCost;
+    
+    const handleCheckout = async () => {
+        if (!user || !firestore || !cartItems || cartItems.length === 0) {
+            toast({ variant: 'destructive', title: 'Your cart is empty.' });
+            return;
+        }
+        
+        setIsCheckingOut(true);
+
+        const newOrderRef = doc(collection(firestore, 'orders'));
+        const firstItem = cartItems[0]; // For now, we'll simplify and use the first item for info
+
+        const resellerId = localStorage.getItem('resellerRefId');
+
+        const newOrderData: Partial<Order> = {
+            id: newOrderRef.id,
+            buyerId: user.uid,
+            sellerId: firstItem.sellerId, // Simplified: assumes all items from one seller
+            productId: firstItem.productId, // Simplified
+            productName: firstItem.name, // Simplified
+            productImage: firstItem.imageUrl, // Simplified
+            productPrice: firstItem.price, // Simplified
+            shippingCost: shippingCost,
+            totalAmount: total,
+            orderDate: serverTimestamp() as any,
+            shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+            orderStatus: 'pending',
+            paymentMethod: 'pending',
+            quantity: firstItem.quantity, // Simplified
+            ...(resellerId && { resellerId: resellerId }),
+        };
+
+        try {
+            await setDoc(newOrderRef, newOrderData);
+            
+            // TODO: In a real app, you would clear the cart items here.
+            // localStorage.removeItem('resellerRefId');
+            
+            toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+            router.push(`/checkout/${newOrderRef.id}`);
+        } catch (error) {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: newOrderRef.path,
+                operation: 'create',
+                requestResourceData: newOrderData,
+            }));
+        } finally {
+            setIsCheckingOut(false);
+        }
+    };
 
 
     return (
@@ -159,7 +215,8 @@ export default function CartPage() {
                                 </div>
                             </CardContent>
                             <CardFooter>
-                                <Button className="w-full" size="lg" disabled={!cartItems || cartItems.length === 0}>
+                                <Button className="w-full" size="lg" disabled={!cartItems || cartItems.length === 0 || isCheckingOut} onClick={handleCheckout}>
+                                    {isCheckingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Proceed to Checkout
                                 </Button>
                             </CardFooter>
