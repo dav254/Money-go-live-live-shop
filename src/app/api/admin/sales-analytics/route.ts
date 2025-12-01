@@ -6,9 +6,8 @@ import { initializeAdminApp } from '@/firebase/admin';
 import type { Order } from '@/lib/types';
 
 export async function GET(request: Request) {
-  // Initialize Firebase Admin SDK within the handler
   try {
-    initializeAdminApp();
+    initializeAdminApp(); // Ensure app is initialized at the start
   } catch (error) {
     console.error('Failed to initialize Firebase Admin SDK in API route', error);
     return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
@@ -25,11 +24,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Verify the token and get the user's UID
     const decodedToken = await getAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    // Check if the user is an admin
     const db = getFirestore();
     const userProfileDoc = await db.collection('userProfiles').doc(uid).get();
 
@@ -37,14 +34,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // --- Aggregation Logic ---
-
-    // Get the last 7 days
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
+    today.setHours(23, 59, 59, 999);
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(today.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0); // Beginning of 7 days ago
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const sevenDaysAgoTimestamp = Timestamp.fromDate(sevenDaysAgo);
 
@@ -57,20 +51,17 @@ export async function GET(request: Request) {
     const salesByDay: Record<string, number> = {};
     const ordersByDay: Record<string, number> = {};
     
-    // Initialize the last 7 days with 0 revenue
     for (let i = 0; i < 7; i++) {
         const date = new Date(sevenDaysAgo);
         date.setDate(sevenDaysAgo.getDate() + i);
-        const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateString = date.toISOString().split('T')[0];
         salesByDay[dateString] = 0;
         ordersByDay[dateString] = 0;
     }
 
-
     ordersSnapshot.forEach(doc => {
       const order = doc.data() as Order;
       if (order.orderDate) {
-        // Correctly convert Firestore Timestamp to JS Date before processing
         const dateString = (order.orderDate as any).toDate().toISOString().split('T')[0];
         if (salesByDay[dateString] !== undefined) {
              salesByDay[dateString] += order.totalAmount;

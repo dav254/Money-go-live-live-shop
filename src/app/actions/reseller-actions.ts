@@ -11,8 +11,7 @@ import { getFirestore, serverTimestamp } from 'firebase-admin/firestore';
 
 export async function logResellerShare(resellerId: string, productId: string, sellerId: string) {
   try {
-    // Dynamically initialize to work in server environments
-    initializeAdminApp();
+    initializeAdminApp(); // Ensure app is initialized
     const db = getFirestore();
     
     await db.collection('resellActivities').add({

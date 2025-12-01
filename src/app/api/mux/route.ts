@@ -5,7 +5,6 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
 import Mux from '@mux/mux-node';
 
-// Initialize Mux only if the credentials are provided
 let mux: Mux | null = null;
 if (process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET) {
     mux = new Mux({
@@ -15,9 +14,8 @@ if (process.env.MUX_TOKEN_ID && process.env.MUX_TOKEN_SECRET) {
 }
 
 export async function POST(request: Request) {
-  // Initialize Firebase Admin SDK for authentication and database access
   try {
-    initializeAdminApp();
+    initializeAdminApp(); // Ensure app is initialized
   } catch (error) {
     console.error('Failed to initialize Firebase Admin SDK in API route', error);
     return NextResponse.json({ error: 'Internal Server Error', details: 'Could not initialize backend services.' }, { status: 500 });
@@ -28,7 +26,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Live streaming service is not configured.' }, { status: 503 });
   }
 
-  // --- Authenticate the User ---
   const authHeader = request.headers.get('Authorization');
   if (!authHeader) {
     return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
@@ -43,7 +40,6 @@ export async function POST(request: Request) {
     const decodedToken = await getAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    // --- Verify User is a Seller ---
     const db = getFirestore();
     const userProfileDoc = await db.collection('userProfiles').doc(uid).get();
 
@@ -51,7 +47,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden: Only sellers can create live streams.' }, { status: 403 });
     }
 
-    // --- Create Live Stream on Mux ---
     const stream = await mux.video.liveStreams.create({
       playback_policy: ['public'],
       new_asset_settings: { playback_policy: ['public'] },

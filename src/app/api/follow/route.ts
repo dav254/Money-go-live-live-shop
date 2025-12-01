@@ -7,7 +7,6 @@ import { initializeAdminApp } from '@/firebase/admin';
 // Health check function for this API endpoint
 export async function healthCheck() {
     try {
-        // A simple check to see if the Admin SDK can be initialized
         initializeAdminApp();
         return { status: 'operational' };
     } catch (e) {
@@ -18,11 +17,10 @@ export async function healthCheck() {
 
 export async function POST(request: NextRequest) {
   try {
-    initializeAdminApp();
+    initializeAdminApp(); // Ensure app is initialized
 
     const body = await request.json();
 
-    // Handle health check requests
     if (body.action === 'health_check') {
         const health = await healthCheck();
         return NextResponse.json(health);

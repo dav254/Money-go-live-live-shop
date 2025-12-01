@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getFirestore, writeBatch, collection, query, where, getDocs } from 'firebase-admin/firestore';
+import { getFirestore, writeBatch, collection, query, where, getDocs, doc } from 'firebase-admin/firestore';
 import { initializeAdminApp } from '@/firebase/admin';
 
 interface NotificationPayload {
@@ -13,7 +13,7 @@ interface NotificationPayload {
 
 export async function sendBulkNotifications(payload: NotificationPayload): Promise<{ success: boolean; count?: number; error?: string }> {
     try {
-        initializeAdminApp();
+        initializeAdminApp(); // Ensure app is initialized
         const db = getFirestore();
 
         const usersRef = collection(db, 'userProfiles');
