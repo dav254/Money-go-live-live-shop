@@ -58,7 +58,7 @@ export function SellerInfo({ seller }: SellerInfoProps) {
                         <Clock className="h-5 w-5 mt-0.5 text-neutral-400" />
                         <div>
                             <h5 className="font-semibold text-white">Working Hours</h5>
-                            <span>{seller.storeHours || '9 AM - 5 PM, Mon-Fri'}</span>
+                            <span>{seller.storeHours || 'Not specified'}</span>
                         </div>
                     </div>
                      <div className="flex items-start gap-3">
