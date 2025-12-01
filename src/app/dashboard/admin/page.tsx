@@ -121,12 +121,16 @@ export default function AdminDashboardPage() {
   const resellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')), [firestore]);
   const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
   const completedPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'completed')), [firestore]);
+  const pendingPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'pending')), [firestore]);
+
 
   const { data: buyers, isLoading: isLoadingBuyers } = useCollection(buyersQuery);
   const { data: sellers, isLoading: isLoadingSellers } = useCollection(sellersQuery);
   const { data: resellers, isLoading: isLoadingResellers } = useCollection(resellersQuery);
   const { data: products, isLoading: isLoadingProducts } = useCollection(productsQuery);
   const { data: completedPayouts, isLoading: isLoadingPayouts } = useCollection<Payout>(completedPayoutsQuery);
+  const { data: pendingPayouts, isLoading: isLoadingPendingPayouts } = useCollection<Payout>(pendingPayoutsQuery);
+
 
   const [resellerProfiles, setResellerProfiles] = React.useState<Map<string, UserProfile>>(new Map());
 
@@ -157,9 +161,14 @@ export default function AdminDashboardPage() {
       }, 0);
   }, [completedPayouts, resellerProfiles]);
 
+  const pendingPayoutsTotal = useMemo(() => {
+    if (!pendingPayouts) return 0;
+    return pendingPayouts.reduce((total, payout) => total + payout.amount, 0);
+  }, [pendingPayouts]);
+
 
   const isLoading =
-    isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingPayouts;
+    isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
 
   useEffect(() => {
     async function fetchSalesData() {
@@ -209,9 +218,9 @@ export default function AdminDashboardPage() {
     },
     {
       title: 'Pending Payouts',
-      value: '$4,200',
+      value: `$${pendingPayoutsTotal.toLocaleString(undefined, { minimumFractionDigits: 2})}`,
       icon: Clock,
-      isLoading: false,
+      isLoading: isLoading,
     },
     {
       title: 'Commission Paid',
