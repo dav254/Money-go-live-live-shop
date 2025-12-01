@@ -52,15 +52,16 @@ type AdCampaign = {
   status: 'active' | 'paused' | 'completed' | 'draft';
   spend: number;
   clicks: number;
+  cpc: number; // Cost Per Click
   conversions: number;
 };
 
 // --- Mock Data ---
 const mockAdCampaigns: AdCampaign[] = [
-  { id: 'ad-1', name: 'Summer Handbag Sale', status: 'active', spend: 450.75, clicks: 1250, conversions: 80 },
-  { id: 'ad-2', name: 'Tech Gadget Launch - Q3', status: 'completed', spend: 1200.00, clicks: 3400, conversions: 150 },
-  { id: 'ad-3', name: 'Holiday Fashion Promo', status: 'paused', spend: 200.00, clicks: 500, conversions: 25 },
-  { id: 'ad-4', name: 'New Year, New Gear', status: 'draft', spend: 0, clicks: 0, conversions: 0 },
+  { id: 'ad-1', name: 'Summer Handbag Sale', status: 'active', spend: 450.75, clicks: 1250, cpc: 0.36, conversions: 80 },
+  { id: 'ad-2', name: 'Tech Gadget Launch - Q3', status: 'completed', spend: 1200.00, clicks: 3400, cpc: 0.35, conversions: 150 },
+  { id: 'ad-3', name: 'Holiday Fashion Promo', status: 'paused', spend: 200.00, clicks: 500, cpc: 0.40, conversions: 25 },
+  { id: 'ad-4', name: 'New Year, New Gear', status: 'draft', spend: 0, clicks: 0, cpc: 0, conversions: 0 },
 ];
 
 const mockStats = {
@@ -120,8 +121,8 @@ const CreateAdDialog = () => {
                 </div>
                 <div className="space-y-2">
                     <Label>Set Your Budget (USD)</Label>
-                    <Input type="number" defaultValue={50} min={10} step={5}/>
-                    <p className="text-xs text-muted-foreground">This amount will be used to run your TikTok ad campaign.</p>
+                    <Input type="number" defaultValue={50} min={20} step={5}/>
+                    <p className="text-xs text-muted-foreground">Minimum budget is $20. This amount will be used to run your TikTok ad campaign.</p>
                 </div>
                  <div className="space-y-2">
                     <Label>Campaign Duration</Label>
