@@ -43,42 +43,29 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Product, AdCampaign } from '@/lib/types';
+import type { Product, AdCampaign, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Timestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
+import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 
 
-// --- Mock Data ---
-const mockProducts: Product[] = [
-    { id: 'prod-1', name: 'Waterproof Hiking Boots', price: 120, stock: 50, sellerId: 'seller-1', videoUrls: ['/video1.mp4'] },
-    { id: 'prod-2', name: 'Classic Leather Handbag', price: 85, stock: 30, sellerId: 'seller-1', imageUrls: ['/img1.jpg'] },
-    { id: 'prod-3', name: 'Noise-Cancelling Headphones', price: 250, stock: 20, sellerId:- 'seller-1', videoUrls: ['/video2.mp4', '/video3.mp4'] },
-    { id: 'prod-4', name: 'Gourmet Pasta Kit', price: 45, stock: 100, sellerId: 'seller-1' },
-];
-
-const mockCampaigns: AdCampaign[] = [
-    { id: 'camp-1', productName: 'Waterproof Hiking Boots', status: 'active', budget: 4200, spend: 1500, clicks: 320, conversions: 12, sellerId: 'seller-1', productImageUrl: '', startDate: Timestamp.now() },
-    { id: 'camp-2', productName: 'Old Campaign', status: 'completed', budget: 2000, spend: 2000, clicks: 450, conversions: 25, sellerId: 'seller-1', productImageUrl: '', startDate: Timestamp.now() },
-    { id: 'camp-3', productName: 'Pending Ad', status: 'draft', budget: 7200, spend: 0, clicks: 0, conversions: 0, sellerId: 'seller-1', productImageUrl: '', startDate: Timestamp.now() },
-];
-// --- End Mock Data ---
-
-
-const StatCard = ({ title, value, icon: Icon, description, color }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string }) => (
+const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
             <Icon className={`h-4 w-4 text-muted-foreground ${color}`} />
         </CardHeader>
         <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+             {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
+             {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </CardContent>
     </Card>
 );
 
-const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProducts: Product[], isLoading: boolean, userProfile: any }) => {
+const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProducts: Product[], isLoading: boolean, userProfile: UserProfile | null }) => {
     const { toast } = useToast();
+    const { user } = useUser();
+    const firestore = useFirestore();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [selectedProductId, setSelectedProductId] = React.useState('');
     const [selectedDuration, setSelectedDuration] = React.useState('3');
@@ -91,6 +78,10 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
     };
 
     const handleSubmit = async () => {
+        if (!user || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+            return;
+        }
         if (!selectedProductId) {
             toast({ variant: 'destructive', title: 'Error', description: 'Please select a product to promote.' });
             return;
@@ -104,22 +95,43 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
 
         setIsSubmitting(true);
         
-        console.log({
-            productId: selectedProductId,
-            durationDays: selectedDuration,
-            cost: costInPoints,
-        });
+        const selectedProduct = videoProducts.find(p => p.id === selectedProductId);
+        if (!selectedProduct) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Selected product not found.' });
+            setIsSubmitting(false);
+            return;
+        }
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+            const adCampaignData = {
+                sellerId: user.uid,
+                productId: selectedProductId,
+                productName: selectedProduct.name,
+                productImageUrl: selectedProduct.imageUrl || selectedProduct.imageUrls?.[0] || '',
+                status: 'draft',
+                budget: durationOptions[selectedDuration].points, // Using points as budget for now
+                spend: 0,
+                clicks: 0,
+                conversions: 0,
+                startDate: serverTimestamp(),
+            };
+            await addDoc(collection(firestore, 'adCampaigns'), adCampaignData);
 
-        toast({
-            title: "Campaign Submitted for Review (Simulation)",
-            description: "Your ad campaign request has been sent to the admin team for approval."
-        });
+            toast({
+                title: "Campaign Submitted for Review",
+                description: "Your ad campaign request has been sent to the admin team for approval."
+            });
 
-        setIsSubmitting(false);
-        setIsOpen(false);
+            setIsOpen(false);
+            setSelectedProductId('');
+            setSelectedDuration('3');
+
+        } catch (error) {
+            console.error("Error creating ad campaign:", error);
+            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not create the campaign.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const costInPoints = durationOptions[selectedDuration].points;
@@ -247,28 +259,40 @@ export const columns: ColumnDef<AdCampaign>[] = [
 ];
 
 export default function SellerAdsPage() {
-  const [isLoading, setIsLoading] = React.useState(true);
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
 
-  React.useEffect(() => {
-    // Simulate data fetching
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+
+  const campaignsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'adCampaigns'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+  
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  const { data: campaigns, isLoading: areCampaignsLoading } = useCollection<AdCampaign>(campaignsQuery);
+
+  const isLoading = isUserLoading || isProfileLoading || areProductsLoading || areCampaignsLoading;
   
   const videoProducts = React.useMemo(() => {
-      return mockProducts?.filter(p => p.videoUrls && p.videoUrls.length > 0) || [];
-  }, []);
+      return products?.filter(p => p.videoUrls && p.videoUrls.length > 0) || [];
+  }, [products]);
 
   const stats = React.useMemo(() => {
-      const totalSpend = mockCampaigns.reduce((acc, c) => acc + c.spend, 0);
-      const totalClicks = mockCampaigns.reduce((acc, c) => acc + c.clicks, 0);
-      const totalConversions = mockCampaigns.reduce((acc, c) => acc + c.conversions, 0);
+      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
+      const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
+      const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
+      const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       return { totalSpend, totalClicks, totalConversions, avgCpc };
-  }, []);
+  }, [campaigns]);
 
   const table = useReactTable({
-    data: mockCampaigns,
+    data: campaigns || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -282,16 +306,16 @@ export default function SellerAdsPage() {
             </h1>
             <CreateAdDialog 
                 videoProducts={videoProducts} 
-                isLoading={isLoading} 
-                userProfile={{ aiPoints: 10000 }} // Mock user profile with points
+                isLoading={areProductsLoading} 
+                userProfile={userProfile}
             />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
-            <StatCard title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
-            <StatCard title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
-            <StatCard title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Total Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
         </div>
 
         <div className="rounded-md border">
@@ -348,3 +372,5 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
+
+    
