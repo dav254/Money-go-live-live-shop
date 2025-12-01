@@ -44,15 +44,7 @@ import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
-
-type ErrorLog = {
-  id: string;
-  code: string;
-  message: string;
-  userId: string;
-  severity: 'critical' | 'error' | 'warning' | 'info';
-  timestamp: Timestamp;
-};
+import type { ErrorLog } from '@/lib/types';
 
 
 const columns: ColumnDef<ErrorLog>[] = [
