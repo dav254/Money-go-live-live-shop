@@ -214,8 +214,8 @@ export const columns: ColumnDef<AdCampaign>[] = [
   },
   {
     accessorKey: 'spend',
-    header: 'Spend (USD)',
-    cell: ({ row }) => `$${row.original.spend.toLocaleString()}`,
+    header: 'Spend (Points)',
+    cell: ({ row }) => `${row.original.spend.toLocaleString()} pts`,
   },
   {
     accessorKey: 'clicks',
@@ -255,7 +255,7 @@ export default function SellerAdsPage() {
       if (!user) return null;
       return query(
           collection(firestore, 'adCampaigns'), 
-          where('sellerId', '==', user.uid), 
+          where('sellerId', '==', user.uid),
           orderBy('startDate', 'desc')
       );
   }, [user, firestore]);
@@ -303,10 +303,10 @@ export default function SellerAdsPage() {
         </Dialog>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Spend" value={`$${stats.totalSpend.toLocaleString()}`} icon={DollarSign} description="Lifetime" />
+            <StatCard title="Total Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
             <StatCard title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} description="Lifetime" />
             <StatCard title="Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} description="Lifetime" />
-            <StatCard title="Average CPC" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
+            <StatCard title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
         </div>
 
         <div className="rounded-md border">
@@ -364,4 +364,3 @@ export default function SellerAdsPage() {
   );
 }
 
-    
