@@ -46,7 +46,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Product, AdCampaign, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 
 
 const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
@@ -108,7 +108,7 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                 productId: selectedProductId,
                 productName: selectedProduct.name,
                 productImageUrl: selectedProduct.imageUrl || selectedProduct.imageUrls?.[0] || '',
-                status: 'draft',
+                status: 'draft' as const,
                 budget: durationOptions[selectedDuration].points, // Using points as budget for now
                 spend: 0,
                 clicks: 0,
@@ -270,7 +270,11 @@ export default function SellerAdsPage() {
 
   const campaignsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'adCampaigns'), where('sellerId', '==', user.uid));
+    return query(
+        collection(firestore, 'adCampaigns'), 
+        where('sellerId', '==', user.uid),
+        orderBy('startDate', 'desc')
+    );
   }, [firestore, user]);
   
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
@@ -372,5 +376,3 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
-
-    
