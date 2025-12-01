@@ -122,19 +122,29 @@ export default function BuyerProductPage() {
 
     const allMedia = useMemo(() => {
         if (!product) return [];
-        return [
-            ...(product.videoUrls || []).map(url => ({ url, type: 'video' as 'video' })),
-            ...(product.imageUrls || []).map(url => ({ url, type: 'image' as 'image' })),
-        ];
+        
+        const media = [];
+        // Prioritize video
+        if (product.videoUrl) media.push({ url: product.videoUrl, type: 'video' as 'video' });
+        if (product.videoUrls) media.push(...product.videoUrls.map(url => ({ url, type: 'video' as 'video' })));
+        
+        // Then add images
+        if (product.imageUrl) media.push({ url: product.imageUrl, type: 'image' as 'image' });
+        if (product.imageUrls) media.push(...product.imageUrls.map(url => ({ url, type: 'image' as 'image' })));
+        
+        // Remove duplicates just in case
+        const uniqueMedia = Array.from(new Map(media.map(m => [m.url, m])).values());
+        
+        return uniqueMedia;
     }, [product]);
 
-    const [selectedMedia, setSelectedMedia] = useState(allMedia.length > 0 ? allMedia[0] : null);
+    const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
 
     useEffect(() => {
-        if (allMedia.length > 0) {
+        if (allMedia.length > 0 && !selectedMedia) {
             setSelectedMedia(allMedia[0]);
         }
-    }, [allMedia]);
+    }, [allMedia, selectedMedia]);
 
     const handleAddToCart = async () => {
         if (!user) {
@@ -151,7 +161,7 @@ export default function BuyerProductPage() {
           quantity: increment(1),
           price: product.price,
           name: product.name,
-          imageUrl: product.imageUrl || product.imageUrls?.[0] || '',
+          imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200',
           addedAt: serverTimestamp(),
         };
 
@@ -182,7 +192,7 @@ export default function BuyerProductPage() {
             sellerId: product.sellerId,
             productId: product.id,
             productName: product.name,
-            productImage: product.imageUrl || product.imageUrls?.[0] || '',
+            productImage: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200',
             productPrice: product.price,
             shippingCost: shippingCost,
             totalAmount: product.price + shippingCost,

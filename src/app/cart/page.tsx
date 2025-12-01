@@ -48,7 +48,7 @@ const CartItemRow = ({ item }: { item: CartItem }) => {
     return (
         <div className="flex items-center gap-4 py-4">
             <div className="relative h-20 w-20 rounded-md overflow-hidden">
-                <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                <Image src={item.imageUrl || 'https://picsum.photos/seed/placeholder/200'} alt={item.name} fill className="object-cover" />
             </div>
             <div className="flex-1">
                 <p className="font-semibold">{item.name}</p>

@@ -46,7 +46,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Product, AdCampaign, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
 
 
 const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
@@ -272,8 +272,7 @@ export default function SellerAdsPage() {
     if (!user) return null;
     return query(
         collection(firestore, 'adCampaigns'), 
-        where('sellerId', '==', user.uid),
-        orderBy('startDate', 'desc')
+        where('sellerId', '==', user.uid)
     );
   }, [firestore, user]);
   
