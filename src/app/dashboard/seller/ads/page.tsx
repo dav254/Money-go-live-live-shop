@@ -85,6 +85,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
     const [videoFile, setVideoFile] = React.useState<File | null>(null);
+    const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
     const videoInputRef = React.useRef<HTMLInputElement>(null);
 
     const pointsCost = durationDays * 100;
@@ -102,7 +103,10 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     };
     
     const handleSubmit = async () => {
-        if (!videoFile || !user) return;
+        if (!videoFile || !user || !selectedProductId) {
+            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please upload a video and select a product.' });
+            return;
+        }
         if (!hasEnoughPoints) {
             toast({ variant: 'destructive', title: 'Insufficient Points', description: 'You do not have enough AI points for this boost.' });
             return;
@@ -111,34 +115,47 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         setIsSubmitting(true);
         toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
         
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-        if (!cloudName) {
-            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Cloudinary configuration is missing.' });
-            setIsSubmitting(false);
-            return;
-        }
-
         try {
-            // This is a simplified, unsigned upload. A real app should use signed URLs from a backend.
+            // Step 1: Get signature from our server
+            const timestamp = Math.round(Date.now() / 1000);
+            const paramsToSign = { timestamp, folder: 'boost_videos' };
+            const signatureResponse = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paramsToSign }),
+            });
+
+            if (!signatureResponse.ok) {
+                throw new Error('Failed to get upload signature from server.');
+            }
+            const { signature } = await signatureResponse.json();
+            
+            // Step 2: Upload file to Cloudinary with signature
             const formData = new FormData();
             formData.append('file', videoFile);
-            formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET || 'goearn-unsigned');
+            formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+            formData.append('timestamp', timestamp.toString());
+            formData.append('signature', signature);
             formData.append('folder', 'boost_videos');
 
-            const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+            const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+            const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
+            
+            const uploadResponse = await fetch(uploadUrl, {
                 method: 'POST',
                 body: formData,
             });
 
             if (!uploadResponse.ok) {
                  const errorData = await uploadResponse.json();
-                 throw new Error(errorData.error.message || 'Video upload failed.');
+                 throw new Error(errorData.error.message || 'Video upload to Cloudinary failed.');
             }
             
             const uploadedData = await uploadResponse.json();
             
+            // Step 3: Submit boost request to our backend API
             const payload = {
-                productId: 'default_product_id', // Simplified for now
+                productId: selectedProductId,
                 videoUrl: uploadedData.secure_url,
                 caption: caption,
                 durationDays: durationDays,
@@ -200,11 +217,27 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="caption">2. Ad Caption</Label>
+                        <Label>2. Associate with a Product</Label>
+                        <Select onValueChange={setSelectedProductId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Choose a product..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {products.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                        {p.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="caption">3. Ad Caption</Label>
                         <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label>3. Campaign Duration</Label>
+                        <Label>4. Campaign Duration</Label>
                         <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
@@ -239,7 +272,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !hasEnoughPoints}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !selectedProductId || !hasEnoughPoints}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
@@ -287,7 +320,7 @@ export default function SellerAdsPage() {
         return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
     }, [user, firestore]);
 
-    const { data: boosts, isLoading: isLoadingBoosts } = useCollection<BoostRequest>(boostsQuery);
+    const { data: boosts, isLoading: isLoadingBoosts, refetch: refetchBoosts } = useCollection<BoostRequest>(boostsQuery);
     const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
     const isLoading = isLoadingBoosts || isLoadingProducts || isProfileLoading;
@@ -395,7 +428,7 @@ export default function SellerAdsPage() {
                          <Button size="sm" variant="outline" onClick={() => router.push('/dashboard/seller/ai-tools')}>Buy Points</Button>
                     </CardContent>
                 </Card>
-                 <CreateBoostDialog products={products || []} onBoostCreated={() => {}} userProfile={userProfile} />
+                 <CreateBoostDialog products={products || []} onBoostCreated={refetchBoosts} userProfile={userProfile} />
             </div>
         </div>
 
