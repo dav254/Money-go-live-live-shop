@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 // Do NOT import firebase-admin services at the top level.
@@ -36,16 +38,16 @@ export async function GET(request: Request) {
     // Safely serialize Timestamp objects before sending the response
     const boosts = snapshot.docs.map(doc => {
         const data = doc.data() as BoostRequest;
-        const createdAt = data.createdAt;
-        const updatedAt = data.updatedAt;
+        const createdAt = data.createdAt as any;
+        const updatedAt = data.updatedAt as any;
 
         return {
             ...data,
-            createdAt: (createdAt && typeof (createdAt as any).toDate === 'function')
-                ? (createdAt as any).toDate().toISOString()
+            createdAt: (createdAt && typeof createdAt.toDate === 'function')
+                ? createdAt.toDate().toISOString()
                 : new Date().toISOString(),
-            updatedAt: (updatedAt && typeof (updatedAt as any).toDate === 'function')
-                ? (updatedAt as any).toDate().toISOString()
+            updatedAt: (updatedAt && typeof updatedAt.toDate === 'function')
+                ? updatedAt.toDate().toISOString()
                 : new Date().toISOString(),
         };
     });
@@ -57,7 +59,7 @@ export async function GET(request: Request) {
     if (error.code === 'auth/id-token-expired') {
       return NextResponse.json({ message: 'Authentication token has expired.' }, { status: 401 });
     }
-    return NextResponse.json({ message: 'An internal server error occurred.' }, { status: 500 });
+    return NextResponse.json({ message: 'An internal server error occurred.', error: error.message }, { status: 500 });
   }
 }
 
