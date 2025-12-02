@@ -39,16 +39,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -134,9 +134,9 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <CardTitle>Create New Ad Campaign</CardTitle>
-                    <CardDescription>
+                    <DialogDescription>
                         Promote your product on TikTok. Your ad will be reviewed by our team before going live.
-                    </CardDescription>
+                    </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -266,6 +266,15 @@ export default function SellerAdsPage() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+
+  const { data: productsData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
 
   React.useEffect(() => {
     async function fetchData() {
@@ -324,8 +333,8 @@ export default function SellerAdsPage() {
                 My Ad Campaigns
             </h1>
             <CreateAdDialog 
-                products={products || []}
-                isLoading={isLoading} 
+                products={productsData || []}
+                isLoading={areProductsLoading} 
                 userProfile={null}
             />
         </div>
