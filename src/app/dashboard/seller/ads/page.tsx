@@ -75,7 +75,7 @@ const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: {
     </Card>
 );
 
-const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Product[], isLoading: boolean, userProfile: any }) => {
+const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Product[], isLoading: boolean, userProfile: UserProfile | null }) => {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -262,10 +262,12 @@ export const columns: ColumnDef<AdCampaign>[] = [
 
 export default function SellerAdsPage() {
   const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
   const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+  
   const firestore = useFirestore();
 
   const productsQuery = useMemoFirebase(() => {
@@ -274,6 +276,12 @@ export default function SellerAdsPage() {
   }, [firestore, user]);
 
   const { data: productsData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  React.useEffect(() => {
+    if (productsData) {
+        setProducts(productsData);
+    }
+  }, [productsData]);
 
 
   React.useEffect(() => {
@@ -295,7 +303,6 @@ export default function SellerAdsPage() {
             }
             const data = await response.json();
             setCampaigns(data.campaigns);
-            setProducts(data.products);
         } catch (error: any) {
             toast({
                 variant: 'destructive',
@@ -333,9 +340,9 @@ export default function SellerAdsPage() {
                 My Ad Campaigns
             </h1>
             <CreateAdDialog 
-                products={productsData || []}
+                products={products}
                 isLoading={areProductsLoading} 
-                userProfile={null}
+                userProfile={userProfile}
             />
         </div>
 
@@ -394,3 +401,5 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
+
+    
