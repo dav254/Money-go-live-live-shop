@@ -57,7 +57,10 @@ import type { Product, AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { createAdCampaign } from '@/app/actions/ad-actions';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { useCollection } from '@/firebase';
 
 const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
     <Card>
@@ -83,14 +86,38 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
             return;
         }
         setIsSubmitting(true);
-        // This would call a server action or API route to create the ad
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        toast({
-            title: "Campaign Submitted for Review",
-            description: "Your ad campaign has been created as a draft and is pending admin approval."
-        });
-        setIsSubmitting(false);
+        try {
+            const selectedProduct = products.find(p => p.id === selectedProductId);
+            if (!selectedProduct) throw new Error("Selected product not found.");
+
+            const result = await createAdCampaign({
+                productId: selectedProduct.id,
+                productName: selectedProduct.name,
+                productImageUrl: selectedProduct.imageUrl || '',
+                // These would be dynamic in a real form
+                budget: 5000, 
+            });
+
+            if (result.success) {
+                toast({
+                    title: "Campaign Submitted for Review",
+                    description: "Your ad campaign has been created as a draft and is pending admin approval."
+                });
+            } else {
+                throw new Error(result.error || "An unknown error occurred.");
+            }
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Submission Failed',
+                description: error.message
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
+    const videoProducts = products.filter(p => (p.videoUrl || (p.videoUrls && p.videoUrls.length > 0)));
 
     return (
         <Dialog>
@@ -112,10 +139,10 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
                                 <SelectValue placeholder={isLoading ? "Loading products..." : "Choose a product..."} />
                             </SelectTrigger>
                             <SelectContent>
-                                {products.map(product => (
+                                {videoProducts.map(product => (
                                     <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
                                 ))}
-                                {!isLoading && products.length === 0 && (
+                                {!isLoading && videoProducts.length === 0 && (
                                     <div className="p-4 text-center text-sm text-muted-foreground">No products with videos found.</div>
                                 )}
                             </SelectContent>
@@ -199,9 +226,9 @@ export const columns: ColumnDef<AdCampaign>[] = [
     },
   },
   {
-    accessorKey: 'spend',
-    header: 'Spend (Points)',
-    cell: ({ row }) => `${row.original.spend.toLocaleString()} pts`,
+    accessorKey: 'budget',
+    header: 'Budget (Points)',
+    cell: ({ row }) => `${row.original.budget.toLocaleString()} pts`,
   },
   { accessorKey: 'clicks', header: 'Clicks' },
   { accessorKey: 'conversions', header: 'Conversions' },
@@ -228,44 +255,34 @@ export const columns: ColumnDef<AdCampaign>[] = [
 
 export default function SellerAdsPage() {
   const { user } = useUser();
-  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
-  const [products, setProducts] = React.useState<Product[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const firestore = useFirestore();
 
-  React.useEffect(() => {
-    async function fetchData() {
-        if (!user) return;
+  const campaignsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'adCampaigns'), where('sellerId', '==', user.uid));
+  }, [user, firestore]);
+  
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [user, firestore]);
 
-        setIsLoading(true);
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/seller/campaigns', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error('Failed to fetch campaigns');
-            const data = await response.json();
-            setCampaigns(data.campaigns);
-            setProducts(data.products);
-        } catch (error) {
-            console.error("Error fetching seller data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }
-    fetchData();
-  }, [user]);
+  const { data: campaigns, isLoading: areCampaignsLoading } = useCollection<AdCampaign>(campaignsQuery);
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  const isLoading = areCampaignsLoading || areProductsLoading;
 
   const stats = React.useMemo(() => {
       if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
-      const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
+      const totalBudget = campaigns.reduce((acc, c) => acc + c.budget, 0);
       const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
       const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
-      const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
-      return { totalSpend, totalClicks, totalConversions, avgCpc };
+      const avgCpc = totalClicks > 0 ? totalBudget / totalClicks : 0;
+      return { totalSpend: totalBudget, totalClicks, totalConversions, avgCpc };
   }, [campaigns]);
 
   const table = useReactTable({
-    data: campaigns,
+    data: campaigns || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -278,17 +295,17 @@ export default function SellerAdsPage() {
                 My Ad Campaigns
             </h1>
             <CreateAdDialog 
-                products={products.filter(p => p.videoUrls && p.videoUrls.length > 0)} 
+                products={products || []}
                 isLoading={isLoading} 
                 userProfile={null}
             />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard isLoading={isLoading} title="Total Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Total Budget" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
             <StatCard isLoading={isLoading} title="Total Clicks" value={`${stats.totalClicks.toLocaleString()}`} icon={MousePointerClick} description="Lifetime" />
             <StatCard isLoading={isLoading} title="Conversions" value={`${stats.totalConversions.toLocaleString()}`} icon={TrendingUp} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
         </div>
 
         {isLoading ? <DataTableSkeleton /> : (
@@ -339,4 +356,3 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
-
