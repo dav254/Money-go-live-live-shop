@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { AdCampaign, Product } from '@/lib/types';
@@ -65,4 +67,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: errorMessage, details: error.message }, { status });
   }
 }
-

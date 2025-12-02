@@ -1,3 +1,4 @@
+
 // src/firebase/admin.ts
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import * as path from 'path';
@@ -20,7 +21,7 @@ try {
 
 
 // Use a unique name for the app to avoid conflicts.
-const appName = 'firebase-admin-app';
+const appName = 'firebase-admin-app-e08e6c7c-473c-4a39-8692-7f2824e4f7b6'; // Unique name
 
 /**
  * A robust, idempotent function to initialize the Firebase Admin SDK.
@@ -37,6 +38,7 @@ export function initializeAdminApp(): App {
       throw new Error("Firebase Admin SDK could not be initialized because service-account.json is missing or invalid.");
   }
 
+  // When initializing, we provide the unique app name.
   const newApp = initializeApp({
     credential: cert(serviceAccount),
   }, appName);

@@ -53,11 +53,11 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Product, AdCampaign } from '@/lib/types';
+import type { Product, AdCampaign, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
 import { createAdCampaign } from '@/app/actions/ad-actions';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useCollection } from '@/firebase';
@@ -133,10 +133,10 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Create New Ad Campaign</DialogTitle>
-                    <DialogDescription>
+                    <CardTitle>Create New Ad Campaign</CardTitle>
+                    <CardDescription>
                         Promote your product on TikTok. Your ad will be reviewed by our team before going live.
-                    </DialogDescription>
+                    </CardDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -265,6 +265,7 @@ export default function SellerAdsPage() {
   const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     async function fetchData() {
@@ -279,18 +280,26 @@ export default function SellerAdsPage() {
             const response = await fetch('/api/seller/campaigns', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!response.ok) throw new Error('Failed to fetch campaigns');
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.error || 'Failed to fetch campaigns');
+            }
             const data = await response.json();
             setCampaigns(data.campaigns);
             setProducts(data.products);
-        } catch (error) {
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Loading Data',
+                description: error.message
+            })
             console.error(error);
         } finally {
             setIsLoading(false);
         }
     }
     fetchData();
-  }, [user]);
+  }, [user, toast]);
 
   const stats = React.useMemo(() => {
       if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
