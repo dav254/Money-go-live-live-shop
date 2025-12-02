@@ -109,11 +109,13 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                                 <CardTitle className="text-lg">Video Preview</CardTitle>
                             </CardHeader>
                              <CardContent className="aspect-w-9 aspect-h-16 bg-muted rounded-b-lg">
-                                {/* In a real app, you'd use a proper video player */}
-                                <div className="w-full h-full flex flex-col items-center justify-center">
-                                    <Video className="w-16 h-16 text-muted-foreground"/>
-                                    <a href={boost.videoUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: 'link' }), 'mt-2')}>View Video <ExternalLink className="w-4 h-4 ml-2"/></a>
-                                </div>
+                                <video
+                                    src={boost.videoUrl}
+                                    controls
+                                    className="w-full h-full rounded-md"
+                                >
+                                    Your browser does not support the video tag.
+                                </video>
                             </CardContent>
                         </Card>
                     </div>
@@ -193,9 +195,10 @@ export default function AdminBoostsPage() {
         {
             accessorKey: 'createdAt',
             header: 'Submitted',
-            cell: ({ row }) => (
-                 <span>{formatDistanceToNow(new Date(row.original.createdAt.seconds * 1000), { addSuffix: true })}</span>
-            ),
+            cell: ({ row }) => {
+                const date = new Date(row.original.createdAt as any);
+                 return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
+            }
         },
         {
             id: 'actions',
