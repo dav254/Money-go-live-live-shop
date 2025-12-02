@@ -60,46 +60,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
-
-// --- MOCK DATA ---
-const mockProducts: Product[] = [
-  { id: 'prod-1', name: 'Classic Leather Handbag', videoUrls: ['/videos/handbag.mp4'], price: 850, sellerId: 'seller-1', description: '', imageUrl: 'https://picsum.photos/seed/prod1/400'},
-  { id: 'prod-2', name: 'NextGen Smartphone', videoUrls: ['/videos/phone.mp4'], price: 1200, sellerId: 'seller-1', description: '', imageUrl: 'https://picsum.photos/seed/prod2/400' },
-  { id: 'prod-3', name: 'Urban Explorer Sneakers', videoUrl: '/videos/sneakers.mp4', price: 120, sellerId: 'seller-1', description: '', imageUrl: 'https://picsum.photos/seed/prod3/400' },
-];
-
-const mockBoosts: BoostRequest[] = [
-    {
-        id: 'boost-1',
-        sellerId: 'seller-1',
-        videoUrl: '/videos/handbag.mp4',
-        caption: 'Get your hands on this classic leather handbag! Perfect for any occasion. #fashion #style',
-        durationDays: 3,
-        pointsPaid: 300,
-        target: { counties: ['Nairobi'], age: '18-34', interests: ['fashion'] },
-        status: 'active',
-        createdAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 2))),
-        updatedAt: Timestamp.fromDate(new Date()),
-        analytics: { views: 15234, likes: 1200, clicks: 87, shares: 45, conversions: 5 },
-    },
-    {
-        id: 'boost-2',
-        sellerId: 'seller-1',
-        videoUrl: '/videos/phone.mp4',
-        caption: 'Upgrade your tech! The new NextGen Smartphone is here. Limited stock available.',
-        durationDays: 7,
-        pointsPaid: 700,
-        target: { counties: ['Mombasa'], age: '25-45', interests: ['tech'] },
-        status: 'pending',
-        createdAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 1))),
-        updatedAt: Timestamp.fromDate(new Date()),
-        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-    },
-];
-
-// --- END MOCK DATA ---
+import { createBoostRequest } from '@/app/actions/boost-actions';
 
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
@@ -116,32 +79,74 @@ const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, valu
 
 const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], onBoostCreated: () => void }) => {
     const { toast } = useToast();
+    const { user } = useUser();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [selectedProductId, setSelectedProductId] = React.useState<string>('');
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
+    const [videoFile, setVideoFile] = React.useState<File | null>(null);
+    const videoInputRef = React.useRef<HTMLInputElement>(null);
 
     const selectedProduct = products.find(p => p.id === selectedProductId);
-
     const pointsCost = durationDays * 100;
 
+    const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.size > 100 * 1024 * 1024) { // 100MB limit
+                toast({ variant: 'destructive', title: 'File too large', description: 'Please select a video file under 100MB.' });
+                return;
+            }
+            setVideoFile(file);
+        }
+    };
+
     const handleSubmit = async () => {
+        if (!videoFile) {
+            toast({ variant: 'destructive', title: 'Please upload a video.' });
+            return;
+        }
         if (!selectedProduct) {
-            toast({ variant: 'destructive', title: 'Please select a product.' });
+            toast({ variant: 'destructive', title: 'Please select a product to associate with this boost.' });
+            return;
+        }
+        if (!user) {
+            toast({ variant: 'destructive', title: 'You must be logged in.' });
             return;
         }
 
         setIsSubmitting(true);
-        // Simulate a network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        toast({
-            title: "Boost Submitted for Review",
-            description: "Your campaign is now pending admin approval."
-        });
-
-        onBoostCreated();
+        toast({ title: "Frontend Only", description: "This is a frontend-only demonstration. No backend action is being performed."});
+        
+        // ** BACKEND LOGIC DISABLED AS REQUESTED **
+        // In a real scenario, we would upload the videoFile to Cloudinary, get the URL,
+        // then call the createBoostRequest server action.
+        
+        // const token = await user.getIdToken();
+        // createBoostRequest({
+        //     productId: selectedProduct.id,
+        //     videoUrl: 'https://placeholder.url/from/cloudinary',
+        //     caption: caption,
+        //     durationDays: durationDays,
+        //     pointsCost: pointsCost,
+        //     target: { counties: ['Nairobi'], age: '18-34', interests: ['fashion', 'shopping'] }
+        // }).then(result => {
+        //     if (result.success) {
+        //         toast({ title: "Boost Submitted for Review", description: "Your campaign is now pending admin approval." });
+        //         onBoostCreated();
+        //     } else {
+        //         throw new Error(result.error);
+        //     }
+        // }).catch(error => {
+        //     toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
+        // }).finally(() => {
+        //     setIsSubmitting(false);
+        // });
+        
+        // Simulate a delay for demo purposes
+        await new Promise(resolve => setTimeout(resolve, 1500));
         setIsSubmitting(false);
+        onBoostCreated(); // This will close the dialog
     };
 
     return (
@@ -157,14 +162,24 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
+                    
                     <div className="space-y-2">
-                        <Label>1. Select Product with a Video</Label>
+                        <Label>1. Upload Video</Label>
+                        <input type="file" accept="video/*" ref={videoInputRef} onChange={handleVideoFileChange} className="hidden" />
+                        <Button variant="outline" className="w-full h-24 border-dashed" onClick={() => videoInputRef.current?.click()}>
+                           <UploadCloud className="h-6 w-6 mr-2" />
+                           {videoFile ? `Selected: ${videoFile.name}` : 'Click to select a video'}
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>2. Associate with a Product</Label>
                         <Select onValueChange={setSelectedProductId}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a product..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {products.filter(p => p.videoUrls?.length || p.videoUrl).map(p => (
+                                {products.map(p => (
                                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -172,11 +187,11 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="caption">2. Ad Caption</Label>
+                        <Label htmlFor="caption">3. Ad Caption</Label>
                         <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label>3. Campaign Duration</Label>
+                        <Label>4. Campaign Duration</Label>
                         <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
@@ -202,7 +217,7 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !selectedProduct}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !selectedProduct}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
@@ -243,11 +258,15 @@ export default function SellerAdsPage() {
         );
     }, [user, firestore]);
 
+    const productsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+    }, [user, firestore]);
+
     const { data: boosts, isLoading: isLoadingBoosts } = useCollection<BoostRequest>(boostsQuery);
-    
-    // For now, we will continue using mock products for the dialog
-    const [products, setProducts] = React.useState<Product[]>(mockProducts);
-    const [isLoading, setIsLoading] = React.useState(false);
+    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+
+    const isLoading = isLoadingBoosts || isLoadingProducts;
 
     const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
@@ -256,7 +275,7 @@ export default function SellerAdsPage() {
           acc.totalViews += c.analytics?.views || 0;
           acc.totalLikes += c.analytics?.likes || 0;
           acc.totalClicks += c.analytics?.clicks || 0;
-          if(c.status === 'active' || c.status === 'completed') acc.totalSpent += c.pointsPaid || 0;
+          if(c.status === 'active' || c.status === 'approved' || c.status === 'completed') acc.totalSpent += c.pointsPaid || 0;
           return acc;
       }, initialStats);
     }, [boosts]);
@@ -287,7 +306,7 @@ export default function SellerAdsPage() {
             draft: 'secondary',
             completed: 'outline'
         }[status] as any;
-        return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
+        return <Badge variant={variant} className={`capitalize ${status === 'active' || status === 'approved' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
         },
     },
     {
@@ -336,13 +355,13 @@ export default function SellerAdsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard isLoading={isLoadingBoosts} title="Total Views" value={stats.totalViews.toLocaleString()} icon={Eye} />
-            <StatCard isLoading={isLoadingBoosts} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} />
-            <StatCard isLoading={isLoadingBoosts} title="Total Likes" value={stats.totalLikes.toLocaleString()} icon={Heart} />
-            <StatCard isLoading={isLoadingBoosts} title="Total Points Spent" value={`${stats.totalSpent.toLocaleString()} pts`} icon={BarChart2} />
+            <StatCard isLoading={isLoading} title="Total Views" value={stats.totalViews.toLocaleString()} icon={Eye} />
+            <StatCard isLoading={isLoading} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} />
+            <StatCard isLoading={isLoading} title="Total Likes" value={stats.totalLikes.toLocaleString()} icon={Heart} />
+            <StatCard isLoading={isLoading} title="Total Points Spent" value={`${stats.totalSpent.toLocaleString()} pts`} icon={BarChart2} />
         </div>
 
-        {isLoadingBoosts ? <DataTableSkeleton /> : (
+        {isLoading ? <DataTableSkeleton /> : (
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
