@@ -26,6 +26,8 @@ import {
   MousePointerClick,
   DollarSign,
   TrendingUp,
+  ShieldCheck,
+  Loader2,
   ClipboardCopy,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
@@ -125,7 +127,7 @@ const ApproveCampaignDialog = ({ campaign, onOpenChange }: { campaign: AdCampaig
       <div className="space-y-4 py-4">
         <div>
           <h4 className="font-semibold">{campaign.productName}</h4>
-          <p className="text-sm text-muted-foreground">Budget: ${campaign.budget.toLocaleString()}</p>
+          <p className="text-sm text-muted-foreground">Budget: {campaign.budget.toLocaleString()} Points</p>
         </div>
         <div>
             <Label htmlFor="tracking-url">TikTok Ad Tracking URL</Label>
@@ -138,7 +140,7 @@ const ApproveCampaignDialog = ({ campaign, onOpenChange }: { campaign: AdCampaig
       </div>
       <DialogFooter>
         <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-        <DialogClose asChild><Button onClick={handleApprove}>Approve & Set Live</Button></DialogClose>
+        <Button onClick={handleApprove}>Approve & Set Live</Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -180,14 +182,14 @@ export default function AdminAdsPage() {
           active: 'default',
           completed: 'outline',
           paused: 'secondary',
-          draft: 'destructive',
+          draft: 'secondary',
         }[status] as any;
         return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
       },
     },
     { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <p className="text-xs font-mono">{row.original.sellerId}</p> },
-    { accessorKey: 'budget', header: 'Budget (USD)', cell: ({ row }) => `$${row.original.budget.toLocaleString()}` },
-    { accessorKey: 'spend', header: 'Spend (USD)', cell: ({ row }) => `$${row.original.spend.toLocaleString()}` },
+    { accessorKey: 'budget', header: 'Budget (Points)', cell: ({ row }) => `${row.original.budget.toLocaleString()}` },
+    { accessorKey: 'spend', header: 'Spend (Points)', cell: ({ row }) => `${row.original.spend.toLocaleString()}` },
     { accessorKey: 'clicks', header: 'Clicks' },
     { accessorKey: 'conversions', header: 'Conversions' },
     {
@@ -235,10 +237,10 @@ export default function AdminAdsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Platform Ad Spend" value={`$${stats.totalSpend.toLocaleString()}`} icon={DollarSign} />
+            <StatCard title="Total Ad Spend" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} />
             <StatCard title="Total Clicks Generated" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} />
             <StatCard title="Total Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} />
-            <StatCard title="Average CPC" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} />
+            <StatCard title="Average CPC" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} />
         </div>
         <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
             {isLoading ? <DataTableSkeleton /> : (
