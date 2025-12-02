@@ -9,6 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import Image from 'next/image';
+import { Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -38,7 +39,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -50,19 +50,66 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { BoostRequest, UserProfile, Product } from '@/lib/types';
+import type { BoostRequest, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { createBoostRequest } from '@/app/actions/boost-actions';
-import { collection, query, where } from 'firebase/firestore';
+
+// --- MOCK DATA ---
+const mockProducts: Product[] = [
+  { id: 'prod-1', name: 'Classic Leather Handbag', videoUrls: ['/videos/handbag.mp4'], price: 850, sellerId: 'seller-1', description: '', imageUrl: 'https://picsum.photos/seed/prod1/400'},
+  { id: 'prod-2', name: 'NextGen Smartphone', videoUrls: ['/videos/phone.mp4'], price: 1200, sellerId: 'seller-1', description: '', imageUrl: 'https://picsum.photos/seed/prod2/400' },
+  { id: 'prod-3', name: 'Urban Explorer Sneakers', videoUrl: '/videos/sneakers.mp4', price: 120, sellerId: 'seller-1', description: '', imageUrl: 'https://picsum.photos/seed/prod3/400' },
+];
+
+const mockBoosts: BoostRequest[] = [
+    {
+        id: 'boost-1',
+        sellerId: 'seller-1',
+        videoUrl: '/videos/handbag.mp4',
+        caption: 'Get your hands on this classic leather handbag! Perfect for any occasion. #fashion #style',
+        durationDays: 3,
+        pointsPaid: 300,
+        target: { counties: ['Nairobi'], age: '18-34', interests: ['fashion'] },
+        status: 'active',
+        createdAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 2))),
+        updatedAt: Timestamp.fromDate(new Date()),
+        analytics: { views: 15234, likes: 1200, clicks: 87, shares: 45, conversions: 5 },
+    },
+    {
+        id: 'boost-2',
+        sellerId: 'seller-1',
+        videoUrl: '/videos/phone.mp4',
+        caption: 'Upgrade your tech! The new NextGen Smartphone is here. Limited stock available.',
+        durationDays: 7,
+        pointsPaid: 700,
+        target: { counties: ['Mombasa'], age: '25-45', interests: ['tech'] },
+        status: 'pending',
+        createdAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 1))),
+        updatedAt: Timestamp.fromDate(new Date()),
+        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+    },
+     {
+        id: 'boost-3',
+        sellerId: 'seller-1',
+        videoUrl: '/videos/sneakers.mp4',
+        caption: 'Step up your shoe game with the Urban Explorer Sneakers.',
+        durationDays: 5,
+        pointsPaid: 500,
+        target: { counties: ['Kisumu'], age: '18-25', interests: ['streetwear'] },
+        status: 'completed',
+        createdAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 10))),
+        updatedAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 5))),
+        analytics: { views: 25000, likes: 2300, clicks: 150, shares: 80, conversions: 12 },
+    }
+];
+
+// --- END MOCK DATA ---
 
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
@@ -95,35 +142,18 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
         }
 
         setIsSubmitting(true);
-        try {
-            const result = await createBoostRequest({
-                productId: selectedProduct.id,
-                videoUrl: selectedProduct.videoUrls?.[0] || selectedProduct.videoUrl || '', // Use the first video
-                caption,
-                durationDays,
-                pointsCost,
-                target: { counties: ['Nairobi'], age: '18-34', interests: ['shopping'] },
-            });
+        // Simulate a network delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-            if (result.success) {
-                toast({
-                    title: "Boost Submitted for Review",
-                    description: "Your campaign is pending admin approval."
-                });
-                onBoostCreated();
-            } else {
-                 throw new Error(result.error || "An unknown error occurred.");
-            }
+        toast({
+            title: "Boost Submitted for Review",
+            description: "Your campaign is now pending admin approval."
+        });
 
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Submission Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // In a real scenario, this would trigger a server action.
+        // For frontend-only, we just close the dialog.
+        onBoostCreated();
+        setIsSubmitting(false);
     };
 
     return (
@@ -214,35 +244,22 @@ const DataTableSkeleton = () => (
 );
 
 export default function SellerAdsPage() {
-  const { user } = useUser();
-  const firestore = useFirestore();
+    // We now use mock data directly.
+    const [boosts, setBoosts] = React.useState<BoostRequest[]>(mockBoosts);
+    const [products, setProducts] = React.useState<Product[]>(mockProducts);
+    const [isLoading, setIsLoading] = React.useState(false); // Set to false as we're using mock data.
 
-  const boostsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'boost_requests'), where('sellerId', '==', user.uid));
-  }, [user, firestore]);
-  
-  const productsQuery = useMemoFirebase(() => {
-      if (!user) return null;
-      return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-  }, [user, firestore]);
-
-  const { data: boosts, isLoading: isLoadingBoosts } = useCollection<BoostRequest>(boostsQuery);
-  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
-
-  const isLoading = isLoadingBoosts || isLoadingProducts;
-
-  const stats = React.useMemo(() => {
+    const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
       if (!boosts) return initialStats;
       return boosts.reduce((acc, c) => {
           acc.totalViews += c.analytics.views;
           acc.totalLikes += c.analytics.likes;
           acc.totalClicks += c.analytics.clicks;
-          if(c.status === 'approved' || c.status === 'active') acc.totalSpent += c.pointsPaid;
+          if(c.status === 'active' || c.status === 'completed') acc.totalSpent += c.pointsPaid;
           return acc;
       }, initialStats);
-  }, [boosts]);
+    }, [boosts]);
   
     const columns: ColumnDef<BoostRequest>[] = [
     {
@@ -263,11 +280,12 @@ export default function SellerAdsPage() {
         cell: ({ row }) => {
         const status = row.original.status;
         const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
-            approved: 'default',
             active: 'default',
+            approved: 'default',
             rejected: 'destructive',
             pending: 'secondary',
             draft: 'secondary',
+            completed: 'outline'
         }[status] as any;
         return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
         },
@@ -293,7 +311,7 @@ export default function SellerAdsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem disabled={row.original.status !== 'approved'}>View on TikTok</DropdownMenuItem>
+            <DropdownMenuItem disabled>View on TikTok</DropdownMenuItem>
             <DropdownMenuItem>View Details</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
