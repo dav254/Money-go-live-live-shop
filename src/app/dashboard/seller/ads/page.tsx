@@ -62,7 +62,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
-import { createBoostRequest } from '@/app/actions/boost-actions';
+// No longer importing createBoostRequest directly
 import { useRouter } from 'next/navigation';
 
 
@@ -114,14 +114,14 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
 
         try {
+            // Simplified upload logic - in a real app, this would use a signed URL from your backend
             const formData = new FormData();
             formData.append('file', videoFile);
-            
-            // This is a simplified frontend upload. A real implementation would go to a signed URL.
+            formData.append('upload_preset', 'your_cloudinary_unsigned_preset'); // UNSIGNED PRESET REQUIRED FOR THIS METHOD
+
             const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload`, {
                 method: 'POST',
                 body: formData,
-                // In a real scenario, you'd need a signature for uploads. This is a simplified example.
             });
 
             if (!uploadResponse.ok) {
@@ -144,14 +144,22 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             };
             
             const token = await user.getIdToken();
-            const result = await createBoostRequest(payload, token);
+            const result = await fetch('/api/admin/boosts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
 
-            if (result.success) {
-                toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
-                onBoostCreated();
-            } else {
-                throw new Error(result.error || 'Failed to create boost request.');
+            if (!result.ok) {
+                const errorData = await result.json();
+                throw new Error(errorData.error || 'Failed to create boost request.');
             }
+
+            toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
+            onBoostCreated();
 
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });

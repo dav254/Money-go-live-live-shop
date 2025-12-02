@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { BoostRequest } from '@/lib/types';
+import type { BoostRequest, UserProfile } from '@/lib/types';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
 
 /**
@@ -70,32 +70,90 @@ export async function GET(request: Request) {
 /**
  * POST handler for approving or rejecting a boost request.
  * On approval, it triggers the (mock) TikTok upload process.
- * Only accessible by admin users.
+ * Can also handle boost creation.
  */
 export async function POST(request: Request) {
   try {
-    // Correctly initialize Firebase Admin and get services
     const adminApp = initializeAdminApp();
     const auth = getAuth(adminApp);
     const db = getFirestore(adminApp);
 
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: No authentication token provided.' }, { status: 401 });
     }
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await auth.verifyIdToken(token);
-    const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
+    const userId = decodedToken.uid;
+    
+    const body = await request.json();
 
-    if (!userProfileSnap.exists || userProfileSnap.data()?.userRole !== 'admin') {
-      return NextResponse.json({ message: 'Forbidden: Access is restricted to administrators.' }, { status: 403 });
+    // Check if it's an admin action (approval/rejection) or a seller action (creation)
+    if (body.action && ['approved', 'rejected'].includes(body.action)) {
+        // --- ADMIN ACTION ---
+        const userProfileSnap = await db.collection('userProfiles').doc(userId).get();
+        if (!userProfileSnap.exists() || userProfileSnap.data()?.userRole !== 'admin') {
+          return NextResponse.json({ error: 'Forbidden: Access is restricted to administrators.' }, { status: 403 });
+        }
+        
+        return handleAdminAction(db, body);
+    } else {
+        // --- SELLER ACTION (CREATE BOOST) ---
+        return handleCreateBoost(db, userId, body);
     }
 
-    const { boostId, action }: { boostId: string; action: 'approved' | 'rejected' } = await request.json();
+  } catch (error: any) {
+    console.error('Error processing boost request:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+  }
+}
 
-    if (!boostId || !action || !['approved', 'rejected'].includes(action)) {
-      return NextResponse.json({ message: 'Invalid request body. Requires boostId and action (approved/rejected).' }, { status: 400 });
+async function handleCreateBoost(db: FirebaseFirestore.Firestore, sellerId: string, payload: any) {
+    const { productId, videoUrl, caption, durationDays, pointsCost, target } = payload;
+    
+    if (!productId || !videoUrl || !caption || !durationDays || !pointsCost || !target) {
+        return NextResponse.json({ error: 'Invalid payload for boost creation.' }, { status: 400 });
     }
+    
+    const userProfileRef = db.collection('userProfiles').doc(sellerId);
+    const newBoostRef = db.collection('boost_requests').doc();
+
+    await db.runTransaction(async (transaction) => {
+      const userProfileSnap = await transaction.get(userProfileRef);
+      if (!userProfileSnap.exists) {
+        throw new Error('User profile not found.');
+      }
+      const userProfile = userProfileSnap.data() as UserProfile;
+
+      const currentPoints = userProfile.aiPoints || 0;
+      if (currentPoints < pointsCost) {
+        throw new Error(`Insufficient points. You need ${pointsCost}, but have ${currentPoints}.`);
+      }
+
+      const newBoostData: Omit<BoostRequest, 'id'> = {
+        sellerId: sellerId,
+        productId: productId,
+        videoUrl: videoUrl,
+        caption: caption,
+        durationDays: durationDays,
+        pointsPaid: pointsCost,
+        target: target,
+        status: 'pending',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+      };
+
+      transaction.update(userProfileRef, { aiPoints: FieldValue.increment(-pointsCost) });
+      transaction.set(newBoostRef, newBoostData);
+    });
+
+    return NextResponse.json({ success: true });
+}
+
+
+async function handleAdminAction(db: FirebaseFirestore.Firestore, body: { boostId: string; action: 'approved' | 'rejected' }) {
+    const { boostId, action } = body;
 
     const boostRef = db.collection('boost_requests').doc(boostId);
     const boostDoc = await boostRef.get();
@@ -112,21 +170,16 @@ export async function POST(request: Request) {
     
     if (action === 'approved') {
       const mockAccessToken = 'admin_approval_placeholder_token';
-
       const uploadResult = await uploadVideoToTikTok(boostData, mockAccessToken);
 
       if (uploadResult.success) {
-        // Update the database record AFTER the API call succeeds
         await boostRef.update({
             tiktokVideoId: uploadResult.videoId,
             status: 'approved',
             updatedAt: Timestamp.now()
         });
-
-        console.log(`Boost ${boostId} approved. Simulated upload to TikTok complete. Video ID: ${uploadResult.videoId}`);
         return NextResponse.json({ message: `Boost request ${boostId} approved and processed successfully.` });
       } else {
-        // If upload fails, update status to reflect that (optional, could also be left as pending)
          await boostRef.update({
             status: 'rejected',
             rejectionReason: `TikTok API Error: ${uploadResult.message}`,
@@ -148,13 +201,8 @@ export async function POST(request: Request) {
           updatedAt: Timestamp.now()
         });
       });
-      
-      console.log(`Boost ${boostId} rejected. ${boostData.pointsPaid} points refunded to seller ${boostData.sellerId}.`);
       return NextResponse.json({ message: `Boost request ${boostId} rejected and points refunded.` });
     }
-
-  } catch (error: any) {
-    console.error('Error processing boost request:', error);
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
-  }
+    
+    return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
 }
