@@ -28,10 +28,14 @@ export async function GET(request: Request) {
     
     const campaigns = campaignsSnapshot.docs.map(doc => {
         const data = doc.data() as AdCampaign;
+        const startDate = data.startDate;
         return {
             ...data,
             id: doc.id,
-            startDate: data.startDate?.toDate().toISOString(),
+            // Safely convert Timestamp to ISO string
+            startDate: (startDate && typeof (startDate as any).toDate === 'function')
+                ? (startDate as any).toDate().toISOString()
+                : new Date().toISOString(),
         };
     });
 
