@@ -39,7 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -133,7 +133,7 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <CardTitle>Create New Ad Campaign</CardTitle>
+                    <DialogTitle>Create New Ad Campaign</DialogTitle>
                     <DialogDescription>
                         Promote your product on TikTok. Your ad will be reviewed by our team before going live.
                     </DialogDescription>
