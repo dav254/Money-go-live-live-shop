@@ -28,6 +28,11 @@ service cloud.firestore {
         allow read, write: if request.auth.uid == userId;
       }
     }
+
+    match /boost_requests/{boostId} {
+      allow create: if request.auth.uid == request.resource.data.sellerId;
+      allow list, read: if request.auth.uid == resource.data.sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
     
     // SellerShops are now publicly readable.
     // Writes are restricted to the seller or an admin.
@@ -249,4 +254,6 @@ service cloud.firestore {
     }
   }
 }
+    
+
     
