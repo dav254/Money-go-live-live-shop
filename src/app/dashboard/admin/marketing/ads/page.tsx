@@ -25,7 +25,6 @@ import {
   MousePointerClick,
   DollarSign,
   TrendingUp,
-  ClipboardCopy,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -107,9 +106,10 @@ export default function AdminAdsPage() {
 
 
   const stats = React.useMemo(() => {
-      const totalSpend = campaigns.reduce((acc, c) => c.pointsPaid || 0, 0);
-      const totalClicks = campaigns.reduce((acc, c) => acc.analytics?.clicks || 0, 0);
-      const totalConversions = campaigns.reduce((acc, c) => acc.analytics?.conversions || 0, 0);
+      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
+      const totalSpend = campaigns.reduce((acc, c) => acc + (c.pointsPaid || 0), 0);
+      const totalClicks = campaigns.reduce((acc, c) => acc + (c.analytics?.clicks || 0), 0);
+      const totalConversions = campaigns.reduce((acc, c) => acc + (c.analytics?.conversions || 0), 0);
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       return { totalSpend, totalClicks, totalConversions, avgCpc };
   }, [campaigns]);
@@ -134,13 +134,13 @@ export default function AdminAdsPage() {
           approved: 'default',
           rejected: 'destructive',
         }[status] as any;
-        return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
+        return <Badge variant={variant} className={`capitalize ${status === 'active' || status === 'approved' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
       },
     },
     { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <p className="text-xs font-mono">{row.original.sellerId}</p> },
-    { accessorKey: 'pointsPaid', header: 'Cost (Points)', cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()}` },
-    { accessorKey: 'analytics.clicks', header: 'Clicks', cell: ({ row }) => row.original.analytics.clicks.toLocaleString() },
-    { accessorKey: 'analytics.conversions', header: 'Conversions', cell: ({ row }) => row.original.analytics.conversions.toLocaleString() },
+    { accessorKey: 'pointsPaid', header: 'Cost (Points)', cell: ({ row }) => `${(row.original.pointsPaid || 0).toLocaleString()}` },
+    { accessorKey: 'analytics.clicks', header: 'Clicks', cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString() },
+    { accessorKey: 'analytics.conversions', header: 'Conversions', cell: ({ row }) => (row.original.analytics?.conversions || 0).toLocaleString() },
     {
       id: 'actions',
       cell: ({ row }) => (
