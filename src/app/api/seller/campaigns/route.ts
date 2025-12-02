@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { AdCampaign, Product } from '@/lib/types';
 
+// Do NOT import firebase-admin services at the top level.
+// They will be imported dynamically after initialization.
+
 export async function GET(request: Request) {
   try {
     // 1. Initialize Firebase Admin and get services dynamically
@@ -16,6 +19,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized: Missing token.' }, { status: 401 });
     }
     const token = authHeader.split('Bearer ')[1];
+    
+    // Now verify the token using the dynamically imported service
     const decodedToken = await getAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 
@@ -42,8 +47,8 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error('API Error fetching seller campaigns:', error);
     // Provide more specific error messages based on the type of error
-    if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
-      return NextResponse.json({ error: 'Unauthorized: Invalid token provided.' }, { status: 401 });
+    if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error' || error.codePrefix === 'app') {
+      return NextResponse.json({ error: 'Unauthorized: Invalid token or server error. Please try again.' }, { status: 401 });
     }
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
