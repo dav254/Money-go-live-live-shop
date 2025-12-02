@@ -41,7 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -55,12 +55,15 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { BoostRequest, TargetingOptions, UserProfile } from '@/lib/types';
+import type { BoostRequest, UserProfile, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { createBoostRequest } from '@/app/actions/boost-actions';
+import { collection, query, where } from 'firebase/firestore';
+
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
@@ -74,69 +77,43 @@ const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, valu
     </Card>
 );
 
-const CreateBoostDialog = ({ onBoostCreated }: { onBoostCreated: () => void }) => {
-    const { user } = useUser();
+const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], onBoostCreated: () => void }) => {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [videoFile, setVideoFile] = React.useState<File | null>(null);
+    const [selectedProductId, setSelectedProductId] = React.useState<string>('');
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
 
+    const selectedProduct = products.find(p => p.id === selectedProductId);
+
     const pointsCost = durationDays * 100;
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file && file.type.startsWith('video/')) {
-            setVideoFile(file);
-        } else {
-            toast({ variant: 'destructive', title: 'Invalid File Type', description: 'Please select a valid video file.' });
-        }
-    };
-
     const handleSubmit = async () => {
-        if (!videoFile) {
-            toast({ variant: 'destructive', title: 'Please upload a video file.' });
-            return;
-        }
-        if (!user) {
-            toast({ variant: 'destructive', title: 'You must be logged in.' });
+        if (!selectedProduct) {
+            toast({ variant: 'destructive', title: 'Please select a product.' });
             return;
         }
 
         setIsSubmitting(true);
         try {
-            const videoUrl = `https://storage.example.com/${user.uid}/${videoFile.name}`;
-
-            const payload = {
-                videoUrl,
+            const result = await createBoostRequest({
+                productId: selectedProduct.id,
+                videoUrl: selectedProduct.videoUrls?.[0] || selectedProduct.videoUrl || '', // Use the first video
                 caption,
                 durationDays,
                 pointsCost,
                 target: { counties: ['Nairobi'], age: '18-34', interests: ['shopping'] },
-            };
-
-            const token = await user.getIdToken();
-
-            const response = await fetch('/api/seller/boosts', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
             });
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || "An unknown error occurred.");
+            if (result.success) {
+                toast({
+                    title: "Boost Submitted for Review",
+                    description: "Your campaign is pending admin approval."
+                });
+                onBoostCreated();
+            } else {
+                 throw new Error(result.error || "An unknown error occurred.");
             }
-
-            toast({
-                title: "Boost Submitted for Review",
-                description: "Your campaign is pending admin approval."
-            });
-            onBoostCreated();
 
         } catch (error: any) {
             toast({
@@ -158,30 +135,30 @@ const CreateBoostDialog = ({ onBoostCreated }: { onBoostCreated: () => void }) =
                 <DialogHeader>
                     <DialogTitle>Create New TikTok Boost</DialogTitle>
                     <DialogDescription>
-                        Upload a video, set your campaign details, and pay with points to boost your product on TikTok.
+                        Promote your product video on TikTok. This action will deduct AI points from your account.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="video-upload">Video File</Label>
-                        <div className="flex items-center justify-center w-full">
-                            <label htmlFor="video-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    {videoFile ? <Video className="w-8 h-8 mb-2 text-primary" /> : <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />}
-                                    <p className="mb-1 text-sm text-muted-foreground">
-                                        {videoFile ? <span className="font-semibold">{videoFile.name}</span> : <span>Click to upload a video</span>}
-                                    </p>
-                                </div>
-                                <Input id="video-upload" type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
-                            </label>
-                        </div>
+                        <Label>1. Select Product with a Video</Label>
+                        <Select onValueChange={setSelectedProductId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Choose a product..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {products.filter(p => p.videoUrls?.length || p.videoUrl).map(p => (
+                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
+
                     <div className="space-y-2">
-                        <Label htmlFor="caption">Caption</Label>
+                        <Label htmlFor="caption">2. Ad Caption</Label>
                         <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label>Campaign Duration</Label>
+                        <Label>3. Campaign Duration</Label>
                         <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
@@ -207,7 +184,7 @@ const CreateBoostDialog = ({ onBoostCreated }: { onBoostCreated: () => void }) =
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !selectedProduct}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
@@ -236,99 +213,24 @@ const DataTableSkeleton = () => (
     </div>
 );
 
-export const columns: ColumnDef<BoostRequest>[] = [
-  {
-    accessorKey: 'videoUrl',
-    header: 'Campaign',
-    cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center">
-                 <Video className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <span className="font-medium truncate max-w-xs">{row.original.caption || 'No caption'}</span>
-        </div>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
-        approved: 'default',
-        rejected: 'destructive',
-        pending: 'secondary',
-      }[status] as any;
-      return <Badge variant={variant} className={`capitalize ${status === 'approved' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
-    },
-  },
-  {
-    accessorKey: 'pointsPaid',
-    header: 'Cost (Points)',
-    cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
-  },
-  {
-    accessorKey: 'analytics.clicks',
-    header: 'Clicks',
-    cell: ({ row }) => row.original.analytics.clicks.toLocaleString(),
-  },
-  {
-    id: 'actions',
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <DotsHorizontalIcon className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem disabled={row.original.status !== 'approved'}>View on TikTok</DropdownMenuItem>
-          <DropdownMenuItem>View Details</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-  },
-];
-
-export default function SellerTikTokBoostPage() {
+export default function SellerAdsPage() {
   const { user } = useUser();
-  const [boosts, setBoosts] = React.useState<BoostRequest[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const { toast } = useToast();
-  
-  const fetchBoostData = React.useCallback(async () => {
-      if (!user) {
-          setIsLoading(false);
-          return;
-      }
-      setIsLoading(true);
-      try {
-          const token = await user.getIdToken();
-          const response = await fetch('/api/seller/boosts', {
-              headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!response.ok) {
-               const errorData = await response.json();
-               throw new Error(errorData.message || 'Failed to fetch boost campaigns');
-          }
-          const data = await response.json();
-          setBoosts(data);
-      } catch (error: any) {
-          toast({
-              variant: 'destructive',
-              title: 'Error Loading Data',
-              description: error.message
-          });
-          console.error(error);
-      } finally {
-          setIsLoading(false);
-      }
-  }, [user, toast]);
+  const firestore = useFirestore();
 
-  React.useEffect(() => {
-    fetchBoostData();
-  }, [fetchBoostData]);
+  const boostsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'boost_requests'), where('sellerId', '==', user.uid));
+  }, [user, firestore]);
+  
+  const productsQuery = useMemoFirebase(() => {
+      if (!user) return null;
+      return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [user, firestore]);
+
+  const { data: boosts, isLoading: isLoadingBoosts } = useCollection<BoostRequest>(boostsQuery);
+  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+
+  const isLoading = isLoadingBoosts || isLoadingProducts;
 
   const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
@@ -337,10 +239,67 @@ export default function SellerTikTokBoostPage() {
           acc.totalViews += c.analytics.views;
           acc.totalLikes += c.analytics.likes;
           acc.totalClicks += c.analytics.clicks;
-          if(c.status === 'approved') acc.totalSpent += c.pointsPaid;
+          if(c.status === 'approved' || c.status === 'active') acc.totalSpent += c.pointsPaid;
           return acc;
       }, initialStats);
   }, [boosts]);
+  
+    const columns: ColumnDef<BoostRequest>[] = [
+    {
+        accessorKey: 'videoUrl',
+        header: 'Campaign',
+        cell: ({ row }) => (
+            <div className="flex items-center gap-3">
+                <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center">
+                    <Video className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <span className="font-medium truncate max-w-xs">{row.original.caption || 'No caption'}</span>
+            </div>
+        ),
+    },
+    {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => {
+        const status = row.original.status;
+        const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
+            approved: 'default',
+            active: 'default',
+            rejected: 'destructive',
+            pending: 'secondary',
+            draft: 'secondary',
+        }[status] as any;
+        return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
+        },
+    },
+    {
+        accessorKey: 'pointsPaid',
+        header: 'Cost (Points)',
+        cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
+    },
+    {
+        accessorKey: 'analytics.clicks',
+        header: 'Clicks',
+        cell: ({ row }) => row.original.analytics.clicks.toLocaleString(),
+    },
+    {
+        id: 'actions',
+        cell: ({ row }) => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+                <DotsHorizontalIcon className="h-4 w-4" />
+            </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem disabled={row.original.status !== 'approved'}>View on TikTok</DropdownMenuItem>
+            <DropdownMenuItem>View Details</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+        ),
+    },
+    ];
 
   const table = useReactTable({
     data: boosts || [],
@@ -355,7 +314,7 @@ export default function SellerTikTokBoostPage() {
             <h1 className="font-headline text-3xl font-bold tracking-tight">
                 TikTok Boost Dashboard
             </h1>
-            <CreateBoostDialog onBoostCreated={fetchBoostData} />
+            <CreateBoostDialog products={products || []} onBoostCreated={() => {}} />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
