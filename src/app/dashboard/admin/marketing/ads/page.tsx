@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -21,13 +20,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
-  PlusCircle,
   BarChart2,
   MousePointerClick,
   DollarSign,
   TrendingUp,
-  ShieldCheck,
-  Loader2,
   ClipboardCopy,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
@@ -50,8 +46,8 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import type { AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
@@ -90,7 +86,7 @@ const DataTableSkeleton = () => (
     </div>
 );
 
-const ApproveCampaignDialog = ({ campaign, onOpenChange }: { campaign: AdCampaign | null; onOpenChange: (open: boolean) => void }) => {
+const ApproveCampaignDialog = ({ campaign, onOpenChange, onActionComplete }: { campaign: AdCampaign | null; onOpenChange: (open: boolean) => void; onActionComplete: () => void }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -99,10 +95,12 @@ const ApproveCampaignDialog = ({ campaign, onOpenChange }: { campaign: AdCampaig
   const trackingUrl = `https://goearnvid.shop/products/${campaign.productId}?campaignId=${campaign.id}`;
 
   const handleApprove = async () => {
+    if (!firestore) return;
     const campaignRef = doc(firestore, 'adCampaigns', campaign.id);
     try {
       await updateDoc(campaignRef, { status: 'active' });
       toast({ title: 'Campaign Approved!', description: 'The campaign is now marked as active.' });
+      onActionComplete();
       onOpenChange(false);
     } catch (error) {
       console.error('Error approving campaign:', error);
@@ -147,19 +145,40 @@ const ApproveCampaignDialog = ({ campaign, onOpenChange }: { campaign: AdCampaig
 };
 
 export default function AdminAdsPage() {
-  const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [selectedCampaign, setSelectedCampaign] = React.useState<AdCampaign | null>(null);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false);
+  
+  const fetchCampaigns = React.useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+        const token = await user.getIdToken();
+        const response = await fetch('/api/admin/campaigns', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+            throw new Error('Failed to fetch campaigns');
+        }
+        const data = await response.json();
+        setCampaigns(data);
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch campaigns.' });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [user, toast]);
 
+  React.useEffect(() => {
+      fetchCampaigns();
+  }, [fetchCampaigns]);
 
-  const campaignsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'adCampaigns'), orderBy('startDate', 'desc'));
-  }, [firestore]);
-
-  const { data: campaigns, isLoading } = useCollection<AdCampaign>(campaignsQuery);
 
   const stats = React.useMemo(() => {
-      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
       const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
       const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
       const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
@@ -222,7 +241,7 @@ export default function AdminAdsPage() {
   ];
 
   const table = useReactTable({
-    data: campaigns || [],
+    data: campaigns,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -287,7 +306,7 @@ export default function AdminAdsPage() {
                 </Table>
                 </div>
             )}
-             <ApproveCampaignDialog campaign={selectedCampaign} onOpenChange={setIsApproveDialogOpen} />
+             <ApproveCampaignDialog campaign={selectedCampaign} onOpenChange={setIsApproveDialogOpen} onActionComplete={fetchCampaigns} />
         </Dialog>
       </div>
     </AdminLayout>
