@@ -109,6 +109,13 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
 
         setIsSubmitting(true);
         toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
+        
+        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+        if (!cloudName) {
+            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Cloudinary configuration is missing.' });
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
             // This is a simplified, unsigned upload. A real app should use signed URLs from a backend.
@@ -117,7 +124,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET || 'goearn-unsigned');
             formData.append('folder', 'boost_videos');
 
-            const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload`, {
+            const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
                 method: 'POST',
                 body: formData,
             });
@@ -130,9 +137,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             const uploadedData = await uploadResponse.json();
             
             const payload = {
-                // For simplicity, we'll associate with the first product.
-                // In a real app, you might have a different logic or re-introduce product selection.
-                productId: products[0]?.id || 'default_product_id', 
+                productId: 'default_product_id', // Simplified for now
                 videoUrl: uploadedData.secure_url,
                 caption: caption,
                 durationDays: durationDays,
@@ -440,5 +445,3 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
-
-    
