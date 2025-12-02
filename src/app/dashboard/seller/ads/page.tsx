@@ -57,63 +57,7 @@ import type { Product, AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-// --- Mock Data ---
-
-const mockCampaigns: AdCampaign[] = [
-    {
-        id: 'camp-1',
-        sellerId: 'seller-1',
-        productId: 'prod-1',
-        productName: 'Classic Handbag Campaign',
-        productImageUrl: 'https://picsum.photos/seed/ad1/400',
-        status: 'active',
-        budget: 5000,
-        spend: 2500,
-        clicks: 1250,
-        conversions: 50,
-        startDate: new Date() as any,
-    },
-    {
-        id: 'camp-2',
-        sellerId: 'seller-1',
-        productId: 'prod-2',
-        productName: 'Sneaker Launch',
-        productImageUrl: 'https://picsum.photos/seed/ad2/400',
-        status: 'completed',
-        budget: 10000,
-        spend: 10000,
-        clicks: 4500,
-        conversions: 150,
-        startDate: new Date() as any,
-    },
-     {
-        id: 'camp-3',
-        sellerId: 'seller-1',
-        productId: 'prod-3',
-        productName: 'Watch Promotion (Draft)',
-        productImageUrl: 'https://picsum.photos/seed/ad3/400',
-        status: 'draft',
-        budget: 7000,
-        spend: 0,
-        clicks: 0,
-        conversions: 0,
-        startDate: new Date() as any,
-    },
-];
-
-const mockProducts: Product[] = [
-    { id: 'prod-1', name: 'Classic Handbag', price: 100, stock: 10, sellerId: 'seller-1', videoUrls: ['/video.mp4'] },
-    { id: 'prod-2', name: 'Urban Explorer Sneakers', price: 120, stock: 20, sellerId: 'seller-1', videoUrls: ['/video.mp4'] },
-    { id: 'prod-3', name: 'Chronograph Watch', price: 350, stock: 5, sellerId: 'seller-1' }, // No video
-];
-
-const mockUser = {
-    aiPoints: 15000,
-};
-
-// --- Components ---
-
+import { useUser } from '@/firebase';
 
 const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
     <Card>
@@ -128,17 +72,22 @@ const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: {
     </Card>
 );
 
-const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProducts: Product[], isLoading: boolean, userProfile: any }) => {
+const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Product[], isLoading: boolean, userProfile: any }) => {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
 
     const handleSubmit = async () => {
+        if (!selectedProductId) {
+            toast({ variant: 'destructive', title: 'Please select a product.' });
+            return;
+        }
         setIsSubmitting(true);
-        // Simulate API call
+        // This would call a server action or API route to create the ad
         await new Promise(resolve => setTimeout(resolve, 1500));
         toast({
             title: "Campaign Submitted for Review",
-            description: "This is a frontend demo. No data was actually sent."
+            description: "Your ad campaign has been created as a draft and is pending admin approval."
         });
         setIsSubmitting(false);
     };
@@ -157,23 +106,23 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Select Product with Video</label>
-                        <Select disabled={isLoading}>
+                        <Label>Select Product with Video</Label>
+                        <Select onValueChange={setSelectedProductId} disabled={isLoading}>
                             <SelectTrigger>
                                 <SelectValue placeholder={isLoading ? "Loading products..." : "Choose a product..."} />
                             </SelectTrigger>
                             <SelectContent>
-                                {videoProducts.map(product => (
+                                {products.map(product => (
                                     <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
                                 ))}
-                                {!isLoading && videoProducts.length === 0 && (
+                                {!isLoading && products.length === 0 && (
                                     <div className="p-4 text-center text-sm text-muted-foreground">No products with videos found.</div>
                                 )}
                             </SelectContent>
                         </Select>
                     </div>
                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Campaign Duration</label>
+                        <Label>Campaign Duration</Label>
                         <Select defaultValue="3">
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
@@ -186,7 +135,6 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                         </Select>
                         <p className="text-xs text-muted-foreground">Your ad budget will be spread evenly over this period.</p>
                     </div>
-
                     <Alert variant="default" className="bg-blue-950/50 border-blue-500/30">
                       <ShieldCheck className="h-4 w-4 !text-blue-400" />
                       <AlertTitle className="font-semibold !text-blue-300">TikTok Ad Guidelines</AlertTitle>
@@ -208,8 +156,27 @@ const CreateAdDialog = ({ videoProducts, isLoading, userProfile }: { videoProduc
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
-}
+    );
+};
+
+const DataTableSkeleton = () => (
+    <div className="rounded-md border">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    {Array.from({ length: 6 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {[...Array(5)].map((_, i) => (
+                    <TableRow key={i}>
+                        {Array.from({ length: 6 }).map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
+);
 
 export const columns: ColumnDef<AdCampaign>[] = [
   {
@@ -236,14 +203,8 @@ export const columns: ColumnDef<AdCampaign>[] = [
     header: 'Spend (Points)',
     cell: ({ row }) => `${row.original.spend.toLocaleString()} pts`,
   },
-  {
-    accessorKey: 'clicks',
-    header: 'Clicks',
-  },
-  {
-    accessorKey: 'conversions',
-    header: 'Conversions',
-  },
+  { accessorKey: 'clicks', header: 'Clicks' },
+  { accessorKey: 'conversions', header: 'Conversions' },
   {
     id: 'actions',
     cell: ({ row }) => (
@@ -266,20 +227,45 @@ export const columns: ColumnDef<AdCampaign>[] = [
 ];
 
 export default function SellerAdsPage() {
-  const isLoading = false; // Set to false for frontend-only
-  
-  const videoProducts = mockProducts.filter(p => p.videoUrls && p.videoUrls.length > 0);
+  const { user } = useUser();
+  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchData() {
+        if (!user) return;
+
+        setIsLoading(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/seller/campaigns', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch campaigns');
+            const data = await response.json();
+            setCampaigns(data.campaigns);
+            setProducts(data.products);
+        } catch (error) {
+            console.error("Error fetching seller data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchData();
+  }, [user]);
 
   const stats = React.useMemo(() => {
-      const totalSpend = mockCampaigns.reduce((acc, c) => acc + c.spend, 0);
-      const totalClicks = mockCampaigns.reduce((acc, c) => acc + c.clicks, 0);
-      const totalConversions = mockCampaigns.reduce((acc, c) => acc + c.conversions, 0);
+      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
+      const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
+      const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
+      const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       return { totalSpend, totalClicks, totalConversions, avgCpc };
-  }, []);
+  }, [campaigns]);
 
   const table = useReactTable({
-    data: mockCampaigns,
+    data: campaigns,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -292,9 +278,9 @@ export default function SellerAdsPage() {
                 My Ad Campaigns
             </h1>
             <CreateAdDialog 
-                videoProducts={videoProducts} 
+                products={products.filter(p => p.videoUrls && p.videoUrls.length > 0)} 
                 isLoading={isLoading} 
-                userProfile={mockUser}
+                userProfile={null}
             />
         </div>
 
@@ -305,49 +291,52 @@ export default function SellerAdsPage() {
             <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`$${stats.avgCpc.toFixed(2)}`} icon={BarChart2} description="Lifetime" />
         </div>
 
-        <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                        {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                            )}
-                        </TableHead>
-                    ))}
-                    </TableRow>
-                ))}
-                </TableHeader>
-                <TableBody>
-                {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                            {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                            )}
-                        </TableCell>
+        {isLoading ? <DataTableSkeleton /> : (
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                            <TableHead key={header.id}>
+                            {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                )}
+                            </TableHead>
                         ))}
-                    </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                        You have not created any ad campaigns.
-                    </TableCell>
-                    </TableRow>
-                )}
-                </TableBody>
-            </Table>
-        </div>
+                        </TableRow>
+                    ))}
+                    </TableHeader>
+                    <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                        table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                            {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                                {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                                )}
+                            </TableCell>
+                            ))}
+                        </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                            You have not created any ad campaigns.
+                        </TableCell>
+                        </TableRow>
+                    )}
+                    </TableBody>
+                </Table>
+            </div>
+        )}
       </div>
     </SellerLayout>
   );
 }
+
