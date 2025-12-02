@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -62,7 +63,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
-// No longer importing createBoostRequest directly
 import { useRouter } from 'next/navigation';
 
 
@@ -114,10 +114,11 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
 
         try {
-            // Simplified upload logic - in a real app, this would use a signed URL from your backend
+            // This is a simplified, unsigned upload. A real app should use signed URLs from a backend.
             const formData = new FormData();
             formData.append('file', videoFile);
-            formData.append('upload_preset', 'your_cloudinary_unsigned_preset'); // UNSIGNED PRESET REQUIRED FOR THIS METHOD
+            formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UNSIGNED_PRESET || 'goearn-unsigned');
+            formData.append('folder', 'boost_videos');
 
             const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload`, {
                 method: 'POST',
@@ -125,7 +126,8 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             });
 
             if (!uploadResponse.ok) {
-                 throw new Error('Video upload failed.');
+                 const errorData = await uploadResponse.json();
+                 throw new Error(errorData.error.message || 'Video upload failed.');
             }
             
             const uploadedData = await uploadResponse.json();
@@ -234,6 +236,15 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                         </ul>
                       </AlertDescription>
                     </Alert>
+                    {!hasEnoughPoints && (
+                         <Alert variant="destructive">
+                            <BadgeCent className="h-4 w-4"/>
+                            <AlertTitle>Insufficient Points</AlertTitle>
+                            <AlertDescription>
+                                You need {pointsCost} points for this boost, but you only have {userProfile?.aiPoints || 0}. Please buy more points.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>

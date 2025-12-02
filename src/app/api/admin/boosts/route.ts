@@ -1,4 +1,5 @@
 
+
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import { getAuth } from 'firebase-admin/auth';
@@ -118,37 +119,47 @@ async function handleCreateBoost(db: FirebaseFirestore.Firestore, sellerId: stri
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
     const newBoostRef = db.collection('boost_requests').doc();
 
-    await db.runTransaction(async (transaction) => {
-      const userProfileSnap = await transaction.get(userProfileRef);
-      if (!userProfileSnap.exists) {
-        throw new Error('User profile not found.');
-      }
-      const userProfile = userProfileSnap.data() as UserProfile;
+    try {
+        await db.runTransaction(async (transaction) => {
+            const userProfileSnap = await transaction.get(userProfileRef);
+            if (!userProfileSnap.exists) {
+                throw new Error('User profile not found.');
+            }
+            const userProfile = userProfileSnap.data() as UserProfile;
 
-      const currentPoints = userProfile.aiPoints || 0;
-      if (currentPoints < pointsCost) {
-        throw new Error(`Insufficient points. You need ${pointsCost}, but have ${currentPoints}.`);
-      }
+            const currentPoints = userProfile.aiPoints || 0;
+            if (currentPoints < pointsCost) {
+                throw new Error(`Insufficient points. You need ${pointsCost}, but have ${currentPoints}.`);
+            }
 
-      const newBoostData: Omit<BoostRequest, 'id'> = {
-        sellerId: sellerId,
-        productId: productId,
-        videoUrl: videoUrl,
-        caption: caption,
-        durationDays: durationDays,
-        pointsPaid: pointsCost,
-        target: target,
-        status: 'pending',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-      };
+            const newBoostData: Omit<BoostRequest, 'id'> = {
+                sellerId: sellerId,
+                productId: productId,
+                videoUrl: videoUrl,
+                caption: caption,
+                durationDays: durationDays,
+                pointsPaid: pointsCost,
+                target: target,
+                status: 'pending',
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+                analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+            };
 
-      transaction.update(userProfileRef, { aiPoints: FieldValue.increment(-pointsCost) });
-      transaction.set(newBoostRef, newBoostData);
-    });
+            transaction.update(userProfileRef, { aiPoints: FieldValue.increment(-pointsCost) });
+            transaction.set(newBoostRef, newBoostData);
+        });
 
-    return NextResponse.json({ success: true });
+         return NextResponse.json({ success: true, message: 'Boost request submitted successfully.' });
+
+    } catch (error: any) {
+        console.error('Boost creation transaction failed:', error);
+        // Return a specific error message if it was a custom error from our transaction logic
+        if (error.message.startsWith('Insufficient points')) {
+            return NextResponse.json({ error: error.message }, { status: 402 }); // 402 Payment Required
+        }
+        return NextResponse.json({ error: 'Failed to create boost request.', details: error.message }, { status: 500 });
+    }
 }
 
 
