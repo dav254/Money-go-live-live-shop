@@ -15,6 +15,7 @@ interface CreateAdCampaignPayload {
 
 export async function createAdCampaign(payload: CreateAdCampaignPayload): Promise<{ success: boolean; error?: string }> {
   try {
+    // Initialize Firebase Admin SDK at the beginning of the server action
     initializeAdminApp();
     const firestore = getFirestore();
     const auth = getAuth();
@@ -72,6 +73,7 @@ export async function createAdCampaign(payload: CreateAdCampaignPayload): Promis
 
   } catch (error: any) {
     console.error("Error creating ad campaign:", error);
+    // Return the specific error message to the frontend
     return { success: false, error: error.message || 'An unknown error occurred.' };
   }
 }
