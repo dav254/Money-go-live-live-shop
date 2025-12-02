@@ -10,7 +10,7 @@ import type { AdCampaign, Product } from '@/lib/types';
 
 export async function GET(request: Request) {
   try {
-    // 1. Initialize Firebase Admin App. This is idempotent.
+    // 1. Initialize Firebase Admin App. This is idempotent and safe to call every time.
     initializeAdminApp();
 
     // 2. Dynamically import services ONLY AFTER initialization
@@ -42,6 +42,7 @@ export async function GET(request: Request) {
     ]);
 
     const campaigns: AdCampaign[] = campaignsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdCampaign));
+    // The products are used on the frontend to populate the "Create Ad" dialog
     const products: Product[] = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
     // 5. Return the fetched data
@@ -51,19 +52,20 @@ export async function GET(request: Request) {
     // Log the detailed error on the server for debugging
     console.error('API Error in /api/seller/campaigns:', error);
     
-    // Provide a more informative error response
-    let errorMessage = 'Internal Server Error';
+    // Provide a more informative error response to the frontend
+    let errorMessage = 'An internal server error occurred.';
     let status = 500;
 
     if (error.code === 'auth/id-token-expired') {
       errorMessage = 'Authentication token has expired. Please log in again.';
       status = 401;
-    } else if (error.code?.startsWith('app/')) {
-        // This catches Firebase Admin SDK initialization errors
+    } else if (error.message.includes('The default Firebase app does not exist')) {
         errorMessage = `Firebase Admin SDK error: ${error.message}`;
         status = 503; // Service Unavailable
+    } else if (error.message) {
+        errorMessage = error.message;
     }
 
-    return NextResponse.json({ error: errorMessage, details: error.message }, { status });
+    return NextResponse.json({ error: errorMessage }, { status });
   }
 }
