@@ -4,29 +4,29 @@ import { initializeAdminApp } from '@/firebase/admin';
 import type { AdCampaign, Product } from '@/lib/types';
 
 // Do NOT import firebase-admin services at the top level.
-// They will be imported dynamically after initialization.
 
 export async function GET(request: Request) {
   try {
-    // 1. Initialize Firebase Admin and get services dynamically
+    // 1. Initialize Firebase Admin App. This is idempotent.
     initializeAdminApp();
+
+    // 2. Dynamically import services ONLY AFTER initialization
     const { getAuth } = await import('firebase-admin/auth');
     const { getFirestore } = await import('firebase-admin/firestore');
     
-    // 2. Authenticate the user from the request header
+    // 3. Authenticate the user from the request header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized: Missing token.' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Missing or malformed token.' }, { status: 401 });
     }
     const token = authHeader.split('Bearer ')[1];
     
-    // Now verify the token using the dynamically imported service
     const decodedToken = await getAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 
     const db = getFirestore();
 
-    // 3. Fetch campaigns and products for the authenticated seller in parallel
+    // 4. Fetch campaigns and products for the authenticated seller in parallel
     const campaignsRef = db.collection('adCampaigns');
     const campaignsQuery = campaignsRef.where('sellerId', '==', uid).orderBy('startDate', 'desc');
     
@@ -41,15 +41,26 @@ export async function GET(request: Request) {
     const campaigns: AdCampaign[] = campaignsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdCampaign));
     const products: Product[] = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
-    // 4. Return the fetched data
+    // 5. Return the fetched data
     return NextResponse.json({ campaigns, products });
 
   } catch (error: any) {
-    console.error('API Error fetching seller campaigns:', error);
-    // Provide more specific error messages based on the type of error
-    if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error' || error.codePrefix === 'app') {
-      return NextResponse.json({ error: 'Unauthorized: Invalid token or server error. Please try again.' }, { status: 401 });
+    // Log the detailed error on the server for debugging
+    console.error('API Error in /api/seller/campaigns:', error);
+    
+    // Provide a more informative error response
+    let errorMessage = 'Internal Server Error';
+    let status = 500;
+
+    if (error.code === 'auth/id-token-expired') {
+      errorMessage = 'Authentication token has expired. Please log in again.';
+      status = 401;
+    } else if (error.code?.startsWith('app/')) {
+        // This catches Firebase Admin SDK initialization errors
+        errorMessage = `Firebase Admin SDK error: ${error.message}`;
+        status = 503; // Service Unavailable
     }
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+
+    return NextResponse.json({ error: errorMessage, details: error.message }, { status });
   }
 }
