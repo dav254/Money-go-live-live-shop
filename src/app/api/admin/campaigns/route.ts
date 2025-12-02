@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { AdCampaign } from '@/lib/types';
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
 
     const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
 
-    if (!userProfileSnap.exists() || userProfileSnap.data()?.userRole !== 'admin') {
+    if (!userProfileSnap.exists || userProfileSnap.data()?.userRole !== 'admin') {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
