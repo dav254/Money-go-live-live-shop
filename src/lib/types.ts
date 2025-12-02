@@ -7,7 +7,7 @@ export interface UserProfile {
     email?: string;
     displayName?: string;
     photoURL?: string;
-    userRole: 'seller' | 'buyer' | 'admin';
+    userRole: 'seller' | 'buyer' | 'admin' | 'reseller';
     aiPoints: number;
     createdAt: Timestamp;
 }
@@ -23,12 +23,13 @@ export interface TargetingOptions {
 export interface BoostRequest {
     id: string;
     sellerId: string;
+    productId: string;
     videoUrl: string;
     caption: string;
     durationDays: number;
     pointsPaid: number;
     target: TargetingOptions;
-    status: 'pending' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed' | 'draft';
     createdAt: Timestamp;
     updatedAt: Timestamp;
     // Analytics data for the boost
@@ -54,7 +55,20 @@ export interface Product {
     imageUrl: string;
     videoUrl?: string;
     videoUrls?: string[];
-    // other product fields...
+    imageUrls?: string[];
+    stock: number;
+    category?: string;
+    tags?: string;
+    location?: string;
+    deliveryOptions?: string;
+    wasPrice?: number;
+    originalPrice?: number; // Keep for compatibility with old data if needed
+    likes?: number;
+    viewCount?: number;
+    inCartCount?: number;
+    commissionRate?: number;
+    image?: { imageUrl: string, imageHint: string };
+    uploadDate: any; // Can be Timestamp or string
 }
 
 // The old AdCampaign type, kept for reference or potential future use if needed.

@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -32,6 +31,7 @@ import {
   ShieldCheck,
   UploadCloud,
   Video,
+  BadgeCent,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -60,9 +60,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { createBoostRequest } from '@/app/actions/boost-actions';
+import { useRouter } from 'next/navigation';
 
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
@@ -77,7 +78,7 @@ const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, valu
     </Card>
 );
 
-const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], onBoostCreated: () => void }) => {
+const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products: Product[], onBoostCreated: () => void, userProfile: any }) => {
     const { toast } = useToast();
     const { user } = useUser();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -89,6 +90,7 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
 
     const selectedProduct = products.find(p => p.id === selectedProductId);
     const pointsCost = durationDays * 100;
+    const hasEnoughPoints = (userProfile?.aiPoints || 0) >= pointsCost;
 
     const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -100,25 +102,64 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
             setVideoFile(file);
         }
     };
-
+    
     const handleSubmit = async () => {
-        if (!videoFile) {
-            toast({ variant: 'destructive', title: 'Please upload a video.' });
+        if (!videoFile || !selectedProduct || !user) return;
+        if (!hasEnoughPoints) {
+            toast({ variant: 'destructive', title: 'Insufficient Points', description: 'You do not have enough AI points for this boost.' });
             return;
         }
-        if (!selectedProduct) {
-            toast({ variant: 'destructive', title: 'Please select a product to associate with this boost.' });
-            return;
-        }
-        
+
         setIsSubmitting(true);
-        toast({ title: "Frontend Only", description: "This is a frontend-only demonstration. No backend action is being performed."});
-        
-        // Simulate a delay for demo purposes
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setIsSubmitting(false);
-        onBoostCreated(); // This will close the dialog
+        toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
+
+        try {
+            const formData = new FormData();
+            formData.append('file', videoFile);
+            
+            // This is a simplified frontend upload. A real implementation would go to a signed URL.
+            const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload`, {
+                method: 'POST',
+                body: formData,
+                // In a real scenario, you'd need a signature for uploads. This is a simplified example.
+            });
+
+            if (!uploadResponse.ok) {
+                 throw new Error('Video upload failed.');
+            }
+            
+            const uploadedData = await uploadResponse.json();
+            
+            const payload = {
+                productId: selectedProductId,
+                videoUrl: uploadedData.secure_url,
+                caption: caption,
+                durationDays: durationDays,
+                pointsCost: pointsCost,
+                target: { // Dummy targeting data
+                    counties: ['Nairobi', 'Mombasa'],
+                    age: '18-35',
+                    interests: ['fashion', 'music'],
+                },
+            };
+            
+            const token = await user.getIdToken();
+            const result = await createBoostRequest(payload, token);
+
+            if (result.success) {
+                toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
+                onBoostCreated();
+            } else {
+                throw new Error(result.error || 'Failed to create boost request.');
+            }
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
 
     return (
         <Dialog>
@@ -188,7 +229,7 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !selectedProduct}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !selectedProduct || !hasEnoughPoints}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
@@ -220,6 +261,8 @@ const DataTableSkeleton = () => (
 export default function SellerAdsPage() {
     const { user } = useUser();
     const firestore = useFirestore();
+    const router = useRouter();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
     const boostsQuery = useMemoFirebase(() => {
         if (!user) return null;
@@ -237,7 +280,7 @@ export default function SellerAdsPage() {
     const { data: boosts, isLoading: isLoadingBoosts } = useCollection<BoostRequest>(boostsQuery);
     const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
-    const isLoading = isLoadingBoosts || isLoadingProducts;
+    const isLoading = isLoadingBoosts || isLoadingProducts || isProfileLoading;
 
     const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
@@ -319,10 +362,31 @@ export default function SellerAdsPage() {
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between">
-            <h1 className="font-headline text-3xl font-bold tracking-tight">
-                TikTok Boost Dashboard
-            </h1>
-            <CreateBoostDialog products={products || []} onBoostCreated={() => {}} />
+            <div>
+                <h1 className="font-headline text-3xl font-bold tracking-tight">
+                    TikTok Boost Dashboard
+                </h1>
+                <p className="text-muted-foreground">Promote your product videos on TikTok to reach more customers.</p>
+            </div>
+            <div className="flex gap-4">
+                 <Card>
+                    <CardContent className="p-3 flex items-center gap-4">
+                        <div className="p-3 bg-primary/10 rounded-md">
+                            <BadgeCent className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Your Balance</p>
+                            {isProfileLoading ? (
+                                <Skeleton className="h-6 w-20" />
+                            ) : (
+                                <p className="text-lg font-bold">{(userProfile?.aiPoints || 0).toLocaleString()}</p>
+                            )}
+                        </div>
+                         <Button size="sm" variant="outline" onClick={() => router.push('/dashboard/seller/ai-tools')}>Buy Points</Button>
+                    </CardContent>
+                </Card>
+                 <CreateBoostDialog products={products || []} onBoostCreated={() => {}} userProfile={userProfile} />
+            </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

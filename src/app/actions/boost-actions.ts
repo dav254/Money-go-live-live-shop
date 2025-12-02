@@ -1,4 +1,3 @@
-
 'use server';
 
 import { initializeAdminApp } from '@/firebase/admin';
@@ -20,13 +19,12 @@ interface CreateBoostRequestPayload {
   };
 }
 
-export async function createBoostRequest(payload: CreateBoostRequestPayload): Promise<{ success: boolean; error?: string }> {
+export async function createBoostRequest(payload: CreateBoostRequestPayload, authToken: string): Promise<{ success: boolean; error?: string }> {
   try {
     const adminApp = initializeAdminApp();
     const auth = getAuth(adminApp);
     const db = await import('firebase-admin/firestore').then(mod => mod.getFirestore(adminApp));
 
-    const authToken = headers().get('Authorization')?.split('Bearer ')[1];
     if (!authToken) {
       throw new Error('Unauthorized: No authentication token provided.');
     }
@@ -51,12 +49,13 @@ export async function createBoostRequest(payload: CreateBoostRequestPayload): Pr
 
       const newBoostData: Omit<BoostRequest, 'id'> = {
         sellerId: sellerId,
+        productId: payload.productId, // Make sure to save the productId
         videoUrl: payload.videoUrl,
         caption: payload.caption,
         durationDays: payload.durationDays,
         pointsPaid: payload.pointsCost,
         target: payload.target,
-        status: 'draft', // Campaigns start as 'draft' for admin review
+        status: 'pending', // Campaigns start as 'pending' for admin review
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
