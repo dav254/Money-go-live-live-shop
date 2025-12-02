@@ -4,6 +4,7 @@ import { initializeAdminApp } from '@/firebase/admin';
 import type { AdCampaign, Product } from '@/lib/types';
 
 // Do NOT import firebase-admin services at the top level.
+// They will be imported dynamically after initialization.
 
 export async function GET(request: Request) {
   try {
@@ -64,3 +65,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: errorMessage, details: error.message }, { status });
   }
 }
+
