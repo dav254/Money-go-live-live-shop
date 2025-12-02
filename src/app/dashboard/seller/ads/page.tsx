@@ -110,38 +110,9 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
             toast({ variant: 'destructive', title: 'Please select a product to associate with this boost.' });
             return;
         }
-        if (!user) {
-            toast({ variant: 'destructive', title: 'You must be logged in.' });
-            return;
-        }
-
+        
         setIsSubmitting(true);
         toast({ title: "Frontend Only", description: "This is a frontend-only demonstration. No backend action is being performed."});
-        
-        // ** BACKEND LOGIC DISABLED AS REQUESTED **
-        // In a real scenario, we would upload the videoFile to Cloudinary, get the URL,
-        // then call the createBoostRequest server action.
-        
-        // const token = await user.getIdToken();
-        // createBoostRequest({
-        //     productId: selectedProduct.id,
-        //     videoUrl: 'https://placeholder.url/from/cloudinary',
-        //     caption: caption,
-        //     durationDays: durationDays,
-        //     pointsCost: pointsCost,
-        //     target: { counties: ['Nairobi'], age: '18-34', interests: ['fashion', 'shopping'] }
-        // }).then(result => {
-        //     if (result.success) {
-        //         toast({ title: "Boost Submitted for Review", description: "Your campaign is now pending admin approval." });
-        //         onBoostCreated();
-        //     } else {
-        //         throw new Error(result.error);
-        //     }
-        // }).catch(error => {
-        //     toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
-        // }).finally(() => {
-        //     setIsSubmitting(false);
-        // });
         
         // Simulate a delay for demo purposes
         await new Promise(resolve => setTimeout(resolve, 1500));
