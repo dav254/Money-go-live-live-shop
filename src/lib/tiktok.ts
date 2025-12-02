@@ -1,1 +1,106 @@
-\nimport { db } from \'@/firebase/server\';\nimport type { BoostRequest } from \'./types\';\n\nconst TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;\nconst TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;\n\n// NOTE: You must configure this in your TikTok Developer App settings.\nconst REDIRECT_URI = \'https://your-app-url.com/api/tiktok/callback\';\n\n/**\n * Generates the URL to which we redirect the user for TikTok authentication.\n * @returns The TikTok OAuth URL.\n */\nexport function getTikTokAuthUrl(): string {\n    if (!TIKTOK_CLIENT_KEY) {\n        throw new Error(\"TikTok client key is not configured.\");\n    }\n    const csrfState = Math.random().toString(36).substring(2);\n    // In a real app, you would save this `csrfState` to the user\'s session or a temporary store\n    // to verify it in the callback.\n\n    const url = new URL(\'https://www.tiktok.com/v2/auth/authorize/\');\n    url.searchParams.append(\'client_key\', TIKTOK_CLIENT_KEY);\n    url.searchParams.append(\'scope\', \'video.upload,user.info.basic\');\n    url.searchParams.append(\'response_type\', \'code\');\n    url.searchParams.append(\'redirect_uri\', REDIRECT_URI);\n    url.searchParams.append(\'state\', csrfState);\n\n    return url.toString();\n}\n\n/**\n * Exchanges an authorization code for an access token.\n * @param code The authorization code from the TikTok callback.\n * @returns The access token data.\n */\nexport async function getTikTokAccessToken(code: string): Promise<any> {\n    if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) {\n        throw new Error(\"TikTok credentials are not configured.\");\n    }\n\n    const url = new URL(\'https://open.tiktokapis.com/v2/oauth/token/\');\n    const body = new URLSearchParams({\n        client_key: TIKTOK_CLIENT_KEY,\n        client_secret: TIKTOK_CLIENT_SECRET,\n        code: code,\n        grant_type: \'authorization_code\',\n        redirect_uri: REDIRECT_URI,\n    });\n\n    // Placeholder for the actual API call.\n    // In a real implementation, you would use `fetch` to make this POST request.\n    console.log(\'--- MOCK TIKTOK API CALL ---\');\n    console.log(\'POST to\', url.toString());\n    console.log(\'Body:\', body.toString());\n    console.log(\'--- END MOCK ---\');\n\n    // Mock response\n    return {\n        access_token: \'mock_access_token_for_\' + code,\n        expires_in: 3600,\n        refresh_token: \'mock_refresh_token\',\n        open_id: \'mock_open_id\',\n        scope: \'video.upload,user.info.basic\',\n    };\n}\n\n\n/**\n * Placeholder function to simulate uploading a video to TikTok.\n * In a real-world scenario, this would involve a multi-step process with the TikTok API:\n * 1. POST to /v2/video/upload/ to get an upload URL.\n * 2. PUT the video file to the signed upload URL.\n * 3. Check the upload status.\n * @param boost The boost request containing video details.\n * @param accessToken The TikTok access token for the user.\n */\nexport async function uploadVideoToTikTok(boost: BoostRequest, accessToken: string): Promise<{ success: boolean; videoId?: string; message: string }> {\n    if (!accessToken) {\n        return { success: false, message: \"Missing TikTok access token.\" };\n    }\n\n    console.log(`--- MOCK TIKTOK VIDEO UPLOAD for Boost ID: ${boost.id} ---\`);\n    console.log(`- Using Access Token: ${accessToken}`);\n    console.log(`- Video URL to upload: ${boost.videoUrl}`);\n    console.log(`- Caption: ${boost.caption}`);\n    console.log(\'--- END MOCK ---\');\n\n    // This is where the actual multi-step upload logic would go.\n    // For now, we simulate a successful upload and return a mock video ID.\n\n    const mockTikTokVideoId = `tt_${new Date().getTime()}`;\n\n    // After a successful mock upload, update the boost request in Firestore\n    await db.collection(\'boost_requests\').doc(boost.id).update({\n        tiktokVideoId: mockTikTokVideoId,\n        status: \'approved\', // Ensure status is correctly set\n    });\n\n    return {\n        success: true,\n        videoId: mockTikTokVideoId,\n        message: \"Video successfully uploaded to TikTok (simulated).\"\n    };\n}\n
+
+import { db } from '@/firebase/server';
+import type { BoostRequest } from './types';
+
+const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
+const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
+
+// NOTE: You must configure this in your TikTok Developer App settings.
+const REDIRECT_URI = 'https://your-app-url.com/api/tiktok/callback';
+
+/**
+ * Generates the URL to which we redirect the user for TikTok authentication.
+ * @returns The TikTok OAuth URL.
+ */
+export function getTikTokAuthUrl(): string {
+    if (!TIKTOK_CLIENT_KEY) {
+        throw new Error("TikTok client key is not configured.");
+    }
+    const csrfState = Math.random().toString(36).substring(2);
+    // In a real app, you would save this `csrfState` to the user's session or a temporary store
+    // to verify it in the callback.
+
+    const url = new URL('https://www.tiktok.com/v2/auth/authorize/');
+    url.searchParams.append('client_key', TIKTOK_CLIENT_KEY);
+    url.searchParams.append('scope', 'video.upload,user.info.basic');
+    url.searchParams.append('response_type', 'code');
+    url.searchParams.append('redirect_uri', REDIRECT_URI);
+    url.searchParams.append('state', csrfState);
+
+    return url.toString();
+}
+
+/**
+ * Exchanges an authorization code for an access token.
+ * @param code The authorization code from the TikTok callback.
+ * @returns The access token data.
+ */
+export async function getTikTokAccessToken(code: string): Promise<any> {
+    if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) {
+        throw new Error("TikTok credentials are not configured.");
+    }
+
+    const url = new URL('https://open.tiktokapis.com/v2/oauth/token/');
+    const body = new URLSearchParams({
+        client_key: TIKTOK_CLIENT_KEY,
+        client_secret: TIKTOK_CLIENT_SECRET,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: REDIRECT_URI,
+    });
+
+    // Placeholder for the actual API call.
+    // In a real implementation, you would use `fetch` to make this POST request.
+    console.log('--- MOCK TIKTOK API CALL ---');
+    console.log('POST to', url.toString());
+    console.log('Body:', body.toString());
+    console.log('--- END MOCK --');
+
+    // Mock response
+    return {
+        access_token: 'mock_access_token_for_' + code,
+        expires_in: 3600,
+        refresh_token: 'mock_refresh_token',
+        open_id: 'mock_open_id',
+        scope: 'video.upload,user.info.basic',
+    };
+}
+
+
+/**
+ * Placeholder function to simulate uploading a video to TikTok.
+ * In a real-world scenario, this would involve a multi-step process with the TikTok API:
+ * 1. POST to /v2/video/upload/ to get an upload URL.
+ * 2. PUT the video file to the signed upload URL.
+ * 3. Check the upload status.
+ * @param boost The boost request containing video details.
+ * @param accessToken The TikTok access token for the user.
+ */
+export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: string): Promise<{ success: boolean; videoId?: string; message: string }> {
+    if (!accessToken) {
+        return { success: false, message: "Missing TikTok access token." };
+    }
+
+    console.log(`--- MOCK TIKTOK VIDEO UPLOAD for Boost ID: ${boost.id} ---`);
+    console.log(`- Using Access Token: ${accessToken}`);
+    console.log(`- Video URL to upload: ${boost.videoUrl}`);
+    console.log(`- Caption: ${boost.caption}`);
+    console.log('--- END MOCK --');
+
+    // This is where the actual multi-step upload logic would go.
+    // For now, we simulate a successful upload and return a mock video ID.
+
+    const mockTikTokVideoId = `tt_${new Date().getTime()}`;
+
+    // After a successful mock upload, update the boost request in Firestore
+    await db.collection('boost_requests').doc(boost.id).update({
+        tiktokVideoId: mockTikTokVideoId,
+        status: 'approved', // Ensure status is correctly set
+    });
+
+    return {
+        success: true,
+        videoId: mockTikTokVideoId,
+        message: "Video successfully uploaded to TikTok (simulated)."
+    };
+}
