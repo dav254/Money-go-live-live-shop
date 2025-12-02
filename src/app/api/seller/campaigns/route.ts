@@ -6,14 +6,14 @@ import type { AdCampaign, Product } from '@/lib/types';
 export async function GET(request: Request) {
   try {
     // 1. Initialize Firebase Admin and get services dynamically
+    initializeAdminApp();
     const { getAuth } = await import('firebase-admin/auth');
     const { getFirestore } = await import('firebase-admin/firestore');
-    initializeAdminApp();
-
+    
     // 2. Authenticate the user from the request header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Missing token.' }, { status: 401 });
     }
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
@@ -41,9 +41,10 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error('API Error fetching seller campaigns:', error);
+    // Provide more specific error messages based on the type of error
     if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
-      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized: Invalid token provided.' }, { status: 401 });
     }
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }
