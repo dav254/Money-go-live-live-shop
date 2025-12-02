@@ -1,4 +1,4 @@
-'use server';
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTikTokAccessToken } from '@/lib/tiktok';
@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
     
     // For this example, we'll assume the logged-in user's ID is available.
     // In a real scenario, you'd get this from a secure session or token.
-    // We cannot get the user's Go Earn UID directly here, so this part is a placeholder.
     const goEarnUserId = 'PLACEHOLDER_CURRENT_USER_ID'; 
     
     console.log(`--- TikTok Tokens Received for open_id: ${tokenData.open_id} ---`);
