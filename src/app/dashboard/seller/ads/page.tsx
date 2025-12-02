@@ -76,6 +76,7 @@ const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: {
 );
 
 const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Product[], isLoading: boolean, userProfile: any }) => {
+    const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
@@ -85,16 +86,22 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
             toast({ variant: 'destructive', title: 'Please select a product.' });
             return;
         }
+        if (!user) {
+            toast({ variant: 'destructive', title: 'You must be logged in to create a campaign.' });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const selectedProduct = products.find(p => p.id === selectedProductId);
             if (!selectedProduct) throw new Error("Selected product not found.");
+            
+            const token = await user.getIdToken();
 
             const result = await createAdCampaign({
                 productId: selectedProduct.id,
                 productName: selectedProduct.name,
                 productImageUrl: selectedProduct.imageUrl || '',
-                // These would be dynamic in a real form
                 budget: 5000, 
             });
 
@@ -255,22 +262,35 @@ export const columns: ColumnDef<AdCampaign>[] = [
 
 export default function SellerAdsPage() {
   const { user } = useUser();
-  const firestore = useFirestore();
+  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const campaignsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'adCampaigns'), where('sellerId', '==', user.uid));
-  }, [user, firestore]);
-  
-  const productsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-  }, [user, firestore]);
+  React.useEffect(() => {
+    async function fetchData() {
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
 
-  const { data: campaigns, isLoading: areCampaignsLoading } = useCollection<AdCampaign>(campaignsQuery);
-  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-
-  const isLoading = areCampaignsLoading || areProductsLoading;
+        setIsLoading(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/seller/campaigns', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to fetch campaigns');
+            const data = await response.json();
+            setCampaigns(data.campaigns);
+            setProducts(data.products);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchData();
+  }, [user]);
 
   const stats = React.useMemo(() => {
       if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
