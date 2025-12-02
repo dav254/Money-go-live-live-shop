@@ -8,6 +8,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -24,11 +25,12 @@ import {
   PlusCircle,
   BarChart2,
   MousePointerClick,
-  DollarSign,
-  TrendingUp,
-  ShieldCheck,
+  Heart,
+  Eye,
   Loader2,
-  ClipboardCopy,
+  ShieldCheck,
+  UploadCloud,
+  Video,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -53,111 +55,134 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Product, AdCampaign, UserProfile } from '@/lib/types';
+import type { BoostRequest, TargetingOptions, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
-import { createAdCampaign } from '@/app/actions/ad-actions';
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import { useCollection } from '@/firebase';
+import { Textarea } from '@/components/ui/textarea';
+import { useUser } from '@/firebase';
 
-const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
+const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className={`h-4 w-4 text-muted-foreground ${color}`} />
+            <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
              {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
-             {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </CardContent>
     </Card>
 );
 
-const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Product[], isLoading: boolean, userProfile: UserProfile | null }) => {
+const CreateBoostDialog = ({ onBoostCreated }: { onBoostCreated: () => void }) => {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+    const [videoFile, setVideoFile] = React.useState<File | null>(null);
+    const [caption, setCaption] = React.useState('');
+    const [durationDays, setDurationDays] = React.useState(3);
+
+    const pointsCost = durationDays * 100;
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && file.type.startsWith('video/')) {
+            setVideoFile(file);
+        } else {
+            toast({ variant: 'destructive', title: 'Invalid File Type', description: 'Please select a valid video file.' });
+        }
+    };
 
     const handleSubmit = async () => {
-        if (!selectedProductId) {
-            toast({ variant: 'destructive', title: 'Please select a product.' });
+        if (!videoFile) {
+            toast({ variant: 'destructive', title: 'Please upload a video file.' });
             return;
         }
         if (!user) {
-            toast({ variant: 'destructive', title: 'You must be logged in to create a campaign.' });
+            toast({ variant: 'destructive', title: 'You must be logged in.' });
             return;
         }
 
         setIsSubmitting(true);
         try {
-            const selectedProduct = products.find(p => p.id === selectedProductId);
-            if (!selectedProduct) throw new Error("Selected product not found.");
-            
+            const videoUrl = `https://storage.example.com/${user.uid}/${videoFile.name}`;
+
+            const payload = {
+                videoUrl,
+                caption,
+                durationDays,
+                pointsCost,
+                target: { counties: ['Nairobi'], age: '18-34', interests: ['shopping'] },
+            };
+
             const token = await user.getIdToken();
 
-            const result = await createAdCampaign({
-                productId: selectedProduct.id,
-                productName: selectedProduct.name,
-                productImageUrl: selectedProduct.imageUrl || '',
-                budget: 5000, 
+            const response = await fetch('/api/seller/boosts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
             });
 
-            if (result.success) {
-                toast({
-                    title: "Campaign Submitted for Review",
-                    description: "Your ad campaign has been created as a draft and is pending admin approval."
-                });
-            } else {
-                throw new Error(result.error || "An unknown error occurred.");
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || "An unknown error occurred.");
             }
+
+            toast({
+                title: "Boost Submitted for Review",
+                description: "Your campaign is pending admin approval."
+            });
+            onBoostCreated();
+
         } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: 'Submission Failed',
-                description: error.message
+                description: error.message,
             });
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const videoProducts = products.filter(p => (p.videoUrl || (p.videoUrls && p.videoUrls.length > 0)));
-
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button><PlusCircle className="mr-2 h-4 w-4" /> Create New Ad</Button>
+                <Button><PlusCircle className="mr-2 h-4 w-4" /> Create TikTok Boost</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Create New Ad Campaign</DialogTitle>
+                    <DialogTitle>Create New TikTok Boost</DialogTitle>
                     <DialogDescription>
-                        Promote your product on TikTok. Your ad will be reviewed by our team before going live.
+                        Upload a video, set your campaign details, and pay with points to boost your product on TikTok.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label>Select Product with Video</Label>
-                        <Select onValueChange={setSelectedProductId} disabled={isLoading}>
-                            <SelectTrigger>
-                                <SelectValue placeholder={isLoading ? "Loading products..." : "Choose a product..."} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {videoProducts.map(product => (
-                                    <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
-                                ))}
-                                {!isLoading && videoProducts.length === 0 && (
-                                    <div className="p-4 text-center text-sm text-muted-foreground">No products with videos found.</div>
-                                )}
-                            </SelectContent>
-                        </Select>
+                        <Label htmlFor="video-upload">Video File</Label>
+                        <div className="flex items-center justify-center w-full">
+                            <label htmlFor="video-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    {videoFile ? <Video className="w-8 h-8 mb-2 text-primary" /> : <UploadCloud className="w-8 h-8 mb-2 text-muted-foreground" />}
+                                    <p className="mb-1 text-sm text-muted-foreground">
+                                        {videoFile ? <span className="font-semibold">{videoFile.name}</span> : <span>Click to upload a video</span>}
+                                    </p>
+                                </div>
+                                <Input id="video-upload" type="file" accept="video/*" className="hidden" onChange={handleFileChange} />
+                            </label>
+                        </div>
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
+                        <Label htmlFor="caption">Caption</Label>
+                        <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
                         <Label>Campaign Duration</Label>
-                        <Select defaultValue="3">
+                        <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
                             </SelectTrigger>
@@ -167,25 +192,24 @@ const CreateAdDialog = ({ products, isLoading, userProfile }: { products: Produc
                                 <SelectItem value="14">14 Days (2 Weeks)</SelectItem>
                             </SelectContent>
                         </Select>
-                        <p className="text-xs text-muted-foreground">Your ad budget will be spread evenly over this period.</p>
                     </div>
-                    <Alert variant="default" className="bg-blue-950/50 border-blue-500/30">
+                     <Alert variant="default" className="bg-blue-950/50 border-blue-500/30">
                       <ShieldCheck className="h-4 w-4 !text-blue-400" />
                       <AlertTitle className="font-semibold !text-blue-300">TikTok Ad Guidelines</AlertTitle>
                       <AlertDescription className="text-blue-300/80">
                         <ul className="list-disc pl-4 space-y-1 text-xs mt-2">
-                            <li>**No Misleading Claims:** Do not guarantee results.</li>
-                            <li>**High-Quality Video:** Use clear, well-lit video.</li>
-                            <li>**No Copyrighted Music:** Use royalty-free audio.</li>
+                            <li>Video must be high-quality and well-lit.</li>
+                            <li>Do not use copyrighted music or watermarks.</li>
+                            <li>Content must comply with TikTok's community guidelines.</li>
                         </ul>
                       </AlertDescription>
                     </Alert>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                        Create Campaign (5000 Points)
+                        Submit for Approval ({pointsCost} Points)
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -198,13 +222,13 @@ const DataTableSkeleton = () => (
         <Table>
             <TableHeader>
                 <TableRow>
-                    {Array.from({ length: 6 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                    {Array.from({ length: 5 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {[...Array(5)].map((_, i) => (
                     <TableRow key={i}>
-                        {Array.from({ length: 6 }).map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
+                        {Array.from({ length: 5 }).map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
                     </TableRow>
                 ))}
             </TableBody>
@@ -212,11 +236,18 @@ const DataTableSkeleton = () => (
     </div>
 );
 
-export const columns: ColumnDef<AdCampaign>[] = [
+export const columns: ColumnDef<BoostRequest>[] = [
   {
-    accessorKey: 'productName',
+    accessorKey: 'videoUrl',
     header: 'Campaign',
-    cell: ({ row }) => <div className="font-semibold">{row.original.productName}</div>,
+    cell: ({ row }) => (
+        <div className="flex items-center gap-3">
+            <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center">
+                 <Video className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <span className="font-medium truncate max-w-xs">{row.original.caption || 'No caption'}</span>
+        </div>
+    ),
   },
   {
     accessorKey: 'status',
@@ -224,21 +255,23 @@ export const columns: ColumnDef<AdCampaign>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
-        active: 'default',
-        completed: 'outline',
-        paused: 'secondary',
-        draft: 'secondary',
+        approved: 'default',
+        rejected: 'destructive',
+        pending: 'secondary',
       }[status] as any;
-      return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
+      return <Badge variant={variant} className={`capitalize ${status === 'approved' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
     },
   },
   {
-    accessorKey: 'budget',
-    header: 'Budget (Points)',
-    cell: ({ row }) => `${row.original.budget.toLocaleString()} pts`,
+    accessorKey: 'pointsPaid',
+    header: 'Cost (Points)',
+    cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
   },
-  { accessorKey: 'clicks', header: 'Clicks' },
-  { accessorKey: 'conversions', header: 'Conversions' },
+  {
+    accessorKey: 'analytics.clicks',
+    header: 'Clicks',
+    cell: ({ row }) => row.original.analytics.clicks.toLocaleString(),
+  },
   {
     id: 'actions',
     cell: ({ row }) => (
@@ -250,84 +283,67 @@ export const columns: ColumnDef<AdCampaign>[] = [
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-          <DropdownMenuItem>View Performance</DropdownMenuItem>
-          <DropdownMenuItem>Pause Campaign</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive">Delete Campaign</DropdownMenuItem>
+          <DropdownMenuItem disabled={row.original.status !== 'approved'}>View on TikTok</DropdownMenuItem>
+          <DropdownMenuItem>View Details</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ),
   },
 ];
 
-export default function SellerAdsPage() {
+export default function SellerTikTokBoostPage() {
   const { user } = useUser();
-  const { userProfile } = useUserProfile(user?.uid);
-  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
-  const [products, setProducts] = React.useState<Product[]>([]);
+  const [boosts, setBoosts] = React.useState<BoostRequest[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
   
-  const firestore = useFirestore();
-
-  const productsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-  }, [firestore, user]);
-
-  const { data: productsData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-
-  React.useEffect(() => {
-    if (productsData) {
-        setProducts(productsData);
-    }
-  }, [productsData]);
-
-
-  React.useEffect(() => {
-    async function fetchData() {
-        if (!user) {
-            setIsLoading(false);
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/seller/campaigns', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) {
-                 const errorData = await response.json();
-                 throw new Error(errorData.error || 'Failed to fetch campaigns');
-            }
-            const data = await response.json();
-            setCampaigns(data.campaigns);
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Error Loading Data',
-                description: error.message
-            })
-            console.error(error);
-        } finally {
-            setIsLoading(false);
-        }
-    }
-    fetchData();
+  const fetchBoostData = React.useCallback(async () => {
+      if (!user) {
+          setIsLoading(false);
+          return;
+      }
+      setIsLoading(true);
+      try {
+          const token = await user.getIdToken();
+          const response = await fetch('/api/seller/boosts', {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!response.ok) {
+               const errorData = await response.json();
+               throw new Error(errorData.message || 'Failed to fetch boost campaigns');
+          }
+          const data = await response.json();
+          setBoosts(data);
+      } catch (error: any) {
+          toast({
+              variant: 'destructive',
+              title: 'Error Loading Data',
+              description: error.message
+          });
+          console.error(error);
+      } finally {
+          setIsLoading(false);
+      }
   }, [user, toast]);
 
+  React.useEffect(() => {
+    fetchBoostData();
+  }, [fetchBoostData]);
+
   const stats = React.useMemo(() => {
-      if (!campaigns) return { totalSpend: 0, totalClicks: 0, totalConversions: 0, avgCpc: 0 };
-      const totalBudget = campaigns.reduce((acc, c) => acc + c.budget, 0);
-      const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
-      const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
-      const avgCpc = totalClicks > 0 ? totalBudget / totalClicks : 0;
-      return { totalSpend: totalBudget, totalClicks, totalConversions, avgCpc };
-  }, [campaigns]);
+      const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
+      if (!boosts) return initialStats;
+      return boosts.reduce((acc, c) => {
+          acc.totalViews += c.analytics.views;
+          acc.totalLikes += c.analytics.likes;
+          acc.totalClicks += c.analytics.clicks;
+          if(c.status === 'approved') acc.totalSpent += c.pointsPaid;
+          return acc;
+      }, initialStats);
+  }, [boosts]);
 
   const table = useReactTable({
-    data: campaigns || [],
+    data: boosts || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -337,20 +353,16 @@ export default function SellerAdsPage() {
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between">
             <h1 className="font-headline text-3xl font-bold tracking-tight">
-                My Ad Campaigns
+                TikTok Boost Dashboard
             </h1>
-            <CreateAdDialog 
-                products={products}
-                isLoading={areProductsLoading} 
-                userProfile={userProfile}
-            />
+            <CreateBoostDialog onBoostCreated={fetchBoostData} />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard isLoading={isLoading} title="Total Budget" value={`${stats.totalSpend.toLocaleString()} pts`} icon={DollarSign} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Total Clicks" value={`${stats.totalClicks.toLocaleString()}`} icon={MousePointerClick} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Conversions" value={`${stats.totalConversions.toLocaleString()}`} icon={TrendingUp} description="Lifetime" />
-            <StatCard isLoading={isLoading} title="Average Cost Per Click" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} description="Lifetime" />
+            <StatCard isLoading={isLoading} title="Total Views" value={stats.totalViews.toLocaleString()} icon={Eye} />
+            <StatCard isLoading={isLoading} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} />
+            <StatCard isLoading={isLoading} title="Total Likes" value={stats.totalLikes.toLocaleString()} icon={Heart} />
+            <StatCard isLoading={isLoading} title="Total Points Spent" value={`${stats.totalSpent.toLocaleString()} pts`} icon={BarChart2} />
         </div>
 
         {isLoading ? <DataTableSkeleton /> : (
@@ -361,12 +373,7 @@ export default function SellerAdsPage() {
                         <TableRow key={headerGroup.id}>
                         {headerGroup.headers.map((header) => (
                             <TableHead key={header.id}>
-                            {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                )}
+                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                             </TableHead>
                         ))}
                         </TableRow>
@@ -378,10 +385,7 @@ export default function SellerAdsPage() {
                         <TableRow key={row.id}>
                             {row.getVisibleCells().map((cell) => (
                             <TableCell key={cell.id}>
-                                {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                                )}
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </TableCell>
                             ))}
                         </TableRow>
@@ -389,7 +393,7 @@ export default function SellerAdsPage() {
                     ) : (
                         <TableRow>
                         <TableCell colSpan={columns.length} className="h-24 text-center">
-                            You have not created any ad campaigns.
+                            You haven't created any TikTok boosts yet.
                         </TableCell>
                         </TableRow>
                     )}
@@ -401,5 +405,3 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
-
-    

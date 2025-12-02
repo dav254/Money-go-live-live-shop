@@ -1,17 +1,16 @@
 
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
-
-// Do NOT import firebase-admin services at the top level.
-// They will be imported dynamically after initialization.
 
 export async function GET(request: Request) {
   try {
-    initializeAdminApp(); 
-    // Dynamically import services AFTER initialization
-    const { getAuth } = await import('firebase-admin/auth');
-    const { getFirestore, Timestamp } = await import('firebase-admin/firestore');
+    // Correctly initialize Firebase Admin and get services
+    const adminApp = await initializeAdminApp();
+    const auth = getAuth(adminApp);
+    const db = getFirestore(adminApp);
     
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
@@ -23,10 +22,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await auth.verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    const db = getFirestore();
     const userProfileDoc = await db.collection('userProfiles').doc(uid).get();
 
     if (!userProfileDoc.exists || userProfileDoc.data()?.userRole !== 'admin') {
@@ -79,9 +77,6 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error('API Sales Analytics Error:', error);
-    if (error.code === 'auth/id-token-expired') {
-      return NextResponse.json({ error: 'Token expired, please log in again.' }, { status: 401 });
-    }
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }
