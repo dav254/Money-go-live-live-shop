@@ -1,9 +1,10 @@
+
 'use server';
 
 import { initializeAdminApp } from '@/firebase/admin';
 import type { BoostRequest, UserProfile } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 
 interface CreateBoostRequestPayload {
@@ -23,7 +24,7 @@ export async function createBoostRequest(payload: CreateBoostRequestPayload, aut
   try {
     const adminApp = initializeAdminApp();
     const auth = getAuth(adminApp);
-    const db = await import('firebase-admin/firestore').then(mod => mod.getFirestore(adminApp));
+    const db = getFirestore(adminApp);
 
     if (!authToken) {
       throw new Error('Unauthorized: No authentication token provided.');
