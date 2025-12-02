@@ -8,7 +8,6 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import Image from 'next/image';
 import { Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -82,13 +81,11 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const { toast } = useToast();
     const { user } = useUser();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [selectedProductId, setSelectedProductId] = React.useState<string>('');
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
     const [videoFile, setVideoFile] = React.useState<File | null>(null);
     const videoInputRef = React.useRef<HTMLInputElement>(null);
 
-    const selectedProduct = products.find(p => p.id === selectedProductId);
     const pointsCost = durationDays * 100;
     const hasEnoughPoints = (userProfile?.aiPoints || 0) >= pointsCost;
 
@@ -104,7 +101,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     };
     
     const handleSubmit = async () => {
-        if (!videoFile || !selectedProduct || !user) return;
+        if (!videoFile || !user) return;
         if (!hasEnoughPoints) {
             toast({ variant: 'destructive', title: 'Insufficient Points', description: 'You do not have enough AI points for this boost.' });
             return;
@@ -133,7 +130,9 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             const uploadedData = await uploadResponse.json();
             
             const payload = {
-                productId: selectedProductId,
+                // For simplicity, we'll associate with the first product.
+                // In a real app, you might have a different logic or re-introduce product selection.
+                productId: products[0]?.id || 'default_product_id', 
                 videoUrl: uploadedData.secure_url,
                 caption: caption,
                 durationDays: durationDays,
@@ -195,25 +194,11 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                     </div>
 
                     <div className="space-y-2">
-                        <Label>2. Associate with a Product</Label>
-                        <Select onValueChange={setSelectedProductId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Choose a product..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {products.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="caption">3. Ad Caption</Label>
+                        <Label htmlFor="caption">2. Ad Caption</Label>
                         <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label>4. Campaign Duration</Label>
+                        <Label>3. Campaign Duration</Label>
                         <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
@@ -248,7 +233,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !selectedProduct || !hasEnoughPoints}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !hasEnoughPoints}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
@@ -455,3 +440,5 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
+
+    
