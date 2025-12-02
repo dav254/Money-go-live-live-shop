@@ -1,10 +1,9 @@
 
 import { NextResponse } from 'next/server';
-import Paystack from 'paystack';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
 
-const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
+// The paystack import has been moved inside the POST function.
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID!;
@@ -31,6 +30,10 @@ export async function healthCheck() {
 
 
 export async function POST(request: Request) {
+    // Dynamically import paystack here to ensure it's only loaded on the server
+    const Paystack = (await import('paystack')).default;
+    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
+
     try {
         const body = await request.json();
         
