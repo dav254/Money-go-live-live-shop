@@ -32,8 +32,8 @@ service cloud.firestore {
     match /boost_requests/{boostId} {
       allow create: if request.auth.uid == request.resource.data.sellerId;
       // Allow a user to list requests ONLY if they are filtering by their own sellerId.
-      allow list, read: if (request.auth.uid == resource.data.sellerId) || 
-                         (request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
+      allow list: if request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid;
+      allow read: if (request.auth.uid == resource.data.sellerId) || 
                          get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     

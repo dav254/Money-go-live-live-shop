@@ -60,6 +60,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 
 // --- MOCK DATA ---
 const mockProducts: Product[] = [
@@ -95,19 +97,6 @@ const mockBoosts: BoostRequest[] = [
         updatedAt: Timestamp.fromDate(new Date()),
         analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
     },
-     {
-        id: 'boost-3',
-        sellerId: 'seller-1',
-        videoUrl: '/videos/sneakers.mp4',
-        caption: 'Step up your shoe game with the Urban Explorer Sneakers.',
-        durationDays: 5,
-        pointsPaid: 500,
-        target: { counties: ['Kisumu'], age: '18-25', interests: ['streetwear'] },
-        status: 'completed',
-        createdAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 10))),
-        updatedAt: Timestamp.fromDate(new Date(new Date().setDate(new Date().getDate() - 5))),
-        analytics: { views: 25000, likes: 2300, clicks: 150, shares: 80, conversions: 12 },
-    }
 ];
 
 // --- END MOCK DATA ---
@@ -151,8 +140,6 @@ const CreateBoostDialog = ({ products, onBoostCreated }: { products: Product[], 
             description: "Your campaign is now pending admin approval."
         });
 
-        // In a real scenario, this would trigger a server action.
-        // For frontend-only, we just close the dialog.
         onBoostCreated();
         setIsSubmitting(false);
     };
@@ -245,19 +232,31 @@ const DataTableSkeleton = () => (
 );
 
 export default function SellerAdsPage() {
-    // We now use mock data directly.
-    const [boosts, setBoosts] = React.useState<BoostRequest[]>(mockBoosts);
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const boostsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(
+          collection(firestore, 'boost_requests'), 
+          where('sellerId', '==', user.uid),
+        );
+    }, [user, firestore]);
+
+    const { data: boosts, isLoading: isLoadingBoosts } = useCollection<BoostRequest>(boostsQuery);
+    
+    // For now, we will continue using mock products for the dialog
     const [products, setProducts] = React.useState<Product[]>(mockProducts);
-    const [isLoading, setIsLoading] = React.useState(false); // Set to false as we're using mock data.
+    const [isLoading, setIsLoading] = React.useState(false);
 
     const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
       if (!boosts) return initialStats;
       return boosts.reduce((acc, c) => {
-          acc.totalViews += c.analytics.views;
-          acc.totalLikes += c.analytics.likes;
-          acc.totalClicks += c.analytics.clicks;
-          if(c.status === 'active' || c.status === 'completed') acc.totalSpent += c.pointsPaid;
+          acc.totalViews += c.analytics?.views || 0;
+          acc.totalLikes += c.analytics?.likes || 0;
+          acc.totalClicks += c.analytics?.clicks || 0;
+          if(c.status === 'active' || c.status === 'completed') acc.totalSpent += c.pointsPaid || 0;
           return acc;
       }, initialStats);
     }, [boosts]);
@@ -299,7 +298,7 @@ export default function SellerAdsPage() {
     {
         accessorKey: 'analytics.clicks',
         header: 'Clicks',
-        cell: ({ row }) => row.original.analytics.clicks.toLocaleString(),
+        cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString(),
     },
     {
         id: 'actions',
@@ -337,13 +336,13 @@ export default function SellerAdsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard isLoading={isLoading} title="Total Views" value={stats.totalViews.toLocaleString()} icon={Eye} />
-            <StatCard isLoading={isLoading} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} />
-            <StatCard isLoading={isLoading} title="Total Likes" value={stats.totalLikes.toLocaleString()} icon={Heart} />
-            <StatCard isLoading={isLoading} title="Total Points Spent" value={`${stats.totalSpent.toLocaleString()} pts`} icon={BarChart2} />
+            <StatCard isLoading={isLoadingBoosts} title="Total Views" value={stats.totalViews.toLocaleString()} icon={Eye} />
+            <StatCard isLoading={isLoadingBoosts} title="Total Clicks" value={stats.totalClicks.toLocaleString()} icon={MousePointerClick} />
+            <StatCard isLoading={isLoadingBoosts} title="Total Likes" value={stats.totalLikes.toLocaleString()} icon={Heart} />
+            <StatCard isLoading={isLoadingBoosts} title="Total Points Spent" value={`${stats.totalSpent.toLocaleString()} pts`} icon={BarChart2} />
         </div>
 
-        {isLoading ? <DataTableSkeleton /> : (
+        {isLoadingBoosts ? <DataTableSkeleton /> : (
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
