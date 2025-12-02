@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
-import type { AdCampaign } from '@/lib/types';
+import type { BoostRequest } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -25,17 +25,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
     }
 
-    const campaignsSnapshot = await db.collection('adCampaigns').orderBy('startDate', 'desc').get();
+    const campaignsSnapshot = await db.collection('boost_requests').orderBy('createdAt', 'desc').get();
     
     const campaigns = campaignsSnapshot.docs.map(doc => {
-        const data = doc.data() as AdCampaign;
-        const startDate = data.startDate;
+        const data = doc.data() as BoostRequest;
+        const createdAt = data.createdAt;
         return {
             ...data,
             id: doc.id,
             // Safely convert Timestamp to ISO string
-            startDate: (startDate && typeof (startDate as any).toDate === 'function')
-                ? (startDate as any).toDate().toISOString()
+            createdAt: (createdAt && typeof (createdAt as any).toDate === 'function')
+                ? (createdAt as any).toDate().toISOString()
                 : new Date().toISOString(),
         };
     });

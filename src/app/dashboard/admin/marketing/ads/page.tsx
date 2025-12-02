@@ -36,23 +36,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import type { AdCampaign } from '@/lib/types';
+import { useUser } from '@/firebase';
+import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 const StatCard = ({ title, value, icon: Icon, description, color, isLoading }: { title: string, value: string, icon: React.ElementType, description?: string, color?: string, isLoading?: boolean }) => (
@@ -87,71 +74,11 @@ const DataTableSkeleton = () => (
     </div>
 );
 
-const ApproveCampaignDialog = ({ campaign, onOpenChange, onActionComplete }: { campaign: AdCampaign | null; onOpenChange: (open: boolean) => void; onActionComplete: () => void }) => {
-  const firestore = useFirestore();
-  const { toast } = useToast();
-
-  if (!campaign) return null;
-
-  const trackingUrl = `https://goearnvid.shop/products/${campaign.productId}?campaignId=${campaign.id}`;
-
-  const handleApprove = async () => {
-    if (!firestore) return;
-    const campaignRef = doc(firestore, 'adCampaigns', campaign.id);
-    try {
-      await updateDoc(campaignRef, { status: 'active' });
-      toast({ title: 'Campaign Approved!', description: 'The campaign is now marked as active.' });
-      onActionComplete();
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error approving campaign:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not approve the campaign.' });
-    }
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(trackingUrl).then(() => {
-        toast({ title: 'Copied to Clipboard!' });
-    });
-  }
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Approve Ad Campaign</DialogTitle>
-        <DialogDescription>
-          Review the campaign and use the generated link for your ad setup on TikTok.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-4 py-4">
-        <div>
-          <h4 className="font-semibold">{campaign.productName}</h4>
-          <p className="text-sm text-muted-foreground">Budget: {campaign.budget.toLocaleString()} Points</p>
-        </div>
-        <div>
-            <Label htmlFor="tracking-url">TikTok Ad Tracking URL</Label>
-            <div className="flex items-center gap-2">
-                <Input id="tracking-url" readOnly value={trackingUrl} />
-                <Button size="icon" variant="outline" onClick={copyToClipboard}><ClipboardCopy className="h-4 w-4" /></Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Use this exact URL as the destination for your TikTok ad.</p>
-        </div>
-      </div>
-      <DialogFooter>
-        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-        <Button onClick={handleApprove}>Approve & Set Live</Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-};
-
 export default function AdminAdsPage() {
   const { user } = useUser();
   const { toast } = useToast();
-  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>([]);
+  const [campaigns, setCampaigns] = React.useState<BoostRequest[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [selectedCampaign, setSelectedCampaign] = React.useState<AdCampaign | null>(null);
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = React.useState(false);
   
   const fetchCampaigns = React.useCallback(async () => {
     if (!user) return;
@@ -180,18 +107,18 @@ export default function AdminAdsPage() {
 
 
   const stats = React.useMemo(() => {
-      const totalSpend = campaigns.reduce((acc, c) => acc + c.spend, 0);
-      const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks, 0);
-      const totalConversions = campaigns.reduce((acc, c) => acc + c.conversions, 0);
+      const totalSpend = campaigns.reduce((acc, c) => c.pointsPaid || 0, 0);
+      const totalClicks = campaigns.reduce((acc, c) => acc.analytics?.clicks || 0, 0);
+      const totalConversions = campaigns.reduce((acc, c) => acc.analytics?.conversions || 0, 0);
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       return { totalSpend, totalClicks, totalConversions, avgCpc };
   }, [campaigns]);
 
-  const columns: ColumnDef<AdCampaign>[] = [
+  const columns: ColumnDef<BoostRequest>[] = [
     {
-      accessorKey: 'productName',
+      accessorKey: 'caption',
       header: 'Campaign',
-      cell: ({ row }) => <div className="font-semibold">{row.original.productName}</div>,
+      cell: ({ row }) => <p className="font-medium truncate max-w-xs">{row.original.caption}</p>,
     },
     {
       accessorKey: 'status',
@@ -203,15 +130,17 @@ export default function AdminAdsPage() {
           completed: 'outline',
           paused: 'secondary',
           draft: 'secondary',
+          pending: 'secondary',
+          approved: 'default',
+          rejected: 'destructive',
         }[status] as any;
         return <Badge variant={variant} className={`capitalize ${status === 'active' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
       },
     },
     { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <p className="text-xs font-mono">{row.original.sellerId}</p> },
-    { accessorKey: 'budget', header: 'Budget (Points)', cell: ({ row }) => `${row.original.budget.toLocaleString()}` },
-    { accessorKey: 'spend', header: 'Spend (Points)', cell: ({ row }) => `${row.original.spend.toLocaleString()}` },
-    { accessorKey: 'clicks', header: 'Clicks' },
-    { accessorKey: 'conversions', header: 'Conversions' },
+    { accessorKey: 'pointsPaid', header: 'Cost (Points)', cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()}` },
+    { accessorKey: 'analytics.clicks', header: 'Clicks', cell: ({ row }) => row.original.analytics.clicks.toLocaleString() },
+    { accessorKey: 'analytics.conversions', header: 'Conversions', cell: ({ row }) => row.original.analytics.conversions.toLocaleString() },
     {
       id: 'actions',
       cell: ({ row }) => (
@@ -223,15 +152,7 @@ export default function AdminAdsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            {row.original.status === 'draft' && (
-                <DropdownMenuItem onSelect={() => {
-                    setSelectedCampaign(row.original);
-                    setIsApproveDialogOpen(true);
-                }}>
-                    Approve Campaign
-                </DropdownMenuItem>
-            )}
-            <DropdownMenuItem>Update Stats</DropdownMenuItem>
+            <DropdownMenuItem>View Campaign</DropdownMenuItem>
             <DropdownMenuItem>Pause Campaign</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive">End Campaign</DropdownMenuItem>
@@ -262,53 +183,51 @@ export default function AdminAdsPage() {
             <StatCard isLoading={isLoading} title="Total Conversions" value={stats.totalConversions.toLocaleString()} icon={TrendingUp} />
             <StatCard isLoading={isLoading} title="Average CPC" value={`${stats.avgCpc.toFixed(2)} pts`} icon={BarChart2} />
         </div>
-        <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-            {isLoading ? <DataTableSkeleton /> : (
-                <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                            <TableHead key={header.id}>
-                            {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                )}
-                            </TableHead>
-                        ))}
-                        </TableRow>
+        
+        {isLoading ? <DataTableSkeleton /> : (
+            <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                        {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                            )}
+                        </TableHead>
                     ))}
-                    </TableHeader>
-                    <TableBody>
-                    {table.getRowModel().rows?.length ? (
-                        table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                                {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                                )}
-                            </TableCell>
-                            ))}
-                        </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                        <TableCell colSpan={columns.length} className="h-24 text-center">
-                            No ad campaigns found.
+                    </TableRow>
+                ))}
+                </TableHeader>
+                <TableBody>
+                {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                            {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                            )}
                         </TableCell>
-                        </TableRow>
-                    )}
-                    </TableBody>
-                </Table>
-                </div>
-            )}
-             <ApproveCampaignDialog campaign={selectedCampaign} onOpenChange={setIsApproveDialogOpen} onActionComplete={fetchCampaigns} />
-        </Dialog>
+                        ))}
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                        No ad campaigns found.
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+            </div>
+        )}
       </div>
     </AdminLayout>
   );
