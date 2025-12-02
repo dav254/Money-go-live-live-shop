@@ -3,8 +3,7 @@ import { NextResponse } from 'next/server';
 import { healthCheck as paymentsHealthCheck } from '../create-payment-intent/route';
 import { healthCheck as followHealthCheck } from '../follow/route';
 import { healthCheck as uploadHealthCheck } from '../upload/route';
-import { db } from '@/firebase/server';
-import { collection, getDocs, limit, query } from 'firebase/firestore';
+import { checkFirestoreHealth } from '@/lib/server-health';
 
 
 type Status = 'operational' | 'degraded' | 'outage';
@@ -16,17 +15,6 @@ interface ServiceStatus {
 
 // --- Real Health Checks ---
 
-// Checks connectivity to Firestore by performing a simple, inexpensive read.
-async function checkFirestoreHealth(): Promise<Status> {
-    try {
-        const healthCheckRef = collection(db, 'userProfiles');
-        await getDocs(query(healthCheckRef, limit(1)));
-        return 'operational';
-    } catch (error) {
-        console.error("Firestore health check failed:", error);
-        return 'outage';
-    }
-}
 
 // A simple check for external services we can't truly ping.
 // This confirms our environment variables are set up.

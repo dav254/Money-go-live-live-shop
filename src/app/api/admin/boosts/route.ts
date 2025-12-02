@@ -14,7 +14,7 @@ import { uploadVideoToTikTok } from '@/lib/tiktok';
 export async function GET(request: Request) {
   try {
     // Correctly initialize Firebase Admin and get services
-    const adminApp = await initializeAdminApp();
+    const adminApp = initializeAdminApp();
     const auth = getAuth(adminApp);
     const db = getFirestore(adminApp);
 
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
-    let query = db.collection('boost_requests').orderBy('createdAt', 'desc');
+    let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = db.collection('boost_requests').orderBy('createdAt', 'desc');
 
     if (status) {
       query = query.where('status', '==', status);
@@ -49,6 +49,7 @@ export async function GET(request: Request) {
 
         return {
             ...data,
+            id: doc.id, // Make sure to include the document ID
             createdAt: (createdAt && typeof (createdAt as any).toDate === 'function')
                 ? (createdAt as any).toDate().toISOString()
                 : new Date().toISOString(),
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Correctly initialize Firebase Admin and get services
-    const adminApp = await initializeAdminApp();
+    const adminApp = initializeAdminApp();
     const auth = getAuth(adminApp);
     const db = getFirestore(adminApp);
 
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: `Boost request with ID ${boostId} not found.` }, { status: 404 });
     }
 
-    const boostData = boostDoc.data() as BoostRequest;
+    const boostData = { id: boostDoc.id, ...boostDoc.data() } as BoostRequest;
 
     if (boostData.status !== 'pending') {
       return NextResponse.json({ message: `This boost has already been processed with status: ${boostData.status}.` }, { status: 409 });
@@ -115,9 +116,22 @@ export async function POST(request: Request) {
       const uploadResult = await uploadVideoToTikTok(boostData, mockAccessToken);
 
       if (uploadResult.success) {
+        // Update the database record AFTER the API call succeeds
+        await boostRef.update({
+            tiktokVideoId: uploadResult.videoId,
+            status: 'approved',
+            updatedAt: Timestamp.now()
+        });
+
         console.log(`Boost ${boostId} approved. Simulated upload to TikTok complete. Video ID: ${uploadResult.videoId}`);
         return NextResponse.json({ message: `Boost request ${boostId} approved and processed successfully.` });
       } else {
+        // If upload fails, update status to reflect that (optional, could also be left as pending)
+         await boostRef.update({
+            status: 'rejected',
+            rejectionReason: `TikTok API Error: ${uploadResult.message}`,
+            updatedAt: Timestamp.now()
+        });
         throw new Error(uploadResult.message);
       }
 

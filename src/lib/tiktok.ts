@@ -1,5 +1,4 @@
 
-import { db } from '@/firebase/server';
 import type { BoostRequest } from './types';
 
 const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
@@ -92,11 +91,7 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
 
     const mockTikTokVideoId = `tt_${new Date().getTime()}`;
 
-    // After a successful mock upload, update the boost request in Firestore
-    await db.collection('boost_requests').doc(boost.id).update({
-        tiktokVideoId: mockTikTokVideoId,
-        status: 'approved', // Ensure status is correctly set
-    });
+    // The database update is now handled by the calling API route, not this library function.
 
     return {
         success: true,
