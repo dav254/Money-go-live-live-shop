@@ -1,172 +1,265 @@
 
 'use client';
 
-import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/main-layout';
-import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query } from 'firebase/firestore';
-import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
-import { useFirestore } from '@/firebase';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { VideoCard } from '@/components/feed/video-card';
-import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useUser } from '@/firebase/auth/use-user';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import React from "react";
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
-function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
-    const firestore = useFirestore();
-    
-    const sellerShopRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return product.sellerId ? doc(firestore, 'sellerShops', product.sellerId) : null;
-    }, [firestore, product.sellerId]);
-    
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return product.sellerId ? doc(firestore, 'userProfiles', product.sellerId) : null;
-    }, [firestore, product.sellerId]);
+function MoneyGoHomepage() {
+  return (
+    <div className="w-full min-h-screen bg-black text-white font-sans">
+      {/* HERO SECTION - Black & Red, Video Background */}
+      <section className="relative w-full h-[90vh] flex items-center justify-center overflow-hidden">
+        {/* Video Background */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+          autoPlay
+          loop
+          muted
+          playsInline
+          src="https://cdn.coverr.co/videos/coverr-a-mobile-phone-on-a-red-background-1083/1080p.mp4"
+        />
 
-    const { data: sellerData, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
-    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+        {/* Overlay for deep black-red gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-red-900/30 to-black/80 pointer-events-none" />
 
-    if (isSellerLoading || isProfileLoading) {
-        return (
-             <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
-                <p className="text-white">Loading live feed...</p>
+        {/* Hero content */}
+        <div className="relative z-10 max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+              MoneyGo — <span className="text-red-500">The New-Gen Selling Experience</span>
+            </h1>
+            <p className="mt-4 text-red-200 max-w-xl text-lg">
+              Real videos. Real sellers. Real earnings. Sell, go live, resell & buy trending items instantly across Africa.
+            </p>
+
+            <div className="mt-6 flex gap-3 flex-wrap">
+              <Button asChild>
+                <Link
+                  href="/signup?role=seller"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg"
+                >
+                  Start Selling
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline">
+                <Link
+                  href="#how-it-works"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-red-600 text-red-300 hover:bg-red-900/20"
+                >
+                  How It Works
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline">
+                <Link
+                  href="/live"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-transparent border border-red-700 text-red-400 hover:bg-red-900/10"
+                >
+                  Browse Products
+                </Link>
+              </Button>
             </div>
-        )
-    }
 
-    const seller: Seller = {
-        id: product.sellerId,
-        sellerId: product.sellerId,
-        name: sellerData?.shopName || userProfileData?.fullName || 'Seller Store',
-        avatar: {
-            id: 'avatar',
-            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
-            description: 'Seller avatar',
-            imageHint: 'seller avatar'
-        },
-        banner: {
-            id: 'banner',
-            imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
-            description: 'Seller banner',
-            imageHint: 'store banner'
-        },
-        bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
-        rating: 4.8, // Placeholder
-        followers: sellerData?.followers || 0,
-        reviewsCount: sellerData?.reviewsCount || 0,
-        isVerified: true, // Placeholder
-        joinedDate: userProfileData?.joinDate || new Date().toISOString(),
-        location: sellerData?.location || userProfileData?.location || 'Unknown',
-        description: sellerData?.description || userProfileData?.bio || 'Welcome!',
-    };
+            <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-md text-sm">
+              <div className="p-3 bg-black/60 rounded-lg border border-red-700">
+                <div className="text-xs text-red-200">0%</div>
+                <div className="font-semibold text-white">Listing Fees</div>
+              </div>
+              <div className="p-3 bg-black/60 rounded-lg border border-red-700">
+                <div className="text-xs text-red-200">Unlimited</div>
+                <div className="font-semibold text-white">Product Uploads</div>
+              </div>
+              <div className="p-3 bg-black/60 rounded-lg border border-red-700">
+                <div className="text-xs text-red-200">Live & Reels</div>
+                <div className="font-semibold text-white">Video Discovery</div>
+              </div>
+              <div className="p-3 bg-black/60 rounded-lg border border-red-700">
+                <div className="text-xs text-red-200">Fast</div>
+                <div className="font-semibold text-white">Secure Payouts</div>
+              </div>
+            </div>
+          </div>
 
-    const feedItem: VideoFeedItem = {
-        id: product.id,
-        product: product,
-        seller: seller,
-        video: {
-          id: product.id + mediaUrl, 
-          imageUrl: mediaUrl,
-          description: product.name,
-          imageHint: mediaType,
-          mediaType: mediaType,
-        },
-        likes: product.likes || 0,
-        viewers: Math.floor(Math.random() * 3000) + 100, // Placeholder
-        comments: [], // Placeholder
-    };
+          {/* Right: Featured product / live preview card */}
+          <div className="relative z-10 flex flex-col gap-4 bg-black/60 p-4 rounded-3xl border border-red-700 shadow-2xl">
+            <div className="relative rounded-xl overflow-hidden bg-black h-64 border border-red-800">
+              <img
+                src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=placeholder"
+                alt="product video"
+                className="w-full h-full object-cover opacity-95"
+              />
+              <div className="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded-lg text-sm text-red-300 border border-red-700">Live: 1.2k viewers</div>
+            </div>
 
-    return (
-        <div className="h-full w-full snap-start flex-shrink-0">
-          <VideoCard item={feedItem} onScroll={onScroll} />
+            <div className="mt-3 flex items-start justify-between">
+              <div>
+                <h3 className="font-bold text-xl text-white">Handmade Woven Bag</h3>
+                <p className="text-sm text-red-300">Authentic craft — Nairobi seller</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-extrabold text-red-400">KES 1,499</div>
+                <div className="text-xs text-red-200">Free shipping</div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <Button className="flex-1">Message Seller</Button>
+              <Button variant="secondary">Buy Now</Button>
+            </div>
+          </div>
         </div>
-    );
-}
+      </section>
 
-function VideoFeed() {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const firestore = useFirestore();
-  
-    const productsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'products'));
-    }, [firestore]);
+      {/* THREE USER CARDS */}
+      <section className="py-16 px-6 grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        {/* Buyers */}
+        <div className="bg-black/80 p-8 rounded-2xl shadow-lg text-center border border-red-800">
+          <h2 className="text-2xl font-bold mb-4 text-white">For Buyers</h2>
+          <ul className="space-y-2 text-red-200">
+            <li>• Discover trending products</li>
+            <li>• Watch real product videos</li>
+            <li>• Chat with sellers instantly</li>
+            <li>• Buy with confidence</li>
+            <li>• Fast & reliable delivery</li>
+          </ul>
+          <Button asChild className="mt-6">
+            <Link href="/live">Browse Products</Link>
+          </Button>
+        </div>
 
-    const { data: products, isLoading } = useCollection<Product>(productsQuery);
+        {/* Sellers */}
+        <div className="bg-black/80 p-8 rounded-2xl shadow-lg text-center border border-red-800">
+          <h2 className="text-2xl font-bold mb-4 text-white">For Sellers</h2>
+          <ul className="space-y-2 text-red-200">
+            <li>• Upload videos & images</li>
+            <li>• Promote your products</li>
+            <li>• Go Live & boost sales</li>
+            <li>• Easy order management</li>
+            <li>• Build a reseller army</li>
+          </ul>
+          <Button asChild className="mt-6">
+            <Link href="/signup?role=seller">Start Selling</Link>
+          </Button>
+        </div>
 
-    const feedMediaItems = useMemo(() => {
-        if (!products) return [];
+        {/* Resellers */}
+        <div className="bg-black/80 p-8 rounded-2xl shadow-lg text-center border border-red-800">
+          <h2 className="text-2xl font-bold mb-4 text-white">For Resellers</h2>
+          <ul className="space-y-2 text-red-200">
+            <li>• Promote any product</li>
+            <li>• Share your unique link</li>
+            <li>• Earn commission per sale</li>
+            <li>• No capital needed</li>
+            <li>• Daily payouts</li>
+          </ul>
+          <Button asChild className="mt-6">
+            <Link href="/signup?role=reseller">Start Earning</Link>
+          </Button>
+        </div>
+      </section>
 
-        const allMedia: {product: Product, mediaUrl: string, mediaType: 'video' | 'image'}[] = [];
-        products.forEach(product => {
-        // Prioritize videos
-        if (product.videoUrls && product.videoUrls.length > 0) {
-            product.videoUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'video' }));
-        }
-        // Then add images
-        if (product.imageUrls && product.imageUrls.length > 0) {
-            product.imageUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'image' }));
-        }
-        });
+      {/* HOW IT WORKS */}
+      <section id="how-it-works" className="py-20 px-6 bg-black/90 text-center">
+        <h2 className="text-3xl font-bold mb-8 text-white">How MoneyGo Works</h2>
+        <div className="grid md:grid-cols-3 gap-10 max-w-6xl mx-auto">
+          <div className="p-6 bg-black/70 rounded-xl shadow border border-red-800">
+            <h3 className="text-xl font-bold mb-2 text-white">1. Watch or Upload Videos</h3>
+            <p className="text-red-200">Authentic reviews, live demos, and real sellers.</p>
+          </div>
+          <div className="p-6 bg-black/70 rounded-xl shadow border border-red-800">
+            <h3 className="text-xl font-bold mb-2 text-white">2. Buy or Promote Products</h3>
+            <p className="text-red-200">Buy safely or earn as a reseller.</p>
+          </div>
+          <div className="p-6 bg-black/70 rounded-xl shadow border border-red-800">
+            <h3 className="text-xl font-bold mb-2 text-white">3. Earn or Get Delivered</h3>
+            <p className="text-red-200">Buyers get delivery. Sellers & resellers get paid.</p>
+          </div>
+        </div>
+      </section>
 
-        return allMedia;
-    }, [products]);
-
-
-    const handleScroll = useCallback((direction: 'up' | 'down') => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        const scrollAmount = container.clientHeight;
-        const currentScroll = container.scrollTop;
-
-        let targetScroll;
-        if (direction === 'down') {
-        targetScroll = currentScroll + scrollAmount;
-        } else {
-        targetScroll = currentScroll - scrollAmount;
-        }
-        
-        container.scrollTo({
-            top: targetScroll,
-            behavior: 'smooth',
-        });
-
-    }, []);
-
-    return (
-        <div className="relative h-[calc(100vh-4rem)]">
-            <div 
-                ref={scrollContainerRef}
-                className="h-full w-full snap-y snap-mandatory overflow-y-scroll"
-            >
-             {isLoading ? (
-                <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-black">
-                    <p className="text-white">Loading live shows...</p>
-                </div>
-             ) : feedMediaItems && feedMediaItems.length > 0 ? (
-                feedMediaItems.map((item) => (
-                    <RealtimeVideoCard 
-                    key={item.product.id + item.mediaUrl} 
-                    product={item.product} 
-                    mediaUrl={item.mediaUrl}
-                    mediaType={item.mediaType}
-                    onScroll={handleScroll}
-                    />
-                ))
-            ) : (
-                <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-black">
-                    <p className="text-white">No live shows available right now.</p>
-                </div>
-            )}
+      {/* FEATURES */}
+      <section className="py-20 px-6 max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-12 text-white">Why Choose MoneyGo?</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            "0% listing fees",
+            "Real product videos",
+            "Live shopping events",
+            "Built-in reseller program",
+            "Advanced seller analytics",
+            "Secure messaging system",
+            "Fast payouts",
+            "African market focused",
+          ].map((feature, i) => (
+            <div key={i} className="p-6 bg-black/70 rounded-xl shadow text-center font-medium border border-red-800 text-red-200">
+              {feature}
             </div>
-      </div>
-    )
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="text-center py-24 bg-gradient-to-r from-red-900 to-black px-6">
+        <h2 className="text-3xl font-bold mb-4 text-white">Start your MoneyGo journey today</h2>
+        <p className="text-lg mb-10 text-red-200">Buy, Sell, or Earn — all in one powerful platform.</p>
+        <div className="flex justify-center gap-4">
+          <Button asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
+          <Button asChild><Link href="/signup?role=reseller">Start Earning</Link></Button>
+          <Button asChild variant="secondary"><Link href="/live">Browse Products</Link></Button>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="py-10 px-6 bg-black text-red-200">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-6">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-red-600 flex items-center justify-center font-bold text-black">MG</div>
+              <div>
+                <div className="font-semibold text-white">MoneyGo</div>
+                <div className="text-sm text-red-300">Empowering sellers across Africa</div>
+              </div>
+            </div>
+            <p className="mt-4 text-sm text-red-300 max-w-md">Built with love for creators and sellers — a platform that rewards authenticity and hustle.</p>
+          </div>
+
+          <div>
+            <div className="font-semibold text-white">Product</div>
+            <ul className="mt-2 text-sm space-y-2 text-red-300">
+              <li>How MoneyGo Works</li>
+              <li>Seller Dashboard</li>
+              <li>Reseller Program</li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="font-semibold text-white">Company</div>
+            <ul className="mt-2 text-sm space-y-2 text-red-300">
+              <li>About</li>
+              <li>Careers</li>
+              <li>Contact</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="mt-8 text-sm border-t border-red-800 pt-4 max-w-6xl mx-auto text-red-300">
+          <div className="flex items-center justify-between">
+            <div>© {new Date().getFullYear()} MoneyGo. All rights reserved.</div>
+            <div className="text-xs">Terms • Privacy</div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
 }
+
 
 export default function HomePage() {
     const { user, isLoading } = useUser();
@@ -195,6 +288,8 @@ export default function HomePage() {
                 router.replace('/dashboard/seller');
             } else if (userProfile.userRole === 'reseller') {
                 router.replace('/dashboard/reseller');
+            } else {
+                 router.replace('/live'); // Default for buyers
             }
         }
     }, [user, userProfile, isLoading, isProfileLoading, router]);
@@ -202,25 +297,25 @@ export default function HomePage() {
     // Show a loading state while we determine the user's role and redirect
     if (isLoading || isProfileLoading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex h-screen w-full items-center justify-center bg-black text-white">
                 <p>Loading...</p>
             </div>
         );
     }
     
-    // If the user is a buyer, show the BuyerLayout.
-    if (user && userProfile?.userRole === 'buyer') {
+    // If no user, show the landing page.
+    if (!user) {
         return (
-            <BuyerLayout>
-                <VideoFeed />
-            </BuyerLayout>
-        )
+          <MainLayout>
+              <MoneyGoHomepage />
+          </MainLayout>
+        );
     }
 
-    // Default view for guests or roles that are about to be redirected.
+    // Fallback for authenticated users before redirect happens
     return (
-        <MainLayout>
-            <VideoFeed />
-        </MainLayout>
+         <div className="flex h-screen w-full items-center justify-center bg-black text-white">
+            <p>Redirecting to your dashboard...</p>
+        </div>
     );
 }
