@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -7,12 +6,37 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { analyzeLiveComment, LiveCommentOutput } from '@/ai/flows/live-selling-copilot';
+import { analyzeLiveComment } from '@/ai/flows/live-selling-copilot';
 import { AlertCircle, Bot, BrainCircuit, Loader2, Send, Sparkles, ThumbsDown, ThumbsUp, Ticket } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { z } from 'genkit';
+
+
+// Define Schemas and Types here, directly in the client component
+const LiveCommentInputSchema = z.object({
+  comment: z.string().describe('A single comment from a viewer in a live shopping stream.'),
+});
+type LiveCommentInput = z.infer<typeof LiveCommentInputSchema>;
+
+const classificationEnum = z.enum([
+    "Buying Signal", 
+    "Price Objection", 
+    "Question", 
+    "Positive Feedback", 
+    "Negative Feedback",
+    "Spam/Irrelevant",
+]);
+
+const LiveCommentOutputSchema = z.object({
+    classification: classificationEnum.describe('The classification of the viewer comment.'),
+    sellerWhisper: z.string().describe('A private, strategic suggestion for the seller on how to respond or what to do next. This is not shown to the public.'),
+    suggestedAction: z.string().describe('A short, actionable button label for the seller (e.g., "Announce Discount", "Pin Comment", "Answer Question").'),
+});
+type LiveCommentOutput = z.infer<typeof LiveCommentOutputSchema>;
+
 
 interface ChatMessage {
     id: number;

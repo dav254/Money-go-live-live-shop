@@ -4,19 +4,15 @@
 /**
  * @fileOverview An AI flow that acts as a co-pilot for live sellers,
  * analyzing viewer comments and providing real-time strategic advice.
- *
- * - analyzeLiveComment - Classifies a comment and suggests a response for the seller.
- * - LiveCommentInput - The input type for the analyzeLiveComment function.
- * - LiveCommentOutput - The return type for the analyzeLiveComment function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const LiveCommentInputSchema = z.object({
+const LiveCommentInputSchema = z.object({
   comment: z.string().describe('A single comment from a viewer in a live shopping stream.'),
 });
-export type LiveCommentInput = z.infer<typeof LiveCommentInputSchema>;
+type LiveCommentInput = z.infer<typeof LiveCommentInputSchema>;
 
 const classificationEnum = z.enum([
     "Buying Signal", 
@@ -27,17 +23,13 @@ const classificationEnum = z.enum([
     "Spam/Irrelevant",
 ]);
 
-export const LiveCommentOutputSchema = z.object({
+const LiveCommentOutputSchema = z.object({
     classification: classificationEnum.describe('The classification of the viewer comment.'),
     sellerWhisper: z.string().describe('A private, strategic suggestion for the seller on how to respond or what to do next. This is not shown to the public.'),
     suggestedAction: z.string().describe('A short, actionable button label for the seller (e.g., "Announce Discount", "Pin Comment", "Answer Question").'),
 });
-export type LiveCommentOutput = z.infer<typeof LiveCommentOutputSchema>;
+type LiveCommentOutput = z.infer<typeof LiveCommentOutputSchema>;
 
-
-export async function analyzeLiveComment(input: LiveCommentInput): Promise<LiveCommentOutput> {
-  return liveSellingCopilotFlow(input);
-}
 
 const prompt = ai.definePrompt({
   name: 'liveSellingCopilotPrompt',
@@ -71,3 +63,8 @@ const liveSellingCopilotFlow = ai.defineFlow(
     return output;
   }
 );
+
+
+export async function analyzeLiveComment(input: LiveCommentInput): Promise<LiveCommentOutput> {
+  return liveSellingCopilotFlow(input);
+}
