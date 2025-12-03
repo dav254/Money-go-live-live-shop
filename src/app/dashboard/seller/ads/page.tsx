@@ -185,7 +185,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             if (typeof onBoostCreated === 'function') {
                 onBoostCreated();
             }
-            setIsOpen(false); // Close dialog on success
+            setIsOpen(false); 
 
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
@@ -345,8 +345,15 @@ export default function SellerAdsPage() {
         header: 'Campaign',
         cell: ({ row }) => (
             <div className="flex items-center gap-3">
-                <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center">
-                    <Video className="w-8 h-8 text-muted-foreground" />
+                 <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                    <video
+                        src={row.original.videoUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                        loop
+                        onMouseOver={e => e.currentTarget.play()}
+                        onMouseOut={e => e.currentTarget.pause()}
+                    />
                 </div>
                 <span className="font-medium truncate max-w-xs">{row.original.caption || 'No caption'}</span>
             </div>
