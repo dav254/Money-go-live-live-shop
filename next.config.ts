@@ -37,14 +37,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: [
-      '@genkit-ai/next',
-      '@opentelemetry/api',
-      '@opentelemetry/sdk-trace-base',
-      '@opentelemetry/sdk-trace-node'
-    ],
-  },
+  serverExternalPackages: [
+    '@genkit-ai/next',
+    '@opentelemetry/api',
+    '@opentelemetry/sdk-trace-base',
+    '@opentelemetry/sdk-trace-node'
+  ],
 };
 
 export default nextConfig;
