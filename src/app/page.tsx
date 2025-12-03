@@ -34,7 +34,7 @@ function GoEarnHomepage() {
               Go Earn — <span className="text-primary">The New-Gen Selling Experience</span>
             </h1>
             <p className="mt-4 text-primary/80 max-w-xl text-lg">
-              Real videos. Real sellers. Real earnings. Sell, go live, resell & buy trending items instantly.
+              Go Earn is the ultimate video marketplace. Sell, go live, and empower a network of resellers to amplify your reach.
             </p>
 
             <div className="mt-6 flex gap-3 flex-wrap">
@@ -212,16 +212,18 @@ function GoEarnHomepage() {
           <div>
             <div className="font-semibold text-foreground">Company</div>
             <ul className="mt-2 text-sm space-y-2">
-              <li><Link href="/dashboard/seller/about" className="hover:text-primary">About Us</Link></li>
-              <li><Link href="#" className="hover:text-primary">Careers</Link></li>
-              <li><Link href="/dashboard/seller/help" className="hover:text-primary">Contact</Link></li>
+              <li><Link href="/about" className="hover:text-primary">About Us</Link></li>
+              <li><Link href="/terms" className="hover:text-primary">Terms of Service</Link></li>
+              <li><Link href="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
         <div className="mt-8 text-sm border-t border-border pt-8 max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <div>© {new Date().getFullYear()} Go Earn. All rights reserved.</div>
-            <div className="text-xs">Terms • Privacy</div>
+            <div className="text-xs">
+                 <Link href="/terms" className="hover:text-primary">Terms</Link> • <Link href="/privacy" className="hover:text-primary">Privacy</Link>
+            </div>
           </div>
         </div>
       </footer>
@@ -288,5 +290,3 @@ export default function HomePage() {
         </div>
     );
 }
-
-    
