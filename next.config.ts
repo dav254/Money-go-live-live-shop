@@ -42,7 +42,8 @@ const nextConfig: NextConfig = {
     '@opentelemetry/api',
     '@opentelemetry/sdk-trace-base',
     '@opentelemetry/sdk-trace-node',
-    '@opentelemetry/context-async-hooks'
+    '@opentelemetry/context-async-hooks',
+    'node-fetch',
   ],
 };
 
