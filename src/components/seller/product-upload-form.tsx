@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -138,7 +138,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
     const timestamp = Math.round((new Date()).getTime() / 1000);
-    const paramsToSign = { timestamp };
+    const paramsToSign = { timestamp, folder: 'products' };
     
     const signatureResponse = await fetch('/api/upload', {
         method: 'POST',
@@ -152,6 +152,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
     formData.append('timestamp', timestamp.toString());
     formData.append('signature', signature);
+    formData.append('folder', 'products');
     
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
