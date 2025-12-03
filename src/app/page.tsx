@@ -32,7 +32,7 @@ function GoEarnHomepage() {
               The Future of Social Commerce is Here.
             </h1>
             <p className="mt-4 text-primary/80 max-w-2xl mx-auto text-lg">
-              Go Earn is the ultimate video marketplace for Africa. Sell, go live, and empower a network of resellers to amplify your reach.
+              Go Earn is the ultimate video marketplace. Sell, go live, and empower a network of resellers to amplify your reach.
             </p>
 
             <div className="mt-8 flex gap-4 flex-wrap justify-center">
@@ -124,7 +124,7 @@ function GoEarnHomepage() {
             <div>
                 <Badge className="bg-primary/10 text-primary border-primary/30">New Feature</Badge>
                 <h2 className="text-3xl font-bold mt-4 font-headline">Supercharge Your Sales with TikTok Boost</h2>
-                <p className="text-muted-foreground mt-4 text-lg">Don't just sell, go viral. Use your AI Points to launch your product videos as targeted ads directly on TikTok, reaching millions of potential customers across the region.</p>
+                <p className="text-muted-foreground mt-4 text-lg">Don't just sell, go viral. Use your AI Points to launch your product videos as targeted ads directly on TikTok, reaching millions of potential customers.</p>
                 <ul className="space-y-3 mt-6 text-foreground">
                     <li className="flex items-center gap-3"><Megaphone className="text-primary"/> <span>Reach millions with targeted campaigns.</span></li>
                     <li className="flex items-center gap-3"><Bot className="text-primary"/> <span>Our AI helps you optimize your ads for maximum impact.</span></li>
@@ -152,7 +152,7 @@ function GoEarnHomepage() {
             <div className="flex items-center gap-3 mb-4">
               <div className="font-bold text-xl font-headline text-foreground">Go Earn</div>
             </div>
-            <p className="text-sm">Empowering the next generation of African entrepreneurs through video commerce.</p>
+            <p className="text-sm">Empowering the next generation of entrepreneurs through video commerce.</p>
           </div>
           <div>
             <div className="font-semibold text-foreground">Product</div>
