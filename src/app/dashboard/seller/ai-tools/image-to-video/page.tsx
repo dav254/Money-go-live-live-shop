@@ -60,7 +60,7 @@ export default function SelectProductForVideoPage() {
                             <Card key={product.id}>
                                 <CardContent className="p-4 flex items-center gap-4">
                                      <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted">
-                                        {product.imageUrl && <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />}
+                                        {product.imageUrl && <Image src={product.imageUrl} alt={product.name || 'product'} fill className="object-cover" />}
                                     </div>
                                     <div className="flex-1">
                                         <p className="font-semibold">{product.name}</p>
