@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Bot, Megaphone, ShoppingBag, UploadCloud, Users, Video } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 function GoEarnHomepage() {
   return (
