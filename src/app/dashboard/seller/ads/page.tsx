@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -118,7 +117,9 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         try {
             // Step 1: Get signature from our server
             const timestamp = Math.round(Date.now() / 1000);
-            const paramsToSign = { timestamp, folder: 'boost_videos' };
+            const folder = 'boost_videos';
+            const paramsToSign = { timestamp, folder };
+
             const signatureResponse = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -136,7 +137,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
             formData.append('timestamp', timestamp.toString());
             formData.append('signature', signature);
-            formData.append('folder', 'boost_videos');
+            formData.append('folder', folder);
 
             const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
             const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
@@ -479,3 +480,5 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
+
+    
