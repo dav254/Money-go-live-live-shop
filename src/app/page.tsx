@@ -26,31 +26,78 @@ function GoEarnHomepage() {
           playsInline
           src="https://cdn.coverr.co/videos/coverr-a-mobile-phone-on-a-red-background-1083/1080p.mp4"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-primary/20 to-black/80 pointer-events-none" />
-        <div className="relative z-10 max-w-6xl mx-auto px-6 text-center">
-            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight font-headline">
-              The Future of Social Commerce is Here.
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-primary/30 to-black/80 pointer-events-none" />
+        
+        <div className="relative z-10 max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight font-headline">
+              Go Earn — <span className="text-primary">The New-Gen Selling Experience</span>
             </h1>
-            <p className="mt-4 text-primary/80 max-w-2xl mx-auto text-lg">
-              Go Earn is the ultimate video marketplace. Sell, go live, and empower a network of resellers to amplify your reach.
+            <p className="mt-4 text-primary/80 max-w-xl text-lg">
+              Real videos. Real sellers. Real earnings. Sell, go live, resell & buy trending items instantly.
             </p>
 
-            <div className="mt-8 flex gap-4 flex-wrap justify-center">
+            <div className="mt-6 flex gap-3 flex-wrap">
               <Button asChild size="lg" className="font-bold">
-                <Link href="/signup?role=seller">
-                  Start Selling
-                  <ArrowRight />
-                </Link>
+                <Link href="/signup?role=seller">Upload Product</Link>
               </Button>
-               <Button asChild size="lg" variant="outline">
-                <Link href="/live">
-                  Browse Products
-                </Link>
+              <Button asChild size="lg" variant="outline">
+                <Link href="#how-it-works">How It Works</Link>
+              </Button>
+              <Button asChild size="lg" variant="secondary">
+                 <Link href="/live">Browse Products</Link>
               </Button>
             </div>
-          </div>
-      </section>
 
+            <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-md text-sm">
+              <div className="p-3 bg-black/60 rounded-lg border border-primary/50">
+                <div className="text-xs text-primary">0%</div>
+                <div className="font-semibold text-white">Listing Fees</div>
+              </div>
+              <div className="p-3 bg-black/60 rounded-lg border border-primary/50">
+                <div className="text-xs text-primary">Unlimited</div>
+                <div className="font-semibold text-white">Product Uploads</div>
+              </div>
+              <div className="p-3 bg-black/60 rounded-lg border border-primary/50">
+                <div className="text-xs text-primary">Live & Reels</div>
+                <div className="font-semibold text-white">Video Discovery</div>
+              </div>
+              <div className="p-3 bg-black/60 rounded-lg border border-primary/50">
+                <div className="text-xs text-primary">Fast</div>
+                <div className="font-semibold text-white">Secure Payouts</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 flex flex-col gap-4 bg-black/60 p-4 rounded-3xl border border-primary/50 shadow-2xl shadow-primary/10">
+            <div className="relative rounded-xl overflow-hidden bg-black h-64 border border-primary/30">
+              <img
+                src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?q=80&w=1400&auto=format&fit=crop&ixlib=rb-4.0.3&s=placeholder"
+                alt="product video"
+                className="w-full h-full object-cover opacity-95"
+              />
+              <div className="absolute bottom-3 left-3 bg-black/60 px-3 py-1 rounded-lg text-sm text-primary border border-primary/50">Live: 1.2k viewers</div>
+            </div>
+
+            <div className="mt-3 flex items-start justify-between">
+              <div>
+                <h3 className="font-bold text-xl text-white">Handmade Woven Bag</h3>
+                <p className="text-sm text-primary/80">Authentic craft — Nairobi seller</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-extrabold text-primary">KES 1,499</div>
+                <div className="text-xs text-primary/80">Free shipping</div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <Button className="flex-1">Message Seller</Button>
+              <Button variant="outline" className="flex-1">Buy Now</Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      
       {/* THREE USER CARDS */}
       <section className="py-20 px-6 grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         <Card className="bg-card/80 text-center border-primary/20">
@@ -95,7 +142,7 @@ function GoEarnHomepage() {
             </CardContent>
         </Card>
       </section>
-
+      
       {/* HOW IT WORKS */}
       <section id="how-it-works" className="py-20 px-6 bg-card/50 text-center">
         <h2 className="text-3xl font-bold mb-12 font-headline">How Go Earn Works</h2>
@@ -119,7 +166,7 @@ function GoEarnHomepage() {
       </section>
       
       {/* TIKTOK BOOST */}
-      <section className="py-24 px-6">
+       <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-center">
             <div>
                 <Badge className="bg-primary/10 text-primary border-primary/30">New Feature</Badge>
@@ -241,3 +288,5 @@ export default function HomePage() {
         </div>
     );
 }
+
+    
