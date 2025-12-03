@@ -77,9 +77,10 @@ const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, valu
     </Card>
 );
 
-const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products: Product[], onBoostCreated: () => void, userProfile: any }) => {
+const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products: Product[], onBoostCreated?: () => void, userProfile: any }) => {
     const { toast } = useToast();
     const { user } = useUser();
+    const [isOpen, setIsOpen] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
@@ -115,7 +116,6 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
         
         try {
-            // Step 1: Get signature from our server
             const timestamp = Math.round(Date.now() / 1000);
             const folder = 'boost_videos';
             const paramsToSign = { timestamp, folder };
@@ -131,7 +131,6 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             }
             const { signature } = await signatureResponse.json();
             
-            // Step 2: Upload file to Cloudinary with signature
             const formData = new FormData();
             formData.append('file', videoFile);
             formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
@@ -154,14 +153,13 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             
             const uploadedData = await uploadResponse.json();
             
-            // Step 3: Submit boost request to our backend API
             const payload = {
                 productId: selectedProductId,
                 videoUrl: uploadedData.secure_url,
                 caption: caption,
                 durationDays: durationDays,
                 pointsCost: pointsCost,
-                target: { // Dummy targeting data
+                target: {
                     counties: ['Nairobi', 'Mombasa'],
                     age: '18-35',
                     interests: ['fashion', 'music'],
@@ -184,7 +182,10 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
             }
 
             toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
-            onBoostCreated();
+            if (typeof onBoostCreated === 'function') {
+                onBoostCreated();
+            }
+            setIsOpen(false); // Close dialog on success
 
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
@@ -195,7 +196,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
 
 
     return (
-        <Dialog>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button><PlusCircle className="mr-2 h-4 w-4" /> Create TikTok Boost</Button>
             </DialogTrigger>
@@ -480,5 +481,3 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
-
-    
