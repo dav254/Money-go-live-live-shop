@@ -1,0 +1,12 @@
+diff --git a/node_modules/@genkit-ai/next/dist/esm/index.js b/node_modules/@genkit-ai/next/dist/esm/index.js
+index f30f2f5..6b09337 100644
+--- a/node_modules/@genkit-ai/next/dist/esm/index.js
++++ b/node_modules/@genkit-ai/next/dist/esm/index.js
+@@ -1,5 +1,6 @@
+ import { run } from '@genkit-ai/flow';
+ import { isDev } from 'genkit/dev';
++import 'server-only';
+ 
+ export function defineAction(flow) {
+     const action = async (input) => {
+
