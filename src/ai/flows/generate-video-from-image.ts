@@ -49,9 +49,9 @@ async function uploadToCloudinary(videoDataUri: string, productId: string): Prom
 
 export async function generateVideoFromImage(input: GenerateVideoFromImageInput): Promise<GenerateVideoFromImageOutput> {
   // Initialize Firebase Admin for server-side operations
-  initializeAdminApp();
+  const adminApp = initializeAdminApp();
   const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
-  const firestore = getFirestore();
+  const firestore = getFirestore(adminApp);
 
   // 1. Generate video using Veo
   let { operation } = await ai.generate({
