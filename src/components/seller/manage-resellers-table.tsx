@@ -19,10 +19,18 @@ import type { ResellerApplication, UserProfile } from '@/lib/types';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
-const ResellerRow = ({ application }: { application: ResellerApplication & { resellerProfile?: UserProfile } }) => {
+const ResellerRow = ({ application }: { application: ResellerApplication }) => {
     const { toast } = useToast();
     const firestore = useFirestore();
     const [isUpdating, setIsUpdating] = React.useState(false);
+
+    // Fetch the specific reseller profile for this row
+    const resellerProfileRef = useMemoFirebase(() => {
+        return doc(firestore, 'userProfiles', application.resellerId);
+    }, [firestore, application.resellerId]);
+    
+    const { data: reseller, isLoading: isLoadingProfile } = useDoc<UserProfile>(resellerProfileRef);
+
 
     const handleUpdateStatus = async (status: 'approved' | 'rejected') => {
         setIsUpdating(true);
@@ -38,17 +46,23 @@ const ResellerRow = ({ application }: { application: ResellerApplication & { res
         }
     };
     
-    const reseller = application.resellerProfile;
-
-    if (!reseller) {
+    if (isLoadingProfile) {
         return (
              <TableRow>
                 <TableCell colSpan={3}>
-                    <Skeleton className="h-10 w-full" />
+                    <div className="flex items-center gap-3">
+                         <Skeleton className="h-9 w-9 rounded-full" />
+                         <div className="space-y-1">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-16" />
+                         </div>
+                    </div>
                 </TableCell>
             </TableRow>
         )
     }
+
+    if (!reseller) return null; // Don't render if the profile can't be found
 
     return (
         <TableRow key={application.id}>
@@ -88,46 +102,16 @@ const ResellerRow = ({ application }: { application: ResellerApplication & { res
 export function ManageResellersTable() {
     const { user } = useUser();
     const firestore = useFirestore();
-    const [applications, setApplications] = React.useState<(ResellerApplication & { resellerProfile?: UserProfile })[]>([]);
-    const [isLoading, setIsLoading] = React.useState(true);
 
-    React.useEffect(() => {
-        if (!user || !firestore) return;
-        setIsLoading(true);
-
-        const fetchApplications = async () => {
-            const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid));
-            const appSnapshots = await getDocs(appsQuery);
-            const appData = appSnapshots.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResellerApplication));
-
-            if (appData.length === 0) {
-                 setApplications([]);
-                 setIsLoading(false);
-                 return;
-            }
-
-            const resellerIds = [...new Set(appData.map(app => app.resellerId))];
-            const profilesQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
-            const profileSnapshots = await getDocs(profilesQuery);
-            const profilesData = profileSnapshots.docs.map(doc => doc.data() as UserProfile);
-            
-            const profilesMap = new Map(profilesData.map(p => [p.id, p]));
-
-            const combinedData = appData.map(app => ({
-                ...app,
-                resellerProfile: profilesMap.get(app.resellerId),
-            }));
-
-            setApplications(combinedData);
-            setIsLoading(false);
-        };
-        
-        fetchApplications();
-
+    const appsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid));
     }, [user, firestore]);
     
-    const pendingApplications = applications.filter(a => a.status === 'pending');
-    const approvedResellers = applications.filter(a => a.status === 'approved');
+    const { data: applications, isLoading } = useCollection<ResellerApplication>(appsQuery);
+    
+    const pendingApplications = React.useMemo(() => applications?.filter(a => a.status === 'pending') || [], [applications]);
+    const approvedResellers = React.useMemo(() => applications?.filter(a => a.status === 'approved') || [], [applications]);
 
   
   return (
