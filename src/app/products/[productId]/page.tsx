@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -30,10 +31,10 @@ const mockReviews = [
 ];
 
 const recommendedProducts: Product[] = [
-    { id: 'rec-1', name: 'Cyberpunk Jacket', price: 2500, imageUrl: 'https://picsum.photos/seed/rec1/400', stock: 10, sellerId: 'seller-2' },
-    { id: 'rec-2', name: 'LED Visor', price: 800, imageUrl: 'https://picsum.photos/seed/rec2/400', stock: 25, sellerId: 'seller-3' },
-    { id: 'rec-3', name: 'Holographic Backpack', price: 1800, imageUrl: 'https://picsum.photos/seed/rec3/400', stock: 5, sellerId: 'seller-4' },
-    { id: 'rec-4', name: 'Gamer Hoodie', price: 1200, imageUrl: 'https://picsum.photos/seed/rec4/400', stock: 30, sellerId: 'seller-5' },
+    { id: 'rec-1', name: 'Cyberpunk Jacket', price: 2500, imageUrl: 'https://picsum.photos/seed/rec1/400', stock: 10, sellerId: 'seller-2', shippingCost: 10, uploadDate: new Date() },
+    { id: 'rec-2', name: 'LED Visor', price: 800, imageUrl: 'https://picsum.photos/seed/rec2/400', stock: 25, sellerId: 'seller-3', shippingCost: 5, uploadDate: new Date() },
+    { id: 'rec-3', name: 'Holographic Backpack', price: 1800, imageUrl: 'https://picsum.photos/seed/rec3/400', stock: 5, sellerId: 'seller-4', shippingCost: 10, uploadDate: new Date() },
+    { id: 'rec-4', name: 'Gamer Hoodie', price: 1200, imageUrl: 'https://picsum.photos/seed/rec4/400', stock: 30, sellerId: 'seller-5', shippingCost: 15, uploadDate: new Date() },
 ];
 
 // --- END MOCKED DATA ---
@@ -154,6 +155,9 @@ export default function BuyerProductPage() {
         if (!product) return;
 
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
+        const productRef = doc(firestore, 'products', product.id);
+        const batch = writeBatch(firestore);
+
         const cartItemData = {
           productId: product.id,
           sellerId: product.sellerId,
@@ -166,7 +170,10 @@ export default function BuyerProductPage() {
         };
 
         try {
-          await setDoc(cartItemRef, cartItemData, { merge: true });
+          batch.set(cartItemRef, cartItemData, { merge: true });
+          batch.update(productRef, { inCartCount: increment(1) });
+          await batch.commit();
+
           toast({ title: 'Added to Cart', description: `${product.name} has been added to your cart.` });
         } catch (error) {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: cartItemRef.path, operation: 'write', requestResourceData: cartItemData }));

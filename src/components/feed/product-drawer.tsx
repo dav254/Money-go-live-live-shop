@@ -20,7 +20,7 @@ interface ProductDrawerProps {
 }
 
 export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerProps) {
-  const imageUrl = product.image?.imageUrl || product.imageUrl || getPlaceholderImage();
+  const imageUrl = product.imageUrl || getPlaceholderImage();
   const imageHint = product.image?.imageHint || 'product image';
   const { user } = useUser();
   const firestore = useFirestore();
@@ -39,6 +39,8 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     }
 
     const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
+    const productRef = doc(firestore, 'products', product.id);
+    const batch = writeBatch(firestore);
     
     const cartItemData = {
       productId: product.id,
@@ -51,30 +53,20 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
       addedAt: serverTimestamp(),
     };
 
-    setDoc(cartItemRef, cartItemData, { merge: true }).catch(error => {
-        errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-            path: cartItemRef.path,
-            operation: 'write',
-            requestResourceData: cartItemData,
-        })
-        )
-    });
-
-    // Also increment the inCartCount on the product itself
-    const productRef = doc(firestore, 'products', product.id);
-    setDoc(productRef, { inCartCount: increment(1) }, { merge: true }).catch(error => {
+    try {
+        batch.set(cartItemRef, cartItemData, { merge: true });
+        batch.update(productRef, { inCartCount: increment(1) });
+        batch.commit();
+    } catch(e) {
          errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-            path: productRef.path,
-            operation: 'update',
-            requestResourceData: { inCartCount: 'increment' },
-        })
+            'permission-error',
+            new FirestorePermissionError({
+                path: cartItemRef.path,
+                operation: 'write',
+                requestResourceData: cartItemData,
+            })
         )
-    });
-
+    }
 
     toast({
       title: 'Added to Cart',

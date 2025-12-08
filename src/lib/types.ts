@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from 'firebase/firestore';
 
 // Represents the user's public profile
@@ -82,6 +83,7 @@ export interface Product {
     image?: { imageUrl: string, imageHint: string };
     uploadDate: any; // Can be Timestamp or string
     rating?: number;
+    shippingCost?: number;
 }
 
 export type Seller = {
