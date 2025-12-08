@@ -141,9 +141,17 @@ export default function ResellerProductsPage() {
             </div>
           </TabsContent>
            <TabsContent value="high-commission" className="mt-6">
-            <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">High-commission products will appear here.</p>
-            </div>
+            {isLoading ? (
+                <ProductGridSkeleton />
+            ) : products && products.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                </div>
+            ) : (
+                 <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                    <p className="text-muted-foreground">No high-commission products found.</p>
+                </div>
+            )}
           </TabsContent>
           <TabsContent value="ai-recommended" className="mt-6">
              <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
