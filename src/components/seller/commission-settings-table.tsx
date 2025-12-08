@@ -15,38 +15,63 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, updateDoc, where, serverTimestamp } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Loader2, Pencil, Percent } from 'lucide-react';
 
-function CommissionTableRow({ product }: { product: Product }) {
-  const firestore = useFirestore();
+const mockProductsData: Product[] = [
+    {
+        id: 'prod-1',
+        name: 'Classic Leather Handbag',
+        price: 850,
+        imageUrl: 'https://picsum.photos/seed/p1/150',
+        stock: 12,
+        commissionRate: 10,
+        sellerId: 'mock-seller',
+        uploadDate: new Date(),
+    },
+    {
+        id: 'prod-2',
+        name: 'Urban Explorer Sneakers',
+        price: 120,
+        imageUrl: 'https://picsum.photos/seed/p2/150',
+        stock: 0,
+        commissionRate: 15,
+        sellerId: 'mock-seller',
+        uploadDate: new Date(),
+    },
+    {
+        id: 'prod-3',
+        name: 'Chronograph Watch',
+        price: 350,
+        imageUrl: 'https://picsum.photos/seed/p3/150',
+        stock: 8,
+        commissionRate: 5,
+        sellerId: 'mock-seller',
+        uploadDate: new Date(),
+    },
+];
+
+
+function CommissionTableRow({ product, onUpdate }: { product: Product, onUpdate: (productId: string, newRate: number) => void }) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = React.useState(false);
   const [commissionRate, setCommissionRate] = React.useState(product.commissionRate || 0);
   const [isSaving, setIsSaving] = React.useState(false);
 
   const handleSave = async () => {
-    if (!firestore || commissionRate < 0 || commissionRate > 100) {
+    if (commissionRate < 0 || commissionRate > 100) {
       toast({ variant: 'destructive', title: 'Invalid Rate', description: 'Commission must be between 0 and 100.' });
       return;
     }
     setIsSaving(true);
-    const productRef = doc(firestore, 'products', product.id);
-    try {
-      await updateDoc(productRef, { 
-          commissionRate: commissionRate,
-          updatedAt: serverTimestamp(),
-      });
-      toast({ title: 'Success', description: `Commission for ${product.name} updated.` });
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Failed to update commission rate:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not update commission rate.' });
-    } finally {
-      setIsSaving(false);
-    }
+    
+    // Simulate a network delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    onUpdate(product.id, commissionRate);
+    toast({ title: 'Success', description: `Commission for ${product.name} updated.` });
+    setIsEditing(false);
+    setIsSaving(false);
   };
 
   return (
@@ -108,16 +133,25 @@ function CommissionTableRow({ product }: { product: Product }) {
 }
 
 export function CommissionSettingsTable() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const [productsData, setProductsData] = React.useState<Product[]>(mockProductsData);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const productsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-  }, [firestore, user]);
+  // Simulate initial data loading
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+        setIsLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const handleProductUpdate = (productId: string, newRate: number) => {
+      setProductsData(prevProducts => 
+          prevProducts.map(p => 
+              p.id === productId ? { ...p, commissionRate: newRate } : p
+          )
+      );
+  };
 
-  const { data: productsData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-  const isLoading = isUserLoading || areProductsLoading;
 
   if (isLoading) {
     return (
@@ -161,7 +195,7 @@ export function CommissionSettingsTable() {
           <TableBody>
             {productsData && productsData.length > 0 ? (
               productsData.map((product) => (
-                <CommissionTableRow key={product.id} product={product} />
+                <CommissionTableRow key={product.id} product={product} onUpdate={handleProductUpdate} />
               ))
             ) : (
               <TableRow>
