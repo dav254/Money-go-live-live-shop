@@ -149,8 +149,10 @@ export default function CartPage() {
         try {
             await setDoc(newOrderRef, newOrderData);
             
-            // TODO: In a real app, you would clear the cart items here.
-            // localStorage.removeItem('resellerRefId');
+            // Clear the reseller ref after using it
+            if (resellerId) {
+                localStorage.removeItem('resellerRefId');
+            }
             
             toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
             router.push(`/checkout/${newOrderRef.id}`);

@@ -186,7 +186,7 @@ export default function BuyerProductPage() {
         // Check for a reseller ref in localStorage
         const resellerId = localStorage.getItem('resellerRefId');
         
-        const newOrderData: any = {
+        const newOrderData: Partial<Order> = {
             id: newOrderRef.id,
             buyerId: user.uid,
             sellerId: product.sellerId,
@@ -196,9 +196,9 @@ export default function BuyerProductPage() {
             productPrice: product.price,
             shippingCost: shippingCost,
             totalAmount: product.price + shippingCost,
-            orderDate: serverTimestamp(),
+            orderDate: serverTimestamp() as any,
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
-            orderStatus: 'pending' as const,
+            orderStatus: 'pending',
             paymentMethod: 'pending',
             quantity: 1,
         };
@@ -211,10 +211,8 @@ export default function BuyerProductPage() {
         try {
           await setDoc(newOrderRef, newOrderData);
           
-          // Clear the reseller ref after it's used
-          if (resellerId) {
-              localStorage.removeItem('resellerRefId');
-          }
+          // You might want to clear the ref ID after using it, depending on your desired logic
+          // localStorage.removeItem('resellerRefId');
 
           toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
           router.push(`/checkout/${newOrderRef.id}`);
@@ -433,3 +431,4 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
+
