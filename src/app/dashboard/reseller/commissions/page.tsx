@@ -57,7 +57,7 @@ export default function ResellerCommissionsPage() {
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
     }, [firestore, user]);
     
