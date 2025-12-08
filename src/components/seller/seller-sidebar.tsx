@@ -136,6 +136,14 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/studio/recordings')}>
+              <Link href="/dashboard/seller/studio/recordings">
+                <FolderKanban />
+                <span>My Recordings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ads')}>
               <Link href="/dashboard/seller/ads">
                 <Megaphone />
