@@ -130,9 +130,6 @@ export default function ResellerDashboardPage() {
                     <CardContent className="flex flex-col gap-3">
                          <Button variant="outline" className="justify-start">AI Poster & Video Maker</Button>
                         <Button variant="outline" className="justify-start">Link Shortener</Button>
-                        <Link href="/dashboard/reseller/find-sellers">
-                             <Button variant="secondary" className="w-full justify-start"><ExternalLink className="mr-2" /> Find More Sellers</Button>
-                        </Link>
                     </CardContent>
                 </Card>
             </div>

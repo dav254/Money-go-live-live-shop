@@ -71,6 +71,7 @@ export default function SignupPage() {
       
       const userProfile: any = {
         id: user.uid,
+        uid: user.uid,
         fullName: values.fullName,
         username: values.username,
         email: values.email,
