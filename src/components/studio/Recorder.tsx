@@ -57,17 +57,27 @@ export default function Recorder() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center flex-1">
-      <video ref={videoRef} autoPlay muted className="w-full h-[80vh] object-cover" />
-      {!recording ? (
-        <button onClick={startRecording} className="bg-red-600 px-6 py-2 rounded-full mt-4">
-          Start
-        </button>
-      ) : (
-        <button onClick={stopRecording} className="bg-gray-700 px-6 py-2 rounded-full mt-4">
-          Stop
-        </button>
+    <div className="flex flex-col items-center justify-center flex-1 relative">
+      <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
+      
+      {recording && (
+        <div className="absolute top-6 left-6 flex items-center gap-2 bg-red-600 text-white px-3 py-1 rounded-md text-sm font-semibold animate-pulse">
+            <div className="h-2 w-2 rounded-full bg-white"></div>
+            REC
+        </div>
       )}
+
+      <div className="absolute bottom-10">
+        {!recording ? (
+            <button onClick={startRecording} className="bg-red-600 px-6 py-2 rounded-full mt-4">
+            Start
+            </button>
+        ) : (
+            <button onClick={stopRecording} className="bg-gray-700 px-6 py-2 rounded-full mt-4">
+            Stop
+            </button>
+        )}
+      </div>
     </div>
   );
 }
