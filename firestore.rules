@@ -56,13 +56,12 @@ service cloud.firestore {
       
       // Allow product owner to update any field, but not likes, views, or cart counts.
       allow update: if resource.data.sellerId == request.auth.uid &&
-                      !('likes' in request.resource.data) &&
-                      !('inCartCount' in request.resource.data) &&
-                      !('viewCount' in request.resource.data);
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'commissionRate']);
 
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount']);
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
