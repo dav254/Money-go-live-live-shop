@@ -155,8 +155,6 @@ export default function BuyerProductPage() {
         if (!product) return;
 
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
-        const productRef = doc(firestore, 'products', product.id);
-        const batch = writeBatch(firestore);
 
         const cartItemData = {
           productId: product.id,
@@ -170,10 +168,7 @@ export default function BuyerProductPage() {
         };
 
         try {
-          batch.set(cartItemRef, cartItemData, { merge: true });
-          batch.update(productRef, { inCartCount: increment(1) });
-          await batch.commit();
-
+          await setDoc(cartItemRef, cartItemData, { merge: true });
           toast({ title: 'Added to Cart', description: `${product.name} has been added to your cart.` });
         } catch (error) {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: cartItemRef.path, operation: 'write', requestResourceData: cartItemData }));
@@ -438,4 +433,3 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
-

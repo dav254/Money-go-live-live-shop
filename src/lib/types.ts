@@ -28,7 +28,7 @@ export interface UserProfile {
 // Targeting options for a boost campaign
 export interface TargetingOptions {
     counties: string[];
-    age: string; // e.g., '18-34'
+    age: string; // e.g., '18-35'
     interests: string[];
 }
 
@@ -78,7 +78,6 @@ export interface Product {
     originalPrice?: number; // Keep for compatibility with old data if needed
     likes?: number;
     viewCount?: number;
-    inCartCount?: number;
     commissionRate?: number;
     image?: { imageUrl: string, imageHint: string };
     uploadDate: any; // Can be Timestamp or string

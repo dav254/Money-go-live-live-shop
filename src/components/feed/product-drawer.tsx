@@ -39,8 +39,6 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     }
 
     const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
-    const productRef = doc(firestore, 'products', product.id);
-    const batch = writeBatch(firestore);
     
     const cartItemData = {
       productId: product.id,
@@ -54,9 +52,7 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     };
 
     try {
-        batch.set(cartItemRef, cartItemData, { merge: true });
-        batch.update(productRef, { inCartCount: increment(1) });
-        batch.commit();
+        setDoc(cartItemRef, cartItemData, { merge: true });
     } catch(e) {
          errorEmitter.emit(
             'permission-error',

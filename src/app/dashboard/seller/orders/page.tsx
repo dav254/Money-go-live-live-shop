@@ -2,7 +2,6 @@
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { InCartsTable } from '@/components/seller/in-carts-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -164,26 +163,9 @@ export default function SellerOrdersPage() {
     <SellerLayout>
        <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Orders & Potential Sales
+          My Orders
         </h1>
-        <Tabs defaultValue="all-orders" className="space-y-4">
-          <TabsList>
-             <TabsTrigger value="all-orders">
-              <ListOrdered className="mr-2 h-4 w-4" />
-              All Orders
-            </TabsTrigger>
-            <TabsTrigger value="in-carts">
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              In Carts
-            </TabsTrigger>
-          </TabsList>
-           <TabsContent value="all-orders" className="space-y-4">
-             <AllOrdersTable />
-          </TabsContent>
-          <TabsContent value="in-carts" className="space-y-4">
-            <InCartsTable />
-          </TabsContent>
-        </Tabs>
+        <AllOrdersTable />
       </div>
     </SellerLayout>
   );
