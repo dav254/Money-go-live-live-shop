@@ -1,16 +1,6 @@
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
+// This component is no longer used and can be deleted.
+// The content has been moved into the /dashboard/products page directly.
+// Keeping the file to avoid breaking imports, but its content is cleared.
 export function AiRecordsTable() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>AI Records</CardTitle>
-        <CardDescription>A record of AI-generated content and activities related to your products.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p className="text-center text-muted-foreground">Coming Soon: This section will display a log of AI-powered actions, such as automatically generated product descriptions, background removals, and other enhancements.</p>
-      </CardContent>
-    </Card>
-  );
+  return null;
 }
