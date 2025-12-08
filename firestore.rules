@@ -54,7 +54,7 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // Allow product owner to update any field, but not likes, views, or cart counts.
+      // Allow product owner to update a specific set of fields.
       allow update: if resource.data.sellerId == request.auth.uid &&
                       request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'commissionRate']);
