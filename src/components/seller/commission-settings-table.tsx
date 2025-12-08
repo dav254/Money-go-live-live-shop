@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, query, updateDoc, where, serverTimestamp } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Loader2, Pencil, Percent } from 'lucide-react';
 
@@ -35,7 +35,10 @@ function CommissionTableRow({ product }: { product: Product }) {
     setIsSaving(true);
     const productRef = doc(firestore, 'products', product.id);
     try {
-      await updateDoc(productRef, { commissionRate });
+      await updateDoc(productRef, { 
+          commissionRate: commissionRate,
+          updatedAt: serverTimestamp(),
+      });
       toast({ title: 'Success', description: `Commission for ${product.name} updated.` });
       setIsEditing(false);
     } catch (error) {
