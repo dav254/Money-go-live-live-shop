@@ -53,28 +53,16 @@ export default function EnhanceVideoPage() {
         }
         setIsGenerating(true);
         setGeneratedVideoUrl(null);
-        toast({ title: '🤖 Starting Video Enhancement...', description: 'This may take a minute. Please wait.' });
+        toast({ title: '🤖 Simulating Video Enhancement...', description: 'Please wait a few seconds.' });
 
-        try {
-            // In a real application, you would call a Genkit flow here, e.g.:
-            // const result = await enhanceVideoFlow({
-            //     productId: product.id,
-            //     videoUrl: selectedVideo,
-            //     prompt: prompt
-            // });
-            // setGeneratedVideoUrl(result.videoUrl);
+        // Frontend-only mock. No backend call is made.
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
-            // Mocked result for UI demonstration:
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            setGeneratedVideoUrl('https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4'); // Using a placeholder transformed video
-
-            toast({ title: '✅ Video Enhanced!', description: 'Your new video has been saved.' });
-        } catch (error: any) {
-            console.error("Error enhancing video:", error);
-            toast({ variant: 'destructive', title: 'Enhancement Failed', description: error.message || 'Please try again.' });
-        } finally {
-            setIsGenerating(false);
-        }
+        // Use a placeholder video URL for the result
+        setGeneratedVideoUrl('https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4');
+        
+        toast({ title: '✅ Mock Enhancement Complete!', description: 'This is a sample result.' });
+        setIsGenerating(false);
     };
 
     if (isLoading) {
