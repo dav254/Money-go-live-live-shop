@@ -42,6 +42,13 @@ const SellerCard = ({ shop }: { shop: SellerShop }) => {
 
     const handleApply = async () => {
         if (!user || !firestore) return;
+
+        // Add a guard to ensure sellerId is defined
+        if (!shop.sellerId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot apply to a shop with an invalid ID.' });
+            return;
+        }
+
         setIsApplying(true);
         const appRef = doc(collection(firestore, 'resellerApplications'));
         try {
