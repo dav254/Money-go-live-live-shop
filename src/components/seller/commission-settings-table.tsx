@@ -75,7 +75,7 @@ function CommissionTableRow({ product }: { product: Product }) {
                 />
                 <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
-            <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            <Button size="sm" onClick={handleSave} disabled={isSaving || commissionRate === (product.commissionRate || 0)}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
