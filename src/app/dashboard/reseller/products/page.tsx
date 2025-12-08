@@ -114,12 +114,9 @@ export default function ResellerProductsPage() {
         </div>
 
         <Tabs defaultValue="all">
-          <TabsList className="grid w-full grid-cols-3 md:w-auto md:grid-cols-5">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="all">All Products</TabsTrigger>
-            <TabsTrigger value="trending"><TrendingUp className="mr-1 h-4 w-4" /> Trending</TabsTrigger>
             <TabsTrigger value="high-commission"><Percent className="mr-1 h-4 w-4" /> High Commission</TabsTrigger>
-            <TabsTrigger value="ai-recommended"><Bot className="mr-1 h-4 w-4" /> Recommended</TabsTrigger>
-            <TabsTrigger value="new">New Arrivals</TabsTrigger>
           </TabsList>
           
           <TabsContent value="all" className="mt-6">
@@ -135,11 +132,6 @@ export default function ResellerProductsPage() {
                 </div>
             )}
           </TabsContent>
-           <TabsContent value="trending" className="mt-6">
-            <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">Trending products will appear here.</p>
-            </div>
-          </TabsContent>
            <TabsContent value="high-commission" className="mt-6">
             {isLoading ? (
                 <ProductGridSkeleton />
@@ -152,16 +144,6 @@ export default function ResellerProductsPage() {
                     <p className="text-muted-foreground">No high-commission products found.</p>
                 </div>
             )}
-          </TabsContent>
-          <TabsContent value="ai-recommended" className="mt-6">
-             <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">AI recommendations will appear here based on your performance.</p>
-            </div>
-          </TabsContent>
-           <TabsContent value="new" className="mt-6">
-             <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-              <p className="text-muted-foreground">New arrivals will appear here.</p>
-            </div>
           </TabsContent>
 
         </Tabs>
