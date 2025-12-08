@@ -42,7 +42,7 @@ const tools = [
     points: 100,
   },
   {
-    title: 'Image-to-Video Generator',
+    title: 'AI Poster & Video Maker',
     description: 'Turn your static product images into engaging short videos for your feed.',
     icon: ImageIcon,
     href: '/dashboard/seller/ai-tools/image-to-video',
