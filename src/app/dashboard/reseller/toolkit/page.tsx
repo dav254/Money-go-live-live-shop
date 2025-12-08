@@ -34,7 +34,7 @@ const tools = [
     title: "AI Video Enhancer",
     description: "Add music, text, and effects to make your product videos pop.",
     icon: Film,
-    href: "/dashboard/seller/ai-tools/text-to-video",
+    href: "/dashboard/seller/ai-tools/video-enhancer",
     cta: "Enhance Video",
     points: 250,
   },
