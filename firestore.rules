@@ -59,6 +59,10 @@ service cloud.firestore {
                       request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'commissionRate', 'updatedAt']);
 
+      // Allow admin to update commission rate
+      allow update: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commissionRate']);
+
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
@@ -92,11 +96,14 @@ service cloud.firestore {
     // Admins can list all orders.
     // Buyers can create orders.
     match /orders/{orderId} {
-      allow list: if request.auth != null && 
-                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow list: if request.auth != null && (
+          (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin') ||
+          (request.query.resource.resellerId == request.auth.uid)
+      );
       allow read: if request.auth != null && 
                      (resource.data.buyerId == request.auth.uid || 
                       resource.data.sellerId == request.auth.uid ||
+                      resource.data.resellerId == request.auth.uid ||
                       get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
@@ -256,6 +263,3 @@ service cloud.firestore {
     }
   }
 }
-    
-
-    

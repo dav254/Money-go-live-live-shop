@@ -392,3 +392,12 @@ export interface AIFraudAlert {
     timestamp: any;
     status: 'open' | 'investigating' | 'resolved' | 'dismissed';
 }
+
+export interface Transaction {
+  id: string;
+  date: Date;
+  type: 'purchase' | 'withdrawal' | 'refund';
+  description: string;
+  status: 'Completed' | 'Pending';
+  amount: number;
+}

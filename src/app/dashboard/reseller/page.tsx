@@ -12,20 +12,13 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart3, DollarSign, ExternalLink, Link as LinkIcon, TrendingUp } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TopPerformingProducts } from '@/components/reseller/top-performing-products'; // Import the new component
 
-// --- Static Placeholder Data ---
+// --- Static Placeholder Data (will be replaced by real data hooks) ---
 
-const isLoading = false; // Set to false since we are using static data
+const isLoading = false; // This will be driven by your data fetching hooks
 
 const earnings = {
   today: 75.50,
@@ -38,13 +31,6 @@ const stats = {
   clicks: 1843,
   conversions: 34,
 };
-
-const topProducts = [
-  { name: 'Classic Leather Handbag', clicks: 450, orders: 15, commission: 187.50 },
-  { name: 'Urban Explorer Sneakers', clicks: 312, orders: 8, commission: 96.00 },
-  { name: 'NextGen Smartphone', clicks: 250, orders: 3, commission: 36.00 },
-  { name: 'Chronograph Watch', clicks: 180, orders: 2, commission: 17.50 },
-];
 
 // --- Component Definitions ---
 
@@ -141,43 +127,7 @@ export default function ResellerDashboardPage() {
                 <CardTitle>Top Performing Products</CardTitle>
             </CardHeader>
             <CardContent>
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Clicks</TableHead>
-                        <TableHead>Orders</TableHead>
-                        <TableHead className="text-right">Commission Earned</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            [...Array(3)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-5 w-24" /></TableCell>
-                                </TableRow>
-                            ))
-                        ) : topProducts.length > 0 ? (
-                            topProducts.map((p) => (
-                            <TableRow key={p.name}>
-                                <TableCell className="font-medium">{p.name}</TableCell>
-                                <TableCell>{p.clicks}</TableCell>
-                                <TableCell>{p.orders}</TableCell>
-                                <TableCell className="text-right font-semibold text-green-500">${p.commission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                            </TableRow>
-                            ))
-                        ) : (
-                             <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                    No sales data found. Share some products to get started!
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                <TopPerformingProducts />
             </CardContent>
         </Card>
         

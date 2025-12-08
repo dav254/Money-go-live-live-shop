@@ -28,3 +28,4 @@
 
 # Vercel
 .vercel
+node_modules

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,14 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag, MoreVertical, Trash2 } from 'lucide-react';
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag, MoreVertical, Trash2, ArrowDownUp, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import type { PaymentMethod, Order } from '@/lib/types';
-import { collection, addDoc, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
+import type { PaymentMethod, Transaction } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -38,6 +37,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+// Dummy data for transactions - in a real app, this would be fetched from an API
+const dummyTransactions: Transaction[] = [
+    { id: '1', date: new Date(), type: 'purchase', description: 'Vintage Leather Jacket', status: 'Completed', amount: -120.00 },
+    { id: '2', date: new Date(), type: 'withdrawal', description: 'Withdrawal to Bank', status: 'Completed', amount: -500.00 },
+    { id: '3', date: new Date(), type: 'refund', description: 'Refund for damaged item', status: 'Completed', amount: 45.50 },
+    { id: '4', date: new Date(), type: 'purchase', description: 'Handmade Ceramic Mug', status: 'Pending', amount: -25.50 },
+];
+
 const cardFormSchema = z.object({
   cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
   expiry: z.string().regex(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, "Invalid expiry date. Use MM/YY format."),
@@ -46,7 +53,6 @@ const cardFormSchema = z.object({
 
 const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
     const { user } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
@@ -56,16 +62,11 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     });
 
     const handleSaveCard = async (values: z.infer<typeof cardFormSchema>) => {
-        if (!user || !firestore) return;
+        if (!user) return;
         setIsSaving(true);
         try {
-            const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-            await addDoc(paymentMethodsRef, {
-                type: 'card',
-                details: `Visa **** ${values.cardNumber.slice(-4)}`,
-                isDefault: false,
-                providerToken: `tok_${Math.random().toString(36).substring(2)}` // Dummy token
-            });
+            // In a real app, you would call your backend API to save the payment method
+            console.log("Saving card:", values);
             toast({ title: "Success", description: "Payment method saved." });
             onMethodAdded();
         } catch (error) {
@@ -77,15 +78,11 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     };
     
     const handleLinkPayPal = async () => {
-        if (!user || !firestore) return;
+        if (!user) return;
         setIsSaving(true);
          try {
-            const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-            await addDoc(paymentMethodsRef, {
-                type: 'paypal',
-                details: user.email, // Use user's email as placeholder
-                isDefault: false,
-            });
+            // In a real app, you would handle the PayPal linking flow
+            console.log("Linking PayPal");
             toast({ title: "Success", description: "PayPal linked successfully." });
             onMethodAdded();
         } catch (error) {
@@ -149,15 +146,17 @@ const TransactionTableSkeleton = () => (
         <TableHeader>
             <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Amount (USD)</TableHead>
             </TableRow>
         </TableHeader>
         <TableBody>
-            {[...Array(3)].map((_, i) => (
+            {[...Array(5)].map((_, i) => (
                 <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
@@ -167,52 +166,82 @@ const TransactionTableSkeleton = () => (
     </Table>
 );
 
+const getTransactionIcon = (type: Transaction['type']) => {
+    switch (type) {
+        case 'purchase': return <ShoppingBag className="h-4 w-4 text-blue-500" />;
+        case 'withdrawal': return <ArrowRight className="h-4 w-4 text-red-500" />;
+        case 'refund': return <ArrowDownUp className="h-4 w-4 text-green-500" />;
+        default: return <Wallet className="h-4 w-4" />;
+    }
+}
+
 
 export default function BuyerWalletPage() {
     const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+    const [isLoadingMethods, setIsLoadingMethods] = useState(true);
 
-    const paymentMethodsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-    }, [firestore, user]);
+    useEffect(() => {
+      const fetchTransactions = async () => {
+        try {
+          const response = await fetch('/api/transactions');
+          if (!response.ok) throw new Error('Failed to fetch transactions');
+          const data = await response.json();
+          setTransactions(data);
+        } catch (error) {
+          console.error(error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch transaction history.' });
+        }
+      };
 
-    const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
+      const fetchPaymentMethods = async () => {
+        setIsLoadingMethods(true);
+        try {
+          // In a real app, you would fetch payment methods from your API
+          // For now, we'll use dummy data
+          const dummyMethods: PaymentMethod[] = [
+            { id: '1', type: 'card', details: 'Visa **** 4242', isDefault: true },
+            { id: '2', type: 'paypal', details: 'user@example.com', isDefault: false },
+          ];
+          setPaymentMethods(dummyMethods);
+        } catch (error) {
+          console.error("Error fetching payment methods:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not load payment methods.' });
+        } finally {
+          setIsLoadingMethods(false);
+        }
+      };
 
-    const ordersQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(collection(firestore, 'orders'), where('buyerId', '==', user.uid));
-    }, [firestore, user]);
+      const loadData = async () => {
+        setIsLoading(true);
+        await Promise.all([fetchTransactions(), fetchPaymentMethods()]);
+        setIsLoading(false);
+      }
 
-    const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+      if(user) {
+        loadData();
+      }
+    }, [user, toast]);
 
-    const isLoading = isUserLoading || isLoadingMethods || isLoadingOrders;
 
-    const totalSpent = useMemo(() => {
-        if (!orders) return 0;
-        return orders
-            .filter(order => order.orderStatus === 'delivered')
-            .reduce((sum, order) => sum + order.totalAmount, 0);
-    }, [orders]);
+    const currentBalance = useMemo(() => {
+        return transactions.reduce((sum, t) => sum + t.amount, 0) + 2500; // Starting balance
+    }, [transactions]);
 
     const handleDeleteMethod = async (methodId: string) => {
-        if (!user || !firestore) return;
-        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
+        if (!user) return;
         try {
-            await deleteDoc(methodRef);
-            toast({
-                title: 'Success',
-                description: 'Payment method has been removed.',
-            });
+            // In a real app, call your backend to delete the method
+            console.log(`Deleting method ${methodId}`)
+            setPaymentMethods(prev => prev.filter(pm => pm.id !== methodId));
+            toast({ title: 'Success', description: 'Payment method has been removed.' });
         } catch (error) {
             console.error('Error deleting payment method:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not remove payment method. Please try again.',
-            });
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not remove payment method.' });
         }
     };
 
@@ -227,16 +256,16 @@ export default function BuyerWalletPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-primary">
-                                <ShoppingBag />
-                                Lifetime Purchase Value
+                                <Wallet />
+                                Current Balance
                             </CardTitle>
-                             <CardDescription>The total value of all your completed purchases.</CardDescription>
+                             <CardDescription>Your available GoFast wallet balance.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {isLoading ? (
                                 <Skeleton className="h-10 w-3/4" />
                             ) : (
-                                <p className="text-4xl font-bold">${totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                <p className="text-4xl font-bold">${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                             )}
                         </CardContent>
                     </Card>
@@ -257,9 +286,15 @@ export default function BuyerWalletPage() {
 
                 {/* Transaction History */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><History /> Purchase History</CardTitle>
-                        <CardDescription>A record of your recent purchases.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2"><History /> Transaction History</CardTitle>
+                        <CardDescription>A record of all your wallet activities.</CardDescription>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </Button>
                     </CardHeader>
                     <CardContent>
                         {isLoading ? <TransactionTableSkeleton /> : (
@@ -267,34 +302,41 @@ export default function BuyerWalletPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Date</TableHead>
-                                        <TableHead>Product</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Description</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Amount (USD)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {orders && orders.length > 0 ? orders.slice(0, 5).map(order => (
-                                        <TableRow key={order.id}>
-                                            <TableCell>{order.orderDate.toDate().toLocaleDateString()}</TableCell>
-                                            <TableCell>{order.productName}</TableCell>
+                                    {transactions && transactions.length > 0 ? transactions.map(t => (
+                                        <TableRow key={t.id}>
+                                            <TableCell>{t.date.toLocaleDateString()}</TableCell>
                                             <TableCell>
-                                                <Badge variant={order.orderStatus === 'delivered' ? 'default' : 'secondary'} className={order.orderStatus === 'delivered' ? 'bg-green-600/80' : ''}>
-                                                    {order.orderStatus}
+                                              <div className='flex items-center gap-2'>
+                                                {getTransactionIcon(t.type)}
+                                                <span className='capitalize'>{t.type}</span>
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>{t.description}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={t.status === 'Completed' ? 'default' : 'secondary'} className={t.status === 'Completed' ? 'bg-green-600/80' : ''}>
+                                                    {t.status}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right font-semibold">
-                                                ${order.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <TableCell className={`text-right font-semibold ${t.amount > 0 ? 'text-green-600' : 'text-slate-800'}`}>
+                                                {t.amount > 0 ? '+' : ''}${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </TableCell>
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="h-24 text-center">You have no purchase history yet.</TableCell>
+                                            <TableCell colSpan={5} className="h-24 text-center">You have no transactions yet.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         )}
-                         <Button variant="link" className="mt-4 px-0">View all purchases</Button>
+                         <Button variant="link" className="mt-4 px-0">View all transactions</Button>
                     </CardContent>
                 </Card>
             </div>

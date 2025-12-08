@@ -4,39 +4,83 @@ import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
-export const setAdminRole = functions.https.onCall(async (data, context) => {
-  // Check if the request is made by an authenticated user
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "You must be logged in to call this function."
-    );
-  }
+const db = admin.firestore();
 
-  // Check if the authenticated user is an admin
-  const callerUid = context.auth.uid;
-  const callerDoc = await admin.firestore().collection("userProfiles").doc(callerUid).get();
-  const callerData = callerDoc.data();
+/**
+ * Processes a new order to distribute earnings to the seller, reseller (if any),
+ * and the platform. It creates detailed transaction records for each party.
+ */
+export const processOrderAndDistributeEarnings = functions.firestore
+    .document("orders/{orderId}")
+    .onCreate(async (snap, context) => {
+      const orderData = snap.data();
+      const { orderId } = context.params;
 
-  if (callerData?.userRole !== "admin") {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "You do not have permission to perform this action."
-    );
-  }
+      // 1. Basic Validation
+      if (!orderData || !orderData.sellerId || !orderData.totalAmount) {
+        functions.logger.error("Order missing critical data", { orderId });
+        return null;
+      }
 
-  // Get the userId from the data object
-  const { userId } = data;
+      const { sellerId, resellerId, totalAmount } = orderData;
 
-  // Set the custom claim for the user
-  await admin.auth().setCustomUserClaims(userId, { admin: true });
+      try {
+        // 2. Fetch Product & User Details for Commission Rates
+        // Assuming a simple flat-rate for now. This can be expanded.
+        const platformFeeRate = 0.05; // 5% platform fee
+        const resellerCommissionRate = resellerId ? 0.10 : 0; // 10% if reseller exists
 
-  // Update the user's role in Firestore
-  await admin.firestore().collection("userProfiles").doc(userId).update({
-    userRole: "admin",
-  });
+        // 3. Calculate Earnings
+        const resellerCommission = totalAmount * resellerCommissionRate;
+        const platformFee = totalAmount * platformFeeRate;
+        const sellerEarnings = totalAmount - resellerCommission - platformFee;
 
-  return {
-    message: `Successfully made ${userId} an admin.`,
-  };
-});
+        const batch = db.batch();
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
+        // 4. Create Seller Transaction
+        const sellerTransactionRef = db.collection("walletTransactions").doc();
+        batch.set(sellerTransactionRef, {
+          userId: sellerId,
+          date: timestamp,
+          type: "SALE",
+          amount: sellerEarnings,
+          description: `Sale of order #${orderId}`,
+          sourceId: orderId,
+        });
+
+        // 5. Create Reseller Transaction (if applicable)
+        if (resellerId && resellerCommission > 0) {
+          const resellerTransactionRef = db.collection("walletTransactions").doc();
+          batch.set(resellerTransactionRef, {
+            userId: resellerId,
+            date: timestamp,
+            type: "COMMISSION",
+            amount: resellerCommission,
+            description: `Commission for order #${orderId}`,
+            sourceId: orderId,
+          });
+        }
+
+        // 6. Create Platform Fee Transaction
+        const platformTransactionRef = db.collection("walletTransactions").doc();
+        batch.set(platformTransactionRef, {
+          userId: "platform_revenue", // Special ID for platform earnings
+          date: timestamp,
+          type: "PLATFORM_FEE",
+          amount: platformFee,
+          description: `Platform fee for order #${orderId}`,
+          sourceId: orderId,
+        });
+
+        // 7. Commit all transactions at once
+        await batch.commit();
+
+        functions.logger.info(`Successfully processed earnings for order ${orderId}`);
+        return null;
+      } catch (error) {
+        functions.logger.error(`Error processing order ${orderId}:`, error);
+        // Optionally, add error handling like sending a notification
+        return null;
+      }
+    });

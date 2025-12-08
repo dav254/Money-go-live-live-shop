@@ -9,6 +9,7 @@ import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
 import { LogisticsTable } from '@/components/seller/logistics-table';
+import { AiRecordsTable } from '@/components/seller/ai-records-table';
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
@@ -25,6 +26,7 @@ function ProductsPageContent() {
             <TabsTrigger value="my-products">My Products</TabsTrigger>
             <TabsTrigger value="add-new">Add New</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
+            <TabsTrigger value="ai-records">AI Records</TabsTrigger>
             <TabsTrigger value="logistics">Logistics</TabsTrigger>
           </TabsList>
           <TabsContent value="my-products" className="space-y-4" forceMount={false}>
@@ -35,6 +37,9 @@ function ProductsPageContent() {
           </TabsContent>
           <TabsContent value="discounts" className="space-y-4" forceMount={false}>
              <DiscountedProductsTable />
+          </TabsContent>
+          <TabsContent value="ai-records" className="space-y-4" forceMount={false}>
+             <AiRecordsTable />
           </TabsContent>
            <TabsContent value="logistics" className="space-y-4" forceMount={false}>
              <LogisticsTable />
