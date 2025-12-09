@@ -17,7 +17,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
     return null;
   }
 
-  const imageUrl = product.image?.imageUrl || product.imageUrl || getPlaceholderImage();
+  const imageUrl = product.imageUrl || getPlaceholderImage();
 
   return (
     <div className="bg-black/50 p-3 rounded-lg shadow-lg backdrop-blur-md max-w-sm w-full mx-auto">
@@ -38,8 +38,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
                     <span>{product.rating?.toFixed(1) || 'N/A'} <Star className="h-3 w-3 inline-block -mt-1 text-yellow-400 fill-current"/></span>
                     <span className='text-neutral-500'>|</span>
                     <span className="font-semibold text-green-400">${product.price?.toFixed(2)}</span>
-                    {product.originalPrice && (
-                        <span className="text-neutral-400 line-through">${product.originalPrice.toFixed(2)}</span>
+                    {product.wasPrice && (
+                        <span className="text-neutral-400 line-through">${product.wasPrice.toFixed(2)}</span>
                     )}
                 </div>
             </div>

@@ -13,8 +13,9 @@ import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
-import { products } from '@/lib/placeholder-data';
 import { Video } from 'lucide-react';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, where } from 'firebase/firestore';
 
 interface Heart {
   id: number;
@@ -32,6 +33,7 @@ interface Banner {
 export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
+  const firestore = useFirestore();
   
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
@@ -39,22 +41,36 @@ export default function SellerRoom() {
   const heartsRef = useRef<Heart[]>([]);
   const [banner, setBanner] = useState<Banner | null>(null);
 
-  // Mock data instead of fetching from backend
-  const liveSession: LiveSession | null = {
-      id: 'mock-session-1',
-      sellerId: sellerId,
-      title: "Live Seller Demo",
-      status: 'live',
-      productIds: products.slice(0, 3).map(p => p.id),
-      viewerCount: 1234,
-      startTime: new Date().toISOString(),
-      pinnedProductId: products[0].id,
-  };
-  
-  const featuredProducts: Product[] = products.slice(0, 4);
-  const pinnedProduct: Product | undefined = products.find(p => p.id === liveSession?.pinnedProductId);
+  const liveSessionQuery = useMemoFirebase(() => {
+    if (!firestore || !sellerId) return null;
+    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'));
+  }, [firestore, sellerId]);
 
-  const isLoading = false; // No longer loading from backend
+  // For this simplified version, we assume a seller has only one live session at a time.
+  const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!liveSessionQuery) return;
+    const unsub = onSnapshot(liveSessionQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const sessionData = snapshot.docs[0].data() as LiveSession;
+        setLiveSession(sessionData);
+      } else {
+        setLiveSession(null);
+      }
+      setIsLoading(false);
+    });
+    return () => unsub();
+  }, [liveSessionQuery]);
+  
+
+  const pinnedProductRef = useMemoFirebase(() => {
+    if (!firestore || !liveSession?.pinnedProductId) return null;
+    return doc(firestore, 'products', liveSession.pinnedProductId);
+  }, [firestore, liveSession?.pinnedProductId]);
+
+  const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
 
   const addToCart = (product: Product) => {
     setCartItems(prev => [...prev, product]);
@@ -146,8 +162,8 @@ export default function SellerRoom() {
         </div>
 
         <div className="flex overflow-x-auto gap-2 p-2 bg-black border-b border-neutral-800">
-            {featuredProducts?.map(product => (
-                <LiveProductCard key={product.id} product={product} onAddToCart={addToCart} />
+            {liveSession?.productIds?.map(productId => (
+                <div key={productId}>TODO: Fetch and render product card</div>
             ))}
         </div>
 
