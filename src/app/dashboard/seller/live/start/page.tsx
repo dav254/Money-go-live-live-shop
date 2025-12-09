@@ -9,8 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
-import { FlipHorizontal, Users, Heart, Camera } from 'lucide-react';
+import { FlipHorizontal, Users, Heart, Camera, Gift, Zap, Loader2 } from 'lucide-react';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 const MOCK_PRODUCTS = [
   { id: "p1", name: "Summer Vibes T-Shirt", priceUSD: 15.0, img: "https://picsum.photos/seed/p1/320/240", stock: 12 },
@@ -18,8 +20,20 @@ const MOCK_PRODUCTS = [
   { id: "p3", name: "Classic Leather Watch", priceUSD: 75.0, img: "https://picsum.photos/seed/p3/320/240", stock: 8 },
 ];
 
+interface Heart {
+  id: number;
+  x: number;
+  y: number;
+}
+
+interface Banner {
+  id: number;
+  text: string;
+  type: 'deal' | 'giveaway';
+}
+
+
 export default function SellerLiveStudioPage() {
-  // camera & recording
   const videoRef = useRef<HTMLVideoElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -27,34 +41,36 @@ export default function SellerLiveStudioPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedURL, setRecordedURL] = useState<string | null>(null);
 
-  // products / pin
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [pinnedProduct, setPinnedProduct] = useState<(typeof MOCK_PRODUCTS[0]) | null>(null);
 
-  // chat (local mock)
   const [messages, setMessages] = useState([
     { id: 1, user: "Alice", text: "Is it available in M?" },
     { id: 2, user: "Bob", text: "Price?" },
   ]);
   const [chatInput, setChatInput] = useState("");
 
-  // business features
   const [resellerMode, setResellerMode] = useState(false);
   const [shippingCost, setShippingCost] = useState(3.5);
+  
+  // New states for interactive features
+  const [hearts, setHearts] = useState<Heart[]>([]);
+  const heartsRef = useRef<Heart[]>([]);
+  const [banner, setBanner] = useState<Banner | null>(null);
+  const [isDealModalOpen, setIsDealModalOpen] = useState(false);
+  const [isGiveawayModalOpen, setIsGiveawayModalOpen] = useState(false);
+  const [dealPercent, setDealPercent] = useState(20);
+  const [giveawayItem, setGiveawayItem] = useState("A Free T-Shirt!");
+  const { toast } = useToast();
 
-  // --- BUSINESS LOGIC & MOCKS ---
-
-  // Profit Preview Calculator
   function calcProfit(priceUSD: number) {
-    const platformFeePct = 0.05; // example 5%
+    const platformFeePct = 0.05; 
     const payoutFee = priceUSD * platformFeePct;
     const shipping = Number(shippingCost || 0);
-    const costOfGoods = priceUSD * 0.35; // assumed COGS
+    const costOfGoods = priceUSD * 0.35;
     const profit = priceUSD - payoutFee - shipping - costOfGoods;
     return { profit: Math.max(0, +profit.toFixed(2)), fee: +payoutFee.toFixed(2) };
   }
-
-  // --- MEDIA & RECORDING LOGIC ---
 
   async function startCamera(facingMode: 'user' | 'environment' = 'user') {
     try {
@@ -80,10 +96,8 @@ export default function SellerLiveStudioPage() {
     }
     const currentTrack = stream.getVideoTracks()[0];
     if (!currentTrack) return;
-
     const currentFacingMode = currentTrack.getSettings().facingMode;
     const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-    
     startCamera(newFacingMode);
   }
 
@@ -102,7 +116,6 @@ export default function SellerLiveStudioPage() {
         const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
         setRecordedURL(url);
-        // TODO: In a real app, upload blob to backend using a presigned URL
       };
       mr.start(250);
       setIsRecording(true);
@@ -120,7 +133,7 @@ export default function SellerLiveStudioPage() {
   }
 
   useEffect(() => {
-    startCamera(); // Automatically start camera on component mount
+    startCamera();
     return () => {
       stream?.getTracks().forEach(track => track.stop());
     };
@@ -131,8 +144,42 @@ export default function SellerLiveStudioPage() {
     if (!chatInput.trim()) return;
     setMessages(m => [...m, { id: Date.now(), user: "You (Seller)", text: chatInput }]);
     setChatInput("");
-    // TODO: In a real app, emit this message via a WebSocket
   }
+  
+  // --- New Interactive Feature Functions ---
+
+  const spawnHeart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const id = Date.now();
+    const newHeart = { id, x: e.clientX, y: e.clientY };
+    heartsRef.current = [...heartsRef.current, newHeart];
+    setHearts(heartsRef.current);
+
+    setTimeout(() => {
+      heartsRef.current = heartsRef.current.filter(h => h.id !== id);
+      setHearts(heartsRef.current);
+    }, 1200);
+  };
+  
+  const showBanner = (text: string, type: 'deal' | 'giveaway') => {
+      const id = Date.now();
+      setBanner({ id, text, type });
+      setTimeout(() => {
+          setBanner(prev => (prev?.id === id ? null : prev));
+      }, 5000); // Banner disappears after 5 seconds
+  };
+  
+  const handleStartFlashDeal = () => {
+      showBanner(`⚡️ FLASH SALE: ${dealPercent}% OFF! ⚡️`, 'deal');
+      setIsDealModalOpen(false);
+      toast({ title: "Flash Deal Started!", description: "A simulated banner is now showing on your preview." });
+  };
+
+  const handleStartGiveaway = () => {
+      showBanner(`🎉 GIVEAWAY: ${giveawayItem} 🎉`, 'giveaway');
+      setIsGiveawayModalOpen(false);
+      toast({ title: "Giveaway Announced!", description: "A simulated announcement is now showing on your preview." });
+  };
+
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground">
@@ -140,6 +187,25 @@ export default function SellerLiveStudioPage() {
         {/* Left Column: Preview & Controls */}
         <div className="col-span-12 lg:col-span-8 space-y-4">
           <div className="relative bg-black rounded-lg border border-border overflow-hidden aspect-video">
+             {/* Hearts Animation Container */}
+            <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
+                {hearts.map(h => (
+                <span key={h.id} style={{ left: h.x - 16, top: h.y - 40 }} className="absolute animate-pop text-2xl">❤️</span>
+                ))}
+            </div>
+
+            {/* Banner Overlay */}
+             {banner && (
+              <div
+                key={banner.id}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 animate-in fade-in zoom-in-95"
+              >
+                <div className={`text-2xl md:text-4xl font-extrabold p-4 rounded-lg text-center shadow-2xl ${banner.type === 'deal' ? 'bg-yellow-400 text-black' : 'bg-pink-500 text-white'}`}>
+                  {banner.text}
+                </div>
+              </div>
+            )}
+
             <video
               id="studio-preview"
               ref={videoRef}
@@ -202,8 +268,37 @@ export default function SellerLiveStudioPage() {
                 </div>
               </CardContent>
             </Card>
-            <div className="bg-card/50 p-4 rounded-lg flex-1 flex flex-col">
-                <LiveActivityFeed />
+             <div className="bg-card/50 p-4 rounded-lg">
+                <h3 className="font-semibold text-base mb-2">Quick Tools & Rehearsal</h3>
+                <div className="flex flex-col gap-2">
+                    <Dialog open={isDealModalOpen} onOpenChange={setIsDealModalOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline"><Zap className="mr-2 h-4 w-4 text-yellow-400"/> Start Flash Deal</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader><DialogTitle>Simulate a Flash Deal</DialogTitle></DialogHeader>
+                            <div className="py-4 space-y-2">
+                                <Label>Discount Percentage</Label>
+                                <Input type="number" value={dealPercent} onChange={e => setDealPercent(Number(e.target.value))} />
+                            </div>
+                            <DialogFooter><Button onClick={handleStartFlashDeal}>Show Banner</Button></DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                     <Dialog open={isGiveawayModalOpen} onOpenChange={setIsGiveawayModalOpen}>
+                        <DialogTrigger asChild>
+                             <Button variant="outline"><Gift className="mr-2 h-4 w-4 text-pink-400"/> Create Giveaway</Button>
+                        </DialogTrigger>
+                         <DialogContent>
+                            <DialogHeader><DialogTitle>Simulate a Giveaway</DialogTitle></DialogHeader>
+                            <div className="py-4 space-y-2">
+                                <Label>Prize</Label>
+                                <Input value={giveawayItem} onChange={e => setGiveawayItem(e.target.value)} />
+                            </div>
+                            <DialogFooter><Button onClick={handleStartGiveaway}>Show Banner</Button></DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" onClick={spawnHeart}><Heart className="mr-2 h-4 w-4 text-red-400"/> Simulate Reactions</Button>
+                </div>
             </div>
           </div>
         </div>
