@@ -13,6 +13,7 @@ import { collection, doc, query, where } from "firebase/firestore";
 import type { LiveSession, Product, SellerShop, UserProfile } from "@/lib/types";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import MuxPlayer from '@mux/mux-player-react';
 
 export default function SellerRoom() {
   const params = useParams();
@@ -28,8 +29,7 @@ export default function SellerRoom() {
     return query(
       collection(firestore, 'liveSessions'),
       where('sellerId', '==', sellerId),
-      where('status', '==', 'live'),
-      where('endTime', '==', null)
+      where('status', '==', 'live')
     );
   }, [firestore, sellerId]);
 
@@ -45,8 +45,8 @@ export default function SellerRoom() {
 
   // Fetch the products featured in the live session
   const featuredProductsQuery = useMemoFirebase(() => {
-    if (!liveSession || liveSession.productIds.length === 0) return null;
-    return query(collection(firestore, 'products'), where('id', 'in', liveSession.productIds));
+    if (!liveSession || !liveSession.productIds || liveSession.productIds.length === 0) return null;
+    return query(collection(firestore, 'products'), where('__name__', 'in', liveSession.productIds));
   }, [firestore, liveSession]);
 
   const { data: featuredProducts, isLoading: areProductsLoading } = useCollection<Product>(featuredProductsQuery);
@@ -96,7 +96,16 @@ export default function SellerRoom() {
 
         {/* LIVE VIDEO AREA */}
         <div className="h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-            <p className="text-neutral-400">🔴 Live Stream Video Placeholder</p>
+            {liveSession.muxPlaybackId ? (
+                <MuxPlayer
+                    playbackId={liveSession.muxPlaybackId}
+                    streamType="live"
+                    autoPlay
+                    muted
+                />
+            ) : (
+                <p className="text-neutral-400">🔴 Live Stream Video Placeholder</p>
+            )}
         </div>
 
         {/* SELLER INFO */}
@@ -127,4 +136,3 @@ export default function SellerRoom() {
     </BuyerLayout>
   );
 }
-

@@ -17,8 +17,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@
 import type { LiveSession, Product, ChatMessage } from '@/lib/types';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import Mux from '@mux/mux-node';
-import { getAuth } from 'firebase/auth';
+import MuxPlayer from '@mux/mux-player-react';
 
 
 const LiveChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
@@ -69,12 +68,6 @@ const LiveChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
     )
 }
 
-const MOCK_PRODUCTS = [
-  { id: "p1", name: "Summer Vibes T-Shirt", price: 15.0, imageUrl: "https://picsum.photos/seed/p1/320/240", stock: 12 },
-  { id: "p2", name: "Handmade Woven Bag", price: 24.5, imageUrl: "https://picsum.photos/seed/p2/320/240", stock: 5 },
-  { id: "p3", name: "Classic Leather Watch", price: 75.0, imageUrl: "https://picsum.photos/seed/p3/320/240", stock: 8 },
-];
-
 interface Heart {
   id: number;
   x: number;
@@ -96,6 +89,7 @@ export default function SellerLiveStudioPage() {
   
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isLive, setIsLive] = useState(false);
+  const [isStartingStream, setIsStartingStream] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
   
   const productsQuery = useMemoFirebase(() => {
@@ -149,30 +143,47 @@ export default function SellerLiveStudioPage() {
       toast({ variant: 'destructive', title: 'You must be logged in to go live.' });
       return;
     }
+    setIsStartingStream(true);
     
-    // In a real app, we'd get this from Mux or another service via an API route.
-    const mockStreamDetails = {
-      streamKey: 'mock_stream_key_' + Date.now(),
-      playbackId: 'mock_playback_id_' + Date.now(),
-    };
-    
-    const newSessionRef = doc(collection(firestore, 'liveSessions'));
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/mux', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-    await setDoc(newSessionRef, {
-      id: newSessionRef.id,
-      sellerId: user.uid,
-      title: `${user.displayName}'s Live Show`,
-      status: 'live',
-      productIds: [],
-      viewerCount: 0,
-      startTime: serverTimestamp(),
-      muxStreamKey: mockStreamDetails.streamKey,
-      muxPlaybackId: mockStreamDetails.playbackId,
-    });
-    
-    setLiveSessionId(newSessionRef.id);
-    setIsLive(true);
-    toast({ title: "You are now live!", description: "Your stream is visible to buyers." });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create live stream.');
+      }
+      
+      const { streamId, streamKey, playbackId } = await response.json();
+
+      const newSessionRef = doc(collection(firestore, 'liveSessions'));
+
+      await setDoc(newSessionRef, {
+        id: newSessionRef.id,
+        sellerId: user.uid,
+        title: `${user.displayName || 'Seller'}'s Live Show`,
+        status: 'live',
+        productIds: [],
+        viewerCount: 0,
+        startTime: serverTimestamp(),
+        muxStreamId: streamId,
+        muxStreamKey: streamKey,
+        muxPlaybackId: playbackId,
+      });
+      
+      setLiveSessionId(newSessionRef.id);
+      setIsLive(true);
+      toast({ title: "You are now live!", description: "Your stream is visible to buyers." });
+
+    } catch (error: any) {
+      console.error("Error going live:", error);
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+        setIsStartingStream(false);
+    }
   };
   
   const handleEndLive = async () => {
@@ -300,7 +311,10 @@ export default function SellerLiveStudioPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={startCamera} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
                 {!isLive ? (
-                  <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold">Go Live</Button>
+                  <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold" disabled={isStartingStream}>
+                    {isStartingStream && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Go Live
+                  </Button>
                 ) : (
                   <Button onClick={handleEndLive} variant="destructive">End Live</Button>
                 )}
