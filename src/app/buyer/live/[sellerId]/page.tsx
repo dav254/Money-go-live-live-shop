@@ -5,17 +5,18 @@ import { BuyerLayout } from "@/components/layout/buyer-layout";
 import { LiveChat } from "@/components/buyer/LiveChat";
 import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
-import { PaymentModal } from "@/components/buyer/PaymentModal";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect, useRef } from "react";
-import type { Product, ChatMessage, LiveSession } from "@/lib/types";
-import { useParams } from "next/navigation";
+import type { Product, ChatMessage, LiveSession, Order } from "@/lib/types";
+import { useParams, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
 import { Video } from 'lucide-react';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
+import { doc, collection, query, where, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 interface Heart {
   id: number;
@@ -34,8 +35,10 @@ export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
   const firestore = useFirestore();
+  const { user } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
   
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
@@ -46,7 +49,6 @@ export default function SellerRoom() {
     return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'));
   }, [firestore, sellerId]);
 
-  // For this simplified version, we assume a seller has only one live session at a time.
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,6 +61,9 @@ export default function SellerRoom() {
       } else {
         setLiveSession(null);
       }
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching live session:", error);
       setIsLoading(false);
     });
     return () => unsub();
@@ -74,8 +79,58 @@ export default function SellerRoom() {
 
   const addToCart = (product: Product) => {
     setCartItems(prev => [...prev, product]);
+    toast({ title: 'Added to Cart', description: `${product.name} has been added.` });
   };
   
+  const handleCheckout = async () => {
+    if (!user) {
+        toast({ title: "Please log in", description: "You must be logged in to check out." });
+        router.push('/login');
+        return;
+    }
+    if (cartItems.length === 0) {
+        toast({ variant: 'destructive', title: "Your cart is empty." });
+        return;
+    }
+
+    // Simplified: create one order per seller from the cart.
+    // A real app might group items by seller.
+    const firstItem = cartItems[0];
+    const newOrderRef = doc(collection(firestore, 'orders'));
+
+    const totalAmount = cartItems.reduce((sum, item) => sum + item.price, 0);
+    const shippingCost = firstItem.shippingCost || 0;
+
+    const newOrderData: Partial<Order> = {
+      id: newOrderRef.id,
+      buyerId: user.uid,
+      sellerId: firstItem.sellerId,
+      productId: firstItem.id, // Simplified for now
+      productName: firstItem.name,
+      productImage: firstItem.imageUrl,
+      productPrice: firstItem.price,
+      shippingCost: shippingCost,
+      totalAmount: totalAmount + shippingCost, // Recalculate total server-side ideally
+      orderDate: serverTimestamp() as any,
+      shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+      orderStatus: 'pending',
+      paymentMethod: 'pending',
+      quantity: cartItems.length, // Simple quantity for now
+    };
+
+    try {
+        await setDoc(newOrderRef, newOrderData);
+        toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+        router.push(`/checkout/${newOrderRef.id}`);
+    } catch (error) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: newOrderRef.path,
+            operation: 'create',
+            requestResourceData: newOrderData,
+        }));
+    }
+  };
+
   const spawnHeart = () => {
     const x = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
     const y = window.innerHeight * 0.8;
@@ -169,10 +224,8 @@ export default function SellerRoom() {
 
         <div className="flex flex-1 overflow-hidden">
             <LiveChat liveSessionId={liveSession?.id || null} />
-            <CartDrawer cartItems={cartItems} onCheckout={() => setIsPaymentModalOpen(true)} />
+            <CartDrawer cartItems={cartItems} onCheckout={handleCheckout} />
         </div>
-
-        <PaymentModal isOpen={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen} />
         </div>
     </BuyerLayout>
   );
