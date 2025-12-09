@@ -17,7 +17,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@
 import type { LiveSession, Product, ChatMessage } from '@/lib/types';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import MuxPlayer from '@mux/mux-player-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 
 const LiveChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
@@ -88,6 +88,7 @@ export default function SellerLiveStudioPage() {
   const { toast } = useToast();
   
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [isStartingStream, setIsStartingStream] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
@@ -116,13 +117,19 @@ export default function SellerLiveStudioPage() {
       }
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true });
       setStream(s);
+      setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = s;
         await videoRef.current.play().catch(() => {});
       }
     } catch (err) {
       console.error("Camera error", err);
-      alert("Cannot access camera. Please allow camera/microphone permissions in your browser settings.");
+      setHasCameraPermission(false);
+      toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings.',
+      });
     }
   }
 
@@ -146,19 +153,6 @@ export default function SellerLiveStudioPage() {
     setIsStartingStream(true);
     
     try {
-      const token = await user.getIdToken();
-      const response = await fetch('/api/mux', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create live stream.');
-      }
-      
-      const { streamId, streamKey, playbackId } = await response.json();
-
       const newSessionRef = doc(collection(firestore, 'liveSessions'));
 
       await setDoc(newSessionRef, {
@@ -169,9 +163,6 @@ export default function SellerLiveStudioPage() {
         productIds: [],
         viewerCount: 0,
         startTime: serverTimestamp(),
-        muxStreamId: streamId,
-        muxStreamKey: streamKey,
-        muxPlaybackId: playbackId,
       });
       
       setLiveSessionId(newSessionRef.id);
@@ -285,6 +276,16 @@ export default function SellerLiveStudioPage() {
               muted
               playsInline
             />
+            {!hasCameraPermission && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                    <Alert variant="destructive" className="max-w-sm">
+                        <AlertTitle>Camera Access Required</AlertTitle>
+                        <AlertDescription>
+                            Please allow camera access to use this feature.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            )}
             {pinnedProduct && (
               <div className="absolute left-4 bottom-4 bg-black/70 border border-primary p-3 rounded-xl max-w-xs animate-in fade-in zoom-in-95">
                 <div className="flex gap-3">
@@ -309,7 +310,7 @@ export default function SellerLiveStudioPage() {
           <Card className="bg-card/50">
             <CardContent className="p-3 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
-                <Button onClick={startCamera} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
+                <Button onClick={() => startCamera()} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
                 {!isLive ? (
                   <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold" disabled={isStartingStream}>
                     {isStartingStream && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

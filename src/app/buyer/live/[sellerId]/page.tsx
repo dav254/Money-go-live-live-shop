@@ -7,18 +7,23 @@ import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { PaymentModal } from "@/components/buyer/PaymentModal";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
 import type { LiveSession, Product, SellerShop, UserProfile } from "@/lib/types";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import MuxPlayer from '@mux/mux-player-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
@@ -52,6 +57,29 @@ export default function SellerRoom() {
   const { data: featuredProducts, isLoading: areProductsLoading } = useCollection<Product>(featuredProductsQuery);
 
   const isLoading = isSessionLoading || isShopLoading || isProfileLoading || areProductsLoading;
+
+  useEffect(() => {
+    const getCameraPermission = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings to see the video preview.',
+        });
+      }
+    };
+
+    getCameraPermission();
+  }, [toast]);
 
   const addToCart = (product: Product) => {
     setCartItems(prev => [...prev, product]);
@@ -96,15 +124,14 @@ export default function SellerRoom() {
 
         {/* LIVE VIDEO AREA */}
         <div className="h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-            {liveSession.muxPlaybackId ? (
-                <MuxPlayer
-                    playbackId={liveSession.muxPlaybackId}
-                    streamType="live"
-                    autoPlay
-                    muted
-                />
-            ) : (
-                <p className="text-neutral-400">🔴 Live Stream Video Placeholder</p>
+             <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+            {!hasCameraPermission && (
+                <Alert variant="destructive" className="absolute">
+                    <AlertTitle>Camera Access Required</AlertTitle>
+                    <AlertDescription>
+                        Please allow camera access to see the live stream preview.
+                    </AlertDescription>
+                </Alert>
             )}
         </div>
 
