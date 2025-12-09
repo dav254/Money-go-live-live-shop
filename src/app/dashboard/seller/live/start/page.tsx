@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
-import { FlipHorizontal, Users, Heart } from 'lucide-react';
+import { FlipHorizontal, Users, Heart, Camera } from 'lucide-react';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 
 const MOCK_PRODUCTS = [
@@ -27,18 +27,9 @@ export default function SellerLiveStudioPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedURL, setRecordedURL] = useState<string | null>(null);
 
-  // editor / trim
-  const [trimStart, setTrimStart] = useState(0);
-  const [trimEnd, setTrimEnd] = useState<number | null>(null);
-
   // products / pin
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [pinnedProduct, setPinnedProduct] = useState<(typeof MOCK_PRODUCTS[0]) | null>(null);
-
-  // live & metrics
-  const [isLive, setIsLive] = useState(false);
-  const [viewerCount, setViewerCount] = useState(0);
-  const [likes, setLikes] = useState(0);
 
   // chat (local mock)
   const [messages, setMessages] = useState([
@@ -135,31 +126,6 @@ export default function SellerLiveStudioPage() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // --- LIVE SIMULATION LOGIC ---
-
-  function goLive() {
-    // TODO: Integrate with backend streaming service (RTMP/WebRTC)
-    setIsLive(true);
-    setViewerCount(1);
-  }
-
-  function endLive() {
-    // TODO: Send end signal to streaming server
-    setIsLive(false);
-    setViewerCount(0);
-    setPinnedProduct(null);
-  }
-
-  useEffect(() => {
-    if (!isLive) return;
-    const viewerInterval = setInterval(() => setViewerCount(v => v + Math.floor(Math.random() * 3)), 1500);
-    const likeInterval = setInterval(() => setLikes(l => l + Math.floor(Math.random() * 2)), 3000);
-    return () => {
-      clearInterval(viewerInterval);
-      clearInterval(likeInterval);
-    };
-  }, [isLive]);
   
   function sendChat() {
     if (!chatInput.trim()) return;
@@ -179,7 +145,7 @@ export default function SellerLiveStudioPage() {
               ref={videoRef}
               className="w-full h-full object-cover"
               autoPlay
-              muted={!isLive}
+              muted
               playsInline
             />
             {pinnedProduct && (
@@ -195,9 +161,7 @@ export default function SellerLiveStudioPage() {
               </div>
             )}
             <div className="absolute top-3 left-3 flex gap-2">
-              <div className={`px-2 py-1 rounded text-xs font-semibold ${isLive ? 'bg-red-600' : 'bg-muted'}`}>{isLive ? 'LIVE' : 'PREVIEW'}</div>
-              <div className="bg-black/60 px-2 py-1 rounded text-xs flex items-center gap-1"><Users size={12}/> {viewerCount}</div>
-              <div className="bg-black/60 px-2 py-1 rounded text-xs flex items-center gap-1"><Heart size={12}/> {likes}</div>
+              <div className="px-2 py-1 rounded text-xs font-semibold bg-muted">PREVIEW</div>
             </div>
             <div className="absolute top-3 right-3">
                 <Button variant="ghost" size="icon" className="bg-black/50" onClick={switchCamera}><FlipHorizontal size={18}/></Button>
@@ -207,17 +171,15 @@ export default function SellerLiveStudioPage() {
           <Card className="bg-card/50">
             <CardContent className="p-3 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Button onClick={startCamera} variant="secondary">Start Camera</Button>
+                <Button onClick={startCamera} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
                 {!isRecording ? (
-                  <Button onClick={startRecording} variant="secondary">Start Recording</Button>
+                  <Button onClick={startRecording} className="bg-red-600 hover:bg-red-700 font-bold">Start Recording</Button>
                 ) : (
                   <Button onClick={stopRecording} variant="destructive">Stop Recording</Button>
                 )}
-                 <Button onClick={() => recordedURL && window.open(recordedURL)} variant="secondary" disabled={!recordedURL}>Preview Last Recording</Button>
+                 <Button onClick={() => recordedURL && window.open(recordedURL)} variant="outline" disabled={!recordedURL}>Preview Last Recording</Button>
               </div>
-              <div className="flex items-center gap-2">
-                {!isLive ? <Button onClick={goLive} className="bg-red-600 hover:bg-red-700 font-bold">Go Live</Button> : <Button onClick={endLive} variant="outline" className="font-bold">End Live</Button>}
-              </div>
+              <Button disabled>Schedule Premiere...</Button>
             </CardContent>
           </Card>
           
@@ -270,7 +232,7 @@ export default function SellerLiveStudioPage() {
           </Card>
 
           <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px]">
-            <CardHeader><CardTitle className="text-base">Live Chat</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Live Chat (Simulation)</CardTitle></CardHeader>
             <CardContent className="flex-1 flex flex-col gap-2">
                 <ScrollArea className="flex-1 bg-background/50 p-2 rounded">
                     <div className="space-y-3">
@@ -283,7 +245,7 @@ export default function SellerLiveStudioPage() {
                     </div>
                 </ScrollArea>
                 <form onSubmit={(e) => { e.preventDefault(); sendChat(); }} className="flex gap-2">
-                    <Input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Chat with viewers..." />
+                    <Input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Simulate a chat message..." />
                     <Button type="submit">Send</Button>
                 </form>
             </CardContent>
