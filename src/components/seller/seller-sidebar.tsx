@@ -45,7 +45,7 @@ export function SellerSidebar() {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Store</SidebarGroupLabel>
+        <SidebarGroupLabel>Store Management</SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -75,20 +75,6 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/messages')}>
-              <Link href="/dashboard/seller/messages">
-                <MessageSquare />
-                <span>Messages</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroup>
-
-      <SidebarGroup>
-        <SidebarGroupLabel>Management</SidebarGroupLabel>
-        <SidebarMenu>
            <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/analytics')}>
               <Link href="/dashboard/seller/analytics">
@@ -97,19 +83,11 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
-              <Link href="/dashboard/seller/reseller">
-                <Users />
-                <span>Reseller Center</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/wallet')}>
-              <Link href="/dashboard/seller/wallet">
-                <Wallet />
-                <span>Wallet</span>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/messages')}>
+              <Link href="/dashboard/seller/messages">
+                <MessageSquare />
+                <span>Messages</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -128,26 +106,10 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live')}>
-              <Link href="/dashboard/seller/live">
-                <Video />
-                <span>Videos</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/studio/recordings')}>
-              <Link href="/dashboard/seller/studio/recordings">
-                <FolderKanban />
-                <span>My Recordings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ads')}>
-              <Link href="/dashboard/seller/ads">
-                <Megaphone />
-                <span>Ads Manager</span>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
+              <Link href="/dashboard/seller/reseller">
+                <Users />
+                <span>Reseller Center</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
