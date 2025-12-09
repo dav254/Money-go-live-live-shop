@@ -14,9 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, orderBy } from 'firebase/firestore';
+import { doc, collection, query, orderBy, where } from 'firebase/firestore';
 import Image from "next/image";
-import MuxPlayer from "@mux/mux-player-react";
 
 interface Heart {
   id: number;
@@ -43,7 +42,7 @@ export default function SellerRoom() {
   const [banner, setBanner] = useState<Banner | null>(null);
 
   const liveSessionQuery = useMemoFirebase(() => {
-    if (!sellerId) return null;
+    if (!sellerId || !firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'));
   }, [firestore, sellerId]);
 
@@ -51,7 +50,7 @@ export default function SellerRoom() {
   const liveSession = liveSessions?.[0];
 
   const liveEventsQuery = useMemoFirebase(() => {
-      if(!liveSession?.id) return null;
+      if(!liveSession?.id || !firestore) return null;
       return query(collection(firestore, 'liveSessions', liveSession.id, 'events'), orderBy('timestamp', 'desc'));
   }, [firestore, liveSession]);
 
@@ -72,17 +71,17 @@ export default function SellerRoom() {
 
 
   const pinnedProductQuery = useMemoFirebase(() => {
-      if (!liveSession?.pinnedProductId) return null;
+      if (!liveSession?.pinnedProductId || !firestore) return null;
       return doc(firestore, 'products', liveSession.pinnedProductId);
   }, [firestore, liveSession]);
 
   const { data: pinnedProduct, isLoading: isLoadingPinned } = useDoc<Product>(pinnedProductQuery);
   
-  const productIds = liveSession?.productIds || [];
+  const productIds = useMemo(() => liveSession?.productIds || [], [liveSession]);
   const productsQuery = useMemoFirebase(() => {
-    if (productIds.length === 0) return null;
-    return query(collection(firestore, 'products'), where('id', 'in', productIds));
-  }, [productIds]);
+    if (productIds.length === 0 || !firestore) return null;
+    return query(collection(firestore, 'products'), where('__name__', 'in', productIds));
+  }, [productIds, firestore]);
 
   const { data: featuredProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
 
@@ -168,17 +167,13 @@ export default function SellerRoom() {
         )}
 
         <div className="relative h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-             {liveSession.muxPlaybackId ? (
-                <MuxPlayer playbackId={liveSession.muxPlaybackId} streamType="live" autoPlay muted />
-            ) : (
-                <Image
-                    src="https://picsum.photos/seed/live-stream/1280/720"
-                    alt="Live stream placeholder"
-                    fill
-                    className="object-cover"
-                    data-ai-hint="live stream"
-                />
-            )}
+            <Image
+                src="https://picsum.photos/seed/live-stream/1280/720"
+                alt="Live stream placeholder"
+                fill
+                className="object-cover"
+                data-ai-hint="live stream"
+            />
             <div className="absolute inset-0 bg-black/20" />
             {pinnedProduct && (
                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
@@ -211,4 +206,3 @@ export default function SellerRoom() {
     </BuyerLayout>
   );
 }
-
