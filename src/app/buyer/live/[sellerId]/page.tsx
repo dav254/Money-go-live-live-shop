@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
 import { Video } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where } from 'firebase/firestore';
+import { doc, collection, query, where, onSnapshot } from 'firebase/firestore';
 
 interface Heart {
   id: number;
@@ -55,7 +55,7 @@ export default function SellerRoom() {
     const unsub = onSnapshot(liveSessionQuery, (snapshot) => {
       if (!snapshot.empty) {
         const sessionData = snapshot.docs[0].data() as LiveSession;
-        setLiveSession(sessionData);
+        setLiveSession({ id: snapshot.docs[0].id, ...sessionData });
       } else {
         setLiveSession(null);
       }
