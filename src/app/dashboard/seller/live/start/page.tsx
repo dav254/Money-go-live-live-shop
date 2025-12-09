@@ -14,26 +14,81 @@ import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import type { LiveSession, Product, ChatMessage } from '@/lib/types';
-import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import type { LiveSession, Product, ChatMessage, Chat, UserProfile } from '@/lib/types';
+import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc, onSnapshot, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
-  const [selectedBuyer, setSelectedBuyer] = useState("John");
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [text, setText] = useState("");
+  
+  const chatsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid), orderBy('lastMessageTimestamp', 'desc'));
+  }, [user, firestore]);
 
-  const buyers = ["John", "Mary", "David", "Aisha"];
+  const { data: chats, isLoading: isLoadingChats } = useCollection<Chat>(chatsQuery);
 
-  const chats = {
-    John: ["Hi seller", "How much is it?"],
-    Mary: ["Is it still available?"],
-    David: [],
-    Aisha: ["Can you ship to Mombasa?"]
+  const participantIds = useMemo(() => {
+    if (!chats) return [];
+    const ids = new Set<string>();
+    chats.forEach(chat => {
+      chat.participantIds.forEach(id => {
+        if (id !== user?.uid) ids.add(id);
+      });
+    });
+    return Array.from(ids);
+  }, [chats, user]);
+
+  const [participants, setParticipants] = useState<Map<string, UserProfile>>(new Map());
+
+  useEffect(() => {
+    if (participantIds.length > 0 && firestore) {
+      const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', participantIds));
+      getDocs(usersQuery).then(snapshot => {
+        const newParticipants = new Map<string, UserProfile>();
+        snapshot.forEach(doc => {
+          newParticipants.set(doc.id, doc.data() as UserProfile);
+        });
+        setParticipants(newParticipants);
+      });
+    }
+  }, [participantIds, firestore]);
+  
+  const messagesQuery = useMemoFirebase(() => {
+    if (!selectedChat) return null;
+    return query(collection(firestore, 'chats', selectedChat.id, 'messages'), orderBy('timestamp', 'asc'));
+  }, [firestore, selectedChat]);
+
+  const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
+  
+  const handleSendMessage = async () => {
+    if (!text.trim() || !selectedChat || !user) return;
+    
+    const messagesRef = collection(firestore, 'chats', selectedChat.id, 'messages');
+    await addDoc(messagesRef, {
+      senderId: user.uid,
+      messageText: text,
+      messageType: 'text',
+      timestamp: serverTimestamp(),
+    });
+
+    const chatRef = doc(firestore, 'chats', selectedChat.id);
+    await updateDoc(chatRef, {
+        lastMessage: text,
+        lastMessageTimestamp: serverTimestamp(),
+    });
+    
+    setText("");
   };
+
+  const selectedParticipant = selectedChat ? participants.get(selectedChat.participantIds.find(id => id !== user?.uid) || '') : null;
 
   return (
     <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px] p-0">
@@ -41,55 +96,62 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
           {/* Buyer List */}
           <div className="w-1/3 bg-neutral-900/50 p-3 border-r border-neutral-800 overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Buyers</h2>
-            {buyers.map((name) => (
-              <div
-                key={name}
-                onClick={() => setSelectedBuyer(name)}
-                className={`p-2 rounded cursor-pointer mb-1 text-sm flex items-center gap-2 ${
-                  selectedBuyer === name ? "bg-primary" : "bg-neutral-800 hover:bg-neutral-700"
-                }`}
-              >
-                <Avatar className="h-6 w-6"><AvatarFallback>{name.charAt(0)}</AvatarFallback></Avatar>
-                <span>{name}</span>
-              </div>
-            ))}
+            {isLoadingChats ? <p className="text-sm text-muted-foreground">Loading chats...</p> : 
+            (chats || []).map((chat) => {
+              const participant = participants.get(chat.participantIds.find(id => id !== user?.uid) || '');
+              if (!participant) return null;
+
+              return (
+                <div
+                  key={chat.id}
+                  onClick={() => setSelectedChat(chat)}
+                  className={`p-2 rounded cursor-pointer mb-1 text-sm flex items-center gap-2 ${
+                    selectedChat?.id === chat.id ? "bg-primary" : "bg-neutral-800 hover:bg-neutral-700"
+                  }`}
+                >
+                  <Avatar className="h-6 w-6"><AvatarImage src={participant.profilePictureUrl} /><AvatarFallback>{participant.fullName.charAt(0)}</AvatarFallback></Avatar>
+                  <span>{participant.fullName}</span>
+                </div>
+              );
+            })}
           </div>
 
           {/* Chat Window */}
           <div className="flex-1 flex flex-col">
-            {/* Header */}
-            <div className="p-3 border-b border-neutral-800 font-bold text-sm">
-              Chat with {selectedBuyer}
-            </div>
-            {/* Messages */}
-            <ScrollArea className="flex-1">
-                <div className="p-4 space-y-3">
-                {(chats[selectedBuyer as keyof typeof chats] || []).map((msg, i) => (
-                    <div key={i} className="bg-neutral-800 p-2 rounded-lg text-sm w-fit">
-                    <span className="font-bold text-muted-foreground mr-2">{selectedBuyer}:</span>{msg}
-                    </div>
-                ))}
+            {selectedChat && selectedParticipant ? (
+              <>
+                {/* Header */}
+                <div className="p-3 border-b border-neutral-800 font-bold text-sm">
+                  Chat with {selectedParticipant.fullName}
                 </div>
-            </ScrollArea>
+                {/* Messages */}
+                <ScrollArea className="flex-1">
+                    <div className="p-4 space-y-3">
+                      {isLoadingMessages ? <p>Loading...</p> :
+                      (messages || []).map((msg, i) => (
+                          <div key={i} className={cn("p-2 rounded-lg text-sm w-fit", msg.senderId === user?.uid ? "bg-primary ml-auto" : "bg-neutral-800")}>
+                              {msg.messageText}
+                          </div>
+                      ))}
+                    </div>
+                </ScrollArea>
 
-            {/* Input */}
-            <div className="p-3 flex gap-2 border-t border-neutral-800 bg-neutral-900/50">
-              <Input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={`Reply to ${selectedBuyer}...`}
-                className="flex-1 bg-neutral-800 p-2 rounded outline-none border-neutral-700"
-              />
-              <Button
-                onClick={() => {
-                  alert(`Reply sent to ${selectedBuyer}: ${text}`);
-                  setText("");
-                }}
-                className="bg-primary hover:bg-primary/90"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+                {/* Input */}
+                <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="p-3 flex gap-2 border-t border-neutral-800 bg-neutral-900/50">
+                  <Input
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={`Reply to ${selectedParticipant.fullName}...`}
+                    className="flex-1 bg-neutral-800 p-2 rounded outline-none border-neutral-700"
+                  />
+                  <Button type="submit" className="bg-primary hover:bg-primary/90">
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+              </>
+            ) : (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground">Select a chat to view messages</div>
+            )}
           </div>
         </div>
     </Card>
