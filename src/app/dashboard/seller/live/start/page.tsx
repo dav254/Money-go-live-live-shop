@@ -18,55 +18,84 @@ import type { LiveSession, Product, ChatMessage } from '@/lib/types';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 
-const LiveChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
-    const firestore = useFirestore();
-    const { user } = useUser();
-    const [newMessage, setNewMessage] = useState('');
+const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
+  const [selectedBuyer, setSelectedBuyer] = useState("John");
+  const [text, setText] = useState("");
 
-    const messagesQuery = useMemoFirebase(() => {
-        if (!liveSessionId) return null;
-        return query(collection(firestore, 'liveSessions', liveSessionId, 'chat'), orderBy('timestamp', 'asc'));
-    }, [firestore, liveSessionId]);
+  const buyers = ["John", "Mary", "David", "Aisha"];
 
-    const { data: messages, isLoading } = useCollection<ChatMessage>(messagesQuery);
-    
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !user || !liveSessionId) return;
+  const chats = {
+    John: ["Hi seller", "How much is it?"],
+    Mary: ["Is it still available?"],
+    David: [],
+    Aisha: ["Can you ship to Mombasa?"]
+  };
 
-        const chatCollectionRef = collection(firestore, 'liveSessions', liveSessionId, 'chat');
-        await addDoc(chatCollectionRef, {
-            senderId: user.uid,
-            messageText: newMessage.trim(),
-            timestamp: serverTimestamp()
-        });
-        setNewMessage('');
-    };
+  return (
+    <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px] p-0">
+        <div className="h-full flex">
+          {/* Buyer List */}
+          <div className="w-1/3 bg-neutral-900/50 p-3 border-r border-neutral-800 overflow-y-auto">
+            <h2 className="text-lg font-bold mb-4">Buyers</h2>
+            {buyers.map((name) => (
+              <div
+                key={name}
+                onClick={() => setSelectedBuyer(name)}
+                className={`p-2 rounded cursor-pointer mb-1 text-sm flex items-center gap-2 ${
+                  selectedBuyer === name ? "bg-primary" : "bg-neutral-800 hover:bg-neutral-700"
+                }`}
+              >
+                <Avatar className="h-6 w-6"><AvatarFallback>{name.charAt(0)}</AvatarFallback></Avatar>
+                <span>{name}</span>
+              </div>
+            ))}
+          </div>
 
-    return (
-        <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px]">
-            <CardHeader><CardTitle className="text-base">Live Chat</CardTitle></CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-2">
-                <ScrollArea className="flex-1 bg-background/50 p-2 rounded">
-                    <div className="space-y-3">
-                    {isLoading && <p className="text-muted-foreground">Loading chat...</p>}
-                    {messages?.map(m => (
-                        <div key={m.id} className={`p-2 rounded-lg text-sm max-w-[85%] ${m.senderId === user?.uid ? "bg-primary text-primary-foreground self-end rounded-br-none" : "bg-muted self-start rounded-bl-none"}`}>
-                            <p>{m.messageText}</p>
-                        </div>
-                    ))}
+          {/* Chat Window */}
+          <div className="flex-1 flex flex-col">
+            {/* Header */}
+            <div className="p-3 border-b border-neutral-800 font-bold text-sm">
+              Chat with {selectedBuyer}
+            </div>
+            {/* Messages */}
+            <ScrollArea className="flex-1">
+                <div className="p-4 space-y-3">
+                {(chats[selectedBuyer as keyof typeof chats] || []).map((msg, i) => (
+                    <div key={i} className="bg-neutral-800 p-2 rounded-lg text-sm w-fit">
+                    <span className="font-bold text-muted-foreground mr-2">{selectedBuyer}:</span>{msg}
                     </div>
-                </ScrollArea>
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Send a message..." />
-                    <Button type="submit"><Send className="h-4 w-4" /></Button>
-                </form>
-            </CardContent>
-        </Card>
-    )
+                ))}
+                </div>
+            </ScrollArea>
+
+            {/* Input */}
+            <div className="p-3 flex gap-2 border-t border-neutral-800 bg-neutral-900/50">
+              <Input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={`Reply to ${selectedBuyer}...`}
+                className="flex-1 bg-neutral-800 p-2 rounded outline-none border-neutral-700"
+              />
+              <Button
+                onClick={() => {
+                  alert(`Reply sent to ${selectedBuyer}: ${text}`);
+                  setText("");
+                }}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+    </Card>
+  )
 }
+
 
 export default function SellerLiveStudioPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -344,7 +373,7 @@ export default function SellerLiveStudioPage() {
               <Button variant="outline" className="w-full mt-3">Add New Product</Button>
             </CardContent>
           </Card>
-          <LiveChat liveSessionId={liveSessionId} />
+          <MultiBuyerChat liveSessionId={liveSessionId} />
         </div>
       </div>
     </div>
