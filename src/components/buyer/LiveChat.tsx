@@ -6,29 +6,18 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Send } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import type { ChatMessage } from "@/lib/types";
-import { collection, query, orderBy } from "firebase/firestore";
 
 interface LiveChatProps {
     liveSessionId: string | null;
 }
 
 export function LiveChat({ liveSessionId }: LiveChatProps) {
-    const firestore = useFirestore();
     const [newMessage, setNewMessage] = useState('');
-
-    const messagesQuery = useMemoFirebase(() => {
-        if (!liveSessionId || !firestore) {
-            return null; // Return null if the session ID or firestore isn't ready
-        }
-        return query(
-            collection(firestore, 'liveSessions', liveSessionId, 'chat'), 
-            orderBy('timestamp', 'asc')
-        );
-    }, [firestore, liveSessionId]);
-
-    const { data: messages, isLoading } = useCollection<ChatMessage>(messagesQuery);
+    const [messages, setMessages] = useState<Partial<ChatMessage>[]>([
+        { senderId: 'user123', messageText: 'This looks amazing! 🔥'},
+        { senderId: 'user456', messageText: 'What is the price?'}
+    ]);
     
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -36,8 +25,11 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
-        // The logic to send a message will be re-implemented when connecting the seller side.
-        console.log("Sending message:", newMessage);
+        const myMessage: Partial<ChatMessage> = {
+            senderId: 'Me', // This will be replaced with actual user ID later
+            messageText: newMessage,
+        }
+        setMessages(prev => [...prev, myMessage]);
         setNewMessage('');
     };
 
@@ -52,17 +44,16 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
       <p className="text-neutral-400 text-sm font-semibold mb-2">💬 Live Chat</p>
       
       <ScrollArea className="flex-1 space-y-2 text-sm overflow-y-auto bg-neutral-900/50 p-2 rounded-md" ref={scrollAreaRef}>
-        {isLoading && <p className="text-center text-muted-foreground">Loading chat...</p>}
-        {!isLoading && messages?.map((msg, i) => (
+        {messages.map((msg, i) => (
              <p key={i} className={`p-2 rounded w-fit ${
-              msg.senderId === 'Me' // This will be replaced with actual user ID check
+              msg.senderId === 'Me'
                 ? "bg-blue-600 ml-auto"
                 : "bg-gray-800"
             }`}>
                 <b>{msg.senderId}:</b> {msg.messageText}
              </p>
         ))}
-         {!isLoading && (!messages || messages.length === 0) && (
+         {!messages || messages.length === 0 && (
             <p className="text-center text-muted-foreground pt-8">No messages yet.</p>
          )}
       </ScrollArea>
