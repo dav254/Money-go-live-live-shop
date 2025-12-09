@@ -6,6 +6,7 @@ import api from '../../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import { FlipHorizontal, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { LiveActivityFeed } from './LiveActivityFeed';
 
 export default function Recorder({ onUploaded }) {
   const videoRef = useRef();
@@ -114,6 +115,9 @@ export default function Recorder({ onUploaded }) {
                     className="w-full h-full p-2 bg-neutral-900 rounded-md text-white text-sm resize-none"
                     placeholder="Enter your script here..."
                 />
+            </div>
+             <div className="bg-neutral-800/50 p-4 rounded-lg flex-1 flex flex-col">
+                <LiveActivityFeed />
             </div>
         </div>
     </div>
