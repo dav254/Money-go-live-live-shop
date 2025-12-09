@@ -8,19 +8,23 @@ import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { PaymentModal } from "@/components/buyer/PaymentModal";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, where } from "firebase/firestore";
-import type { LiveSession, Product, SellerShop, UserProfile } from "@/lib/types";
+import type { Product, ChatMessage } from "@/lib/types";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { products } from "@/lib/placeholder-data";
 
+// Mock data for demonstration
+const mockSeller = {
+  name: 'Live Seller Demo',
+};
+
+const mockFeaturedProducts = products.slice(0, 4);
 
 export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
-  const firestore = useFirestore();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
@@ -28,35 +32,7 @@ export default function SellerRoom() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
 
-  // Fetch the active live session for this seller
-  const liveSessionQuery = useMemoFirebase(() => {
-    if (!sellerId) return null;
-    return query(
-      collection(firestore, 'liveSessions'),
-      where('sellerId', '==', sellerId),
-      where('status', '==', 'live')
-    );
-  }, [firestore, sellerId]);
-
-  const { data: liveSessions, isLoading: isSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
-  const liveSession = useMemo(() => (liveSessions && liveSessions.length > 0 ? liveSessions[0] : null), [liveSessions]);
-
-  // Fetch the seller's shop and profile data
-  const sellerShopRef = useMemoFirebase(() => doc(firestore, 'sellerShops', sellerId), [firestore, sellerId]);
-  const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
-  
-  const { data: sellerShop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
-  const { data: sellerProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
-
-  // Fetch the products featured in the live session
-  const featuredProductsQuery = useMemoFirebase(() => {
-    if (!liveSession || !liveSession.productIds || liveSession.productIds.length === 0) return null;
-    return query(collection(firestore, 'products'), where('__name__', 'in', liveSession.productIds));
-  }, [firestore, liveSession]);
-
-  const { data: featuredProducts, isLoading: areProductsLoading } = useCollection<Product>(featuredProductsQuery);
-
-  const isLoading = isSessionLoading || isShopLoading || isProfileLoading || areProductsLoading;
+  const isLoading = false; // No longer loading from backend
 
   useEffect(() => {
     const getCameraPermission = async () => {
@@ -85,7 +61,7 @@ export default function SellerRoom() {
     setCartItems(prev => [...prev, product]);
   };
 
-  const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Seller';
+  const sellerName = mockSeller.name;
 
   if (isLoading) {
       return (
@@ -106,17 +82,6 @@ export default function SellerRoom() {
           </BuyerLayout>
       )
   }
-
-  if (!liveSession) {
-      return (
-           <BuyerLayout>
-                <div className="flex flex-col h-[calc(100vh-8rem)] bg-black text-white items-center justify-center">
-                    <p className="text-neutral-400">This seller is not currently live.</p>
-                </div>
-            </BuyerLayout>
-      )
-  }
-
 
   return (
     <BuyerLayout>
@@ -146,14 +111,14 @@ export default function SellerRoom() {
 
         {/* PRODUCTS */}
         <div className="flex overflow-x-auto gap-2 p-2 bg-black border-b border-neutral-800">
-            {featuredProducts && featuredProducts.map(product => (
+            {mockFeaturedProducts.map(product => (
                 <LiveProductCard key={product.id} product={product} onAddToCart={addToCart} />
             ))}
         </div>
 
         {/* CHAT + CART */}
         <div className="flex flex-1 overflow-hidden">
-            <LiveChat liveSessionId={liveSession.id} />
+            <LiveChat liveSessionId={'mock-session-id'} />
             <CartDrawer cartItems={cartItems} onCheckout={() => setIsPaymentModalOpen(true)} />
         </div>
 

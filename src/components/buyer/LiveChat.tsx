@@ -2,54 +2,56 @@
 'use client';
 
 import { Input } from "../ui/input";
-import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
-import type { ChatMessage } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Send } from "lucide-react";
+import { ScrollArea } from "../ui/scroll-area";
 
 interface LiveChatProps {
     liveSessionId: string | null;
 }
 
+const mockMessages = [
+    { id: '1', senderId: 'user123', messageText: 'This looks amazing! 🔥' },
+    { id: '2', senderId: 'user456', messageText: 'What is the price?' },
+];
+
 export function LiveChat({ liveSessionId }: LiveChatProps) {
-    const { user } = useUser();
-    const firestore = useFirestore();
+    const [messages, setMessages] = useState(mockMessages);
     const [newMessage, setNewMessage] = useState('');
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-    const messagesQuery = useMemoFirebase(() => {
-        if (!liveSessionId) return null;
-        return query(collection(firestore, 'liveSessions', liveSessionId, 'chat'), orderBy('timestamp', 'asc'));
-    }, [firestore, liveSessionId]);
-
-    const { data: messages, isLoading } = useCollection<ChatMessage>(messagesQuery);
-    
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !user || !liveSessionId) return;
+        if (!newMessage.trim()) return;
 
-        const chatCollectionRef = collection(firestore, 'liveSessions', liveSessionId, 'chat');
-        await addDoc(chatCollectionRef, {
-            senderId: user.uid,
+        const newMsg = {
+            id: Date.now().toString(),
+            senderId: 'Me',
             messageText: newMessage.trim(),
-            timestamp: serverTimestamp()
-        });
+        };
+
+        setMessages(prev => [...prev, newMsg]);
         setNewMessage('');
     };
+
+    useEffect(() => {
+        if(scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        }
+    }, [messages]);
 
   return (
     <div className="w-2/3 p-3 flex flex-col overflow-y-auto bg-black border-r border-neutral-700">
       <p className="text-neutral-400 text-sm font-semibold mb-2">💬 Live Chat</p>
-
-      <div className="flex-1 space-y-2 text-sm overflow-y-auto">
-        {isLoading && <p className="text-sm text-neutral-500">Loading chat...</p>}
-        {messages?.map(message => (
+      
+      <ScrollArea className="flex-1 space-y-2 text-sm overflow-y-auto" ref={scrollAreaRef}>
+        {messages.map(message => (
              <p key={message.id}>
-                <b className="text-neutral-400">{message.senderId.substring(0, 6)}:</b> {message.messageText}
+                <b className="text-neutral-400">{message.senderId}:</b> {message.messageText}
              </p>
         ))}
-      </div>
+      </ScrollArea>
 
       <form onSubmit={handleSendMessage} className="mt-2 flex gap-2">
         <Input
@@ -63,3 +65,4 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
     </div>
   );
 }
+
