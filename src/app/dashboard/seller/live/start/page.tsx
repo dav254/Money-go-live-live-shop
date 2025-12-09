@@ -277,7 +277,7 @@ export default function SellerLiveStudioPage() {
             {pinnedProduct && (
               <div className="absolute left-4 bottom-4 bg-black/70 border border-primary p-3 rounded-xl max-w-xs animate-in fade-in zoom-in-95">
                 <div className="flex gap-3">
-                  <Image src={pinnedProduct.imageUrl || ''} alt={pinnedProduct.name} width={64} height={64} className="w-16 h-16 object-cover rounded" />
+                  <Image src={pinnedProduct.imageUrl || ''} alt={pinnedProduct.name || 'product'} width={64} height={64} className="w-16 h-16 object-cover rounded" />
                   <div>
                     <p className="font-semibold text-sm">{pinnedProduct.name}</p>
                     <p className="text-primary font-bold">${pinnedProduct.price}</p>
@@ -354,7 +354,7 @@ export default function SellerLiveStudioPage() {
                   {areProductsLoading && <p>Loading products...</p>}
                   {products?.map(p => (
                     <div key={p.id} className="flex items-center gap-3 bg-background/50 p-2 rounded">
-                      <Image src={p.imageUrl || ''} alt={p.name} width={56} height={56} className="w-14 h-14 object-cover rounded" />
+                      <Image src={p.imageUrl || 'https://picsum.photos/seed/placeholder/80'} alt={p.name || 'product'} width={56} height={56} className="w-14 h-14 object-cover rounded" />
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{p.name}</p>
                         <p className="text-primary font-bold text-sm">${p.price}</p>
