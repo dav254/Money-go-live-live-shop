@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
 import { Video } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
-import { doc, collection, query, where, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, query, where, onSnapshot, setDoc, serverTimestamp, updateDoc, addDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { FirestorePermissionError } from "@/firebase/errors";
 
@@ -30,6 +30,15 @@ interface Banner {
   type: 'deal' | 'giveaway';
 }
 
+const servers = {
+    iceServers: [
+        {
+            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+        },
+    ],
+    iceCandidatePoolSize: 10,
+};
+
 
 export default function SellerRoom() {
   const params = useParams();
@@ -39,6 +48,9 @@ export default function SellerRoom() {
   const router = useRouter();
   const { toast } = useToast();
   
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [pc, setPc] = useState<RTCPeerConnection | null>(null);
+
   const [cartItems, setCartItems] = useState<Product[]>([]);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
@@ -51,6 +63,55 @@ export default function SellerRoom() {
 
   const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Set up the WebRTC connection
+  useEffect(() => {
+    if (!liveSession?.offer || pc) return;
+
+    const peerConnection = new RTCPeerConnection(servers);
+    setPc(peerConnection);
+
+    peerConnection.ontrack = event => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = event.streams[0];
+        }
+    };
+
+    const answerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'answerCandidates');
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            addDoc(answerCandidatesRef, event.candidate.toJSON());
+        }
+    };
+
+    const offerDescription = new RTCSessionDescription(liveSession.offer);
+    peerConnection.setRemoteDescription(offerDescription)
+        .then(async () => {
+            const answerDescription = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answerDescription);
+
+            const answer = {
+                type: answerDescription.type,
+                sdp: answerDescription.sdp,
+            };
+
+            const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
+            await updateDoc(sessionRef, { answer });
+        });
+    
+    // Listen for seller's ICE candidates
+    const offerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'offerCandidates');
+    onSnapshot(offerCandidatesRef, snapshot => {
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                peerConnection.addIceCandidate(candidate);
+            }
+        });
+    });
+
+  }, [liveSession, firestore, pc]);
+
 
   useEffect(() => {
     if (!liveSessionQuery) return;
@@ -93,8 +154,6 @@ export default function SellerRoom() {
         return;
     }
 
-    // Simplified: create one order per seller from the cart.
-    // A real app might group items by seller.
     const firstItem = cartItems[0];
     const newOrderRef = doc(collection(firestore, 'orders'));
 
@@ -110,12 +169,12 @@ export default function SellerRoom() {
       productImage: firstItem.imageUrl,
       productPrice: firstItem.price,
       shippingCost: shippingCost,
-      totalAmount: totalAmount + shippingCost, // Recalculate total server-side ideally
+      totalAmount: totalAmount + shippingCost,
       orderDate: serverTimestamp() as any,
       shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
       orderStatus: 'pending',
       paymentMethod: 'pending',
-      quantity: cartItems.length, // Simple quantity for now
+      quantity: cartItems.length,
     };
 
     try {
@@ -153,7 +212,7 @@ export default function SellerRoom() {
       }, 5000);
   };
 
-  const sellerName = liveSession?.title.replace("'s Live Show", "") || 'Seller';
+  const sellerName = liveSession?.title?.replace("'s Live Show", "") || 'Seller';
 
   if (isLoading) {
       return (
@@ -196,10 +255,7 @@ export default function SellerRoom() {
         )}
 
         <div className="relative h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <Video className="h-12 w-12" />
-                <p>Seller's live video stream will appear here.</p>
-            </div>
+            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/20" />
             {pinnedProduct && (
                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">

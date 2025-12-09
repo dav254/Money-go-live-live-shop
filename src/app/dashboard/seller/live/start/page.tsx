@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import type { LiveSession, Product, ChatMessage } from '@/lib/types';
-import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -96,6 +96,16 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
   )
 }
 
+// WebRTC Configuration
+const servers = {
+    iceServers: [
+        {
+            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+        },
+    ],
+    iceCandidatePoolSize: 10,
+};
+
 
 export default function SellerLiveStudioPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -103,7 +113,8 @@ export default function SellerLiveStudioPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [pc, setPc] = useState<RTCPeerConnection | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [isStartingStream, setIsStartingStream] = useState(false);
@@ -123,13 +134,13 @@ export default function SellerLiveStudioPage() {
   const [dealPercent, setDealPercent] = useState(20);
   const [giveawayItem, setGiveawayItem] = useState("A Free T-Shirt!");
 
-  async function startCamera(facingMode: 'user' | 'environment' = 'user') {
+  const startCamera = useCallback(async (facingMode: 'user' | 'environment' = 'user') => {
     try {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
       }
       const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: true });
-      setStream(s);
+      setLocalStream(s);
       setHasCameraPermission(true);
       if (videoRef.current) {
         videoRef.current.srcObject = s;
@@ -144,64 +155,112 @@ export default function SellerLiveStudioPage() {
           description: 'Please enable camera permissions in your browser settings.',
       });
     }
-  }
+  }, [localStream, toast]);
 
-  async function switchCamera() {
-    if (!stream) {
+  const switchCamera = useCallback(async () => {
+    if (!localStream) {
       startCamera();
       return;
     }
-    const currentTrack = stream.getVideoTracks()[0];
+    const currentTrack = localStream.getVideoTracks()[0];
     if (!currentTrack) return;
     const currentFacingMode = currentTrack.getSettings().facingMode;
     const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
     startCamera(newFacingMode);
-  }
+  }, [localStream, startCamera]);
 
   const handleGoLive = async () => {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'You must be logged in to go live.' });
+    if (!user || !localStream) {
+      toast({ variant: 'destructive', title: 'Prerequisites not met', description: 'You must be logged in and have camera access to go live.' });
       return;
     }
     setIsStartingStream(true);
     
-    try {
-      const token = await user.getIdToken();
-      const response = await fetch('/api/live-session', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to start live session.');
-      }
-      const data = await response.json();
+    // 1. Create Live Session Doc
+    const newSessionRef = doc(collection(firestore, 'liveSessions'));
+    const newSessionId = newSessionRef.id;
+    await setDoc(newSessionRef, {
+        id: newSessionId,
+        sellerId: user.uid,
+        status: 'live',
+        startTime: serverTimestamp()
+    });
 
-      setLiveSessionId(data.liveSessionId);
-      setIsLive(true);
-      toast({ title: "You are now live!", description: "Your stream is visible to buyers." });
+    // 2. Setup WebRTC Peer Connection
+    const peerConnection = new RTCPeerConnection(servers);
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
 
-    } catch (error: any) {
-      console.error("Error going live:", error);
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-    } finally {
-        setIsStartingStream(false);
-    }
+    // 3. Create Offer and Save to Firestore
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
+
+    const offer = {
+        sdp: offerDescription.sdp,
+        type: offerDescription.type,
+    };
+    await updateDoc(newSessionRef, { offer });
+
+    // 4. Listen for ICE candidates
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            const candidatesRef = collection(newSessionRef, 'offerCandidates');
+            addDoc(candidatesRef, event.candidate.toJSON());
+        }
+    };
+    
+    // 5. Listen for answer from buyer
+    onSnapshot(newSessionRef, async (snapshot) => {
+        const data = snapshot.data();
+        if (!peerConnection.currentRemoteDescription && data?.answer) {
+            const answerDescription = new RTCSessionDescription(data.answer);
+            await peerConnection.setRemoteDescription(answerDescription);
+        }
+    });
+
+    // 6. Listen for buyer's ICE candidates
+    const answerCandidatesRef = collection(newSessionRef, 'answerCandidates');
+    onSnapshot(answerCandidatesRef, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                peerConnection.addIceCandidate(candidate);
+            }
+        });
+    });
+
+    setPc(peerConnection);
+    setLiveSessionId(newSessionId);
+    setIsLive(true);
+    setIsStartingStream(false);
+    toast({ title: "You are now live!", description: "Waiting for viewers to connect..." });
   };
   
   const handleEndLive = async () => {
     if (!liveSessionId || !user) return;
 
+    if (pc) {
+        pc.close();
+        setPc(null);
+    }
+    
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
+    }
+
     try {
-       const token = await user.getIdToken();
-       await fetch('/api/live-session', {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ liveSessionId })
-      });
+       const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+       await updateDoc(sessionRef, {
+          status: 'ended',
+          endTime: serverTimestamp(),
+       });
       setIsLive(false);
       setLiveSessionId(null);
       setPinnedProduct(null);
       toast({ title: "Stream Ended", description: "Your live session has concluded." });
+      startCamera(); // Restart camera for next session
     } catch (error) {
       console.error("Error ending live session:", error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not end live session.' });
@@ -225,9 +284,10 @@ export default function SellerLiveStudioPage() {
   useEffect(() => {
     startCamera();
     return () => {
-      stream?.getTracks().forEach(track => track.stop());
+      localStream?.getTracks().forEach(track => track.stop());
+      pc?.close();
     };
-  }, []);
+  }, [startCamera]);
   
   const createLiveEvent = async (eventData: object) => {
       if (!liveSessionId || !firestore) {
