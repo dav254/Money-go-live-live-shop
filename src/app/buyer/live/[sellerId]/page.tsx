@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
 import { products } from '@/lib/placeholder-data';
+import { Video } from 'lucide-react';
 
 interface Heart {
   id: number;
@@ -31,14 +32,12 @@ interface Banner {
 export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
-  const videoRef = useRef<HTMLVideoElement>(null);
   
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
   const [banner, setBanner] = useState<Banner | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
   // Mock data instead of fetching from backend
   const liveSession: LiveSession | null = {
@@ -83,23 +82,6 @@ export default function SellerRoom() {
       }, 5000);
   };
 
-  useEffect(() => {
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setHasCameraPermission(true);
-      } catch (err) {
-        console.error("Camera access denied:", err);
-        setHasCameraPermission(false);
-      }
-    }
-    startCamera();
-  }, []);
-
-
   const sellerName = liveSession?.title.replace("'s Live Show", "") || 'Seller';
 
   if (isLoading) {
@@ -143,14 +125,10 @@ export default function SellerRoom() {
         )}
 
         <div className="relative h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-            {hasCameraPermission ? (
-                <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
-            ) : (
-                 <div className="text-center p-4">
-                    <h3 className="font-bold text-lg">Camera Access Required</h3>
-                    <p className="text-sm text-muted-foreground">Please allow camera access to see the live stream preview.</p>
-                </div>
-            )}
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Video className="h-12 w-12" />
+                <p>Seller's live video stream will appear here.</p>
+            </div>
             <div className="absolute inset-0 bg-black/20" />
             {pinnedProduct && (
                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
@@ -183,4 +161,3 @@ export default function SellerRoom() {
     </BuyerLayout>
   );
 }
-
