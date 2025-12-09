@@ -15,8 +15,8 @@ interface LiveChatProps {
 export function LiveChat({ liveSessionId }: LiveChatProps) {
     const [newMessage, setNewMessage] = useState('');
     const [messages, setMessages] = useState<Partial<ChatMessage>[]>([
-        { senderId: 'user123', messageText: 'This looks amazing! 🔥'},
-        { senderId: 'user456', messageText: 'What is the price?'}
+        { senderId: 'user123', messageText: 'This looks amazing! 🔥', senderName: 'Aisha' },
+        { senderId: 'user456', messageText: 'What is the price?', senderName: 'John' }
     ]);
     
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -27,6 +27,7 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
 
         const myMessage: Partial<ChatMessage> = {
             senderId: 'Me', // This will be replaced with actual user ID later
+            senderName: 'Me',
             messageText: newMessage,
         }
         setMessages(prev => [...prev, myMessage]);
@@ -44,15 +45,20 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
       <p className="text-neutral-400 text-sm font-semibold mb-2">💬 Live Chat</p>
       
       <ScrollArea className="flex-1 space-y-2 text-sm overflow-y-auto bg-neutral-900/50 p-2 rounded-md" ref={scrollAreaRef}>
-        {messages.map((msg, i) => (
-             <p key={i} className={`p-2 rounded w-fit ${
-              msg.senderId === 'Me'
-                ? "bg-blue-600 ml-auto"
-                : "bg-gray-800"
-            }`}>
-                <b>{msg.senderId}:</b> {msg.messageText}
-             </p>
-        ))}
+        <div className="space-y-3">
+            {messages.map((msg, i) => (
+                <div
+                    key={i}
+                    className={`p-2 rounded-lg w-fit text-sm ${
+                    msg.senderId === "Me"
+                        ? "bg-blue-600 ml-auto"
+                        : "bg-gray-800"
+                    }`}
+                >
+                    <span className="font-bold mr-1">{msg.senderName || msg.senderId}:</span>{msg.messageText}
+                </div>
+            ))}
+        </div>
          {!messages || messages.length === 0 && (
             <p className="text-center text-muted-foreground pt-8">No messages yet.</p>
          )}
