@@ -9,12 +9,18 @@ import {
   FirestoreError,
   QuerySnapshot,
   CollectionReference,
+  DocumentChange,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
+
+type UseCollectionOptions<T> = {
+  onNewData?: (docs: DocumentChange<T>[]) => void;
+};
+
 
 /**
  * Interface for the return value of the useCollection hook.
@@ -24,6 +30,7 @@ export interface UseCollectionResult<T> {
   data: WithId<T>[] | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
   error: FirestoreError | Error | null; // Error object, or null.
+  refetch?: () => void;
 }
 
 /* Internal implementation of Query:
@@ -54,6 +61,7 @@ export interface InternalQuery extends Query<DocumentData> {
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
+    options?: UseCollectionOptions<T>
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -77,6 +85,11 @@ export function useCollection<T = any>(
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
+        
+        if (options?.onNewData) {
+           options.onNewData(snapshot.docChanges() as DocumentChange<T>[]);
+        }
+
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
           results.push({ ...(doc.data() as T), id: doc.id });
@@ -107,9 +120,10 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery, options]);
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error('Query was not properly memoized using useMemoFirebase: ' + (memoizedTargetRefOrQuery as any)._query.path.toString());
   }
   return { data, isLoading, error };
 }
+

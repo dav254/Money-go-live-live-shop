@@ -68,19 +68,6 @@ const LiveChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
     )
 }
 
-interface Heart {
-  id: number;
-  x: number;
-  y: number;
-}
-
-interface Banner {
-  id: number;
-  text: string;
-  type: 'deal' | 'giveaway';
-}
-
-
 export default function SellerLiveStudioPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useUser();
@@ -102,9 +89,6 @@ export default function SellerLiveStudioPage() {
 
   const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
   
-  const [hearts, setHearts] = useState<Heart[]>([]);
-  const heartsRef = useRef<Heart[]>([]);
-  const [banner, setBanner] = useState<Banner | null>(null);
   const [isDealModalOpen, setIsDealModalOpen] = useState(false);
   const [isGiveawayModalOpen, setIsGiveawayModalOpen] = useState(false);
   const [dealPercent, setDealPercent] = useState(20);
@@ -210,64 +194,43 @@ export default function SellerLiveStudioPage() {
     return () => {
       stream?.getTracks().forEach(track => track.stop());
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const spawnHeart = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = Date.now();
-    const newHeart = { id, x: e.clientX, y: e.clientY };
-    heartsRef.current = [...heartsRef.current, newHeart];
-    setHearts(heartsRef.current);
-
-    setTimeout(() => {
-      heartsRef.current = heartsRef.current.filter(h => h.id !== id);
-      setHearts(heartsRef.current);
-    }, 1200);
+  const createLiveEvent = async (eventData: object) => {
+      if (!liveSessionId || !firestore) {
+          toast({ variant: 'destructive', title: 'Not Live', description: 'You must be live to send events.' });
+          return;
+      }
+      const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
+      await addDoc(eventsRef, {
+          ...eventData,
+          timestamp: serverTimestamp()
+      });
   };
-  
-  const showBanner = (text: string, type: 'deal' | 'giveaway') => {
-      const id = Date.now();
-      setBanner({ id, text, type });
-      setTimeout(() => {
-          setBanner(prev => (prev?.id === id ? null : prev));
-      }, 5000);
+
+  const spawnHeart = () => {
+    createLiveEvent({ type: 'heart' });
   };
   
   const handleStartFlashDeal = () => {
-      showBanner(`⚡️ FLASH SALE: ${dealPercent}% OFF! ⚡️`, 'deal');
+      const text = `⚡️ FLASH SALE: ${dealPercent}% OFF! ⚡️`;
+      createLiveEvent({ type: 'deal', text });
       setIsDealModalOpen(false);
-      toast({ title: "Flash Deal Started!", description: "A simulated banner is now showing on your preview." });
+      toast({ title: "Flash Deal Started!", description: "Buyers will now see the deal banner." });
   };
 
   const handleStartGiveaway = () => {
-      showBanner(`🎉 GIVEAWAY: ${giveawayItem} 🎉`, 'giveaway');
+      const text = `🎉 GIVEAWAY: ${giveawayItem} 🎉`;
+      createLiveEvent({ type: 'giveaway', text });
       setIsGiveawayModalOpen(false);
-      toast({ title: "Giveaway Announced!", description: "A simulated announcement is now showing on your preview." });
+      toast({ title: "Giveaway Announced!", description: "Buyers will now see the announcement." });
   };
-
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground">
       <div className="p-4 max-w-full mx-auto grid grid-cols-12 gap-4">
-        {/* Left Column: Preview & Controls */}
         <div className="col-span-12 lg:col-span-8 space-y-4">
           <div className="relative bg-black rounded-lg border border-border overflow-hidden aspect-video">
-             <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
-                {hearts.map(h => (
-                <span key={h.id} style={{ left: h.x - 16, top: h.y - 40 }} className="absolute animate-pop text-2xl">❤️</span>
-                ))}
-            </div>
-             {banner && (
-              <div
-                key={banner.id}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 animate-in fade-in zoom-in-95"
-              >
-                <div className={`text-2xl md:text-4xl font-extrabold p-4 rounded-lg text-center shadow-2xl ${banner.type === 'deal' ? 'bg-yellow-400 text-black' : 'bg-pink-500 text-white'}`}>
-                  {banner.text}
-                </div>
-              </div>
-            )}
-
             <video
               id="studio-preview"
               ref={videoRef}
@@ -359,7 +322,6 @@ export default function SellerLiveStudioPage() {
           </div>
         </div>
 
-        {/* Right Column: Shelf & Chat */}
         <div className="col-span-12 lg:col-span-4 space-y-4">
           <Card className="bg-card/50">
             <CardHeader><CardTitle className="text-base">Product Shelf</CardTitle></CardHeader>
