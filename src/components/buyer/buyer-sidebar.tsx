@@ -18,6 +18,7 @@ import {
   Info,
   HelpCircle,
   ShoppingCart,
+  RadioTower
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -44,6 +45,14 @@ export function BuyerSidebar() {
             <Link href="/live">
               <Video />
               <span>Live Buying</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/live')}>
+            <Link href="/buyer/live">
+              <RadioTower />
+              <span>Live Section</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -104,7 +113,7 @@ export function BuyerSidebar() {
             </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
-    <SidebarMenu>
+    <SidebarMenu className="mt-auto">
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
             <Link href="/dashboard/account">
