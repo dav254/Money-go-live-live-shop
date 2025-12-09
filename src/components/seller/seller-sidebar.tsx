@@ -121,6 +121,14 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live')}>
+              <Link href="/dashboard/seller/live">
+                <Video />
+                <span>Live Feed Preview</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
       
