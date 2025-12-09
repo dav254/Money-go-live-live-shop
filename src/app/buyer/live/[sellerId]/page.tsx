@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { products } from "@/lib/placeholder-data";
+import Image from "next/image";
 
 // Mock data for demonstration
 const mockSeller = {
@@ -25,37 +26,11 @@ const mockFeaturedProducts = products.slice(0, 4);
 export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
-  const { toast } = useToast();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState(true);
-
+  
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
 
   const isLoading = false; // No longer loading from backend
-
-  useEffect(() => {
-    const getCameraPermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({video: true});
-        setHasCameraPermission(true);
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to see the video preview.',
-        });
-      }
-    };
-
-    getCameraPermission();
-  }, [toast]);
 
   const addToCart = (product: Product) => {
     setCartItems(prev => [...prev, product]);
@@ -87,17 +62,16 @@ export default function SellerRoom() {
     <BuyerLayout>
         <div className="flex flex-col h-[calc(100vh-8rem)] bg-black text-white">
 
-        {/* LIVE VIDEO AREA */}
-        <div className="h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-             <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-            {!hasCameraPermission && (
-                <Alert variant="destructive" className="absolute">
-                    <AlertTitle>Camera Access Required</AlertTitle>
-                    <AlertDescription>
-                        Please allow camera access to see the live stream preview.
-                    </AlertDescription>
-                </Alert>
-            )}
+        {/* LIVE VIDEO AREA - Now a placeholder image */}
+        <div className="relative h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
+             <Image
+                src="https://picsum.photos/seed/live-stream/1280/720"
+                alt="Live stream placeholder"
+                fill
+                className="object-cover"
+                data-ai-hint="live stream"
+             />
+             <div className="absolute inset-0 bg-black/20" />
         </div>
 
         {/* SELLER INFO */}
