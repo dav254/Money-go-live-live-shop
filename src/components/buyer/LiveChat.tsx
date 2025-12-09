@@ -6,24 +6,38 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Send } from "lucide-react";
 import { ScrollArea } from "../ui/scroll-area";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import type { ChatMessage } from "@/lib/types";
+import { collection, query, orderBy } from "firebase/firestore";
 
 interface LiveChatProps {
     liveSessionId: string | null;
 }
 
 export function LiveChat({ liveSessionId }: LiveChatProps) {
-    const [messages, setMessages] = useState([
-        { sender: "Seller", text: "Hello 👋" },
-        { sender: "Me", text: "Is this available?" }
-    ]);
+    const firestore = useFirestore();
     const [newMessage, setNewMessage] = useState('');
+
+    const messagesQuery = useMemoFirebase(() => {
+        if (!liveSessionId || !firestore) {
+            return null; // Return null if the session ID or firestore isn't ready
+        }
+        return query(
+            collection(firestore, 'liveSessions', liveSessionId, 'chat'), 
+            orderBy('timestamp', 'asc')
+        );
+    }, [firestore, liveSessionId]);
+
+    const { data: messages, isLoading } = useCollection<ChatMessage>(messagesQuery);
+    
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
 
-        setMessages(prev => [...prev, { sender: "Me", text: newMessage.trim() }]);
+        // The logic to send a message will be re-implemented when connecting the seller side.
+        console.log("Sending message:", newMessage);
         setNewMessage('');
     };
 
@@ -37,16 +51,20 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
     <div className="w-2/3 p-3 flex flex-col overflow-y-auto bg-black border-r border-neutral-700">
       <p className="text-neutral-400 text-sm font-semibold mb-2">💬 Live Chat</p>
       
-      <ScrollArea className="flex-1 space-y-2 text-sm overflow-y-auto" ref={scrollAreaRef}>
-        {messages.map((msg, i) => (
+      <ScrollArea className="flex-1 space-y-2 text-sm overflow-y-auto bg-neutral-900/50 p-2 rounded-md" ref={scrollAreaRef}>
+        {isLoading && <p className="text-center text-muted-foreground">Loading chat...</p>}
+        {!isLoading && messages?.map((msg, i) => (
              <p key={i} className={`p-2 rounded w-fit ${
-              msg.sender === "Me"
+              msg.senderId === 'Me' // This will be replaced with actual user ID check
                 ? "bg-blue-600 ml-auto"
                 : "bg-gray-800"
             }`}>
-                <b>{msg.sender}:</b> {msg.text}
+                <b>{msg.senderId}:</b> {msg.messageText}
              </p>
         ))}
+         {!isLoading && (!messages || messages.length === 0) && (
+            <p className="text-center text-muted-foreground pt-8">No messages yet.</p>
+         )}
       </ScrollArea>
 
       <form onSubmit={handleSendMessage} className="mt-2 flex gap-2">
@@ -57,13 +75,8 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
             onChange={(e) => setNewMessage(e.target.value)}
         />
          <button
-          onClick={() => {
-            if (!newMessage) return;
-            setMessages([...messages, { sender: "Me", text: newMessage }]);
-            setNewMessage("");
-          }}
           className="bg-red-600 px-4 rounded"
-          type="button"
+          type="submit"
         >
           Send
         </button>
