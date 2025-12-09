@@ -166,19 +166,17 @@ export default function SellerLiveStudioPage() {
     setIsStartingStream(true);
     
     try {
-      const newSessionRef = doc(collection(firestore, 'liveSessions'));
-
-      await setDoc(newSessionRef, {
-        id: newSessionRef.id,
-        sellerId: user.uid,
-        title: `${user.displayName || 'Seller'}'s Live Show`,
-        status: 'live',
-        productIds: [],
-        viewerCount: 0,
-        startTime: serverTimestamp(),
+      const token = await user.getIdToken();
+      const response = await fetch('/api/live-session', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      setLiveSessionId(newSessionRef.id);
+      if (!response.ok) {
+        throw new Error('Failed to start live session.');
+      }
+      const data = await response.json();
+
+      setLiveSessionId(data.liveSessionId);
       setIsLive(true);
       toast({ title: "You are now live!", description: "Your stream is visible to buyers." });
 
@@ -191,17 +189,23 @@ export default function SellerLiveStudioPage() {
   };
   
   const handleEndLive = async () => {
-    if (!liveSessionId) return;
+    if (!liveSessionId || !user) return;
 
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    await updateDoc(sessionRef, {
-      status: 'ended',
-      endTime: serverTimestamp(),
-    });
-    setIsLive(false);
-    setLiveSessionId(null);
-    setPinnedProduct(null);
-    toast({ title: "Stream Ended", description: "Your live session has concluded." });
+    try {
+       const token = await user.getIdToken();
+       await fetch('/api/live-session', {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ liveSessionId })
+      });
+      setIsLive(false);
+      setLiveSessionId(null);
+      setPinnedProduct(null);
+      toast({ title: "Stream Ended", description: "Your live session has concluded." });
+    } catch (error) {
+      console.error("Error ending live session:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not end live session.' });
+    }
   };
 
   const handlePinProduct = async (product: Product) => {
