@@ -235,8 +235,8 @@ export default function SellerLiveStudioPage() {
           </div>
 
           <Card className="bg-card/50">
-            <CardContent className="p-3 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+            <CardContent className="p-3 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={startCamera} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
                 {!isRecording ? (
                   <Button onClick={startRecording} className="bg-red-600 hover:bg-red-700 font-bold">Start Recording</Button>
