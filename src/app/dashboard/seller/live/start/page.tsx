@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -8,7 +9,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
-import { Camera, Video, Settings, Mic, MessageSquare, Tag, Users, Heart, FlipHorizontal } from 'lucide-react';
+import { FlipHorizontal, Users, Heart } from 'lucide-react';
+import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 
 const MOCK_PRODUCTS = [
   { id: "p1", name: "Summer Vibes T-Shirt", priceUSD: 15.0, img: "https://picsum.photos/seed/p1/320/240", stock: 12 },
@@ -17,7 +19,7 @@ const MOCK_PRODUCTS = [
 ];
 
 export default function SellerLiveStudioPage() {
-  // Camera & recording state
+  // camera & recording
   const videoRef = useRef<HTMLVideoElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -25,27 +27,27 @@ export default function SellerLiveStudioPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedURL, setRecordedURL] = useState<string | null>(null);
 
-  // Editor / trim state
+  // editor / trim
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState<number | null>(null);
 
-  // Products & pinning state
+  // products / pin
   const [products, setProducts] = useState(MOCK_PRODUCTS);
   const [pinnedProduct, setPinnedProduct] = useState<(typeof MOCK_PRODUCTS[0]) | null>(null);
 
-  // Live metrics simulation state
+  // live & metrics
   const [isLive, setIsLive] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [likes, setLikes] = useState(0);
 
-  // Chat simulation state
+  // chat (local mock)
   const [messages, setMessages] = useState([
     { id: 1, user: "Alice", text: "Is it available in M?" },
     { id: 2, user: "Bob", text: "Price?" },
   ]);
   const [chatInput, setChatInput] = useState("");
 
-  // Business features state
+  // business features
   const [resellerMode, setResellerMode] = useState(false);
   const [shippingCost, setShippingCost] = useState(3.5);
 
@@ -59,12 +61,6 @@ export default function SellerLiveStudioPage() {
     const costOfGoods = priceUSD * 0.35; // assumed COGS
     const profit = priceUSD - payoutFee - shipping - costOfGoods;
     return { profit: Math.max(0, +profit.toFixed(2)), fee: +payoutFee.toFixed(2) };
-  }
-
-  // Sales Prompt AI mock
-  function generateSalesPrompt(product: typeof MOCK_PRODUCTS[0] | null) {
-    if (!product) return "Pin a product then ask a quick question to engage viewers.";
-    return `Quick script: "Check this ${product.name}! Only $${product.priceUSD} — high quality, limited stock. Buy now!"`;
   }
 
   // --- MEDIA & RECORDING LOGIC ---
@@ -244,15 +240,9 @@ export default function SellerLiveStudioPage() {
                 </div>
               </CardContent>
             </Card>
-             <Card className="bg-card/50">
-              <CardHeader><CardTitle className="text-base">Sales Prompt AI (Mock)</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground italic">
-                    {generateSalesPrompt(pinnedProduct)}
-                </p>
-                <Button size="sm" variant="secondary" className="mt-3" onClick={() => navigator.clipboard.writeText(generateSalesPrompt(pinnedProduct))}>Copy Prompt</Button>
-              </CardContent>
-            </Card>
+            <div className="bg-card/50 p-4 rounded-lg flex-1 flex flex-col">
+                <LiveActivityFeed />
+            </div>
           </div>
         </div>
 
