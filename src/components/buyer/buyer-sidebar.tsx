@@ -43,7 +43,7 @@ export function BuyerSidebar() {
           <SidebarMenuButton asChild isActive={isActive('/live')}>
             <Link href="/live">
               <Video />
-              <span>Live Selling</span>
+              <span>Live Buying</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
