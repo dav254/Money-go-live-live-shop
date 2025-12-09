@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,15 +9,70 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
-import { FlipHorizontal, Users, Heart, Camera, Gift, Zap, Loader2 } from 'lucide-react';
+import { FlipHorizontal, Users, Heart, Camera, Gift, Zap, Loader2, MessageSquare, Send, CheckCircle, Package, Truck, XCircle, MoreVertical } from 'lucide-react';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import type { LiveSession, Product, ChatMessage } from '@/lib/types';
+import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import Mux from '@mux/mux-node';
+import { getAuth } from 'firebase/auth';
+
+
+const LiveChat = ({ liveSessionId }: { liveSessionId: string | null }) => {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const [newMessage, setNewMessage] = useState('');
+
+    const messagesQuery = useMemoFirebase(() => {
+        if (!liveSessionId) return null;
+        return query(collection(firestore, 'liveSessions', liveSessionId, 'chat'), orderBy('timestamp', 'asc'));
+    }, [firestore, liveSessionId]);
+
+    const { data: messages, isLoading } = useCollection<ChatMessage>(messagesQuery);
+    
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || !user || !liveSessionId) return;
+
+        const chatCollectionRef = collection(firestore, 'liveSessions', liveSessionId, 'chat');
+        await addDoc(chatCollectionRef, {
+            senderId: user.uid,
+            messageText: newMessage.trim(),
+            timestamp: serverTimestamp()
+        });
+        setNewMessage('');
+    };
+
+    return (
+        <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px]">
+            <CardHeader><CardTitle className="text-base">Live Chat</CardTitle></CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-2">
+                <ScrollArea className="flex-1 bg-background/50 p-2 rounded">
+                    <div className="space-y-3">
+                    {isLoading && <p className="text-muted-foreground">Loading chat...</p>}
+                    {messages?.map(m => (
+                        <div key={m.id} className={`p-2 rounded-lg text-sm max-w-[85%] ${m.senderId === user?.uid ? "bg-primary text-primary-foreground self-end rounded-br-none" : "bg-muted self-start rounded-bl-none"}`}>
+                            <p>{m.messageText}</p>
+                        </div>
+                    ))}
+                    </div>
+                </ScrollArea>
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Send a message..." />
+                    <Button type="submit"><Send className="h-4 w-4" /></Button>
+                </form>
+            </CardContent>
+        </Card>
+    )
+}
 
 const MOCK_PRODUCTS = [
-  { id: "p1", name: "Summer Vibes T-Shirt", priceUSD: 15.0, img: "https://picsum.photos/seed/p1/320/240", stock: 12 },
-  { id: "p2", name: "Handmade Woven Bag", priceUSD: 24.5, img: "https://picsum.photos/seed/p2/320/240", stock: 5 },
-  { id: "p3", name: "Classic Leather Watch", priceUSD: 75.0, img: "https://picsum.photos/seed/p3/320/240", stock: 8 },
+  { id: "p1", name: "Summer Vibes T-Shirt", price: 15.0, imageUrl: "https://picsum.photos/seed/p1/320/240", stock: 12 },
+  { id: "p2", name: "Handmade Woven Bag", price: 24.5, imageUrl: "https://picsum.photos/seed/p2/320/240", stock: 5 },
+  { id: "p3", name: "Classic Leather Watch", price: 75.0, imageUrl: "https://picsum.photos/seed/p3/320/240", stock: 8 },
 ];
 
 interface Heart {
@@ -35,25 +90,23 @@ interface Banner {
 
 export default function SellerLiveStudioPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedURL, setRecordedURL] = useState<string | null>(null);
-
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
-  const [pinnedProduct, setPinnedProduct] = useState<(typeof MOCK_PRODUCTS[0]) | null>(null);
-
-  const [messages, setMessages] = useState([
-    { id: 1, user: "Alice", text: "Is it available in M?" },
-    { id: 2, user: "Bob", text: "Price?" },
-  ]);
-  const [chatInput, setChatInput] = useState("");
-
-  const [resellerMode, setResellerMode] = useState(false);
-  const [shippingCost, setShippingCost] = useState(3.5);
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
   
-  // New states for interactive features
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
+  
+  const productsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [user, firestore]);
+
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
+  
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -61,16 +114,6 @@ export default function SellerLiveStudioPage() {
   const [isGiveawayModalOpen, setIsGiveawayModalOpen] = useState(false);
   const [dealPercent, setDealPercent] = useState(20);
   const [giveawayItem, setGiveawayItem] = useState("A Free T-Shirt!");
-  const { toast } = useToast();
-
-  function calcProfit(priceUSD: number) {
-    const platformFeePct = 0.05; 
-    const payoutFee = priceUSD * platformFeePct;
-    const shipping = Number(shippingCost || 0);
-    const costOfGoods = priceUSD * 0.35;
-    const profit = priceUSD - payoutFee - shipping - costOfGoods;
-    return { profit: Math.max(0, +profit.toFixed(2)), fee: +payoutFee.toFixed(2) };
-  }
 
   async function startCamera(facingMode: 'user' | 'environment' = 'user') {
     try {
@@ -101,36 +144,64 @@ export default function SellerLiveStudioPage() {
     startCamera(newFacingMode);
   }
 
-  function startRecording() {
-    if (!stream) {
-      alert("Start the camera first.");
+  const handleGoLive = async () => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'You must be logged in to go live.' });
       return;
     }
-    recordedChunksRef.current = [];
-    const options = { mimeType: "video/webm;codecs=vp9,opus" };
-    try {
-      const mr = new MediaRecorder(stream, options);
-      recorderRef.current = mr;
-      mr.ondataavailable = (e) => { if (e.data && e.data.size) recordedChunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
-        setRecordedURL(url);
-      };
-      mr.start(250);
-      setIsRecording(true);
-    } catch (err) {
-      console.error("MediaRecorder error", err);
-      alert("Recording is not supported on this browser.");
-    }
-  }
+    
+    // In a real app, we'd get this from Mux or another service via an API route.
+    const mockStreamDetails = {
+      streamKey: 'mock_stream_key_' + Date.now(),
+      playbackId: 'mock_playback_id_' + Date.now(),
+    };
+    
+    const newSessionRef = doc(collection(firestore, 'liveSessions'));
 
-  function stopRecording() {
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      recorderRef.current.stop();
-    }
-    setIsRecording(false);
-  }
+    await setDoc(newSessionRef, {
+      id: newSessionRef.id,
+      sellerId: user.uid,
+      title: `${user.displayName}'s Live Show`,
+      status: 'live',
+      productIds: [],
+      viewerCount: 0,
+      startTime: serverTimestamp(),
+      muxStreamKey: mockStreamDetails.streamKey,
+      muxPlaybackId: mockStreamDetails.playbackId,
+    });
+    
+    setLiveSessionId(newSessionRef.id);
+    setIsLive(true);
+    toast({ title: "You are now live!", description: "Your stream is visible to buyers." });
+  };
+  
+  const handleEndLive = async () => {
+    if (!liveSessionId) return;
+
+    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+    await updateDoc(sessionRef, {
+      status: 'ended',
+      endTime: serverTimestamp(),
+    });
+    setIsLive(false);
+    setLiveSessionId(null);
+    setPinnedProduct(null);
+    toast({ title: "Stream Ended", description: "Your live session has concluded." });
+  };
+
+  const handlePinProduct = async (product: Product) => {
+    if (!liveSessionId) return;
+    setPinnedProduct(product);
+    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+    await updateDoc(sessionRef, { pinnedProductId: product.id });
+  };
+
+  const handleUnpinProduct = async () => {
+    if (!liveSessionId) return;
+    setPinnedProduct(null);
+    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+    await updateDoc(sessionRef, { pinnedProductId: null });
+  };
 
   useEffect(() => {
     startCamera();
@@ -140,14 +211,6 @@ export default function SellerLiveStudioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  function sendChat() {
-    if (!chatInput.trim()) return;
-    setMessages(m => [...m, { id: Date.now(), user: "You (Seller)", text: chatInput }]);
-    setChatInput("");
-  }
-  
-  // --- New Interactive Feature Functions ---
-
   const spawnHeart = (e: React.MouseEvent<HTMLButtonElement>) => {
     const id = Date.now();
     const newHeart = { id, x: e.clientX, y: e.clientY };
@@ -165,7 +228,7 @@ export default function SellerLiveStudioPage() {
       setBanner({ id, text, type });
       setTimeout(() => {
           setBanner(prev => (prev?.id === id ? null : prev));
-      }, 5000); // Banner disappears after 5 seconds
+      }, 5000);
   };
   
   const handleStartFlashDeal = () => {
@@ -187,14 +250,11 @@ export default function SellerLiveStudioPage() {
         {/* Left Column: Preview & Controls */}
         <div className="col-span-12 lg:col-span-8 space-y-4">
           <div className="relative bg-black rounded-lg border border-border overflow-hidden aspect-video">
-             {/* Hearts Animation Container */}
-            <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
+             <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
                 {hearts.map(h => (
                 <span key={h.id} style={{ left: h.x - 16, top: h.y - 40 }} className="absolute animate-pop text-2xl">❤️</span>
                 ))}
             </div>
-
-            {/* Banner Overlay */}
              {banner && (
               <div
                 key={banner.id}
@@ -217,17 +277,18 @@ export default function SellerLiveStudioPage() {
             {pinnedProduct && (
               <div className="absolute left-4 bottom-4 bg-black/70 border border-primary p-3 rounded-xl max-w-xs animate-in fade-in zoom-in-95">
                 <div className="flex gap-3">
-                  <Image src={pinnedProduct.img} alt={pinnedProduct.name} width={64} height={64} className="w-16 h-16 object-cover rounded" />
+                  <Image src={pinnedProduct.imageUrl || ''} alt={pinnedProduct.name} width={64} height={64} className="w-16 h-16 object-cover rounded" />
                   <div>
                     <p className="font-semibold text-sm">{pinnedProduct.name}</p>
-                    <p className="text-primary font-bold">${pinnedProduct.priceUSD}</p>
-                    <Button size="sm" className="mt-1 h-7" onClick={() => setPinnedProduct(null)}>Unpin</Button>
+                    <p className="text-primary font-bold">${pinnedProduct.price}</p>
+                    <Button size="sm" className="mt-1 h-7" onClick={handleUnpinProduct}>Unpin</Button>
                   </div>
                 </div>
               </div>
             )}
             <div className="absolute top-3 left-3 flex gap-2">
               <div className="px-2 py-1 rounded text-xs font-semibold bg-muted">PREVIEW</div>
+               {isLive && <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse">LIVE</div>}
             </div>
             <div className="absolute top-3 right-3">
                 <Button variant="ghost" size="icon" className="bg-black/50" onClick={switchCamera}><FlipHorizontal size={18}/></Button>
@@ -238,38 +299,18 @@ export default function SellerLiveStudioPage() {
             <CardContent className="p-3 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={startCamera} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
-                {!isRecording ? (
-                  <Button onClick={startRecording} className="bg-red-600 hover:bg-red-700 font-bold">Start Recording</Button>
+                {!isLive ? (
+                  <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold">Go Live</Button>
                 ) : (
-                  <Button onClick={stopRecording} variant="destructive">Stop Recording</Button>
+                  <Button onClick={handleEndLive} variant="destructive">End Live</Button>
                 )}
-                 <Button onClick={() => recordedURL && window.open(recordedURL)} variant="outline" disabled={!recordedURL}>Preview Last Recording</Button>
               </div>
-              <Button disabled>Schedule Premiere...</Button>
             </CardContent>
           </Card>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <Card className="bg-card/50">
-              <CardHeader><CardTitle className="text-base">Profit Preview</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-sm space-y-2">
-                    <Label>Shipping (USD)</Label>
-                    <Input type="number" value={shippingCost} onChange={(e) => setShippingCost(Number(e.target.value))} className="h-8"/>
-                </div>
-                <div className="mt-3 space-y-1">
-                    {products.slice(0, 2).map(p => {
-                        const { profit, fee } = calcProfit(p.priceUSD);
-                        return <div key={p.id} className="flex justify-between text-xs py-1 border-b border-border">
-                            <span className="truncate pr-2">{p.name}</span>
-                            <span>${profit} <span className="text-muted-foreground">(${fee} fee)</span></span>
-                        </div>;
-                    })}
-                </div>
-              </CardContent>
-            </Card>
              <div className="bg-card/50 p-4 rounded-lg">
-                <h3 className="font-semibold text-base mb-2">Quick Tools & Rehearsal</h3>
+                <h3 className="font-semibold text-base mb-2">Rehearsal Tools</h3>
                 <div className="flex flex-col gap-2">
                     <Dialog open={isDealModalOpen} onOpenChange={setIsDealModalOpen}>
                         <DialogTrigger asChild>
@@ -310,14 +351,15 @@ export default function SellerLiveStudioPage() {
             <CardContent>
               <ScrollArea className="h-[300px] pr-3">
                 <div className="space-y-2">
-                  {products.map(p => (
+                  {areProductsLoading && <p>Loading products...</p>}
+                  {products?.map(p => (
                     <div key={p.id} className="flex items-center gap-3 bg-background/50 p-2 rounded">
-                      <Image src={p.img} alt={p.name} width={56} height={56} className="w-14 h-14 object-cover rounded" />
+                      <Image src={p.imageUrl || ''} alt={p.name} width={56} height={56} className="w-14 h-14 object-cover rounded" />
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{p.name}</p>
-                        <p className="text-primary font-bold text-sm">${p.priceUSD}</p>
+                        <p className="text-primary font-bold text-sm">${p.price}</p>
                       </div>
-                      <Button size="sm" onClick={() => setPinnedProduct(p)} variant="secondary">Pin</Button>
+                      <Button size="sm" onClick={() => handlePinProduct(p)} variant="secondary" disabled={!isLive}>Pin</Button>
                     </div>
                   ))}
                 </div>
@@ -325,26 +367,7 @@ export default function SellerLiveStudioPage() {
               <Button variant="outline" className="w-full mt-3">Add New Product</Button>
             </CardContent>
           </Card>
-
-          <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px]">
-            <CardHeader><CardTitle className="text-base">Live Chat (Simulation)</CardTitle></CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-2">
-                <ScrollArea className="flex-1 bg-background/50 p-2 rounded">
-                    <div className="space-y-3">
-                    {messages.map(m => (
-                        <div key={m.id} className={`p-2 rounded-lg text-sm max-w-[85%] ${m.user === "You (Seller)" ? "bg-primary text-primary-foreground self-end rounded-br-none" : "bg-muted self-start rounded-bl-none"}`}>
-                            <div className="text-xs font-bold opacity-80">{m.user}</div>
-                            <p>{m.text}</p>
-                        </div>
-                    ))}
-                    </div>
-                </ScrollArea>
-                <form onSubmit={(e) => { e.preventDefault(); sendChat(); }} className="flex gap-2">
-                    <Input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Simulate a chat message..." />
-                    <Button type="submit">Send</Button>
-                </form>
-            </CardContent>
-          </Card>
+          <LiveChat liveSessionId={liveSessionId} />
         </div>
       </div>
     </div>
