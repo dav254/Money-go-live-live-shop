@@ -12,10 +12,8 @@ import type { Product, ChatMessage, LiveSession } from "@/lib/types";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, collection, query, orderBy, where } from 'firebase/firestore';
 import Image from "next/image";
+import { products } from '@/lib/placeholder-data';
 
 interface Heart {
   id: number;
@@ -33,59 +31,31 @@ interface Banner {
 export default function SellerRoom() {
   const params = useParams();
   const sellerId = params.sellerId as string;
-  const firestore = useFirestore();
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [cartItems, setCartItems] = useState<Product[]>([]);
   const [hearts, setHearts] = useState<Heart[]>([]);
   const heartsRef = useRef<Heart[]>([]);
   const [banner, setBanner] = useState<Banner | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(true);
 
-  const liveSessionQuery = useMemoFirebase(() => {
-    if (!sellerId || !firestore) return null;
-    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'));
-  }, [firestore, sellerId]);
-
-  const { data: liveSessions, isLoading: isLoadingSession } = useCollection<LiveSession>(liveSessionQuery);
-  const liveSession = liveSessions?.[0];
-
-  const liveEventsQuery = useMemoFirebase(() => {
-      if(!liveSession?.id || !firestore) return null;
-      return query(collection(firestore, 'liveSessions', liveSession.id, 'events'), orderBy('timestamp', 'desc'));
-  }, [firestore, liveSession]);
-
-  useCollection(liveEventsQuery, {
-      onNewData: (docs) => {
-          docs.forEach(change => {
-              if (change.type === 'added') {
-                  const eventData = change.doc.data();
-                  if (eventData.type === 'heart') {
-                      spawnHeart();
-                  } else if (eventData.type === 'deal' || eventData.type === 'giveaway') {
-                      showBanner(eventData.text, eventData.type);
-                  }
-              }
-          })
-      }
-  });
-
-
-  const pinnedProductQuery = useMemoFirebase(() => {
-      if (!liveSession?.pinnedProductId || !firestore) return null;
-      return doc(firestore, 'products', liveSession.pinnedProductId);
-  }, [firestore, liveSession]);
-
-  const { data: pinnedProduct, isLoading: isLoadingPinned } = useDoc<Product>(pinnedProductQuery);
+  // Mock data instead of fetching from backend
+  const liveSession: LiveSession | null = {
+      id: 'mock-session-1',
+      sellerId: sellerId,
+      title: "Live Seller Demo",
+      status: 'live',
+      productIds: products.slice(0, 3).map(p => p.id),
+      viewerCount: 1234,
+      startTime: new Date().toISOString(),
+      pinnedProductId: products[0].id,
+  };
   
-  const productIds = useMemo(() => liveSession?.productIds || [], [liveSession]);
-  const productsQuery = useMemoFirebase(() => {
-    if (productIds.length === 0 || !firestore) return null;
-    return query(collection(firestore, 'products'), where('__name__', 'in', productIds));
-  }, [productIds, firestore]);
+  const featuredProducts: Product[] = products.slice(0, 4);
+  const pinnedProduct: Product | undefined = products.find(p => p.id === liveSession?.pinnedProductId);
 
-  const { data: featuredProducts, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
-
-  const isLoading = isLoadingSession || isLoadingProducts;
+  const isLoading = false; // No longer loading from backend
 
   const addToCart = (product: Product) => {
     setCartItems(prev => [...prev, product]);
@@ -113,6 +83,22 @@ export default function SellerRoom() {
       }, 5000);
   };
 
+  useEffect(() => {
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        setHasCameraPermission(true);
+      } catch (err) {
+        console.error("Camera access denied:", err);
+        setHasCameraPermission(false);
+      }
+    }
+    startCamera();
+  }, []);
+
 
   const sellerName = liveSession?.title.replace("'s Live Show", "") || 'Seller';
 
@@ -136,16 +122,6 @@ export default function SellerRoom() {
       )
   }
   
-  if (!liveSession) {
-      return (
-          <BuyerLayout>
-              <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] text-white">
-                  <p>This seller is not currently live.</p>
-              </div>
-          </BuyerLayout>
-      );
-  }
-
   return (
     <BuyerLayout>
         <div className="flex flex-col h-[calc(100vh-8rem)] bg-black text-white">
@@ -167,17 +143,18 @@ export default function SellerRoom() {
         )}
 
         <div className="relative h-1/2 bg-neutral-900 flex items-center justify-center border-b border-neutral-800">
-            <Image
-                src="https://picsum.photos/seed/live-stream/1280/720"
-                alt="Live stream placeholder"
-                fill
-                className="object-cover"
-                data-ai-hint="live stream"
-            />
+            {hasCameraPermission ? (
+                <video ref={videoRef} autoPlay muted className="w-full h-full object-cover" />
+            ) : (
+                 <div className="text-center p-4">
+                    <h3 className="font-bold text-lg">Camera Access Required</h3>
+                    <p className="text-sm text-muted-foreground">Please allow camera access to see the live stream preview.</p>
+                </div>
+            )}
             <div className="absolute inset-0 bg-black/20" />
             {pinnedProduct && (
                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                    <LiveProductCard product={pinnedProduct} onAddToCart={addToCart} isPinned />
+                    <LiveProductCard product={pinnedProduct} onAddToCart={addToCart} />
                  </div>
             )}
         </div>
@@ -197,7 +174,7 @@ export default function SellerRoom() {
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-            <LiveChat liveSessionId={liveSession.id} />
+            <LiveChat liveSessionId={liveSession?.id || null} />
             <CartDrawer cartItems={cartItems} onCheckout={() => setIsPaymentModalOpen(true)} />
         </div>
 
@@ -206,3 +183,4 @@ export default function SellerRoom() {
     </BuyerLayout>
   );
 }
+
