@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Smile } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
 import type { ChatMessage, Chat } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "@/lib/utils";
@@ -74,7 +74,14 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
             lastMessageTimestamp: serverTimestamp(),
         });
         currentChatId = newChatRef.id;
-        setChatId(currentChatId);
+        setChatId(currentChatId); // This is the crucial fix
+    } else {
+        // Update last message on existing chat
+        const chatRef = doc(firestore, 'chats', currentChatId);
+        await updateDoc(chatRef, {
+            lastMessage: text.trim(),
+            lastMessageTimestamp: serverTimestamp(),
+        });
     }
     
     // Add the message to the chat
