@@ -393,7 +393,7 @@ export default function SellerLiveStudioPage() {
     <SellerLayout>
         <div className="p-4 max-w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-4rem)]">
             <div className="lg:col-span-8 xl:col-span-9 space-y-4 flex flex-col">
-            <div className="relative bg-black rounded-lg border border-border overflow-hidden aspect-video">
+            <div className="relative bg-black rounded-lg border border-border overflow-hidden aspect-video flex items-center justify-center">
                 <video
                 id="studio-preview"
                 ref={videoRef}
@@ -403,11 +403,11 @@ export default function SellerLiveStudioPage() {
                 playsInline
                 />
                 {!hasCameraPermission && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/70 p-4">
                         <Alert variant="destructive" className="max-w-sm">
                             <AlertTitle>Camera Access Required</AlertTitle>
                             <AlertDescription>
-                                Please allow camera access to use this feature.
+                                Please allow camera access to use this feature. Check your browser settings.
                             </AlertDescription>
                         </Alert>
                     </div>
@@ -443,7 +443,7 @@ export default function SellerLiveStudioPage() {
                 <div className="flex flex-wrap items-center gap-3">
                     <Button onClick={() => startCamera()} variant="secondary"><Camera className="mr-2 h-4 w-4" /> Start Camera</Button>
                     {!isLive ? (
-                    <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold" disabled={isStartingStream}>
+                    <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold" disabled={isStartingStream || !hasCameraPermission}>
                         {isStartingStream && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Go Live
                     </Button>
