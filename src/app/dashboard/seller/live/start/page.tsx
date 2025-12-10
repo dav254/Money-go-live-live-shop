@@ -94,26 +94,32 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
     <Card className="bg-card/50 flex flex-col h-full p-0">
         <div className="h-full flex">
           {/* Buyer List */}
-          <div className="w-1/3 bg-neutral-900/50 p-3 border-r border-neutral-800 overflow-y-auto">
-            <h2 className="text-lg font-bold mb-4">Buyers</h2>
-            {isLoadingChats ? <p className="text-sm text-muted-foreground">Loading chats...</p> : 
-            (chats || []).map((chat) => {
-              const participant = participants.get(chat.participantIds.find(id => id !== user?.uid) || '');
-              if (!participant) return null;
+          <div className="w-full max-w-[240px] bg-neutral-900/50 p-2 border-r border-neutral-800">
+            <h2 className="text-lg font-bold mb-2 p-2">Buyers</h2>
+            <ScrollArea className="h-[calc(100%-40px)]">
+                {isLoadingChats ? <p className="text-sm text-muted-foreground p-2">Loading chats...</p> : 
+                (chats || []).map((chat) => {
+                const participant = participants.get(chat.participantIds.find(id => id !== user?.uid) || '');
+                if (!participant) return null;
 
-              return (
-                <div
-                  key={chat.id}
-                  onClick={() => setSelectedChat(chat)}
-                  className={`p-2 rounded cursor-pointer mb-1 text-sm flex items-center gap-2 ${
-                    selectedChat?.id === chat.id ? "bg-primary" : "bg-neutral-800 hover:bg-neutral-700"
-                  }`}
-                >
-                  <Avatar className="h-6 w-6"><AvatarImage src={participant.profilePictureUrl} /><AvatarFallback>{participant.fullName.charAt(0)}</AvatarFallback></Avatar>
-                  <span>{participant.fullName}</span>
-                </div>
-              );
-            })}
+                return (
+                    <div
+                    key={chat.id}
+                    onClick={() => setSelectedChat(chat)}
+                    className={cn(
+                        'p-2 rounded-md cursor-pointer mb-1 text-sm flex items-center gap-2 transition-colors',
+                        selectedChat?.id === chat.id ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"
+                    )}
+                    >
+                    <Avatar className="h-8 w-8"><AvatarImage src={participant.profilePictureUrl} /><AvatarFallback>{participant.fullName.charAt(0)}</AvatarFallback></Avatar>
+                     <div className="flex-1 overflow-hidden">
+                        <p className="font-semibold truncate">{participant.fullName}</p>
+                        <p className={cn("text-xs truncate", selectedChat?.id === chat.id ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{chat.lastMessage}</p>
+                    </div>
+                    </div>
+                );
+                })}
+            </ScrollArea>
           </div>
 
           {/* Chat Window */}
