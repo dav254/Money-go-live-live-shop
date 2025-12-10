@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -85,6 +84,15 @@ export default function BuyerProductPage() {
     const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
+
+    // This effect runs when the component mounts, which is when a video is viewed.
+    useEffect(() => {
+        if (firestore && productId) {
+        const productRef = doc(firestore, 'products', productId);
+        // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
+        updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
+        }
+    }, [firestore, productId]);
 
     // Capture reseller ref from URL and store it in localStorage
     useEffect(() => {
@@ -433,3 +441,5 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
+
+    

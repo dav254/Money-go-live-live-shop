@@ -28,15 +28,6 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   const firestore = useFirestore();
 
   useEffect(() => {
-    // This effect runs when the component mounts, which is when a video is viewed.
-    if (firestore && item.product.id) {
-      const productRef = doc(firestore, 'products', item.product.id);
-      // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
-      updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
-    }
-  }, [firestore, item.product.id]);
-
-  useEffect(() => {
     const videoElement = videoRef.current;
     if (videoElement && item.video.mediaType === 'video') {
       const handleCanPlay = () => {
@@ -73,7 +64,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     if (!firestore || !item.product.id) return;
     const productRef = doc(firestore, 'products', item.product.id);
     
-    // Non-blocking update
+    // Non-blocking update for a simple action like a "like"
     const batch = writeBatch(firestore);
     batch.update(productRef, { likes: increment(1) });
     batch.commit().catch(console.error);
@@ -173,3 +164,5 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     </div>
   );
 }
+
+    
