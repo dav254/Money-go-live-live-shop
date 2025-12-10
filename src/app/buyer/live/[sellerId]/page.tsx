@@ -12,9 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PrivateChat } from "@/components/messages/private-chat";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { Card } from "@/components/ui/card";
+import { PrivateChat } from "@/components/messages/private-chat";
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -125,53 +125,50 @@ export default function SellerRoom() {
 
   return (
     <BuyerLayout>
-      <div className="grid grid-cols-1 md:grid-cols-3 h-[calc(100vh-8rem)]">
-        
-        {/* Main Content: Video and Products */}
-        <div className="md:col-span-2 flex flex-col h-full bg-black">
-          {/* Live Video */}
-          <div className="flex-1 relative bg-black flex items-center justify-center border-r border-neutral-700">
-              <p className="text-white">[Live Video Feed]</p>
-              {pinnedProduct && (
-                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                      <LiveProductCard product={pinnedProduct} />
-                  </div>
-              )}
-          </div>
-          
-          <div className="flex-shrink-0 flex">
-             {/* Product Shelf */}
-            <Card className="rounded-none border-x-0 border-b-0 border-t border-neutral-700 flex-1">
-                <div className="p-3">
-                    <h3 className="font-bold mb-2">🛍️ Product Shelf</h3>
-                    <div className="flex gap-2 overflow-x-auto pb-2">
-                        {areProductsLoading ? <ProductShelfSkeleton /> : (
-                            products && products.length > 0 ? (
-                                products.map(p => (
-                                    <div key={p.id} className="flex flex-col items-center">
-                                        <LiveProductCard product={p} />
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
-                            )
-                        )}
+        <div className="flex h-[calc(100vh-8rem)]">
+            {/* Main content: Video, Shelf, Cart */}
+            <div className="flex-1 flex flex-col bg-black overflow-hidden">
+                {/* Live Video */}
+                <div className="flex-1 relative bg-black flex items-center justify-center border-r border-neutral-700">
+                    <p className="text-white">[Live Video Feed]</p>
+                    {pinnedProduct && (
+                        <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
+                            <LiveProductCard product={pinnedProduct} />
+                        </div>
+                    )}
+                </div>
+
+                {/* Bottom Section: Shelf and Cart */}
+                <div className="flex-shrink-0 flex border-t border-neutral-700">
+                    <Card className="rounded-none border-0 flex-1">
+                        <div className="p-3">
+                            <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
+                            <div className="flex gap-2 overflow-x-auto pb-2">
+                                {areProductsLoading ? <ProductShelfSkeleton /> : (
+                                    products && products.length > 0 ? (
+                                        products.map(p => (
+                                            <div key={p.id} className="flex flex-col items-center">
+                                                <LiveProductCard product={p} />
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
+                                    )
+                                )}
+                            </div>
+                        </div>
+                    </Card>
+                    <div className="w-full max-w-xs border-l border-neutral-700">
+                        <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
                     </div>
                 </div>
-            </Card>
-
-            {/* Shopping Cart */}
-            <div className="w-full max-w-xs">
-                <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
             </div>
-          </div>
-        </div>
 
-        {/* Right Panel: Chat */}
-        <div className="h-full bg-neutral-800 flex flex-col">
-          <PrivateChat sellerId={sellerId} sellerName="Seller" />
+            {/* Right Panel: Chat */}
+            <div className="w-full max-w-sm border-l border-neutral-700 hidden md:flex flex-col">
+                <PrivateChat sellerId={sellerId} sellerName="Seller" />
+            </div>
         </div>
-    </div>
     </BuyerLayout>
   );
 }
