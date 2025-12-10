@@ -4,7 +4,6 @@
 import { BuyerLayout } from "@/components/layout/buyer-layout";
 import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
-import { LiveChat } from "@/components/buyer/LiveChat";
 import { useState, useMemo, useEffect } from "react";
 import type { Product, CartItem, Order, LiveSession, ChatMessage, Chat, UserProfile } from "@/lib/types";
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
@@ -49,7 +48,7 @@ export default function SellerRoom() {
   // Find the active live session for this seller
   const liveSessionQuery = useMemoFirebase(() => {
     if (!sellerId) return null;
-    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'));
+    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'), limit(1));
   }, [firestore, sellerId]);
 
   const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
@@ -95,7 +94,7 @@ export default function SellerRoom() {
 
   return (
     <BuyerLayout>
-        <div className="flex h-[calc(100vh-8rem)]">
+        <div className="flex flex-col md:flex-row h-[calc(100vh-8rem)]">
         
         {/* Live Video */}
         <div className="flex-1 bg-black flex items-center justify-center border-r border-neutral-700">
@@ -108,7 +107,7 @@ export default function SellerRoom() {
         </div>
 
         {/* Right Panel */}
-        <div className="w-1/3 bg-neutral-800 flex flex-col">
+        <div className="w-full md:w-1/3 bg-neutral-800 flex flex-col">
             
             {/* Product Shelf */}
             <div className="p-3 border-b border-neutral-700">
@@ -129,7 +128,7 @@ export default function SellerRoom() {
             </div>
 
             {/* Chat */}
-            <div className="flex-1">
+            <div className="flex-1 min-h-0">
                  <PrivateChat sellerId={sellerId} sellerName="Seller" />
             </div>
         </div>
@@ -137,4 +136,3 @@ export default function SellerRoom() {
     </BuyerLayout>
   );
 }
-

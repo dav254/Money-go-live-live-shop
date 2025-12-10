@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import type { ChatMessage, Chat } from '@/lib/types';
 
 export function PrivateChat({ sellerId, sellerName }: { sellerId: string; sellerName: string }) {
@@ -88,7 +88,7 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
 
 
   return (
-    <div className="bg-neutral-800 text-white h-full flex flex-col rounded-lg">
+    <div className="bg-neutral-800 text-white h-full flex flex-col">
       <div className="p-3 border-b border-neutral-700 text-center font-bold">
         Chat with {sellerName}
       </div>
