@@ -170,19 +170,20 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-        allow read, list: if true;
-        allow create, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-        allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read, list: if true;
+      allow create, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
 
-        // Allow any authenticated user to create and read events in a live session
-        match /events/{eventId} {
-            allow read, list: if request.auth != null;
-            allow create: if request.auth != null;
-        }
+      match /events/{eventId} {
+        // Any authenticated user can create an event (like, comment).
+        allow create: if request.auth != null;
+        // Only the seller hosting the session can read the event feed.
+        allow read, list: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/liveSessions/$(sessionId)).data.sellerId;
+      }
 
-        match /chat/{messageId} {
-          allow read, write, list: if request.auth != null;
-        }
+      match /chat/{messageId} {
+        allow read, write, list: if request.auth != null;
+      }
     }
 
     // Reseller Applications
