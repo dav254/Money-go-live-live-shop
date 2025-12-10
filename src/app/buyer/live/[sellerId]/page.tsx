@@ -6,31 +6,68 @@ import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { LiveChat } from "@/components/buyer/LiveChat";
-import { useState, useMemo } from "react";
-import type { Product, CartItem, Order } from "@/lib/types";
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
-import { collection, query, where, doc, setDoc, serverTimestamp, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
+import { useState, useMemo, useEffect } from "react";
+import type { Product, CartItem, Order, LiveSession } from "@/lib/types";
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
+import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// --- Mock Data ---
-const mockProducts: Product[] = [
-    { id: '1', name: 'Classic Handbag', price: 850, imageUrl: 'https://picsum.photos/seed/prod1/200', stock: 10, sellerId: 'seller-1', uploadDate: new Date() },
-    { id: '2', name: 'Urban Sneakers', price: 120, imageUrl: 'https://picsum.photos/seed/prod2/200', stock: 5, sellerId: 'seller-1', uploadDate: new Date() },
-    { id: '3', name: 'Gold Watch', price: 350, imageUrl: 'https://picsum.photos/seed/prod3/200', stock: 15, sellerId: 'seller-1', uploadDate: new Date() },
-    { id: '4', name: 'Sunglasses', price: 75, imageUrl: 'https://picsum.photos/seed/prod4/200', stock: 20, sellerId: 'seller-1', uploadDate: new Date() },
-];
-// --- End Mock Data ---
+
+const ProductShelfSkeleton = () => (
+    <div className="flex gap-2 overflow-x-auto pb-2">
+        {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-neutral-900 p-2 rounded w-36 flex-shrink-0">
+                <Skeleton className="h-20 w-full rounded mb-2" />
+                <Skeleton className="h-4 w-3/4 mb-1" />
+                <Skeleton className="h-5 w-1/2 mb-2" />
+                <Skeleton className="h-7 w-full" />
+            </div>
+        ))}
+    </div>
+);
 
 
 export default function SellerRoom() {
-  const [pinnedProduct, setPinnedProduct] = useState<Product | null>(mockProducts[0]);
+  const params = useParams();
+  const sellerId = params.sellerId as string;
+  
+  const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
 
+  // Fetch all products for the current seller
+  const productsQuery = useMemoFirebase(() => {
+    if (!sellerId) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
+  }, [firestore, sellerId]);
+  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+  // Find the active live session for this seller
+  const liveSessionQuery = useMemoFirebase(() => {
+    if (!sellerId) return null;
+    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'));
+  }, [firestore, sellerId]);
+
+  const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
+  const liveSession = liveSessions?.[0]; // Get the first (and likely only) live session
+  
+  // Effect to update the pinned product when the live session data changes
+  useEffect(() => {
+      if (liveSession && liveSession.pinnedProductId && products) {
+          const product = products.find(p => p.id === liveSession.pinnedProductId);
+          setPinnedProduct(product || null);
+      } else {
+          setPinnedProduct(null);
+      }
+  }, [liveSession, products]);
+
+
+  // Cart functionality
   const cartItemsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return collection(firestore, 'userProfiles', user.uid, 'cart');
@@ -77,24 +114,22 @@ export default function SellerRoom() {
     const newOrderData: Partial<Order> = {
       id: newOrderRef.id,
       buyerId: user.uid,
-      sellerId: firstItem.sellerId, // This assumes all items are from the same seller
-      // In a real app, you'd handle multiple sellers, perhaps by creating multiple orders
+      sellerId: firstItem.sellerId, 
       orderDate: serverTimestamp(),
       orderStatus: 'pending',
       totalAmount: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      shippingAddress: '123 Placeholder, Nairobi', // Should be fetched from user profile
+      shippingAddress: '123 Placeholder, Nairobi', 
       productName: `${firstItem.name}${cartItems.length > 1 ? ` & ${cartItems.length - 1} more items` : ''}`,
       productImage: firstItem.imageUrl,
       quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
       productPrice: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      shippingCost: 10, // Placeholder
+      shippingCost: 10, 
     };
     
     try {
       await setDoc(newOrderRef, newOrderData);
       toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
 
-      // Clear the cart after creating the order
       const batch = writeBatch(firestore);
       cartItems.forEach(item => {
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
@@ -135,18 +170,24 @@ export default function SellerRoom() {
             <div className="p-3 border-b border-neutral-700">
                 <h3 className="font-bold mb-2">🛍️ Product Shelf</h3>
                 <div className="flex gap-2 overflow-x-auto pb-2">
-                    {mockProducts.map(p => (
-                         <div key={p.id} className="flex flex-col items-center">
-                            <LiveProductCard product={p} onAddToCart={handleAddToCart} />
-                            <Button onClick={() => setPinnedProduct(p)} size="sm" variant="link" className="text-xs h-6">Pin Item</Button>
-                        </div>
-                    ))}
+                    {areProductsLoading ? <ProductShelfSkeleton /> : (
+                        products && products.length > 0 ? (
+                            products.map(p => (
+                                <div key={p.id} className="flex flex-col items-center">
+                                    <LiveProductCard product={p} onAddToCart={handleAddToCart} />
+                                    <Button onClick={() => setPinnedProduct(p)} size="sm" variant="link" className="text-xs h-6">Pin Item</Button>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
+                        )
+                    )}
                 </div>
             </div>
 
             {/* Chat */}
             <div className="flex-1">
-                 <LiveChat liveSessionId="mock-session-id" />
+                 <LiveChat liveSessionId={liveSession?.id || null} />
             </div>
 
             {/* Cart */}
