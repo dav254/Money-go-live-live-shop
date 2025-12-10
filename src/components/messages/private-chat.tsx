@@ -5,10 +5,12 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send } from "lucide-react";
+import { Send, Smile } from "lucide-react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import type { ChatMessage, Chat } from '@/lib/types';
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { cn } from "@/lib/utils";
 
 export function PrivateChat({ sellerId, sellerName }: { sellerId: string; sellerName: string }) {
   const { user } = useUser();
@@ -85,6 +87,12 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
 
     setText("");
   }
+  
+  const handleEmojiSelect = (emoji: string) => {
+    setText(prev => prev + emoji);
+  };
+
+  const EMOJIS = ['👍', '❤️', '🔥', '😂', '😍', '🙏'];
 
 
   return (
@@ -98,23 +106,40 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
             {messages?.map(msg => (
             <div
                 key={msg.id}
-                className={`flex ${msg.senderId === user?.uid ? "justify-end" : "justify-start"}`}
+                className={cn("flex flex-col gap-1", msg.senderId === user?.uid ? "items-end" : "items-start")}
             >
                 <div
                     className={`p-2 rounded-lg max-w-[80%] text-sm ${
                     msg.senderId === user?.uid
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-neutral-700"
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-neutral-700 rounded-bl-none"
                     }`}
                 >
                     {msg.messageText}
                 </div>
+                 <p className="text-xs text-muted-foreground px-1">
+                    {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                 </p>
             </div>
             ))}
         </div>
       </ScrollArea>
 
-      <form onSubmit={sendMessage} className="flex p-3 gap-2 border-t border-neutral-700">
+      <form onSubmit={sendMessage} className="flex p-3 gap-2 border-t border-neutral-700 items-center">
+         <Popover>
+            <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="text-muted-foreground"><Smile /></Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+                <div className="flex gap-1">
+                    {EMOJIS.map(emoji => (
+                        <Button key={emoji} variant="ghost" size="icon" onClick={() => handleEmojiSelect(emoji)}>
+                            {emoji}
+                        </Button>
+                    ))}
+                </div>
+            </PopoverContent>
+        </Popover>
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
