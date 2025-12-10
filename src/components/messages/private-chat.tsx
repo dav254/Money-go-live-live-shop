@@ -65,8 +65,7 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
 
     // If no chat exists, create one first
     if (!currentChatId) {
-        const chatsRef = collection(firestore, 'chats');
-        const newChatRef = doc(chatsRef);
+        const newChatRef = doc(collection(firestore, 'chats'));
         await setDoc(newChatRef, {
             id: newChatRef.id,
             participantIds: [user.uid, sellerId],
@@ -74,7 +73,9 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
             lastMessageTimestamp: serverTimestamp(),
         });
         currentChatId = newChatRef.id;
-        setChatId(currentChatId); // This is the crucial fix
+        // This is the crucial fix: update the component's state immediately
+        // so the messagesQuery hook re-runs with the new chatId.
+        setChatId(currentChatId);
     } else {
         // Update last message on existing chat
         const chatRef = doc(firestore, 'chats', currentChatId);
