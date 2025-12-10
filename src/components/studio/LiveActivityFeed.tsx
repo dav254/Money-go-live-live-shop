@@ -5,43 +5,40 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, Heart, UserPlus } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 
 const eventIcons = {
   purchase: <ShoppingBag className="h-4 w-4 text-green-400" />,
   like: <Heart className="h-4 w-4 text-red-400" />,
   follow: <UserPlus className="h-4 w-4 text-blue-400" />,
+  deal: <ShoppingBag className="h-4 w-4 text-yellow-400" />,
+  giveaway: <ShoppingBag className="h-4 w-4 text-pink-400" />,
 };
 
-const sampleEvents = [
-  { type: 'purchase', text: 'Jane D. just bought the Classic Handbag!' },
-  { type: 'follow', text: 'Mike K. started following you.' },
-  { type: 'purchase', text: 'Ben O. just placed an order for Urban Sneakers!' },
-  { type: 'like', text: 'Amina K. liked your live stream.' },
-  { type: 'purchase', text: 'Chris P. purchased the NextGen Smartphone.' },
-];
+interface LiveActivityFeedProps {
+    liveSessionId: string | null;
+}
 
-export function LiveActivityFeed() {
-  const [events, setEvents] = useState<any[]>([]);
+export function LiveActivityFeed({ liveSessionId }: LiveActivityFeedProps) {
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    // Simulate receiving a new event every 5 seconds
-    const interval = setInterval(() => {
-      const randomEvent = sampleEvents[Math.floor(Math.random() * sampleEvents.length)];
-      const newEvent = {
-        id: Date.now(),
-        ...randomEvent,
-      };
-      setEvents(prev => [newEvent, ...prev].slice(0, 20)); // Keep the list to a max of 20 items
-    }, 5000);
+  const eventsQuery = useMemoFirebase(() => {
+    if (!liveSessionId) return null;
+    return query(
+      collection(firestore, 'liveSessions', liveSessionId, 'events'),
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
+  }, [liveSessionId, firestore]);
 
-    return () => clearInterval(interval);
-  }, []);
+  const { data: events, isLoading } = useCollection(eventsQuery);
 
   return (
     <div className="flex flex-col h-full">
         <ScrollArea className="flex-1 -mr-4 pr-4">
             <AnimatePresence>
-            {events.map((event) => (
+            {events && events.map((event) => (
                 <motion.div
                 key={event.id}
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -55,9 +52,9 @@ export function LiveActivityFeed() {
                 </motion.div>
             ))}
             </AnimatePresence>
-            {events.length === 0 && (
+            {(isLoading || !events || events.length === 0) && (
                 <div className="text-center text-sm text-neutral-500 pt-8">
-                    Waiting for activity...
+                    {isLoading ? "Loading activity..." : "Waiting for activity..."}
                 </div>
             )}
         </ScrollArea>

@@ -1,13 +1,13 @@
 
 'use client';
 
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { BuyerLayout } from "@/components/layout/buyer-layout";
 import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo, useEffect } from "react";
 import type { Product, CartItem, Order, LiveSession, ChatMessage, Chat, UserProfile } from "@/lib/types";
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
-import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc, addDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc, addDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -15,6 +15,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { Card } from "@/components/ui/card";
 import { PrivateChat } from "@/components/messages/private-chat";
+import { AnimatePresence, motion } from 'framer-motion';
+import { Heart } from 'lucide-react';
+import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -39,8 +42,20 @@ export default function SellerRoom() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  
+  const [hearts, setHearts] = useState<any[]>([]);
+  const heartsRef = useRef<any[]>([]);
 
-  // Fetch all products for the current seller
+  // Find the active live session for this seller
+  const liveSessionQuery = useMemoFirebase(() => {
+    if (!sellerId) return null;
+    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'), limit(1));
+  }, [firestore, sellerId]);
+
+  const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
+  const liveSession = liveSessions?.[0]; // Get the first (and likely only) live session
+
+  // Fetch all products for the current seller (can be optimized later if needed)
   const productsQuery = useMemoFirebase(() => {
     if (!sellerId) return null;
     return query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
@@ -53,25 +68,43 @@ export default function SellerRoom() {
     return collection(firestore, 'userProfiles', user.uid, 'cart');
   }, [user, firestore]);
   const { data: cartItems } = useCollection<CartItem>(cartItemsQuery);
-
-  // Find the active live session for this seller
-  const liveSessionQuery = useMemoFirebase(() => {
-    if (!sellerId) return null;
-    return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'), limit(1));
-  }, [firestore, sellerId]);
-
-  const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
-  const liveSession = liveSessions?.[0]; // Get the first (and likely only) live session
   
-  // Effect to update the pinned product when the live session data changes
+  // Real-time listener for the live session document to get updates
   useEffect(() => {
-      if (liveSession && liveSession.pinnedProductId && products) {
-          const product = products.find(p => p.id === liveSession.pinnedProductId);
-          setPinnedProduct(product || null);
-      } else {
-          setPinnedProduct(null);
-      }
-  }, [liveSession, products]);
+    if (!liveSession?.id) {
+      setPinnedProduct(null);
+      return;
+    }
+    const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
+    const unsubscribe = onSnapshot(sessionRef, (doc) => {
+        const sessionData = doc.data() as LiveSession;
+        if (sessionData && sessionData.pinnedProductId && products) {
+            const product = products.find(p => p.id === sessionData.pinnedProductId);
+            setPinnedProduct(product || null);
+        } else {
+            setPinnedProduct(null);
+        }
+    });
+    
+    // Listen for live events like hearts
+    const eventsRef = collection(firestore, 'liveSessions', liveSession.id, 'events');
+    const eventsQuery = query(eventsRef, where('timestamp', '>', new Date()));
+    const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const event = change.doc.data();
+                if (event.type === 'like') {
+                     spawnHeart();
+                }
+            }
+        });
+    });
+
+    return () => {
+        unsubscribe();
+        unsubscribeEvents();
+    };
+  }, [liveSession, products, firestore]);
   
   const handleCheckout = async () => {
     if (!user || !firestore || !cartItems || cartItems.length === 0) {
@@ -122,53 +155,110 @@ export default function SellerRoom() {
     }
   };
 
+  const spawnHeart = useCallback(() => {
+    const id = Date.now();
+    const x = Math.random() * 50 + 25; // Random horizontal position
+    const newHeart = { id, x };
+    heartsRef.current = [...heartsRef.current, newHeart];
+    setHearts(heartsRef.current);
+
+    setTimeout(() => {
+      heartsRef.current = heartsRef.current.filter(h => h.id !== id);
+      setHearts(heartsRef.current);
+    }, 2000);
+  }, []);
+  
+  const handleLike = async () => {
+    if (!liveSession || !user) {
+        // Can still spawn a heart locally for UI feedback even if not logged in
+        spawnHeart();
+        return;
+    };
+    
+    const eventsRef = collection(firestore, 'liveSessions', liveSession.id, 'events');
+    try {
+      await addDoc(eventsRef, {
+        type: 'like',
+        text: `${user.displayName || 'A viewer'} liked the stream.`,
+        userId: user.uid,
+        timestamp: serverTimestamp(),
+      });
+    } catch (error) {
+        console.error("Failed to send like event", error);
+    }
+  };
+
 
   return (
-    <BuyerLayout>
-        <div className="flex h-[calc(100vh-8rem)]">
-            {/* Main content: Video, Shelf, Cart */}
-            <div className="flex-1 flex flex-col bg-black overflow-hidden">
-                {/* Live Video */}
-                <div className="flex-1 relative bg-black flex items-center justify-center border-r border-neutral-700">
-                    <p className="text-white">[Live Video Feed]</p>
-                    {pinnedProduct && (
-                        <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                            <LiveProductCard product={pinnedProduct} />
-                        </div>
-                    )}
-                </div>
-
-                {/* Bottom Section: Shelf and Cart */}
-                <div className="flex-shrink-0 flex border-t border-neutral-700">
-                    <Card className="rounded-none border-0 flex-1">
-                        <div className="p-3">
-                            <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
-                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                {areProductsLoading ? <ProductShelfSkeleton /> : (
-                                    products && products.length > 0 ? (
-                                        products.map(p => (
-                                            <div key={p.id} className="flex flex-col items-center">
-                                                <LiveProductCard product={p} />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
-                                    )
-                                )}
-                            </div>
-                        </div>
-                    </Card>
-                    <div className="w-full max-w-xs border-l border-neutral-700">
-                        <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
-                    </div>
-                </div>
+    <div className="flex h-[calc(100vh-4rem)]">
+        {/* Main content: Video, Shelf, Cart */}
+        <div className="flex-1 flex flex-col bg-black overflow-hidden">
+            {/* Hearts Animation Overlay */}
+            <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
+                <AnimatePresence>
+                {hearts.map(h => (
+                    <motion.div
+                    key={h.id}
+                    initial={{ y: 0, opacity: 1, scale: 0.5 }}
+                    animate={{ y: -500, opacity: 0, scale: 1.5 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 2, ease: "easeOut" }}
+                    style={{ left: `${h.x}%` }}
+                    className="absolute bottom-0"
+                    >
+                    <Heart className="h-8 w-8 text-red-500 fill-red-500" />
+                    </motion.div>
+                ))}
+                </AnimatePresence>
+            </div>
+            
+            {/* Like button */}
+            <div className="absolute bottom-4 right-4 z-50">
+                 <Button onClick={handleLike} size="icon" variant="ghost" className="rounded-full bg-black/50 h-14 w-14 hover:bg-black/70">
+                    <Heart className="h-8 w-8 text-white" />
+                </Button>
             </div>
 
-            {/* Right Panel: Chat */}
-            <div className="w-full max-w-sm border-l border-neutral-700 hidden md:flex flex-col">
-                <PrivateChat sellerId={sellerId} sellerName="Seller" />
+            {/* Live Video */}
+            <div className="flex-1 relative bg-black flex items-center justify-center border-r border-neutral-700">
+                <p className="text-white">[Live Video Feed]</p>
+                {pinnedProduct && (
+                    <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
+                        <LiveProductCard product={pinnedProduct} />
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom Section: Shelf and Cart */}
+            <div className="flex-shrink-0 flex border-t border-neutral-700">
+                <Card className="rounded-none border-0 flex-1">
+                    <div className="p-3">
+                        <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                            {areProductsLoading ? <ProductShelfSkeleton /> : (
+                                products && products.length > 0 ? (
+                                    products.map(p => (
+                                        <div key={p.id} className="flex flex-col items-center">
+                                            <LiveProductCard product={p} />
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
+                                )
+                            )}
+                        </div>
+                    </div>
+                </Card>
+                <div className="w-full max-w-xs border-l border-neutral-700">
+                    <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
+                </div>
             </div>
         </div>
-    </BuyerLayout>
+
+        {/* Right Panel: Chat */}
+        <div className="w-full max-w-sm border-l border-neutral-700 hidden md:flex flex-col">
+            <PrivateChat sellerId={sellerId} sellerName="Seller" />
+        </div>
+    </div>
   );
 }
