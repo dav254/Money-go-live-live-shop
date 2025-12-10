@@ -6,8 +6,13 @@ import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { LiveChat } from "@/components/buyer/LiveChat";
-import { useState } from "react";
-import type { Product } from "@/lib/types";
+import { useState, useMemo } from "react";
+import type { Product, CartItem, Order } from "@/lib/types";
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
+import { collection, query, where, doc, setDoc, serverTimestamp, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 // --- Mock Data ---
 const mockProducts: Product[] = [
@@ -21,16 +26,93 @@ const mockProducts: Product[] = [
 
 export default function SellerRoom() {
   const [pinnedProduct, setPinnedProduct] = useState<Product | null>(mockProducts[0]);
-  const [cartItems, setCartItems] = useState<Product[]>([]);
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
 
-  const handleAddToCart = (product: Product) => {
-    setCartItems(prevItems => [...prevItems, product]);
+  const cartItemsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return collection(firestore, 'userProfiles', user.uid, 'cart');
+  }, [user, firestore]);
+  
+  const { data: cartItems } = useCollection<CartItem>(cartItemsQuery);
+
+  const handleAddToCart = async (product: Product) => {
+    if (!user) {
+        toast({ title: 'Please log in', description: 'You need to be logged in to add items to your cart.' });
+        return;
+    }
+    const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
+    const itemData = {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        quantity: 1, // For now, we add one by one
+        addedAt: serverTimestamp(),
+    };
+
+    try {
+        await setDoc(cartItemRef, itemData, { merge: true });
+        toast({ title: 'Added to cart!', description: `${product.name} has been added.` });
+    } catch (e) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: cartItemRef.path,
+            operation: 'write',
+            requestResourceData: itemData,
+        }));
+    }
   };
 
-  const handleCheckout = () => {
-    alert(`Checking out with ${cartItems.length} items. Total: $${cartItems.reduce((sum, item) => sum + item.price, 0).toFixed(2)}`);
-    setCartItems([]);
-  }
+  const handleCheckout = async () => {
+    if (!user || !cartItems || cartItems.length === 0) {
+      toast({ variant: 'destructive', title: 'Your cart is empty.' });
+      return;
+    }
+
+    const newOrderRef = doc(collection(firestore, 'orders'));
+    const firstItem = cartItems[0]; 
+
+    const newOrderData: Partial<Order> = {
+      id: newOrderRef.id,
+      buyerId: user.uid,
+      sellerId: firstItem.sellerId, // This assumes all items are from the same seller
+      // In a real app, you'd handle multiple sellers, perhaps by creating multiple orders
+      orderDate: serverTimestamp(),
+      orderStatus: 'pending',
+      totalAmount: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      shippingAddress: '123 Placeholder, Nairobi', // Should be fetched from user profile
+      productName: `${firstItem.name}${cartItems.length > 1 ? ` & ${cartItems.length - 1} more items` : ''}`,
+      productImage: firstItem.imageUrl,
+      quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+      productPrice: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      shippingCost: 10, // Placeholder
+    };
+    
+    try {
+      await setDoc(newOrderRef, newOrderData);
+      toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+
+      // Clear the cart after creating the order
+      const batch = writeBatch(firestore);
+      cartItems.forEach(item => {
+        const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
+        batch.delete(cartItemRef);
+      });
+      await batch.commit();
+
+      router.push(`/checkout/${newOrderRef.id}`);
+
+    } catch (e) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: newOrderRef.path,
+        operation: 'create',
+        requestResourceData: newOrderData,
+      }));
+    }
+  };
+
 
   return (
     <BuyerLayout>
@@ -68,10 +150,9 @@ export default function SellerRoom() {
             </div>
 
             {/* Cart */}
-            <CartDrawer cartItems={cartItems} onCheckout={handleCheckout} />
+            <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
         </div>
     </div>
     </BuyerLayout>
   );
 }
-
