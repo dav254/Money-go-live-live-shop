@@ -491,7 +491,9 @@ export default function SellerLiveStudioPage() {
                         <p className="font-semibold text-sm">{p.name}</p>
                         <p className="text-primary font-bold text-sm">${p.price}</p>
                       </div>
-                      <Button size="sm" onClick={() => handlePinProduct(p)} variant="secondary" disabled={!isLive}>Pin</Button>
+                      <Button size="sm" onClick={() => handlePinProduct(p)} variant={pinnedProduct?.id === p.id ? 'default' : 'secondary'} disabled={!isLive}>
+                        {pinnedProduct?.id === p.id ? 'Pinned' : 'Pin'}
+                      </Button>
                     </div>
                   ))}
                 </div>
