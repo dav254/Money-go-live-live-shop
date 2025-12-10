@@ -4,6 +4,7 @@
 import { Button } from "../ui/button";
 import { useMemo } from "react";
 import type { CartItem } from "@/lib/types";
+import Image from "next/image";
 
 export function CartDrawer({ cartItems, onCheckout }: { cartItems: CartItem[], onCheckout: () => void }) {
   const total = useMemo(() => {
@@ -18,8 +19,13 @@ export function CartDrawer({ cartItems, onCheckout }: { cartItems: CartItem[], o
       <div className="flex-1 space-y-2 mt-2 overflow-y-auto max-h-32">
         {cartItems && cartItems.length > 0 ? (
           cartItems.map((item) => (
-            <div key={item.productId} className="text-sm flex justify-between">
-              <span>{item.name} x{item.quantity}</span>
+            <div key={item.productId} className="text-sm flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="relative h-8 w-8 rounded-sm overflow-hidden">
+                    <Image src={item.imageUrl || 'https://picsum.photos/seed/placeholder/80'} alt={item.name} fill className="object-cover" />
+                </div>
+                <span>{item.name} x{item.quantity}</span>
+              </div>
               <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))
@@ -33,7 +39,7 @@ export function CartDrawer({ cartItems, onCheckout }: { cartItems: CartItem[], o
             <span>Total:</span>
             <span>${total.toFixed(2)}</span>
         </div>
-        <Button onClick={onCheckout} disabled={!cartItems || cartItems.length === 0} className="bg-green-600 hover:bg-green-700 w-full py-2 mt-3 rounded">
+        <Button onClick={onCheckout} disabled={!cartItems || cartItems.length === 0} className="bg-primary hover:bg-primary/90 w-full py-2 mt-3 rounded">
             Checkout
         </Button>
       </div>

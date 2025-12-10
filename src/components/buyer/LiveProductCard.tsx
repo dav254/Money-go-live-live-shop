@@ -23,6 +23,11 @@ export function LiveProductCard({ product }: { product: Product }) {
         toast({ title: 'Please log in', description: 'You need to be logged in to add items to your cart.', action: <Button onClick={() => router.push('/login')}>Login</Button> });
         return;
     }
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Database connection not available.' });
+        return;
+    }
+
     const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
     const itemData = {
         productId: product.id,
@@ -31,6 +36,7 @@ export function LiveProductCard({ product }: { product: Product }) {
         imageUrl: product.imageUrl,
         quantity: increment(1),
         addedAt: serverTimestamp(),
+        sellerId: product.sellerId,
     };
 
     try {
@@ -52,11 +58,10 @@ export function LiveProductCard({ product }: { product: Product }) {
         <Image src={imageUrl} alt={product.name || 'Product Image'} fill className="object-cover" />
       </div>
       <p className="text-sm font-semibold truncate">{product.name}</p>
-      <p className="text-green-400 font-bold">${product.price}</p>
-      <Button onClick={handleAddToCart} size="sm" className="mt-1 bg-blue-600 hover:bg-blue-700 w-full py-1 rounded text-sm h-7">
+      <p className="text-primary font-bold">${product.price}</p>
+      <Button onClick={handleAddToCart} size="sm" className="mt-1 bg-primary hover:bg-primary/90 w-full py-1 rounded text-sm h-7">
         Add
       </Button>
     </div>
   );
 }
-

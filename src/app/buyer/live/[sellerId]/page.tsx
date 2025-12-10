@@ -13,6 +13,7 @@ import { useRouter, useParams } from "next/navigation";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PrivateChat } from "@/components/messages/private-chat";
+import { CartDrawer } from "@/components/buyer/CartDrawer";
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -45,6 +46,13 @@ export default function SellerRoom() {
   }, [firestore, sellerId]);
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
+  // Fetch Cart Items
+  const cartItemsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, 'userProfiles', user.uid, 'cart');
+  }, [user, firestore]);
+  const { data: cartItems } = useCollection<CartItem>(cartItemsQuery);
+
   // Find the active live session for this seller
   const liveSessionQuery = useMemoFirebase(() => {
     if (!sellerId) return null;
@@ -64,32 +72,54 @@ export default function SellerRoom() {
       }
   }, [liveSession, products]);
   
-  const [chatId, setChatId] = useState<string | null>(null);
-
-  // Effect to find the existing chat between the buyer and seller
-  useEffect(() => {
-    if (!user || !firestore || !sellerId) return;
-
-    const findChat = async () => {
-        const chatsRef = collection(firestore, 'chats');
-        // This query requires a composite index on participantIds and lastMessageTimestamp
-        const q = query(
-            chatsRef, 
-            where('participantIds', 'array-contains', user.uid),
-        );
-        const querySnapshot = await getDocs(q);
-        let existingChatId: string | null = null;
-        querySnapshot.forEach(doc => {
-            if (doc.data().participantIds.includes(sellerId)) {
-                existingChatId = doc.id;
-            }
-        });
-        setChatId(existingChatId);
+  const handleCheckout = async () => {
+    if (!user || !firestore || !cartItems || cartItems.length === 0) {
+      toast({ variant: 'destructive', title: 'Your cart is empty.' });
+      return;
+    }
+    
+    // Simplified checkout: creating one order for the first item in the cart
+    const firstItem = cartItems[0];
+    const newOrderRef = doc(collection(firestore, 'orders'));
+    
+    const newOrderData: Partial<Order> = {
+      id: newOrderRef.id,
+      buyerId: user.uid,
+      sellerId: firstItem.sellerId,
+      productId: firstItem.productId,
+      productName: firstItem.name,
+      productImage: firstItem.imageUrl,
+      productPrice: firstItem.price,
+      shippingCost: 0, // Placeholder
+      totalAmount: firstItem.price * firstItem.quantity,
+      orderDate: serverTimestamp() as any,
+      shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+      orderStatus: 'pending',
+      paymentMethod: 'pending',
+      quantity: firstItem.quantity,
     };
 
-    findChat();
-  }, [user, firestore, sellerId]);
+    try {
+      await setDoc(newOrderRef, newOrderData);
+      
+      // Clear cart after creating order
+      const batch = writeBatch(firestore);
+      cartItems.forEach(item => {
+        const itemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
+        batch.delete(itemRef);
+      });
+      await batch.commit();
 
+      toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+      router.push(`/checkout/${newOrderRef.id}`);
+    } catch (error) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: newOrderRef.path,
+        operation: 'create',
+        requestResourceData: newOrderData,
+      }));
+    }
+  };
 
 
   return (
@@ -126,6 +156,9 @@ export default function SellerRoom() {
                     )}
                 </div>
             </div>
+
+            {/* Shopping Cart */}
+            <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
 
             {/* Chat */}
             <div className="flex-1 min-h-0">
