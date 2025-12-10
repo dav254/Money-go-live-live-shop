@@ -275,7 +275,8 @@ export default function SellerLiveStudioPage() {
     // 5. Listen for answer from buyer
     onSnapshot(newSessionRef, async (snapshot) => {
         const data = snapshot.data();
-        if (!peerConnection.currentRemoteDescription && data?.answer) {
+        if (peerConnection.currentRemoteDescription) return;
+        if (data?.answer) {
             const answerDescription = new RTCSessionDescription(data.answer);
             await peerConnection.setRemoteDescription(answerDescription);
         }
@@ -349,7 +350,8 @@ export default function SellerLiveStudioPage() {
       localStream?.getTracks().forEach(track => track.stop());
       pc?.close();
     };
-  }, [startCamera]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const createLiveEvent = async (eventData: object) => {
       if (!liveSessionId || !firestore) {
@@ -383,8 +385,8 @@ export default function SellerLiveStudioPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground">
-      <div className="p-4 max-w-full mx-auto grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-8 space-y-4">
+      <div className="p-4 max-w-full mx-auto grid grid-cols-12 gap-4 h-[calc(100vh-4rem)]">
+        <div className="col-span-12 lg:col-span-8 space-y-4 flex flex-col">
           <div className="relative bg-black rounded-lg border border-border overflow-hidden aspect-video">
             <video
               id="studio-preview"
@@ -418,7 +420,12 @@ export default function SellerLiveStudioPage() {
             )}
             <div className="absolute top-3 left-3 flex gap-2">
               <div className="px-2 py-1 rounded text-xs font-semibold bg-muted">PREVIEW</div>
-               {isLive && <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse">LIVE</div>}
+               {isLive && (
+                 <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-white"></div>
+                    LIVE
+                 </div>
+               )}
             </div>
             <div className="absolute top-3 right-3">
                 <Button variant="ghost" size="icon" className="bg-black/50" onClick={switchCamera}><FlipHorizontal size={18}/></Button>
@@ -441,7 +448,7 @@ export default function SellerLiveStudioPage() {
             </CardContent>
           </Card>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
              <div className="bg-card/50 p-4 rounded-lg">
                 <h3 className="font-semibold text-base mb-2">Rehearsal Tools</h3>
                 <div className="flex flex-col gap-2">
@@ -474,14 +481,18 @@ export default function SellerLiveStudioPage() {
                     <Button variant="outline" onClick={spawnHeart}><Heart className="mr-2 h-4 w-4 text-red-400"/> Simulate Reactions</Button>
                 </div>
             </div>
+             <div className="bg-card/50 p-4 rounded-lg">
+                <h3 className="font-semibold text-base mb-2">Live Activity</h3>
+                <LiveActivityFeed />
+             </div>
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 space-y-4 flex flex-col">
+        <div className="col-span-12 lg:col-span-4 space-y-4 flex flex-col h-full">
           <Card className="bg-card/50">
             <CardHeader><CardTitle className="text-base">Product Shelf</CardTitle></CardHeader>
             <CardContent>
-              <ScrollArea className="h-[300px] pr-3">
+              <ScrollArea className="h-[200px] pr-3">
                 <div className="space-y-2">
                   {areProductsLoading && <p>Loading products...</p>}
                   {products?.map(p => (

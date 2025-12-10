@@ -39,7 +39,6 @@ export function LiveActivityFeed() {
 
   return (
     <div className="flex flex-col h-full">
-        <h3 className="text-lg font-bold mb-3">Live Activity</h3>
         <ScrollArea className="flex-1 -mr-4 pr-4">
             <AnimatePresence>
             {events.map((event) => (
