@@ -32,6 +32,16 @@ const ProductShelfSkeleton = () => (
     </div>
 );
 
+// WebRTC Configuration
+const servers = {
+    iceServers: [
+        {
+            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+        },
+    ],
+    iceCandidatePoolSize: 10,
+};
+
 
 export default function SellerRoom() {
   const params = useParams();
@@ -45,6 +55,9 @@ export default function SellerRoom() {
   
   const [hearts, setHearts] = useState<any[]>([]);
   const heartsRef = useRef<any[]>([]);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [pc, setPc] = useState<RTCPeerConnection | null>(null);
+
 
   // Find the active live session for this seller
   const liveSessionQuery = useMemoFirebase(() => {
@@ -53,7 +66,58 @@ export default function SellerRoom() {
   }, [firestore, sellerId]);
 
   const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
-  const liveSession = liveSessions?.[0]; // Get the first (and likely only) live session
+  const liveSession = liveSessions?.[0];
+
+  // WebRTC Connection Logic
+  useEffect(() => {
+    if (!liveSession || !liveSession.offer || !firestore || pc) return;
+
+    const peerConnection = new RTCPeerConnection(servers);
+    setPc(peerConnection);
+
+    peerConnection.ontrack = (event) => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = event.streams[0];
+        }
+    };
+
+    const answerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'answerCandidates');
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+            addDoc(answerCandidatesRef, event.candidate.toJSON());
+        }
+    };
+    
+    const offerDescription = new RTCSessionDescription(liveSession.offer);
+    peerConnection.setRemoteDescription(offerDescription).then(async () => {
+        const answerDescription = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answerDescription);
+
+        const answer = {
+            type: answerDescription.type,
+            sdp: answerDescription.sdp,
+        };
+
+        const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
+        await updateDoc(sessionRef, { answer });
+    });
+    
+    const offerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'offerCandidates');
+    onSnapshot(offerCandidatesRef, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                peerConnection.addIceCandidate(candidate);
+            }
+        });
+    });
+
+    return () => {
+        peerConnection.close();
+    };
+
+  }, [liveSession, firestore, pc]);
+
 
   // Fetch all products for the current seller (can be optimized later if needed)
   const productsQuery = useMemoFirebase(() => {
@@ -112,7 +176,6 @@ export default function SellerRoom() {
       return;
     }
     
-    // Simplified checkout: creating one order for the first item in the cart
     const firstItem = cartItems[0];
     const newOrderRef = doc(collection(firestore, 'orders'));
     
@@ -136,7 +199,6 @@ export default function SellerRoom() {
     try {
       await setDoc(newOrderRef, newOrderData);
       
-      // Clear cart after creating order
       const batch = writeBatch(firestore);
       cartItems.forEach(item => {
         const itemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
@@ -169,11 +231,8 @@ export default function SellerRoom() {
   }, []);
   
   const handleLike = async () => {
-    if (!liveSession || !user) {
-        // Can still spawn a heart locally for UI feedback even if not logged in
-        spawnHeart();
-        return;
-    };
+    spawnHeart(); // Instant visual feedback
+    if (!liveSession || !user) return;
     
     const eventsRef = collection(firestore, 'liveSessions', liveSession.id, 'events');
     try {
@@ -190,75 +249,77 @@ export default function SellerRoom() {
 
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-        {/* Main content: Video, Shelf, Cart */}
-        <div className="flex-1 flex flex-col bg-black overflow-hidden">
-            {/* Hearts Animation Overlay */}
-            <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
-                <AnimatePresence>
-                {hearts.map(h => (
-                    <motion.div
-                    key={h.id}
-                    initial={{ y: 0, opacity: 1, scale: 0.5 }}
-                    animate={{ y: -500, opacity: 0, scale: 1.5 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 2, ease: "easeOut" }}
-                    style={{ left: `${h.x}%` }}
-                    className="absolute bottom-0"
-                    >
-                    <Heart className="h-8 w-8 text-red-500 fill-red-500" />
-                    </motion.div>
-                ))}
-                </AnimatePresence>
-            </div>
-            
-            {/* Like button */}
-            <div className="absolute bottom-4 right-4 z-50">
-                 <Button onClick={handleLike} size="icon" variant="ghost" className="rounded-full bg-black/50 h-14 w-14 hover:bg-black/70">
-                    <Heart className="h-8 w-8 text-white" />
-                </Button>
-            </div>
-
-            {/* Live Video */}
-            <div className="flex-1 relative bg-black flex items-center justify-center border-r border-neutral-700">
-                <p className="text-white">[Live Video Feed]</p>
-                {pinnedProduct && (
-                    <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                        <LiveProductCard product={pinnedProduct} />
-                    </div>
-                )}
-            </div>
-
-            {/* Bottom Section: Shelf and Cart */}
-            <div className="flex-shrink-0 flex border-t border-neutral-700">
-                <Card className="rounded-none border-0 flex-1">
-                    <div className="p-3">
-                        <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                            {areProductsLoading ? <ProductShelfSkeleton /> : (
-                                products && products.length > 0 ? (
-                                    products.map(p => (
-                                        <div key={p.id} className="flex flex-col items-center">
-                                            <LiveProductCard product={p} />
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
-                                )
-                            )}
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Main content area */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+            {/* Left/Main Panel: Video and Product Shelf */}
+            <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-black">
+                {/* Live Video */}
+                <div className="flex-1 relative bg-black flex items-center justify-center min-h-0">
+                    <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
+                    {pinnedProduct && (
+                        <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
+                            <LiveProductCard product={pinnedProduct} />
                         </div>
+                    )}
+                    {/* Hearts Animation Overlay */}
+                    <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
+                        <AnimatePresence>
+                        {hearts.map(h => (
+                            <motion.div
+                            key={h.id}
+                            initial={{ y: 0, opacity: 1, scale: 0.5 }}
+                            animate={{ y: -500, opacity: 0, scale: 1.5 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 2, ease: "easeOut" }}
+                            style={{ left: `${h.x}%` }}
+                            className="absolute bottom-0"
+                            >
+                            <Heart className="h-8 w-8 text-red-500 fill-red-500" />
+                            </motion.div>
+                        ))}
+                        </AnimatePresence>
                     </div>
-                </Card>
-                <div className="w-full max-w-xs border-l border-neutral-700">
-                    <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
+                </div>
+                 {/* Like button */}
+                <div className="absolute bottom-20 right-4 lg:right-[calc(25%+1rem)] z-50">
+                    <Button onClick={handleLike} size="icon" variant="ghost" className="rounded-full bg-black/50 h-14 w-14 hover:bg-black/70">
+                        <Heart className="h-8 w-8 text-white" />
+                    </Button>
+                </div>
+
+                {/* Bottom Section: Shelf and Cart */}
+                <div className="flex-shrink-0 flex border-t border-neutral-700">
+                    <Card className="rounded-none border-0 flex-1 bg-neutral-900/50">
+                        <div className="p-3">
+                            <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
+                            <div className="flex gap-2 overflow-x-auto pb-2">
+                                {areProductsLoading ? <ProductShelfSkeleton /> : (
+                                    products && products.length > 0 ? (
+                                        products.map(p => (
+                                            <div key={p.id} className="flex flex-col items-center">
+                                                <LiveProductCard product={p} />
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
+                                    )
+                                )}
+                            </div>
+                        </div>
+                    </Card>
+                    <div className="w-full max-w-xs border-l border-neutral-700">
+                        <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
+                    </div>
                 </div>
             </div>
-        </div>
 
-        {/* Right Panel: Chat */}
-        <div className="w-full max-w-sm border-l border-neutral-700 hidden md:flex flex-col">
-            <PrivateChat sellerId={sellerId} sellerName="Seller" />
+            {/* Right Panel: Chat */}
+            <div className="lg:col-span-4 xl:col-span-3 h-full hidden md:flex flex-col">
+                <PrivateChat sellerId={sellerId} sellerName="Seller" />
+            </div>
         </div>
     </div>
   );
 }
+
