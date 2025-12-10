@@ -10,10 +10,10 @@ export function CartDrawer({ cartItems, onCheckout }) {
   }, [cartItems]);
 
   return (
-    <div className="w-1/3 bg-neutral-900 p-3 flex flex-col">
+    <div className="w-full bg-neutral-900 p-3 flex flex-col border-t border-neutral-700">
       <h3 className="font-bold border-b border-neutral-700 pb-2">🛒 Cart ({cartItems.length})</h3>
       
-      <div className="flex-1 space-y-2 mt-2 overflow-y-auto">
+      <div className="flex-1 space-y-2 mt-2 overflow-y-auto max-h-32">
         {cartItems.length > 0 ? (
           cartItems.map((item, index) => (
             <div key={index} className="text-sm flex justify-between">
