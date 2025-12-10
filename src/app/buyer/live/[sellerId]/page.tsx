@@ -139,9 +139,9 @@ export default function SellerRoom() {
               )}
           </div>
           
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex">
              {/* Product Shelf */}
-            <Card className="rounded-none border-x-0 border-b-0 border-t border-neutral-700">
+            <Card className="rounded-none border-x-0 border-b-0 border-t border-neutral-700 flex-1">
                 <div className="p-3">
                     <h3 className="font-bold mb-2">🛍️ Product Shelf</h3>
                     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -161,15 +161,15 @@ export default function SellerRoom() {
             </Card>
 
             {/* Shopping Cart */}
-            <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
+            <div className="w-full max-w-xs">
+                <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
+            </div>
           </div>
         </div>
 
         {/* Right Panel: Chat */}
         <div className="h-full bg-neutral-800 flex flex-col">
-          <div className="flex-1 min-h-0">
-              <PrivateChat sellerId={sellerId} sellerName="Seller" />
-          </div>
+          <PrivateChat sellerId={sellerId} sellerName="Seller" />
         </div>
     </div>
     </BuyerLayout>
