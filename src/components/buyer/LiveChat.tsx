@@ -41,7 +41,7 @@ export function LiveChat({ liveSessionId }: LiveChatProps) {
     }, [messages]);
 
   return (
-    <div className="w-2/3 p-3 flex flex-col overflow-y-auto bg-black border-r border-neutral-700">
+    <div className="w-full h-full p-3 flex flex-col overflow-y-auto bg-black border-r border-neutral-700">
       <p className="text-neutral-400 text-sm font-semibold mb-2">💬 Live Chat</p>
       
       <ScrollArea className="flex-1 space-y-2 text-sm overflow-y-auto bg-neutral-900/50 p-2 rounded-md" ref={scrollAreaRef}>
