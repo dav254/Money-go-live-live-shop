@@ -4,17 +4,16 @@
 import { BuyerLayout } from "@/components/layout/buyer-layout";
 import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
-import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { LiveChat } from "@/components/buyer/LiveChat";
 import { useState, useMemo, useEffect } from "react";
-import type { Product, CartItem, Order, LiveSession } from "@/lib/types";
+import type { Product, CartItem, Order, LiveSession, ChatMessage, Chat, UserProfile } from "@/lib/types";
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
-import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc, addDoc, orderBy, limit } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { useRouter, useParams } from "next/navigation";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import { PrivateChat } from "@/components/messages/private-chat";
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -65,88 +64,33 @@ export default function SellerRoom() {
           setPinnedProduct(null);
       }
   }, [liveSession, products]);
-
-
-  // Cart functionality
-  const cartItemsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return collection(firestore, 'userProfiles', user.uid, 'cart');
-  }, [user, firestore]);
   
-  const { data: cartItems } = useCollection<CartItem>(cartItemsQuery);
+  const [chatId, setChatId] = useState<string | null>(null);
 
-  const handleAddToCart = async (product: Product) => {
-    if (!user) {
-        toast({ title: 'Please log in', description: 'You need to be logged in to add items to your cart.' });
-        return;
-    }
-    const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
-    const itemData = {
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        imageUrl: product.imageUrl,
-        quantity: 1, // For now, we add one by one
-        addedAt: serverTimestamp(),
+  // Effect to find the existing chat between the buyer and seller
+  useEffect(() => {
+    if (!user || !firestore || !sellerId) return;
+
+    const findChat = async () => {
+        const chatsRef = collection(firestore, 'chats');
+        // This query requires a composite index on participantIds and lastMessageTimestamp
+        const q = query(
+            chatsRef, 
+            where('participantIds', 'array-contains', user.uid),
+        );
+        const querySnapshot = await getDocs(q);
+        let existingChatId: string | null = null;
+        querySnapshot.forEach(doc => {
+            if (doc.data().participantIds.includes(sellerId)) {
+                existingChatId = doc.id;
+            }
+        });
+        setChatId(existingChatId);
     };
 
-    try {
-        await setDoc(cartItemRef, itemData, { merge: true });
-        toast({ title: 'Added to cart!', description: `${product.name} has been added.` });
-    } catch (e) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: cartItemRef.path,
-            operation: 'write',
-            requestResourceData: itemData,
-        }));
-    }
-  };
+    findChat();
+  }, [user, firestore, sellerId]);
 
-  const handleCheckout = async () => {
-    if (!user || !cartItems || cartItems.length === 0) {
-      toast({ variant: 'destructive', title: 'Your cart is empty.' });
-      return;
-    }
-
-    const newOrderRef = doc(collection(firestore, 'orders'));
-    const firstItem = cartItems[0]; 
-
-    const newOrderData: Partial<Order> = {
-      id: newOrderRef.id,
-      buyerId: user.uid,
-      sellerId: firstItem.sellerId, 
-      orderDate: serverTimestamp(),
-      orderStatus: 'pending',
-      totalAmount: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      shippingAddress: '123 Placeholder, Nairobi', 
-      productName: `${firstItem.name}${cartItems.length > 1 ? ` & ${cartItems.length - 1} more items` : ''}`,
-      productImage: firstItem.imageUrl,
-      quantity: cartItems.reduce((sum, item) => sum + item.quantity, 0),
-      productPrice: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      shippingCost: 10, 
-    };
-    
-    try {
-      await setDoc(newOrderRef, newOrderData);
-      toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
-
-      const batch = writeBatch(firestore);
-      cartItems.forEach(item => {
-        const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
-        batch.delete(cartItemRef);
-      });
-      await batch.commit();
-
-      router.push(`/checkout/${newOrderRef.id}`);
-
-    } catch (e) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: newOrderRef.path,
-        operation: 'create',
-        requestResourceData: newOrderData,
-      }));
-    }
-  };
 
 
   return (
@@ -158,7 +102,7 @@ export default function SellerRoom() {
             <p className="text-white">[Live Video Feed]</p>
             {pinnedProduct && (
                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                    <LiveProductCard product={pinnedProduct} onAddToCart={handleAddToCart} />
+                    <LiveProductCard product={pinnedProduct} />
                 </div>
             )}
         </div>
@@ -174,8 +118,7 @@ export default function SellerRoom() {
                         products && products.length > 0 ? (
                             products.map(p => (
                                 <div key={p.id} className="flex flex-col items-center">
-                                    <LiveProductCard product={p} onAddToCart={handleAddToCart} />
-                                    <Button onClick={() => setPinnedProduct(p)} size="sm" variant="link" className="text-xs h-6">Pin Item</Button>
+                                    <LiveProductCard product={p} />
                                 </div>
                             ))
                         ) : (
@@ -187,13 +130,11 @@ export default function SellerRoom() {
 
             {/* Chat */}
             <div className="flex-1">
-                 <LiveChat liveSessionId={liveSession?.id || null} />
+                 <PrivateChat sellerId={sellerId} sellerName="Seller" />
             </div>
-
-            {/* Cart */}
-            <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
         </div>
     </div>
     </BuyerLayout>
   );
 }
+
