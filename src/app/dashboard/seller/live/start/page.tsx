@@ -91,7 +91,7 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
   const selectedParticipant = selectedChat ? participants.get(selectedChat.participantIds.find(id => id !== user?.uid) || '') : null;
 
   return (
-    <Card className="bg-card/50 flex flex-col h-[calc(100vh-28rem)] max-h-[500px] p-0">
+    <Card className="bg-card/50 flex flex-col h-full p-0">
         <div className="h-full flex">
           {/* Buyer List */}
           <div className="w-1/3 bg-neutral-900/50 p-3 border-r border-neutral-800 overflow-y-auto">
@@ -477,7 +477,7 @@ export default function SellerLiveStudioPage() {
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 space-y-4">
+        <div className="col-span-12 lg:col-span-4 space-y-4 flex flex-col">
           <Card className="bg-card/50">
             <CardHeader><CardTitle className="text-base">Product Shelf</CardTitle></CardHeader>
             <CardContent>
@@ -499,7 +499,9 @@ export default function SellerLiveStudioPage() {
               <Button variant="outline" className="w-full mt-3">Add New Product</Button>
             </CardContent>
           </Card>
-          <MultiBuyerChat liveSessionId={liveSessionId} />
+          <div className="flex-grow min-h-0">
+             <MultiBuyerChat liveSessionId={liveSessionId} />
+          </div>
         </div>
       </div>
     </div>
