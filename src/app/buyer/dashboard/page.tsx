@@ -200,7 +200,7 @@ export default function BuyerDashboardPage() {
           {isLoadingSellers ? <SellerCarouselSkeleton /> : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {sellers?.map((seller) => (
-                <Link href={`/sellers/${seller.sellerId}`} key={seller.id}>
+                <Link href={`/sellers/${seller.id}`} key={seller.id}>
                     <Card className="group relative h-52 overflow-hidden">
                     <Image
                         src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
