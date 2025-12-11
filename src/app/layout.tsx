@@ -3,9 +3,7 @@ import type { Metadata } from 'next';
 import { Manrope, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
-import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/firebase';
-import { ThemeProvider } from '@/components/theme-provider';
+import { Providers } from './providers';
 
 const fontManrope = Manrope({
   subsets: ['latin'],
@@ -20,6 +18,9 @@ const fontSpaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: 'Go Earn: Live Shop',
   description: 'A video-driven marketplace to buy and sell products.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
@@ -36,17 +37,7 @@ export default function RootLayout({
           fontSpaceGrotesk.variable
         )}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <FirebaseClientProvider>
-            {children}
-            <Toaster />
-          </FirebaseClientProvider>
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

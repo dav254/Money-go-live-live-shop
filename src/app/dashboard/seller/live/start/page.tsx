@@ -133,7 +133,7 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
                 {/* Messages */}
                 <ScrollArea className="flex-1">
                     <div className="p-4 space-y-3">
-                      {isLoadingMessages ? <p>Loading...</p> :
+                      {isLoadingMessages ? <p>Loading...</p> : 
                       (messages || []).map((msg, i) => (
                           <div key={i} className={cn("p-2 rounded-lg text-sm w-fit", msg.senderId === user?.uid ? "bg-primary ml-auto" : "bg-neutral-800")}>
                               {msg.messageText}
@@ -226,15 +226,24 @@ export default function SellerLiveStudioPage() {
     videoElement.src = videoUrl;
     videoElement.loop = true;
     videoElement.muted = true;
-    videoElement.play().then(() => {
-      const stream = (videoElement as any).captureStream();
-      setLocalStream(stream);
-      setHasCameraPermission(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(() => {});
-      }
-    }).catch(e => console.error("Test video play failed:", e));
+
+    videoElement.onloadedmetadata = () => {
+      videoElement.play().then(() => {
+        const stream = (videoElement as any).captureStream();
+        setLocalStream(stream);
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(e => console.error("Studio preview play failed:", e.name, e.message));
+        }
+      }).catch(e => {
+          console.error("Test video play failed:", e.name, e.message)
+      });
+    }
+    videoElement.onerror = (e) => {
+        let error = videoElement.error;
+        console.error("Test video loading error:", error?.code, error?.message)
+    }
   };
 
 
@@ -256,68 +265,79 @@ export default function SellerLiveStudioPage() {
       return;
     }
     setIsStartingStream(true);
-    
-    // 1. Create Live Session Doc
-    const newSessionRef = doc(collection(firestore, 'liveSessions'));
-    const newSessionId = newSessionRef.id;
-    await setDoc(newSessionRef, {
-        id: newSessionId,
-        sellerId: user.uid,
-        status: 'live',
-        startTime: serverTimestamp(),
-        productIds: [],
-    });
 
-    // 2. Setup WebRTC Peer Connection
-    const peerConnection = new RTCPeerConnection(servers);
-    localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-    });
+    try {
+        // 1. Create Live Session Doc
+        const newSessionRef = doc(collection(firestore, 'liveSessions'));
+        const newSessionId = newSessionRef.id;
+        await setDoc(newSessionRef, {
+            id: newSessionId,
+            sellerId: user.uid,
+            status: 'live',
+            startTime: serverTimestamp(),
+            productIds: [],
+        });
 
-    // 3. Create Offer and Save to Firestore
-    const offerDescription = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offerDescription);
+        // 2. Setup WebRTC Peer Connection
+        const peerConnection = new RTCPeerConnection(servers);
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
 
-    const offer = {
-        sdp: offerDescription.sdp,
-        type: offerDescription.type,
-    };
-    await updateDoc(newSessionRef, { offer });
+        // 3. Create Offer and Save to Firestore
+        const offerDescription = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offerDescription);
 
-    // 4. Listen for ICE candidates
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            const candidatesRef = collection(newSessionRef, 'offerCandidates');
-            addDoc(candidatesRef, event.candidate.toJSON());
-        }
-    };
-    
-    // 5. Listen for answer from buyer
-    onSnapshot(newSessionRef, async (snapshot) => {
-        const data = snapshot.data();
-        if (peerConnection.currentRemoteDescription) return;
-        if (data?.answer) {
-            const answerDescription = new RTCSessionDescription(data.answer);
-            await peerConnection.setRemoteDescription(answerDescription);
-        }
-    });
+        const offer = {
+            sdp: offerDescription.sdp,
+            type: offerDescription.type,
+        };
+        await updateDoc(newSessionRef, { offer });
 
-    // 6. Listen for buyer's ICE candidates
-    const answerCandidatesRef = collection(newSessionRef, 'answerCandidates');
-    onSnapshot(answerCandidatesRef, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                peerConnection.addIceCandidate(candidate);
+        // 4. Listen for ICE candidates
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                const candidatesRef = collection(newSessionRef, 'offerCandidates');
+                addDoc(candidatesRef, event.candidate.toJSON());
+            }
+        };
+        
+        // 5. Listen for answer from buyer
+        onSnapshot(newSessionRef, async (snapshot) => {
+            const data = snapshot.data();
+            if (peerConnection.currentRemoteDescription) return;
+            if (data?.answer) {
+                const answerDescription = new RTCSessionDescription(data.answer);
+                await peerConnection.setRemoteDescription(answerDescription);
             }
         });
-    });
 
-    setPc(peerConnection);
-    setLiveSessionId(newSessionId);
-    setIsLive(true);
-    setIsStartingStream(false);
-    toast({ title: "You are now live!", description: "Waiting for viewers to connect..." });
+        // 6. Listen for buyer's ICE candidates
+        const answerCandidatesRef = collection(newSessionRef, 'answerCandidates');
+        onSnapshot(answerCandidatesRef, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const candidate = new RTCIceCandidate(change.doc.data());
+                    peerConnection.addIceCandidate(candidate);
+                }
+            });
+        });
+
+        setPc(peerConnection);
+        setLiveSessionId(newSessionId);
+        setIsLive(true);
+        toast({ title: "You are now live!", description: "Waiting for viewers to connect..." });
+
+    } catch (error) {
+        console.error("Go Live Error: ", error);
+        toast({ variant: 'destructive', title: 'Could Not Go Live', description: 'An unexpected error occurred. Please try again.' });
+        // Cleanup in case of failure
+        if (liveSessionId) {
+            handleEndLive(); // Attempt to clean up the session
+        }
+    } finally {
+        setIsStartingStream(false);
+    }
   };
   
   const handleEndLive = async () => {

@@ -232,12 +232,20 @@ export default function SellerRoom() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-4rem)]">
         {/* Main Panel: Video and Product Shelf */}
         <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-black rounded-lg overflow-hidden">
             {/* Live Video */}
             <div className="flex-1 relative bg-black flex items-center justify-center min-h-0">
                 <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
+                <div className="absolute top-3 left-3 flex gap-2">
+                    {liveSession && (
+                        <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse flex items-center gap-1.5">
+                            <div className="h-2 w-2 rounded-full bg-white"></div>
+                            LIVE
+                        </div>
+                    )}
+                </div>
                 {pinnedProduct && (
                     <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
                         <LiveProductCard product={pinnedProduct} />
@@ -274,7 +282,7 @@ export default function SellerRoom() {
         </div>
 
         {/* Right Panel: Chat */}
-        <div className="lg:col-span-4 xl:col-span-3 h-full hidden md:flex flex-col">
+        <div className="lg:col-span-4 xl:col-span-3 hidden md:flex flex-col rounded-lg overflow-hidden">
             <PrivateChat sellerId={sellerId} sellerName="Seller" />
         </div>
     </div>

@@ -63,37 +63,49 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
 
     let currentChatId = chatId;
 
-    // If no chat exists, create one first
-    if (!currentChatId) {
-        const newChatRef = doc(collection(firestore, 'chats'));
-        await setDoc(newChatRef, {
-            id: newChatRef.id,
-            participantIds: [user.uid, sellerId],
-            lastMessage: text.trim(),
-            lastMessageTimestamp: serverTimestamp(),
-        });
-        currentChatId = newChatRef.id;
-        // This is the crucial fix: update the component's state immediately
-        // so the messagesQuery hook re-runs with the new chatId.
-        setChatId(currentChatId);
-    } else {
-        // Update last message on existing chat
-        const chatRef = doc(firestore, 'chats', currentChatId);
-        await updateDoc(chatRef, {
-            lastMessage: text.trim(),
-            lastMessageTimestamp: serverTimestamp(),
-        });
-    }
-    
-    // Add the message to the chat
-    const messagesRef = collection(firestore, 'chats', currentChatId, 'messages');
-    await addDoc(messagesRef, {
-        senderId: user.uid,
-        messageText: text.trim(),
-        timestamp: serverTimestamp()
-    });
+    try {
+        // If no chat exists, create one first
+        if (!currentChatId) {
+            const newChatRef = doc(collection(firestore, 'chats'));
+            await setDoc(newChatRef, {
+                id: newChatRef.id,
+                participantIds: [user.uid, sellerId],
+                lastMessage: text.trim(),
+                lastMessageTimestamp: serverTimestamp(),
+            });
+            currentChatId = newChatRef.id;
+            // This is the crucial fix: update the component's state immediately
+            // so the messagesQuery hook re-runs with the new chatId.
+            setChatId(currentChatId);
+        } else {
+            // Update last message on existing chat
+            const chatRef = doc(firestore, 'chats', currentChatId);
+            await updateDoc(chatRef, {
+                lastMessage: text.trim(),
+                lastMessageTimestamp: serverTimestamp(),
+            });
+        }
+        
+        if (!currentChatId) {
+             // This case should ideally not be reached
+             console.error("Failed to obtain chat ID.");
+             return;
+        }
 
-    setText("");
+        // Add the message to the chat
+        const messagesRef = collection(firestore, 'chats', currentChatId, 'messages');
+        await addDoc(messagesRef, {
+            senderId: user.uid,
+            messageText: text.trim(),
+            timestamp: serverTimestamp()
+        });
+
+        // Only clear the text field if the message was successfully sent
+        setText("");
+    } catch (error) {
+        console.error("Error sending message: ", error);
+        // Do not clear the text field, so the user knows the message failed to send.
+    }
   }
   
   const handleEmojiSelect = (emoji: string) => {

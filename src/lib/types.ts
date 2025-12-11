@@ -344,11 +344,14 @@ export interface Payment {
 
 export interface ErrorLog {
   id: string;
-  code: string;
-  message: string;
-  userId?: string;
-  severity: 'critical' | 'error' | 'warning' | 'info';
+  errorMessage: string;
+  errorStack?: string;
   timestamp: any;
+  userId?: string;
+  context?: any;
+  status: 'new' | 'analyzed' | 'fixed';
+  aiAnalysis?: string;
+  aiSuggestedFix?: string;
 }
 
 export interface ActivityLog {

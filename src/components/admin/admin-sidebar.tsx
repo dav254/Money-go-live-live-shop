@@ -224,7 +224,7 @@ export function AdminSidebar() {
           items={[
             { href: 'revenue', label: 'Sales Analytics' },
             { href: 'activity', label: 'User Activity Logs' },
-            { href: 'errors', label: 'Error Logs' },
+            { href: 'errors', label: 'Frontend' },
           ]}
         />
       </SidebarMenu>
