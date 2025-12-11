@@ -16,6 +16,7 @@ import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { Card } from "@/components/ui/card";
 import { PrivateChat } from "@/components/messages/private-chat";
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
+import { Heart } from 'lucide-react';
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -63,6 +64,7 @@ export default function SellerRoom() {
 
   const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
   const liveSession = liveSessions?.[0];
+  const liveSessionId = liveSession?.id;
 
   // WebRTC Connection Logic
   useEffect(() => {
@@ -165,6 +167,8 @@ export default function SellerRoom() {
       return;
     }
     
+    // For simplicity, this example assumes all items in cart are from the same seller
+    // A real implementation would group items by seller.
     const firstItem = cartItems[0];
     const newOrderRef = doc(collection(firestore, 'orders'));
     
@@ -172,17 +176,17 @@ export default function SellerRoom() {
       id: newOrderRef.id,
       buyerId: user.uid,
       sellerId: firstItem.sellerId,
-      productId: firstItem.productId,
+      productId: firstItem.productId, // This is simplified for single-item checkout
       productName: firstItem.name,
       productImage: firstItem.imageUrl,
       productPrice: firstItem.price,
       shippingCost: 0, // Placeholder
-      totalAmount: firstItem.price * firstItem.quantity,
+      totalAmount: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
       orderDate: serverTimestamp() as any,
       shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
       orderStatus: 'pending',
       paymentMethod: 'pending',
-      quantity: firstItem.quantity,
+      quantity: firstItem.quantity, // This is simplified
     };
 
     try {
@@ -206,6 +210,28 @@ export default function SellerRoom() {
     }
   };
 
+  const handleDeleteItem = async (productId: string) => {
+    if (!user || !firestore) return;
+    const itemRef = doc(firestore, 'userProfiles', user.uid, 'cart', productId);
+    try {
+        await deleteDoc(itemRef);
+        toast({ title: 'Item removed from cart.' });
+    } catch (e) {
+        console.error("Error removing item from cart: ", e);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not remove item.' });
+    }
+  };
+  
+    const handleLike = () => {
+    if (!liveSessionId) return;
+    const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
+    addDoc(eventsRef, {
+        type: 'like',
+        text: `${user?.displayName || 'A viewer'} liked the stream!`,
+        timestamp: serverTimestamp()
+    });
+  };
+
 
   return (
     <div className="flex flex-col h-full bg-neutral-900 text-white">
@@ -216,6 +242,10 @@ export default function SellerRoom() {
                 {/* Live Video */}
                 <div className="flex-1 relative bg-black flex items-center justify-center min-h-0">
                     <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
+                     {/* Like button positioned over the video */}
+                    <button onClick={handleLike} className="absolute bottom-28 right-5 z-20 text-white">
+                        <Heart className="h-8 w-8 text-white drop-shadow-lg" />
+                    </button>
                     {pinnedProduct && (
                         <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
                             <LiveProductCard product={pinnedProduct} />
@@ -224,27 +254,29 @@ export default function SellerRoom() {
                 </div>
 
                 {/* Bottom Section: Shelf and Cart */}
-                <div className="flex-shrink-0 flex border-t border-neutral-700">
+                <div className="flex-shrink-0 flex border-t border-neutral-700 h-48">
                     <Card className="rounded-none border-0 flex-1 bg-neutral-900/50">
-                        <div className="p-3">
+                        <div className="p-3 h-full flex flex-col">
                             <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
-                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                {areProductsLoading ? <ProductShelfSkeleton /> : (
-                                    featuredProducts && featuredProducts.length > 0 ? (
-                                        featuredProducts.map(p => (
-                                            <div key={p.id} className="flex flex-col items-center">
-                                                <LiveProductCard product={p} />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-neutral-400 p-4 text-center">Seller has not featured any products.</p>
-                                    )
-                                )}
-                            </div>
+                            <ScrollArea className="flex-1">
+                                <div className="flex gap-2 pb-2">
+                                    {areProductsLoading ? <ProductShelfSkeleton /> : (
+                                        featuredProducts && featuredProducts.length > 0 ? (
+                                            featuredProducts.map(p => (
+                                                <div key={p.id} className="flex flex-col items-center">
+                                                    <LiveProductCard product={p} />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-neutral-400 p-4 text-center">Seller has not featured any products.</p>
+                                        )
+                                    )}
+                                </div>
+                            </ScrollArea>
                         </div>
                     </Card>
                     <div className="w-full max-w-xs border-l border-neutral-700">
-                        <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} />
+                        <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} onDeleteItem={handleDeleteItem} />
                     </div>
                 </div>
             </div>
