@@ -233,7 +233,7 @@ export default function SellerRoom() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-4rem)]">
         {/* Main Panel: Video and Product Shelf */}
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-black rounded-lg overflow-hidden">
+        <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-black rounded-lg overflow-hidden min-h-0">
             {/* Live Video */}
             <div className="flex-1 relative bg-black flex items-center justify-center min-h-0">
                 <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
