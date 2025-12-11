@@ -105,7 +105,7 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
 
   return (
     <div className="bg-neutral-800 text-white h-full flex flex-col">
-      <div className="p-3 border-b border-neutral-700 text-center font-bold">
+      <div className="p-3 border-b border-neutral-700 text-center font-bold flex-shrink-0">
         Chat with {sellerName}
       </div>
 
@@ -133,7 +133,7 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
         </div>
       </ScrollArea>
 
-      <form onSubmit={sendMessage} className="flex p-3 gap-2 border-t border-neutral-700 items-center">
+      <form onSubmit={sendMessage} className="flex p-3 gap-2 border-t border-neutral-700 items-center flex-shrink-0">
          <Popover>
             <PopoverTrigger asChild>
                 <Button type="button" variant="ghost" size="icon" className="text-muted-foreground"><Smile /></Button>
