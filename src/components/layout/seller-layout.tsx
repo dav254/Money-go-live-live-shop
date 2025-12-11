@@ -53,7 +53,7 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar side="left" collapsible="offcanvas">
+      <Sidebar side="left" collapsible="icon">
         <SidebarHeader>
           <Logo className="h-8 w-auto text-primary" />
         </SidebarHeader>

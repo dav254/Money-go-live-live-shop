@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -15,6 +14,9 @@ import { doc } from 'firebase/firestore';
 import { useMemo } from 'react';
 import type { SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { SellerSidebar } from './seller-sidebar';
+import { Logo } from '../logo';
 
 
 export function SellerHeader() {
@@ -43,7 +45,28 @@ export function SellerHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2">
-        <SidebarTrigger className="md:hidden" />
+         {/* Mobile Sidebar */}
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="md:hidden">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0">
+                 <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
+                    <div className="sticky top-0 z-10 border-b bg-card p-4">
+                         <Logo className="h-8 w-auto text-primary" />
+                    </div>
+                    <div className="p-4 pt-0">
+                        <SellerSidebar />
+                    </div>
+                </div>
+            </SheetContent>
+        </Sheet>
+        
+        {/* Desktop Sidebar Trigger */}
+        <SidebarTrigger className="hidden md:flex" />
         <div className="hidden md:flex items-center gap-3">
           {isLoading ? (
             <>
