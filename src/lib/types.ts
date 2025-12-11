@@ -186,7 +186,7 @@ export interface Order {
   platformFee?: number;
   resellerCommission?: number;
   disputeReason?: string;
-  // Deprecated fields, kept for backward compatibility if needed, but 'items' array is preferred.
+  // Deprecated fields, kept for backward compatibility if needed.
   productId?: string;
   productName?: string;
   productImage?: string;

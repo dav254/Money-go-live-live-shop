@@ -14,8 +14,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { Card } from "@/components/ui/card";
 import { PrivateChat } from "@/components/messages/private-chat";
-import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
-import { Heart } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ProductShelfSkeleton = () => (
@@ -235,17 +233,6 @@ export default function SellerRoom() {
         toast({ variant: 'destructive', title: 'Error', description: 'Could not remove item.' });
     }
   };
-  
-    const handleLike = () => {
-    if (!liveSessionId || !firestore || !user) return;
-    const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
-    addDoc(eventsRef, {
-        type: 'like',
-        text: `${user.displayName || 'A viewer'} liked the stream!`,
-        timestamp: serverTimestamp()
-    });
-  };
-
 
   return (
     <div className="flex flex-col h-full bg-neutral-900 text-white">
@@ -256,10 +243,6 @@ export default function SellerRoom() {
                 {/* Live Video */}
                 <div className="flex-1 relative bg-black flex items-center justify-center min-h-0">
                     <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
-                     {/* Like button positioned over the video */}
-                    <button onClick={handleLike} className="absolute bottom-28 right-5 z-20 text-white">
-                        <Heart className="h-8 w-8 text-white drop-shadow-lg" />
-                    </button>
                     {pinnedProduct && (
                         <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
                             <LiveProductCard product={pinnedProduct} />

@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { MainLayout } from '@/components/layout/main-layout';
@@ -11,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -67,20 +68,34 @@ export default function CheckoutPage() {
     }, [firestore, orderId]);
 
     const { data: order, isLoading: isLoadingOrder, error: orderError } = useDoc<Order>(orderRef);
-
-    const productRef = useMemoFirebase(() => {
-        if (!order?.productId || !firestore) return null;
-        return doc(firestore, 'products', order.productId);
-    }, [firestore, order]);
-
-    const { data: product, isLoading: isLoadingProduct, error: productError } = useDoc<Product>(productRef);
     
-    const isLoading = isLoadingOrder || isLoadingProduct || isUserLoading;
-    const error = orderError || productError;
+    // We need to fetch the seller's shipping cost from their profile, not the order, to prevent manipulation.
+    const [liveShippingCost, setLiveShippingCost] = useState<number>(0);
+    const [isLoadingShipping, setIsLoadingShipping] = useState(true);
 
-    // Use the live shipping cost from the product, not the one saved in the order
-    const liveShippingCost = product?.shippingCost ?? order?.shippingCost ?? 0;
-    const liveTotalAmount = (order?.productPrice ?? 0) + liveShippingCost;
+    useEffect(() => {
+        const fetchSellerShipping = async () => {
+            if (order?.sellerId && firestore) {
+                setIsLoadingShipping(true);
+                // In a real app, this might come from a dedicated 'products' subcollection or from the seller's profile.
+                // For simplicity, we'll assume a flat rate from the seller's main product for now.
+                const productsRef = collection(firestore, 'products');
+                const q = query(productsRef, where('sellerId', '==', order.sellerId), limit(1));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const productData = querySnapshot.docs[0].data() as Product;
+                    setLiveShippingCost(productData.shippingCost || 0);
+                }
+                setIsLoadingShipping(false);
+            }
+        };
+        fetchSellerShipping();
+    }, [order, firestore]);
+    
+    const liveTotalAmount = (order?.subtotal ?? 0) + liveShippingCost;
+    
+    const isLoading = isLoadingOrder || isUserLoading || isLoadingShipping;
+    const error = orderError;
 
 
     const handlePayment = async (gateway: 'paystack' | 'paypal') => {
@@ -141,7 +156,7 @@ export default function CheckoutPage() {
         )
     }
 
-    if (error || !order || !product) {
+    if (error || !order) {
         return (
             <MainLayout>
                 <div className="container py-12 text-center">
@@ -176,20 +191,23 @@ export default function CheckoutPage() {
                             <CardDescription>Review your order before payment.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="relative h-20 w-20 rounded-md overflow-hidden border">
-                                    <Image src={order.productImage || ''} alt={order.productName || 'Product'} fill className="object-cover" />
+                            {order.items.map((item) => (
+                                <div key={item.productId} className="flex items-center gap-4">
+                                    <div className="relative h-16 w-16 rounded-md overflow-hidden border">
+                                        <Image src={item.imageUrl || ''} alt={item.name || 'Product'} fill className="object-cover" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold">{item.name}</p>
+                                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                                    </div>
+                                    <p className="ml-auto font-bold">${(item.price * item.quantity).toLocaleString()}</p>
                                 </div>
-                                <div>
-                                    <p className="font-semibold">{order.productName}</p>
-                                    <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
-                                </div>
-                                <p className="ml-auto font-bold">${order.productPrice.toLocaleString()}</p>
-                            </div>
+                            ))}
+
                             <Separator />
                             <div className="flex justify-between text-sm">
                                 <p>Subtotal</p>
-                                <p>${order.productPrice.toLocaleString()}</p>
+                                <p>${order.subtotal.toLocaleString()}</p>
                             </div>
                              <div className="flex justify-between text-sm">
                                 <p>Shipping</p>
