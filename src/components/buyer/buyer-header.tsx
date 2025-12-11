@@ -24,11 +24,13 @@ export function BuyerHeader() {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
-                <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card p-4">
-                    <div className="p-2">
+                <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
+                    <div className="sticky top-0 z-10 border-b bg-card p-4">
                          <Logo className="h-8 w-auto text-primary" />
                     </div>
-                    <BuyerSidebar />
+                    <div className="p-4 pt-0">
+                        <BuyerSidebar />
+                    </div>
                 </div>
             </SheetContent>
         </Sheet>
