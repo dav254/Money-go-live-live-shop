@@ -7,7 +7,7 @@ import { Sidebar, SidebarContent, SidebarHeader, SidebarProvider, SidebarInset }
 import { Toaster } from '../ui/toaster';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
-import { useUser, useUserProfile } from '@/firebase';
+import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { Logo } from '../logo';
 
@@ -24,24 +24,23 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full flex-col bg-background">
+      <Sidebar side="left" collapsible="icon">
+        <SidebarHeader>
+            <Logo className="h-8 w-auto text-primary" />
+        </SidebarHeader>
+        <SidebarContent>
+          <BuyerSidebar />
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
         <BuyerHeader />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar side="left" collapsible="icon">
-            <SidebarContent>
-              <BuyerSidebar />
-            </SidebarContent>
-          </Sidebar>
-          <SidebarInset>
-            <main className={cn("flex-1 overflow-auto", !fullWidth && "p-4 sm:p-6")}>
-                <div className={cn("mx-auto h-full", !fullWidth && "max-w-7xl")}>
-                {children}
-                </div>
-            </main>
-          </SidebarInset>
-        </div>
-        <Toaster />
-      </div>
+        <main className={cn("flex-1", !fullWidth && "p-4 sm:p-6")}>
+            <div className={cn("mx-auto h-full", !fullWidth && "max-w-7xl")}>
+            {children}
+            </div>
+        </main>
+      </SidebarInset>
+      <Toaster />
     </SidebarProvider>
   );
 }
