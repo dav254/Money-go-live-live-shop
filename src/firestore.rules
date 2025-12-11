@@ -170,7 +170,8 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-      allow read, list: if true;
+      allow read: if true;
+      allow list: if true;
       allow create, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
       allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
 
