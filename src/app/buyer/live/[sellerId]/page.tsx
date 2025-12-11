@@ -15,6 +15,10 @@ import { Card } from "@/components/ui/card";
 import { ChatSystem } from "@/components/messages/chat-system";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
+import { LiveShoppingEventFeed } from '@/components/live/live-shopping-event-feed';
+import { FollowButton } from '@/components/follow-button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Timestamp } from 'firebase/firestore';
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -39,6 +43,9 @@ const servers = {
     iceCandidatePoolSize: 10,
 };
 
+interface LiveSessionWithSeller extends LiveSession {
+  seller: UserProfile & { shop?: SellerShop };
+}
 
 export default function SellerRoom() {
   const params = useParams();
@@ -231,59 +238,65 @@ export default function SellerRoom() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-4rem)]">
-        {/* Main Panel: Video and Product Shelf */}
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-black rounded-lg overflow-hidden min-h-0">
-            {/* Live Video */}
-            <div className="flex-1 relative bg-black flex items-center justify-center min-h-0">
-                <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
-                <div className="absolute top-3 left-3 flex gap-2">
-                    {liveSession && (
-                        <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse flex items-center gap-1.5">
-                            <div className="h-2 w-2 rounded-full bg-white"></div>
-                            LIVE
-                        </div>
-                    )}
+    <div className="flex h-[calc(100vh-4rem)] flex-col lg:flex-row">
+      {/* Main Content: Video, Product Shelf, Event Feed */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="relative flex-1 bg-black">
+          <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
+          <div className="absolute top-3 left-3 flex gap-2">
+            {liveSession && (
+                <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-white"></div>
+                    LIVE
                 </div>
-                {pinnedProduct && (
-                    <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                        <LiveProductCard product={pinnedProduct} />
+            )}
+          </div>
+          <div className="absolute bottom-4 left-4 max-w-sm w-full pr-8">
+            <LiveShoppingEventFeed liveSessionId={liveSessionId} />
+            {pinnedProduct && (
+              <div className="mt-2 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
+                <LiveProductCard product={pinnedProduct} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Section: Product Shelf & Cart */}
+        <div className="flex h-48 flex-shrink-0 border-t border-neutral-700 bg-neutral-900/50">
+          <div className="flex-1 p-3">
+            <h3 className="mb-2 text-sm font-bold">🛍️ Product Shelf</h3>
+            <ScrollArea className="h-[calc(100%-2rem)]">
+              <div className="flex gap-2 pb-2">
+                {areProductsLoading ? (
+                  <ProductShelfSkeleton />
+                ) : featuredProducts && featuredProducts.length > 0 ? (
+                  featuredProducts.map((p) => (
+                    <div key={p.id} className="flex flex-col items-center">
+                      <LiveProductCard product={p} />
                     </div>
+                  ))
+                ) : (
+                  <p className="p-4 text-center text-sm text-neutral-400">
+                    Seller has not featured any products.
+                  </p>
                 )}
-            </div>
-
-            {/* Bottom Section: Shelf and Cart */}
-            <div className="flex-shrink-0 flex border-t border-neutral-700 h-48">
-                <Card className="rounded-none border-0 flex-1 bg-neutral-900/50">
-                    <div className="p-3 h-full flex flex-col">
-                        <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
-                        <ScrollArea className="flex-1">
-                            <div className="flex gap-2 pb-2">
-                                {areProductsLoading ? <ProductShelfSkeleton /> : (
-                                    featuredProducts && featuredProducts.length > 0 ? (
-                                        featuredProducts.map(p => (
-                                            <div key={p.id} className="flex flex-col items-center">
-                                                <LiveProductCard product={p} />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-sm text-neutral-400 p-4 text-center">Seller has not featured any products.</p>
-                                    )
-                                )}
-                            </div>
-                        </ScrollArea>
-                    </div>
-                </Card>
-                <div className="w-full max-w-xs border-l border-neutral-700">
-                    <CartDrawer cartItems={cartItems || []} onCheckout={handleCheckout} onDeleteItem={handleDeleteItem} />
-                </div>
-            </div>
+              </div>
+            </ScrollArea>
+          </div>
+          <div className="w-full max-w-xs border-l border-neutral-700">
+            <CartDrawer
+              cartItems={cartItems || []}
+              onCheckout={handleCheckout}
+              onDeleteItem={handleDeleteItem}
+            />
+          </div>
         </div>
+      </div>
 
-        {/* Right Panel: Chat */}
-        <div className="lg:col-span-4 xl:col-span-3 hidden md:flex flex-col rounded-lg overflow-hidden h-full">
-            <ChatSystem />
-        </div>
+      {/* Right Panel: Chat System */}
+      <div className="w-full flex-shrink-0 lg:w-[380px] lg:border-l lg:border-neutral-800">
+        <ChatSystem />
+      </div>
     </div>
   );
 }
