@@ -190,10 +190,6 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <MessageSquare className="mr-2 h-4 w-4" />
             Message
           </Button>
-          <Button variant="secondary" className="font-bold">
-            <Eye className="mr-2 h-4 w-4" />
-            View Products
-          </Button>
           <Button onClick={handleShare} variant="secondary" className="font-bold">
             <Share2 className="mr-2 h-4 w-4" />
             Share
