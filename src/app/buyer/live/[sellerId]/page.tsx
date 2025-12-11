@@ -166,50 +166,60 @@ export default function SellerRoom() {
       toast({ variant: 'destructive', title: 'Your cart is empty.' });
       return;
     }
-    
-    // For simplicity, this example assumes all items in cart are from the same seller
-    // A real implementation would group items by seller.
+
     const newOrderRef = doc(collection(firestore, 'orders'));
+
+    // Since we are in a seller's live room, we can assume all items are from this one seller.
+    const sellerId = cartItems[0].sellerId;
+    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    // In a real app, shipping would be calculated more dynamically.
+    const shippingCost = 10; 
+    const totalAmount = subtotal + shippingCost;
     
+    // Representing cart items for the order
+    const orderItems = cartItems.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        imageUrl: item.imageUrl
+    }));
+
     try {
-      
       const batch = writeBatch(firestore);
 
-      cartItems.forEach(item => {
-        const orderRef = doc(collection(firestore, 'orders'));
-        const newOrderData: Partial<Order> = {
-            id: orderRef.id,
-            buyerId: user.uid,
-            sellerId: item.sellerId,
-            productId: item.productId,
-            productName: item.name,
-            productImage: item.imageUrl,
-            productPrice: item.price,
-            shippingCost: 0, // Placeholder
-            totalAmount: item.price * item.quantity,
-            orderDate: serverTimestamp() as any,
-            shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
-            orderStatus: 'pending',
-            paymentMethod: 'pending',
-            quantity: item.quantity,
-        };
-        batch.set(orderRef, newOrderData);
+      const newOrderData: Omit<Order, 'id'> = {
+        buyerId: user.uid,
+        sellerId: sellerId,
+        items: orderItems,
+        subtotal: subtotal,
+        shippingCost: shippingCost,
+        totalAmount: totalAmount,
+        orderDate: serverTimestamp() as any,
+        shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+        orderStatus: 'pending',
+        paymentMethod: 'pending',
+      };
 
+      batch.set(newOrderRef, newOrderData);
+
+      // Delete all items from the cart
+      cartItems.forEach(item => {
         const itemInCartRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
         batch.delete(itemInCartRef);
       });
 
       await batch.commit();
 
-      toast({ title: 'Orders Created!', description: 'Redirecting to checkout...' });
-      // This part is tricky with multiple orders. We'll redirect to the orders page for now.
-      router.push(`/buyer/my-orders`);
+      toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+      router.push(`/checkout/${newOrderRef.id}`);
 
     } catch (error) {
+      console.error("Error creating order:", error);
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: newOrderRef.path,
         operation: 'create',
-        requestResourceData: {}, // Batch write makes single data hard to represent
+        requestResourceData: { orderItems: orderItems.length },
       }));
     }
   };

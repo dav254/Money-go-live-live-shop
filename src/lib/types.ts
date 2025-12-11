@@ -168,11 +168,14 @@ export interface Order {
   id: string;
   buyerId: string;
   sellerId: string;
-  productId: string;
-  productName?: string;
-  productImage?: string;
-  quantity: number;
-  productPrice: number;
+  items: {
+    productId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    imageUrl: string;
+  }[];
+  subtotal: number;
   shippingCost: number;
   totalAmount: number;
   orderDate: any; // Can be Timestamp or string
@@ -183,6 +186,12 @@ export interface Order {
   platformFee?: number;
   resellerCommission?: number;
   disputeReason?: string;
+  // Deprecated fields, kept for backward compatibility if needed, but 'items' array is preferred.
+  productId?: string;
+  productName?: string;
+  productImage?: string;
+  quantity?: number;
+  productPrice?: number;
 }
 
 export interface Payout {
