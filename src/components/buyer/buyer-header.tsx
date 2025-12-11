@@ -7,11 +7,20 @@ import { Bell, MessageSquare, Video, Search, Menu } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '../ui/sheet';
 import { BuyerSidebar } from './buyer-sidebar';
 import { SidebarTrigger } from '../ui/sidebar';
+import { useUser, useUserProfile } from '@/firebase';
+import { Skeleton } from '../ui/skeleton';
 
 export function BuyerHeader() {
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+ 
+  const isLoading = isUserLoading || isProfileLoading;
+
+  const buyerName = userProfile?.fullName || 'Buyer';
+  
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2 md:gap-4">
@@ -25,9 +34,11 @@ export function BuyerHeader() {
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
                 <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
-                    <div className="sticky top-0 z-10 border-b bg-card p-4">
-                         <Logo className="h-8 w-auto text-primary" />
-                    </div>
+                    <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
+                         <SheetTitle asChild>
+                            <Logo className="h-8 w-auto text-primary" />
+                         </SheetTitle>
+                    </SheetHeader>
                     <div className="p-4 pt-0">
                         <BuyerSidebar />
                     </div>
@@ -38,9 +49,17 @@ export function BuyerHeader() {
         {/* Desktop Sidebar Trigger */}
         <SidebarTrigger className="hidden md:flex" />
         
-        <Link href="/buyer/dashboard" className="hidden md:block">
-          <Logo className="h-8 w-auto text-primary" />
-        </Link>
+        {/* Welcome Message */}
+        <div className="hidden md:block">
+            {isLoading ? (
+              <Skeleton className="h-6 w-40" />
+            ) : (
+              <h1 className="text-lg font-semibold">
+                Welcome, <span className="text-primary">{buyerName}</span>
+              </h1>
+            )}
+        </div>
+
       </div>
 
       <div className="hidden md:flex flex-1 max-w-lg items-center">
