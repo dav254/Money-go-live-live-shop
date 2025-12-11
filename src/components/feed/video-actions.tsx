@@ -2,7 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown } from 'lucide-react';
+import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, errorEmitter } from '@/firebase';
@@ -14,28 +14,23 @@ import type { Product } from '@/lib/types';
 
 interface VideoActionsProps {
   product: Product;
-  initialLikes?: number;
   commentCount?: number;
   onProductClick?: () => void;
   onCommentClick?: () => void;
   onScroll?: (direction: 'up' | 'down') => void;
-  onLike?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   isMuted: boolean;
   onMuteToggle: () => void;
 }
 
 export function VideoActions({
   product,
-  initialLikes = 0,
   commentCount = 0,
   onProductClick,
   onCommentClick,
   onScroll,
-  onLike,
   isMuted,
   onMuteToggle,
 }: VideoActionsProps) {
-  const [likes, setLikes] = useState(initialLikes);
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
@@ -118,12 +113,6 @@ export function VideoActions({
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('up')}>
           <ChevronUp className="h-6 w-6 text-white" />
         </Button>
-      </div>
-      <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onLike}>
-          <Heart className="h-6 w-6 text-white fill-transparent" />
-        </Button>
-        <span className="text-sm font-semibold text-white drop-shadow-md">{likes}</span>
       </div>
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>

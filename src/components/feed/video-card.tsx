@@ -60,16 +60,6 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
 
   const { data: comments, isLoading: areCommentsLoading } = useCollection<Comment>(commentsQuery);
 
-  const handleLike = () => {
-    if (!firestore || !item.product.id) return;
-    const productRef = doc(firestore, 'products', item.product.id);
-    
-    // Non-blocking update for a simple action like a "like"
-    const batch = writeBatch(firestore);
-    batch.update(productRef, { likes: increment(1) });
-    batch.commit().catch(console.error);
-  };
-
   const handleAddComment = async (text: string) => {
     if (!user || !firestore || !item.product.id) return; 
 
@@ -138,9 +128,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
 
       <VideoActions 
         product={item.product}
-        initialLikes={item.likes}
         commentCount={comments?.length || 0}
-        onLike={handleLike}
         onProductClick={() => setIsDrawerOpen(true)}
         onCommentClick={() => setIsCommentDrawerOpen(true)}
         onScroll={onScroll}
@@ -164,5 +152,3 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     </div>
   );
 }
-
-    
