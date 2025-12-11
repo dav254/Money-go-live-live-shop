@@ -92,8 +92,10 @@ export function ChatSystem() {
   }, [firestore, user, lastVisible, isAdmin]);
 
   useEffect(() => {
-    fetchChats();
-  }, [user, firestore, isAdmin]); // Initial fetch
+    if(user && firestore) {
+      fetchChats();
+    }
+  }, [user, firestore, isAdmin]); // Re-fetch if admin status changes
 
 
   const chatsWithParticipants = useMemo(() => {

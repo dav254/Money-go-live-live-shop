@@ -7,7 +7,9 @@ import { ChatSystem } from '@/components/messages/chat-system';
 export default function SellerMessagesPage() {
   return (
     <SellerLayout>
-        <ChatSystem />
+        <div className="h-[calc(100vh-4rem)]">
+            <ChatSystem />
+        </div>
     </SellerLayout>
   );
 }
