@@ -74,7 +74,7 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
                 lastMessageTimestamp: serverTimestamp(),
             };
             await setDoc(newChatRef, newChat);
-            setActiveChat(newChat);
+            setActiveChat(newChat); // Set the newly created chat as active
             currentChatId = newChat.id;
         }
 
@@ -90,12 +90,14 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
             timestamp: serverTimestamp(),
         });
         
-        // Update the last message on the chat document
-        const chatRef = doc(firestore, 'chats', currentChatId);
-        await updateDoc(chatRef, {
-            lastMessage: text.trim(),
-            lastMessageTimestamp: serverTimestamp(),
-        });
+        // Update the last message on the chat document (if it's not a new chat)
+        if (activeChat) {
+            const chatRef = doc(firestore, 'chats', currentChatId);
+            await updateDoc(chatRef, {
+                lastMessage: text.trim(),
+                lastMessageTimestamp: serverTimestamp(),
+            });
+        }
 
         setText("");
 
