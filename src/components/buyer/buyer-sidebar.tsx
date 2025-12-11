@@ -64,20 +64,20 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
-            <Link href="/buyer/my-orders">
-              <Package />
-              <span>My Orders</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
 
      <SidebarGroup>
         <SidebarGroupLabel>My Account</SidebarGroupLabel>
         <SidebarMenu>
+             <SidebarMenuItem>
+              <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
+                <Link href="/buyer/my-orders">
+                  <Package />
+                  <span>My Orders</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wallet')} tooltip="Wallet">
                 <Link href="/buyer/wallet">
