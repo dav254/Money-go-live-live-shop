@@ -33,7 +33,7 @@ export function BuyerSidebar() {
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/buyer/dashboard'}>
+          <SidebarMenuButton asChild isActive={pathname === '/buyer/dashboard'} tooltip="Home">
             <Link href="/buyer/dashboard">
               <Home />
               <span>Home</span>
@@ -41,7 +41,7 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/live')}>
+          <SidebarMenuButton asChild isActive={isActive('/live')} tooltip="Live Buying">
             <Link href="/live">
               <Video />
               <span>Live Buying</span>
@@ -49,7 +49,7 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/live')}>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/live')} tooltip="Live Section">
             <Link href="/buyer/live">
               <RadioTower />
               <span>Live Section</span>
@@ -57,7 +57,7 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/cart')}>
+          <SidebarMenuButton asChild isActive={isActive('/cart')} tooltip="My Cart">
             <Link href="/cart">
               <ShoppingCart />
               <span>My Cart</span>
@@ -65,7 +65,7 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/messages')}>
+          <SidebarMenuButton asChild isActive={isActive('/messages')} tooltip="Messages">
             <Link href="/messages">
               <MessageSquare />
               <span>Messages</span>
@@ -74,7 +74,7 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/my-orders')}>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
             <Link href="/buyer/my-orders">
               <Package />
               <span>My Orders</span>
@@ -83,7 +83,7 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
 
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')}>
+          <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')} tooltip="Wallet">
             <Link href="/buyer/wallet">
               <Wallet />
               <span>Wallet</span>
@@ -96,7 +96,7 @@ export function BuyerSidebar() {
         <SidebarGroupLabel>Resources</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive('/buyer/about')}>
+              <SidebarMenuButton asChild isActive={isActive('/buyer/about')} tooltip="About Go Earn">
                 <Link href="/buyer/about">
                   <Info />
                   <span>About Go Earn</span>
@@ -104,7 +104,7 @@ export function BuyerSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive('/buyer/help')}>
+              <SidebarMenuButton asChild isActive={isActive('/buyer/help')} tooltip="Help Center">
                 <Link href="/buyer/help">
                   <HelpCircle />
                   <span>Help Center</span>
@@ -115,7 +115,7 @@ export function BuyerSidebar() {
       </SidebarGroup>
     <SidebarMenu className="mt-auto">
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')} tooltip="Account">
             <Link href="/dashboard/account">
               <User />
               <span>Account</span>

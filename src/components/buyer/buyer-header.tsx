@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { BuyerSidebar } from './buyer-sidebar';
+import { SidebarTrigger } from '../ui/sidebar';
 
 export function BuyerHeader() {
   return (
@@ -31,6 +32,9 @@ export function BuyerHeader() {
                 </div>
             </SheetContent>
         </Sheet>
+        
+        {/* Desktop Sidebar Trigger */}
+        <SidebarTrigger className="hidden md:flex" />
         
         <Link href="/buyer/dashboard" className="hidden md:block">
           <Logo className="h-8 w-auto text-primary" />
