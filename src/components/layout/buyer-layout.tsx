@@ -8,8 +8,9 @@ import { Toaster } from '../ui/toaster';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useUser, useUserProfile } from '@/firebase';
+import { cn } from '@/lib/utils';
 
-export function BuyerLayout({ children }: { children: React.ReactNode }) {
+export function BuyerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
   const { isLoading } = useUser();
 
   if (isLoading) {
@@ -30,8 +31,10 @@ export function BuyerLayout({ children }: { children: React.ReactNode }) {
               <BuyerSidebar />
             </div>
           </aside>
-          <main className="flex-1 p-4 sm:p-6 overflow-auto">
-            <div className="mx-auto max-w-7xl h-full">{children}</div>
+          <main className={cn("flex-1 overflow-auto", !fullWidth && "p-4 sm:p-6")}>
+            <div className={cn("mx-auto h-full", !fullWidth && "max-w-7xl")}>
+              {children}
+            </div>
           </main>
         </div>
         <Toaster />

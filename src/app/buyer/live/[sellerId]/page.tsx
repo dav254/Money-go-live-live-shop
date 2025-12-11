@@ -17,6 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Timestamp } from 'firebase/firestore';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 
 
 const ProductShelfSkeleton = () => (
@@ -46,7 +47,7 @@ interface LiveSessionWithSeller extends LiveSession {
   seller: UserProfile & { shop?: SellerShop };
 }
 
-export default function SellerRoom() {
+function LiveRoomPage() {
   const params = useParams();
   const sellerId = params.sellerId as string;
   
@@ -237,7 +238,7 @@ export default function SellerRoom() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col lg:flex-row">
+    <div className="flex h-full flex-col lg:flex-row">
       {/* Main Content: Video, Product Shelf */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="relative h-[90%] bg-black">
@@ -297,4 +298,13 @@ export default function SellerRoom() {
       </div>
     </div>
   );
+}
+
+
+export default function SellerRoomWrapper() {
+  return (
+    <BuyerLayout fullWidth>
+      <LiveRoomPage />
+    </BuyerLayout>
+  )
 }
