@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
-import type { Product, CartItem, Order, LiveSession, ChatMessage, Chat, UserProfile } from "@/lib/types";
+import type { Product, CartItem, Order, LiveSession, UserProfile } from "@/lib/types";
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc, addDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,9 @@ export default function SellerRoom() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [pc, setPc] = useState<RTCPeerConnection | null>(null);
 
+  // Fetch seller's name for chat header
+  const { data: sellerProfile } = useDoc<UserProfile>(doc(firestore, 'userProfiles', sellerId));
+  const sellerName = sellerProfile?.fullName || 'Seller';
 
   // Find the active live session for this seller
   const liveSessionQuery = useMemoFirebase(() => {
@@ -283,7 +286,7 @@ export default function SellerRoom() {
 
         {/* Right Panel: Chat */}
         <div className="lg:col-span-4 xl:col-span-3 hidden md:flex flex-col rounded-lg overflow-hidden">
-            <PrivateChat sellerId={sellerId} sellerName="Seller" />
+            <PrivateChat sellerId={sellerId} sellerName={sellerName} />
         </div>
     </div>
   );
