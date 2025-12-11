@@ -6,48 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Smile } from "lucide-react";
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, getDocs, addDoc, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
-import type { ChatMessage, Chat } from '@/lib/types';
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn } from "@/lib/utils";
 
+// Mock message type for the demo
+interface MockChatMessage {
+    id: number;
+    sender: 'buyer' | 'seller';
+    text: string;
+    timestamp: string;
+}
+
 export function PrivateChat({ sellerId, sellerName }: { sellerId: string; sellerName: string }) {
-  const { user } = useUser();
-  const firestore = useFirestore();
   const [text, setText] = useState("");
-  const [chatId, setChatId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<MockChatMessage[]>([
+    { id: 1, sender: 'seller', text: `Hi! Welcome to my shop. Let me know if you have any questions about my products.`, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+  ]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  // Effect to find the chat ID
-  useEffect(() => {
-    if (!user || !firestore || !sellerId) return;
-
-    const findChat = async () => {
-        const chatsRef = collection(firestore, 'chats');
-        const q = query(
-            chatsRef, 
-            where('participantIds', 'array-contains', user.uid),
-        );
-        const querySnapshot = await getDocs(q);
-        let existingChatId: string | null = null;
-        querySnapshot.forEach(doc => {
-            if (doc.data().participantIds.includes(sellerId)) {
-                existingChatId = doc.id;
-            }
-        });
-        setChatId(existingChatId);
-    };
-
-    findChat();
-  }, [user, firestore, sellerId]);
-
-  const messagesQuery = useMemoFirebase(() => {
-    if (!chatId) return null;
-    return query(collection(firestore, 'chats', chatId, 'messages'), orderBy('timestamp', 'asc'));
-  }, [firestore, chatId]);
-
-  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
   
   useEffect(() => {
       // Scroll to bottom when new messages arrive
@@ -59,53 +34,29 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || !user || !firestore) return;
+    if (!text.trim()) return;
 
-    let currentChatId = chatId;
+    const buyerMessage: MockChatMessage = {
+        id: Date.now(),
+        sender: 'buyer',
+        text: text.trim(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    // Add buyer's message
+    setMessages(prev => [...prev, buyerMessage]);
+    setText("");
 
-    try {
-        // If no chat exists, create one first
-        if (!currentChatId) {
-            const newChatRef = doc(collection(firestore, 'chats'));
-            await setDoc(newChatRef, {
-                id: newChatRef.id,
-                participantIds: [user.uid, sellerId],
-                lastMessage: text.trim(),
-                lastMessageTimestamp: serverTimestamp(),
-            });
-            currentChatId = newChatRef.id;
-            // This is the crucial fix: update the component's state immediately
-            // so the messagesQuery hook re-runs with the new chatId.
-            setChatId(currentChatId);
-        } else {
-            // Update last message on existing chat
-            const chatRef = doc(firestore, 'chats', currentChatId);
-            await updateDoc(chatRef, {
-                lastMessage: text.trim(),
-                lastMessageTimestamp: serverTimestamp(),
-            });
-        }
-        
-        if (!currentChatId) {
-             // This case should ideally not be reached
-             console.error("Failed to obtain chat ID.");
-             return;
-        }
-
-        // Add the message to the chat
-        const messagesRef = collection(firestore, 'chats', currentChatId, 'messages');
-        await addDoc(messagesRef, {
-            senderId: user.uid,
-            messageText: text.trim(),
-            timestamp: serverTimestamp()
-        });
-
-        // Only clear the text field if the message was successfully sent
-        setText("");
-    } catch (error) {
-        console.error("Error sending message: ", error);
-        // Do not clear the text field, so the user knows the message failed to send.
-    }
+    // Simulate a seller reply after a short delay
+    setTimeout(() => {
+        const sellerReply: MockChatMessage = {
+            id: Date.now() + 1,
+            sender: 'seller',
+            text: 'Thanks for your message! I will get back to you shortly.',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, sellerReply]);
+    }, 1000);
   }
   
   const handleEmojiSelect = (emoji: string) => {
@@ -126,19 +77,19 @@ export function PrivateChat({ sellerId, sellerName }: { sellerId: string; seller
             {messages?.map(msg => (
             <div
                 key={msg.id}
-                className={cn("flex flex-col gap-1", msg.senderId === user?.uid ? "items-end" : "items-start")}
+                className={cn("flex flex-col gap-1", msg.sender === 'buyer' ? "items-end" : "items-start")}
             >
                 <div
                     className={`p-2 rounded-lg max-w-[80%] text-sm ${
-                    msg.senderId === user?.uid
+                    msg.sender === 'buyer'
                         ? "bg-primary text-primary-foreground rounded-br-none"
                         : "bg-neutral-700 rounded-bl-none"
                     }`}
                 >
-                    {msg.messageText}
+                    {msg.text}
                 </div>
                  <p className="text-xs text-muted-foreground px-1">
-                    {msg.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {msg.timestamp}
                  </p>
             </div>
             ))}
