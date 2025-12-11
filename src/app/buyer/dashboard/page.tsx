@@ -137,11 +137,11 @@ export default function BuyerDashboardPage() {
 
   return (
     <BuyerLayout>
-      <div className="flex-1 space-y-8 p-4 pt-6 md:p-8">
+      <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
         <HomepageCarousel />
 
         {/* Quick Shortcuts */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3">
           {shortcuts.map((shortcut) => (
             <Card
               key={shortcut.title}
