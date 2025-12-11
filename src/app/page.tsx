@@ -9,7 +9,6 @@ import {
   Twitter, Instagram, Youtube, Mail, Phone
 } from "lucide-react";
 
-
 // ===== INLINE STYLES & DESIGN TOKENS =====
 const colors = {
   primary: "rgb(45, 180, 160)",
@@ -127,9 +126,9 @@ const Index = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Inject keyframes into document
-  if (typeof document !== "undefined" && !document.getElementById("moneygo-styles")) {
+  if (typeof document !== "undefined" && !document.getElementById("goearn-styles")) {
     const styleSheet = document.createElement("style");
-    styleSheet.id = "moneygo-styles";
+    styleSheet.id = "goearn-styles";
     styleSheet.textContent = `
       @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
       
@@ -232,9 +231,9 @@ const Index = () => {
               justifyContent: "center",
               boxShadow: `0 0 30px ${colors.primary}40`,
             }}>
-              <span style={{ color: colors.dark, fontWeight: 700, fontSize: "1.5rem", fontFamily: "'Space Grotesk', sans-serif" }}>M</span>
+              <span style={{ color: colors.dark, fontWeight: 700, fontSize: "1.5rem", fontFamily: "'Space Grotesk', sans-serif" }}>G</span>
             </div>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: colors.foreground, fontFamily: "'Space Grotesk', sans-serif" }}>MoneyGo</span>
+            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: colors.foreground, fontFamily: "'Space Grotesk', sans-serif" }}>Go Earn</span>
           </div>
 
           {/* Desktop Navigation */}
@@ -309,7 +308,7 @@ const Index = () => {
           {/* Badge */}
           <GlassCard style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", borderRadius: "9999px", marginBottom: "2rem" }} className="animate-fade-in">
             <Sparkles size={16} style={{ color: colors.gold }} />
-            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>Africa's #1 Social Commerce Platform</span>
+            <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>The World's #1 Social Commerce Platform</span>
           </GlassCard>
 
           {/* Heading */}
@@ -322,7 +321,7 @@ const Index = () => {
           {/* Subheading */}
           <p style={{ fontSize: "clamp(1rem, 3vw, 1.375rem)", color: colors.mutedForeground, maxWidth: "48rem", margin: "0 auto 2.5rem", lineHeight: 1.6 }} className="animate-slide-up">
             Whether you sell products, promote brands, or create viral videos — 
-            <span style={{ color: colors.primary, fontWeight: 600 }}> MoneyGo </span> 
+            <span style={{ color: colors.primary, fontWeight: 600 }}> Go Earn </span> 
             turns your hustle into real earnings.
           </p>
 
@@ -365,7 +364,7 @@ const Index = () => {
 
       {/* ===== FOUNDING SELLER SECTION ===== */}
       <section style={{ ...sectionStyle, position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0, opacity: 0.05 }} />
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `url(https://picsum.photos/seed/pattern-bg/1920/1080)`, backgroundSize: "cover", opacity: 0.05 }} />
         <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${colors.primary}0d 0%, transparent 50%, ${colors.secondary}0d 100%)` }} />
 
         <div style={{ ...containerStyle, position: "relative", zIndex: 10 }}>
@@ -643,7 +642,7 @@ const Index = () => {
               </h2>
 
               <p style={{ fontSize: "1.125rem", color: colors.mutedForeground, marginBottom: "2rem" }}>
-                Enable resellers to promote your products across Kenya. You pay only when they bring a sale.
+                Enable resellers to promote your products across the world. You pay only when they bring a sale.
                 <span style={{ display: "block", marginTop: "0.5rem", fontWeight: 600, color: colors.foreground }}>This is how smart selling is done.</span>
               </p>
 
@@ -787,7 +786,7 @@ const Index = () => {
         <div style={containerStyle}>
           <div style={{ textAlign: "center", marginBottom: "4rem" }}>
             <h2 style={{ ...headingStyle, fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "1rem" }}>
-              Why Sellers <span style={{ color: colors.primary }}>Love</span> MoneyGo
+              Why Sellers <span style={{ color: colors.primary }}>Love</span> Go Earn
             </h2>
             <p style={{ fontSize: "1.125rem", color: colors.mutedForeground, maxWidth: "40rem", margin: "0 auto" }}>
               Your growth is the mission. We give you the tools — you bring the hustle.
@@ -904,11 +903,11 @@ const Index = () => {
             </div>
 
             <h2 style={{ ...headingStyle, fontSize: "clamp(2rem, 6vw, 4rem)", marginBottom: "1.5rem" }}>
-              Ready to Grow With <span className="text-gradient">MoneyGo</span>?
+              Ready to Grow With <span className="text-gradient">Go Earn</span>?
             </h2>
 
             <p style={{ fontSize: "clamp(1rem, 3vw, 1.375rem)", color: colors.mutedForeground, marginBottom: "3rem", maxWidth: "40rem", margin: "0 auto 3rem" }}>
-              Start your journey today. Join thousands of African entrepreneurs who are turning their passion into profit.
+              Start your journey today. Join thousands of entrepreneurs who are turning their passion into profit.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem", justifyContent: "center", alignItems: "center", marginBottom: "3rem" }} className="sm:flex-row">
@@ -951,12 +950,12 @@ const Index = () => {
                   alignItems: "center",
                   justifyContent: "center",
                 }}>
-                  <span style={{ color: colors.dark, fontWeight: 700, fontSize: "1.5rem", fontFamily: "'Space Grotesk', sans-serif" }}>M</span>
+                  <span style={{ color: colors.dark, fontWeight: 700, fontSize: "1.5rem", fontFamily: "'Space Grotesk', sans-serif" }}>G</span>
                 </div>
-                <span style={{ fontSize: "1.5rem", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>MoneyGo</span>
+                <span style={{ fontSize: "1.5rem", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>Go Earn</span>
               </div>
               <p style={{ color: colors.mutedForeground, marginBottom: "1.5rem" }}>
-                Africa's next-generation social commerce platform. Where videos become income.
+                The world's next-generation social commerce platform. Where videos become income.
               </p>
               <div style={{ display: "flex", gap: "0.75rem" }}>
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
@@ -1006,9 +1005,9 @@ const Index = () => {
               <h4 style={{ ...headingStyle, fontSize: "1.125rem", marginBottom: "1.5rem" }}>Contact Us</h4>
               <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "1rem" }}>
                 {[
-                  { icon: Mail, text: "hello@moneygo.co.ke" },
-                  { icon: Phone, text: "+254 700 000 000" },
-                  { icon: MapPin, text: "Nairobi, Kenya" },
+                  { icon: Mail, text: "hello@goearn.co" },
+                  { icon: Phone, text: "+1 (555) 000-0000" },
+                  { icon: MapPin, text: "Global" },
                 ].map((item, index) => (
                   <li key={index} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                     <div style={{
@@ -1031,11 +1030,11 @@ const Index = () => {
 
           {/* Copyright */}
           <div style={{ paddingTop: "2rem", borderTop: `1px solid ${colors.border}`, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-            <p style={{ color: colors.mutedForeground, fontSize: "0.875rem" }}>© 2025 MoneyGo. All rights reserved.</p>
+            <p style={{ color: colors.mutedForeground, fontSize: "0.875rem" }}>© 2025 Go Earn. All rights reserved.</p>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{ color: colors.mutedForeground, fontSize: "0.875rem" }}>Made with</span>
               <Heart size={16} style={{ color: colors.secondary, fill: colors.secondary }} />
-              <span style={{ color: colors.mutedForeground, fontSize: "0.875rem" }}>in Africa</span>
+              <span style={{ color: colors.mutedForeground, fontSize: "0.875rem" }}>for the world</span>
             </div>
           </div>
         </div>
@@ -1045,5 +1044,3 @@ const Index = () => {
 };
 
 export default Index;
-
-    
