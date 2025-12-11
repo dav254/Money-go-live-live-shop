@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerLayout } from '@/components/layout/seller-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import {
   Card,
   CardContent,
@@ -506,12 +507,18 @@ export default function AccountSettingsPage() {
         );
     }
     
-    // For now, we will assume other roles use MainLayout.
-    // This could be expanded to BuyerLayout, ResellerLayout, etc.
+    if (userProfile?.userRole === 'buyer') {
+        return (
+            <BuyerLayout>
+                <AccountSettingsContent />
+            </BuyerLayout>
+        );
+    }
+    
+    // Fallback for resellers or other roles
     return (
         <MainLayout>
             <AccountSettingsContent />
         </MainLayout>
     );
 }
-
