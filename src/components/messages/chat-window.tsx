@@ -173,7 +173,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const { toast } = useToast();
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!chat) return null;
+    if (!chat || !firestore) return null;
     return query(collection(firestore, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc'));
   }, [firestore, chat]);
 
@@ -189,13 +189,23 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
           ...messageData
       };
 
-      addDoc(messagesCollectionRef, fullMessageData).catch(error => {
+      await addDoc(messagesCollectionRef, fullMessageData).catch(error => {
           const permissionError = new FirestorePermissionError({
               path: messagesCollectionRef.path,
               operation: 'create',
               requestResourceData: fullMessageData
           });
           errorEmitter.emit('permission-error', permissionError);
+      });
+      
+      const chatRef = doc(firestore, 'chats', chat.id);
+      let lastMessageText = 'Sent a file';
+      if (messageData.messageType === 'text') lastMessageText = messageData.messageText || '';
+      if (messageData.messageType === 'product') lastMessageText = 'Shared a product';
+
+      await updateDoc(chatRef, {
+        lastMessage: lastMessageText,
+        lastMessageTimestamp: serverTimestamp(),
       });
   };
 
