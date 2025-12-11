@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/main-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
   CardContent,
@@ -31,10 +32,6 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser, useFirestore, errorEmitter } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { AdminSidebar } from '@/components/admin/admin-sidebar';
-import { SellerSidebar } from '@/components/seller/seller-sidebar';
-import { ResellerSidebar } from '@/components/reseller/reseller-sidebar';
-import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -51,20 +48,6 @@ const passwordFormSchema = z.object({
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
-
-
-function SidebarNav({ role }: { role: string | undefined }) {
-  if (role === 'admin') {
-    return <AdminSidebar />;
-  }
-  if (role === 'seller') {
-    return <SellerSidebar />;
-  }
-  if (role === 'reseller') {
-    return <ResellerSidebar />;
-  }
-  return <BuyerSidebar />;
-}
 
 const SellerVerificationForm = () => {
     const { user } = useUser();
@@ -139,8 +122,6 @@ const SellerVerificationForm = () => {
         toast({ title: 'Submitting Verification...', description: 'Please wait while we upload your documents.' });
         
         try {
-            // In a real app, you might upload file URLs to a subcollection.
-            // For this demo, we'll just update the status.
             await Promise.all(files.map(file => uploadToCloudinary(file)));
             
             const userRef = doc(firestore, 'userProfiles', user.uid);
@@ -255,8 +236,7 @@ const SellerVerificationForm = () => {
     );
 };
 
-
-export default function AccountSettingsPage() {
+const AccountSettingsContent = () => {
     const { user } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
@@ -294,9 +274,7 @@ export default function AccountSettingsPage() {
       }
     }
 
-
   return (
-    <MainLayout sidebar={isProfileLoading ? <p>Loading...</p> : <SidebarNav role={userProfile?.userRole} />}>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Account & Settings
@@ -500,9 +478,40 @@ export default function AccountSettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
       </div>
-    </MainLayout>
   );
 }
+
+export default function AccountSettingsPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+    const isLoading = isUserLoading || isProfileLoading;
+
+    if (isLoading) {
+        return (
+            <MainLayout>
+                <div className="flex h-screen w-full items-center justify-center">
+                    <p>Loading Account...</p>
+                </div>
+            </MainLayout>
+        )
+    }
+
+    if (userProfile?.userRole === 'seller') {
+        return (
+            <SellerLayout>
+                <AccountSettingsContent />
+            </SellerLayout>
+        );
+    }
+    
+    // For now, we will assume other roles use MainLayout.
+    // This could be expanded to BuyerLayout, ResellerLayout, etc.
+    return (
+        <MainLayout>
+            <AccountSettingsContent />
+        </MainLayout>
+    );
+}
+
