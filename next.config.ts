@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // This is required for the development server to work correctly in this environment.
+    crossOrigin: 'anonymous',
+    // Allow requests from the Firebase Studio development environment.
+    allowedDevOrigins: [
+      'https://6000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev',
+    ],
+  },
   images: {
     dangerouslyAllowSVG: true,
     remotePatterns: [
@@ -25,7 +33,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'httpshttps',
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
