@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -163,6 +163,22 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     )
 }
 
+function playNotificationSound() {
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+  gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.1); // Play for 100ms
+}
+
 
 export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
@@ -172,6 +188,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const prevMessagesCountRef = useRef<number>(0);
 
 
   const messagesQuery = useMemoFirebase(() => {
@@ -182,10 +199,21 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
   
   useEffect(() => {
+    // Scroll to bottom when messages load or change
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages]);
+
+    // Play sound for new incoming messages
+    if (messages && messages.length > prevMessagesCountRef.current) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.senderId !== currentUser?.uid) {
+        playNotificationSound();
+      }
+    }
+    prevMessagesCountRef.current = messages ? messages.length : 0;
+
+  }, [messages, currentUser?.uid]);
 
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
       if (!chat || !currentUser) return;
@@ -453,3 +481,4 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
     </div>
   );
 }
+
