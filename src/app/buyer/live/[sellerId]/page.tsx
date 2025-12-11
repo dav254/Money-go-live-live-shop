@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -241,7 +242,8 @@ function LiveRoomPage() {
     <div className="flex h-full flex-col lg:flex-row">
       {/* Main Content: Video, Product Shelf */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="relative h-[90%] bg-black">
+        {/* Video Player */}
+        <div className="relative flex-1 bg-black">
           <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
           <div className="absolute top-3 left-3 flex gap-2">
             {liveSession && (
@@ -261,7 +263,7 @@ function LiveRoomPage() {
         </div>
 
         {/* Bottom Section: Product Shelf & Cart */}
-        <div className="flex h-[10%] flex-shrink-0 border-t border-neutral-700 bg-neutral-900/50">
+        <div className="flex h-48 flex-shrink-0 border-t border-neutral-700 bg-neutral-900/50">
           <div className="flex-1 p-3">
             <h3 className="mb-2 text-sm font-bold">🛍️ Product Shelf</h3>
             <ScrollArea className="h-[calc(100%-2rem)]">
