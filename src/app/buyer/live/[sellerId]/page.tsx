@@ -15,8 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { Card } from "@/components/ui/card";
 import { PrivateChat } from "@/components/messages/private-chat";
-import { AnimatePresence, motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 
 const ProductShelfSkeleton = () => (
@@ -53,8 +51,6 @@ export default function SellerRoom() {
   const { toast } = useToast();
   const router = useRouter();
   
-  const [hearts, setHearts] = useState<any[]>([]);
-  const heartsRef = useRef<any[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [pc, setPc] = useState<RTCPeerConnection | null>(null);
 
@@ -70,7 +66,7 @@ export default function SellerRoom() {
 
   // WebRTC Connection Logic
   useEffect(() => {
-    if (!liveSession || !liveSession.offer || !firestore || pc) return;
+    if (!liveSession || !('offer' in liveSession) || !firestore || pc) return;
 
     const peerConnection = new RTCPeerConnection(servers);
     setPc(peerConnection);
@@ -88,7 +84,7 @@ export default function SellerRoom() {
         }
     };
     
-    const offerDescription = new RTCSessionDescription(liveSession.offer);
+    const offerDescription = new RTCSessionDescription(liveSession.offer as RTCSessionDescriptionInit);
     peerConnection.setRemoteDescription(offerDescription).then(async () => {
         const answerDescription = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answerDescription);
@@ -158,7 +154,7 @@ export default function SellerRoom() {
             if (change.type === 'added') {
                 const event = change.doc.data();
                 if (event.type === 'like') {
-                     spawnHeart();
+                     // spawnHeart();
                 }
             }
         });
@@ -217,39 +213,9 @@ export default function SellerRoom() {
     }
   };
 
-  const spawnHeart = useCallback(() => {
-    const id = Date.now();
-    const x = Math.random() * 50 + 25; // Random horizontal position
-    const newHeart = { id, x };
-    heartsRef.current = [...heartsRef.current, newHeart];
-    setHearts(heartsRef.current);
-
-    setTimeout(() => {
-      heartsRef.current = heartsRef.current.filter(h => h.id !== id);
-      setHearts(heartsRef.current);
-    }, 2000);
-  }, []);
-  
-  const handleLike = async () => {
-    spawnHeart(); // Instant visual feedback
-    if (!liveSession || !user) return;
-    
-    const eventsRef = collection(firestore, 'liveSessions', liveSession.id, 'events');
-    try {
-      await addDoc(eventsRef, {
-        type: 'like',
-        text: `${user.displayName || 'A viewer'} liked the stream.`,
-        userId: user.uid,
-        timestamp: serverTimestamp(),
-      });
-    } catch (error) {
-        console.error("Failed to send like event", error);
-    }
-  };
-
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-full bg-neutral-900 text-white">
         {/* Main content area */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
             {/* Left/Main Panel: Video and Product Shelf */}
@@ -262,30 +228,6 @@ export default function SellerRoom() {
                             <LiveProductCard product={pinnedProduct} />
                         </div>
                     )}
-                    {/* Hearts Animation Overlay */}
-                    <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden">
-                        <AnimatePresence>
-                        {hearts.map(h => (
-                            <motion.div
-                            key={h.id}
-                            initial={{ y: 0, opacity: 1, scale: 0.5 }}
-                            animate={{ y: -500, opacity: 0, scale: 1.5 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 2, ease: "easeOut" }}
-                            style={{ left: `${h.x}%` }}
-                            className="absolute bottom-0"
-                            >
-                            <Heart className="h-8 w-8 text-red-500 fill-red-500" />
-                            </motion.div>
-                        ))}
-                        </AnimatePresence>
-                    </div>
-                </div>
-                 {/* Like button */}
-                <div className="absolute bottom-20 right-4 lg:right-[calc(25%+1rem)] z-50">
-                    <Button onClick={handleLike} size="icon" variant="ghost" className="rounded-full bg-black/50 h-14 w-14 hover:bg-black/70">
-                        <Heart className="h-8 w-8 text-white" />
-                    </Button>
                 </div>
 
                 {/* Bottom Section: Shelf and Cart */}
@@ -322,4 +264,3 @@ export default function SellerRoom() {
     </div>
   );
 }
-
