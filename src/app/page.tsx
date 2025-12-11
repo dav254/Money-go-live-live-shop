@@ -2,7 +2,7 @@
 'use client';
 import { useState } from "react";
 import { 
-  Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Image, Zap, 
+  Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Image as ImageIcon, Zap, 
   TrendingUp, Radio, Users, MessageCircle, Share2, CheckCircle, Send, 
   Clock, Heart, Package, Truck, MapPin, BarChart3, DollarSign, Eye, 
   ShoppingBag, Shield, Lock, CreditCard, User, Handshake, Menu, X, Facebook, 
@@ -292,7 +292,7 @@ const Index = () => {
           backgroundImage: `url(https://picsum.photos/seed/hero-bg/1920/1080)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-        }} />
+        }} data-ai-hint="social media commerce" />
         <div style={{
           position: "absolute",
           inset: 0,
@@ -364,7 +364,7 @@ const Index = () => {
 
       {/* ===== FOUNDING SELLER SECTION ===== */}
       <section style={{ ...sectionStyle, position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: `url(https://picsum.photos/seed/pattern-bg/1920/1080)`, backgroundSize: "cover", opacity: 0.05 }} />
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `url(https://picsum.photos/seed/pattern-bg/1920/1080)`, backgroundSize: "cover", opacity: 0.05 }} data-ai-hint="abstract pattern" />
         <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${colors.primary}0d 0%, transparent 50%, ${colors.secondary}0d 100%)` }} />
 
         <div style={{ ...containerStyle, position: "relative", zIndex: 10 }}>
@@ -441,7 +441,7 @@ const Index = () => {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.5rem" }}>
             {[
               { icon: Video, title: "Video-First Commerce", description: "Videos convert 10× more than images. Show products in action.", gradient: gradients.primary },
-              { icon: Image, title: "Rich Media Upload", description: "Videos, images, descriptions — everything optimized for conversion.", gradient: gradients.secondary },
+              { icon: ImageIcon, title: "Rich Media Upload", description: "Videos, images, descriptions — everything optimized for conversion.", gradient: gradients.secondary },
               { icon: Zap, title: "Instant Publishing", description: "Upload once, reach millions. Products go live in seconds.", gradient: gradients.gold },
               { icon: TrendingUp, title: "AI-Powered Discovery", description: "Our algorithm puts products in front of the right buyers.", gradient: gradients.accent }
             ].map((feature, index) => (
@@ -524,7 +524,7 @@ const Index = () => {
                 boxShadow: `0 25px 50px rgba(0,0,0,0.5)`,
               }}>
                 <div style={{ borderRadius: "2.25rem", overflow: "hidden", position: "relative", aspectRatio: "9/16" }}>
-                  <img src="https://picsum.photos/seed/liveseller/400/600" alt="Live selling session" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src="https://picsum.photos/seed/liveseller/400/711" alt="Live selling session" style={{ width: "100%", height: "100%", objectFit: "cover" }} data-ai-hint="live selling stream" />
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }} />
 
                   {/* Live Badge */}
@@ -568,82 +568,50 @@ const Index = () => {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "4rem", alignItems: "center" }}>
             {/* Network Visualization */}
             <div style={{ position: "relative", aspectRatio: "1", maxWidth: "400px", margin: "0 auto", order: 2 }} className="lg:order-1">
-              {/* Center Node */}
-              <div style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "6rem",
-                height: "6rem",
-                borderRadius: "50%",
-                background: gradients.primary,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-                boxShadow: `0 0 40px ${colors.primary}66`,
-              }}>
-                <span style={{ color: colors.dark, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>YOU</span>
-              </div>
+                <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                    {/* Central Node */}
+                    <div style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: "8rem",
+                        height: "8rem",
+                        borderRadius: "50%",
+                        background: gradients.primary,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 10,
+                        boxShadow: `0 0 50px ${colors.primary}77`,
+                    }}>
+                        <span style={{ color: colors.dark, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>YOU</span>
+                    </div>
 
-              {/* Connecting Lines SVG */}
-              <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} viewBox="0 0 400 400">
-                {[[200,200,80,80], [200,200,320,80], [200,200,80,320], [200,200,320,320], [200,200,200,40], [200,200,200,360]].map(([x1,y1,x2,y2], i) => (
-                  <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={colors.primary} strokeWidth="2" strokeDasharray="8,4" className="animate-pulse" strokeOpacity="0.4" />
-                ))}
-              </svg>
-
-              {/* Outer Nodes */}
-              {[
-                { top: "5%", left: "50%" },
-                { top: "15%", left: "15%" },
-                { top: "15%", left: "85%" },
-                { top: "85%", left: "15%" },
-                { top: "85%", left: "85%" },
-                { top: "95%", left: "50%" },
-              ].map((pos, index) => (
-                <div key={index} className="animate-float" style={{
-                  position: "absolute",
-                  top: pos.top,
-                  left: pos.left,
-                  transform: "translate(-50%, -50%)",
-                  width: "3.5rem",
-                  height: "3.5rem",
-                  borderRadius: "50%",
-                  background: gradients.secondary,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: `0 10px 30px ${colors.secondary}40`,
-                  animationDelay: `${index * 0.3}s`,
-                }}>
-                  <Users size={20} style={{ color: colors.dark }} />
+                    {/* Surrounding Nodes */}
+                    <div className="animate-float" style={{ animationDelay: '0s', position: 'absolute', top: '15%', left: '15%', width: '4rem', height: '4rem', background: gradients.secondary, borderRadius: '50%', boxShadow: `0 0 20px ${colors.secondary}55` }}></div>
+                    <div className="animate-float" style={{ animationDelay: '1.5s', position: 'absolute', top: '20%', right: '10%', width: '5rem', height: '5rem', background: gradients.gold, borderRadius: '1.5rem', transform: 'rotate(-15deg)', boxShadow: `0 0 30px ${colors.gold}55` }}></div>
+                    <div className="animate-float" style={{ animationDelay: '3s', position: 'absolute', bottom: '15%', left: '20%', width: '3.5rem', height: '3.5rem', background: gradients.neonPink, borderRadius: '50%', boxShadow: `0 0 25px ${colors.neonPink}55` }}></div>
+                    <div className="animate-float" style={{ animationDelay: '4.5s', position: 'absolute', bottom: '25%', right: '15%', width: '6rem', height: '4rem', background: gradients.accent, borderRadius: '1.25rem', transform: 'rotate(20deg)', boxShadow: `0 0 35px ${colors.accent}55` }}></div>
+                    
+                    {/* Floating Text */}
+                    <div className="animate-float" style={{ position: 'absolute', top: '30%', left: '75%', color: colors.neonGreen, fontWeight: 700, fontSize: '1rem', animationDelay: '0.5s' }}>+180 KES</div>
+                    <div className="animate-float" style={{ position: 'absolute', bottom: '35%', left: '5%', color: colors.gold, fontWeight: 700, fontSize: '0.8rem', animationDelay: '2.5s' }}>+50 KES</div>
                 </div>
-              ))}
-
-              {/* Floating Earnings */}
-              <div style={{ position: "absolute", top: "25%", right: 0, padding: "0.5rem 0.75rem", background: colors.gold, borderRadius: "0.75rem", color: colors.dark, fontWeight: 700, fontSize: "0.75rem" }} className="animate-bounce-subtle">
-                +250 KES
-              </div>
-              <div style={{ position: "absolute", bottom: "25%", left: 0, padding: "0.5rem 0.75rem", background: colors.neonGreen, borderRadius: "0.75rem", color: colors.dark, fontWeight: 700, fontSize: "0.75rem", animationDelay: "0.5s" }} className="animate-bounce-subtle">
-                +180 KES
-              </div>
             </div>
-
-            <div style={{ order: 1 }} className="lg:order-2">
+            <div style={{ order: 1, paddingBottom: '2rem', textAlign: 'center' }} className="lg:order-2 lg:text-left lg:pb-0">
               <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", borderRadius: "9999px", background: `${colors.secondary}33`, color: colors.secondary, fontSize: "0.875rem", fontWeight: 600, marginBottom: "1.5rem" }}>
                 <Share2 size={16} />
                 <span>Reseller Program</span>
               </div>
 
-              <h2 style={{ ...headingStyle, fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "1.5rem" }}>
+              <h2 style={{ ...headingStyle, fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "1.5rem", lineHeight: 1.2 }}>
                 Your Sales Army <span style={{ color: colors.secondary }}>Awaits</span>
               </h2>
 
               <p style={{ fontSize: "1.125rem", color: colors.mutedForeground, marginBottom: "2rem" }}>
                 Enable resellers to promote your products across the world. You pay only when they bring a sale.
-                <span style={{ display: "block", marginTop: "0.5rem", fontWeight: 600, color: colors.foreground }}>This is how smart selling is done.</span>
+                <span style={{ display: "block", marginTop: "1rem", fontWeight: 600, color: colors.foreground }}>This is how smart selling is done.</span>
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "2.5rem" }}>
@@ -1044,3 +1012,5 @@ const Index = () => {
 };
 
 export default Index;
+
+    
