@@ -33,7 +33,7 @@ export function BuyerSidebar() {
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname === '/buyer/dashboard'} tooltip="Home">
+          <SidebarMenuButton asChild size="sm" isActive={pathname === '/buyer/dashboard'} tooltip="Home">
             <Link href="/buyer/dashboard">
               <Home />
               <span>Home</span>
@@ -41,23 +41,15 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/live')} tooltip="Live Buying">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/live')} tooltip="Live Buying">
             <Link href="/live">
               <Video />
-              <span>Live Buying</span>
+              <span>Live Feed</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/live')} tooltip="Live Section">
-            <Link href="/buyer/live">
-              <RadioTower />
-              <span>Live Section</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/cart')} tooltip="My Cart">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/cart')} tooltip="My Cart">
             <Link href="/cart">
               <ShoppingCart />
               <span>My Cart</span>
@@ -65,64 +57,56 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/messages')} tooltip="Messages">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/messages')} tooltip="Messages">
             <Link href="/messages">
               <MessageSquare />
               <span>Messages</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
             <Link href="/buyer/my-orders">
               <Package />
               <span>My Orders</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/buyer/wallet')} tooltip="Wallet">
-            <Link href="/buyer/wallet">
-              <Wallet />
-              <span>Wallet</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
+
      <SidebarGroup>
-        <SidebarGroupLabel>Resources</SidebarGroupLabel>
+        <SidebarGroupLabel>My Account</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive('/buyer/about')} tooltip="About Go Earn">
-                <Link href="/buyer/about">
-                  <Info />
-                  <span>About Go Earn</span>
+              <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wallet')} tooltip="Wallet">
+                <Link href="/buyer/wallet">
+                  <Wallet />
+                  <span>Wallet</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive('/buyer/help')} tooltip="Help Center">
-                <Link href="/buyer/help">
-                  <HelpCircle />
-                  <span>Help Center</span>
+              <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')} tooltip="Account Settings">
+                <Link href="/dashboard/account">
+                  <User />
+                  <span>Settings</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
+
     <SidebarMenu className="mt-auto">
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')} tooltip="Account">
-            <Link href="/dashboard/account">
-              <User />
-              <span>Account</span>
+            <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')} tooltip="Help Center">
+            <Link href="/buyer/help">
+                <HelpCircle />
+                <span>Help Center</span>
             </Link>
-          </SidebarMenuButton>
+            </SidebarMenuButton>
         </SidebarMenuItem>
-      </SidebarMenu>
+    </SidebarMenu>
     </>
   );
 }
