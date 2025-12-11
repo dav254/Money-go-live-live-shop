@@ -13,10 +13,10 @@ export function CartDrawer({ cartItems, onCheckout }: { cartItems: CartItem[], o
   }, [cartItems]);
 
   return (
-    <div className="w-full bg-neutral-900 p-3 flex flex-col border-t border-neutral-700">
+    <div className="w-full bg-neutral-900 p-3 flex flex-col h-full">
       <h3 className="font-bold border-b border-neutral-700 pb-2">🛒 Cart ({cartItems?.length || 0})</h3>
       
-      <div className="flex-1 space-y-2 mt-2 overflow-y-auto max-h-32">
+      <div className="flex-1 space-y-2 mt-2 overflow-y-auto">
         {cartItems && cartItems.length > 0 ? (
           cartItems.map((item) => (
             <div key={item.productId} className="text-sm flex justify-between items-center">
