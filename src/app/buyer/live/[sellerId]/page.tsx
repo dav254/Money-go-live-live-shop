@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { BuyerLayout } from "@/components/layout/buyer-layout";
 import { LiveProductCard } from "@/components/buyer/LiveProductCard";
 import { Button } from "@/components/ui/button";
 import type { Product, CartItem, Order, LiveSession, ChatMessage, Chat, UserProfile } from "@/lib/types";
@@ -17,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { PrivateChat } from "@/components/messages/private-chat";
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Heart } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -169,43 +169,47 @@ export default function SellerRoom() {
     
     // For simplicity, this example assumes all items in cart are from the same seller
     // A real implementation would group items by seller.
-    const firstItem = cartItems[0];
     const newOrderRef = doc(collection(firestore, 'orders'));
     
-    const newOrderData: Partial<Order> = {
-      id: newOrderRef.id,
-      buyerId: user.uid,
-      sellerId: firstItem.sellerId,
-      productId: firstItem.productId, // This is simplified for single-item checkout
-      productName: firstItem.name,
-      productImage: firstItem.imageUrl,
-      productPrice: firstItem.price,
-      shippingCost: 0, // Placeholder
-      totalAmount: cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
-      orderDate: serverTimestamp() as any,
-      shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
-      orderStatus: 'pending',
-      paymentMethod: 'pending',
-      quantity: firstItem.quantity, // This is simplified
-    };
-
     try {
-      await setDoc(newOrderRef, newOrderData);
       
       const batch = writeBatch(firestore);
+
       cartItems.forEach(item => {
-        const itemRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
-        batch.delete(itemRef);
+        const orderRef = doc(collection(firestore, 'orders'));
+        const newOrderData: Partial<Order> = {
+            id: orderRef.id,
+            buyerId: user.uid,
+            sellerId: item.sellerId,
+            productId: item.productId,
+            productName: item.name,
+            productImage: item.imageUrl,
+            productPrice: item.price,
+            shippingCost: 0, // Placeholder
+            totalAmount: item.price * item.quantity,
+            orderDate: serverTimestamp() as any,
+            shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+            orderStatus: 'pending',
+            paymentMethod: 'pending',
+            quantity: item.quantity,
+        };
+        batch.set(orderRef, newOrderData);
+
+        const itemInCartRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
+        batch.delete(itemInCartRef);
       });
+
       await batch.commit();
 
-      toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
-      router.push(`/checkout/${newOrderRef.id}`);
+      toast({ title: 'Orders Created!', description: 'Redirecting to checkout...' });
+      // This part is tricky with multiple orders. We'll redirect to the orders page for now.
+      router.push(`/buyer/my-orders`);
+
     } catch (error) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: newOrderRef.path,
         operation: 'create',
-        requestResourceData: newOrderData,
+        requestResourceData: {}, // Batch write makes single data hard to represent
       }));
     }
   };
@@ -223,11 +227,11 @@ export default function SellerRoom() {
   };
   
     const handleLike = () => {
-    if (!liveSessionId) return;
+    if (!liveSessionId || !firestore || !user) return;
     const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
     addDoc(eventsRef, {
         type: 'like',
-        text: `${user?.displayName || 'A viewer'} liked the stream!`,
+        text: `${user.displayName || 'A viewer'} liked the stream!`,
         timestamp: serverTimestamp()
     });
   };
