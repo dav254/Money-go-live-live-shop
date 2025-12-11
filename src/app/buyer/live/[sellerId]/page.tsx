@@ -15,9 +15,9 @@ import { Card } from "@/components/ui/card";
 import { ChatSystem } from "@/components/messages/chat-system";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
-import { FollowButton } from '@/components/follow-button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Timestamp } from 'firebase/firestore';
+
 
 const ProductShelfSkeleton = () => (
     <div className="flex gap-2 overflow-x-auto pb-2">
@@ -238,9 +238,9 @@ export default function SellerRoom() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col lg:flex-row">
-      {/* Main Content: Video, Product Shelf, Event Feed */}
+      {/* Main Content: Video, Product Shelf */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="relative flex-1 bg-black">
+        <div className="relative h-[90%] bg-black">
           <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
           <div className="absolute top-3 left-3 flex gap-2">
             {liveSession && (
@@ -260,7 +260,7 @@ export default function SellerRoom() {
         </div>
 
         {/* Bottom Section: Product Shelf & Cart */}
-        <div className="flex h-48 flex-shrink-0 border-t border-neutral-700 bg-neutral-900/50">
+        <div className="flex h-[10%] flex-shrink-0 border-t border-neutral-700 bg-neutral-900/50">
           <div className="flex-1 p-3">
             <h3 className="mb-2 text-sm font-bold">🛍️ Product Shelf</h3>
             <ScrollArea className="h-[calc(100%-2rem)]">
