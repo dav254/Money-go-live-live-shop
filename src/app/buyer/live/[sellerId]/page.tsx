@@ -57,7 +57,7 @@ export default function SellerRoom() {
 
   // Find the active live session for this seller
   const liveSessionQuery = useMemoFirebase(() => {
-    if (!sellerId) return null;
+    if (!sellerId || !firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'), limit(1));
   }, [firestore, sellerId]);
 
@@ -115,12 +115,15 @@ export default function SellerRoom() {
   }, [liveSession, firestore, pc]);
 
 
-  // Fetch all products for the current seller (can be optimized later if needed)
-  const productsQuery = useMemoFirebase(() => {
-    if (!sellerId) return null;
-    return query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
-  }, [firestore, sellerId]);
-  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  // Fetch only the products featured in the live session
+    const featuredProductsQuery = useMemoFirebase(() => {
+        if (!firestore || !liveSession?.productIds || liveSession.productIds.length === 0) return null;
+        // Firestore 'in' query is limited to 30 items
+        return query(collection(firestore, 'products'), where('__name__', 'in', liveSession.productIds.slice(0, 30)));
+    }, [firestore, liveSession]);
+
+    const { data: featuredProducts, isLoading: areProductsLoading } = useCollection<Product>(featuredProductsQuery);
+
 
   // Fetch Cart Items
   const cartItemsQuery = useMemoFirebase(() => {
@@ -129,42 +132,32 @@ export default function SellerRoom() {
   }, [user, firestore]);
   const { data: cartItems } = useCollection<CartItem>(cartItemsQuery);
   
-  // Real-time listener for the live session document to get updates
-  useEffect(() => {
-    if (!liveSession?.id) {
-      setPinnedProduct(null);
-      return;
-    }
-    const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
-    const unsubscribe = onSnapshot(sessionRef, (doc) => {
-        const sessionData = doc.data() as LiveSession;
-        if (sessionData && sessionData.pinnedProductId && products) {
-            const product = products.find(p => p.id === sessionData.pinnedProductId);
-            setPinnedProduct(product || null);
-        } else {
+  // Real-time listener for the live session document to get pinned product updates
+    useEffect(() => {
+        if (!liveSession?.id || !firestore) {
             setPinnedProduct(null);
+            return;
         }
-    });
-    
-    // Listen for live events like hearts
-    const eventsRef = collection(firestore, 'liveSessions', liveSession.id, 'events');
-    const eventsQuery = query(eventsRef, where('timestamp', '>', new Date()));
-    const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const event = change.doc.data();
-                if (event.type === 'like') {
-                     // spawnHeart();
-                }
+        
+        const unsubscribe = onSnapshot(doc(firestore, 'liveSessions', liveSession.id), (docSnapshot) => {
+            const sessionData = docSnapshot.data() as LiveSession;
+            if (sessionData && sessionData.pinnedProductId) {
+                // We fetch the single pinned product document
+                const productRef = doc(firestore, 'products', sessionData.pinnedProductId);
+                onSnapshot(productRef, (productDoc) => {
+                    if (productDoc.exists()) {
+                        setPinnedProduct({ id: productDoc.id, ...productDoc.data() } as Product);
+                    } else {
+                        setPinnedProduct(null);
+                    }
+                });
+            } else {
+                setPinnedProduct(null);
             }
         });
-    });
 
-    return () => {
-        unsubscribe();
-        unsubscribeEvents();
-    };
-  }, [liveSession, products, firestore]);
+        return () => unsubscribe();
+    }, [liveSession, firestore]);
   
   const handleCheckout = async () => {
     if (!user || !firestore || !cartItems || cartItems.length === 0) {
@@ -237,14 +230,14 @@ export default function SellerRoom() {
                             <h3 className="font-bold mb-2 text-sm">🛍️ Product Shelf</h3>
                             <div className="flex gap-2 overflow-x-auto pb-2">
                                 {areProductsLoading ? <ProductShelfSkeleton /> : (
-                                    products && products.length > 0 ? (
-                                        products.map(p => (
+                                    featuredProducts && featuredProducts.length > 0 ? (
+                                        featuredProducts.map(p => (
                                             <div key={p.id} className="flex flex-col items-center">
                                                 <LiveProductCard product={p} />
                                             </div>
                                         ))
                                     ) : (
-                                        <p className="text-sm text-neutral-400 p-4 text-center">This seller has no products.</p>
+                                        <p className="text-sm text-neutral-400 p-4 text-center">Seller has not featured any products.</p>
                                     )
                                 )}
                             </div>

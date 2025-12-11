@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import type { LiveSession, Product, ChatMessage, Chat, UserProfile } from '@/lib/types';
-import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, setDoc, onSnapshot, getDocs, arrayUnion } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
@@ -217,13 +217,26 @@ export default function SellerLiveStudioPage() {
     } catch (err) {
       console.error("Camera error", err);
       setHasCameraPermission(false);
-      toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings.',
-      });
     }
-  }, [localStream, toast]);
+  }, [localStream]);
+  
+  const useTestVideo = () => {
+    const videoUrl = '/test-video.mp4';
+    const videoElement = document.createElement('video');
+    videoElement.src = videoUrl;
+    videoElement.loop = true;
+    videoElement.muted = true;
+    videoElement.play().then(() => {
+      const stream = (videoElement as any).captureStream();
+      setLocalStream(stream);
+      setHasCameraPermission(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+    }).catch(e => console.error("Test video play failed:", e));
+  };
+
 
   const switchCamera = useCallback(async () => {
     if (!localStream) {
@@ -251,7 +264,8 @@ export default function SellerLiveStudioPage() {
         id: newSessionId,
         sellerId: user.uid,
         status: 'live',
-        startTime: serverTimestamp()
+        startTime: serverTimestamp(),
+        productIds: [],
     });
 
     // 2. Setup WebRTC Peer Connection
@@ -340,7 +354,11 @@ export default function SellerLiveStudioPage() {
     if (!liveSessionId) return;
     setPinnedProduct(product);
     const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    await updateDoc(sessionRef, { pinnedProductId: product.id });
+    // Add product to the shelf and pin it
+    await updateDoc(sessionRef, { 
+        pinnedProductId: product.id,
+        productIds: arrayUnion(product.id)
+    });
   };
 
   const handleUnpinProduct = async () => {
@@ -403,13 +421,14 @@ export default function SellerLiveStudioPage() {
                 playsInline
                 />
                 {!hasCameraPermission && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/70 p-4">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-4">
                         <Alert variant="destructive" className="max-w-sm">
                             <AlertTitle>Camera Access Required</AlertTitle>
                             <AlertDescription>
                                 Please allow camera access to use this feature. Check your browser settings.
                             </AlertDescription>
                         </Alert>
+                         <Button onClick={useTestVideo} variant="secondary" className="mt-4">Use Test Video Instead</Button>
                     </div>
                 )}
                 {pinnedProduct && (
@@ -425,7 +444,6 @@ export default function SellerLiveStudioPage() {
                 </div>
                 )}
                 <div className="absolute top-3 left-3 flex gap-2">
-                <div className="px-2 py-1 rounded text-xs font-semibold bg-muted">PREVIEW</div>
                 {isLive && (
                     <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse flex items-center gap-1.5">
                         <div className="h-2 w-2 rounded-full bg-white"></div>
