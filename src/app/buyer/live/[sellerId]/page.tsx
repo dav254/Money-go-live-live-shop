@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import type { Product, CartItem, Order, LiveSession, UserProfile } from "@/lib/types";
+import type { Product, CartItem, Order, LiveSession, UserProfile, SellerShop } from "@/lib/types";
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
 import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc, addDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +15,6 @@ import { Card } from "@/components/ui/card";
 import { ChatSystem } from "@/components/messages/chat-system";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
-import { LiveShoppingEventFeed } from '@/components/live/live-shopping-event-feed';
 import { FollowButton } from '@/components/follow-button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Timestamp } from 'firebase/firestore';
@@ -252,7 +251,6 @@ export default function SellerRoom() {
             )}
           </div>
           <div className="absolute bottom-4 left-4 max-w-sm w-full pr-8">
-            <LiveShoppingEventFeed liveSessionId={liveSessionId} />
             {pinnedProduct && (
               <div className="mt-2 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
                 <LiveProductCard product={pinnedProduct} />
