@@ -12,7 +12,7 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/buyer/CartDrawer";
 import { Card } from "@/components/ui/card";
-import { ChatSystem } from "@/components/messages/chat-system"; // Use the new central chat system
+import { ChatSystem } from "@/components/messages/chat-system";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
 
@@ -281,7 +281,7 @@ export default function SellerRoom() {
         </div>
 
         {/* Right Panel: Chat */}
-        <div className="lg:col-span-4 xl:col-span-3 hidden md:flex flex-col rounded-lg overflow-hidden">
+        <div className="lg:col-span-4 xl:col-span-3 hidden md:flex flex-col rounded-lg overflow-hidden h-full">
             <ChatSystem />
         </div>
     </div>

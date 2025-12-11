@@ -131,7 +131,7 @@ export function ChatSystem() {
   }
 
   return (
-    <div className="flex h-full border-t">
+    <div className="flex h-full">
       <ConversationList
         chats={chatsWithParticipants}
         selectedChat={selectedChat}

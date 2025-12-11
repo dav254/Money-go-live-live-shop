@@ -171,6 +171,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
 
   const messagesQuery = useMemoFirebase(() => {
     if (!chat || !firestore) return null;
@@ -179,6 +181,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
 
   const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
   
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
       if (!chat || !currentUser) return;
       
@@ -376,7 +384,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
         </AlertDialog>
       </div>
 
-      <ScrollArea className="flex-1 bg-muted/10">
+      <ScrollArea className="flex-1 bg-muted/10" ref={scrollAreaRef}>
         <div className="p-4 space-y-6">
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
