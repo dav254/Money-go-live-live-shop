@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -130,7 +131,7 @@ export function ChatSystem() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] border-t">
+    <div className="flex h-full border-t">
       <ConversationList
         chats={chatsWithParticipants}
         selectedChat={selectedChat}
