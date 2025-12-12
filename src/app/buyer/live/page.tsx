@@ -1,4 +1,3 @@
-
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -53,6 +52,7 @@ export default function LiveSellersPage() {
   const firestore = useFirestore();
 
   const liveSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
   }, [firestore]);
 
