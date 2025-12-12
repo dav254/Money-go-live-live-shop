@@ -14,7 +14,7 @@ import { doc } from 'firebase/firestore';
 import { useMemo } from 'react';
 import type { SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
 
@@ -55,9 +55,11 @@ export function SellerHeader() {
             </SheetTrigger>
             <SheetContent side="left" className="p-0">
                  <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
-                    <div className="sticky top-0 z-10 border-b bg-card p-4">
-                         <Logo className="h-8 w-auto text-primary" />
-                    </div>
+                    <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
+                         <SheetTitle asChild>
+                            <Logo className="h-8 w-auto text-primary" />
+                         </SheetTitle>
+                    </SheetHeader>
                     <div className="p-4 pt-0">
                         <SellerSidebar />
                     </div>
