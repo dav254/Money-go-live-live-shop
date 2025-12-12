@@ -1,12 +1,14 @@
 
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useFirestore } from '@/firebase';
 import { doc, onSnapshot, setDoc, Unsubscribe, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Loader2 } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
+// WebRTC STUN servers configuration
 const servers = {
     iceServers: [
         {
@@ -16,63 +18,62 @@ const servers = {
     iceCandidatePoolSize: 10,
 };
 
-export default function BuyerLivePage({ params }: { params: { sellerId: string }}) {
+export default function BuyerLivePage() {
+    const params = useParams();
+    const sellerId = params.sellerId as string;
     const videoRef = useRef<HTMLVideoElement>(null);
-    const pc = useRef<RTCPeerConnection | null>(null);
+    const pcRef = useRef<RTCPeerConnection | null>(null);
     const firestore = useFirestore();
-    const sellerId = params.sellerId;
     const [connecting, setConnecting] = React.useState(true);
 
     useEffect(() => {
-        if (!firestore) return;
+        if (!firestore || !sellerId) return;
 
         const sessionRef = doc(firestore, 'liveSessions', sellerId);
 
         const connectToSeller = async (offer: any) => {
-            // Check if peer connection is already established or connecting
-            if (pc.current && pc.current.connectionState !== 'closed' && pc.current.connectionState !== 'failed') {
+             if (pcRef.current) {
                 return;
             }
 
-            pc.current = new RTCPeerConnection(servers);
+            pcRef.current = new RTCPeerConnection(servers);
 
-            pc.current.ontrack = event => {
+            pcRef.current.ontrack = event => {
                 if (videoRef.current) {
                     videoRef.current.srcObject = event.streams[0];
                     setConnecting(false);
                 }
             };
             
-            pc.current.onconnectionstatechange = () => {
-                if (pc.current?.connectionState === 'connected') {
+            pcRef.current.onconnectionstatechange = () => {
+                if (pcRef.current?.connectionState === 'connected') {
                     setConnecting(false);
                 }
-                 if (pc.current?.connectionState === 'failed' || pc.current?.connectionState === 'disconnected') {
+                 if (pcRef.current?.connectionState === 'failed' || pcRef.current?.connectionState === 'disconnected') {
                     setConnecting(false);
                 }
             };
 
-            const answerCandidatesRef = collection(firestore, 'liveSessions', sellerId, 'answers');
-            pc.current.onicecandidate = event => {
+            const answerCandidatesRef = collection(firestore, 'liveSessions', sellerId, 'answerCandidates');
+            pcRef.current.onicecandidate = event => {
                 if (event.candidate) {
                     addDoc(answerCandidatesRef, event.candidate.toJSON());
                 }
             };
 
-            await pc.current.setRemoteDescription(new RTCSessionDescription(offer));
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer));
 
-            const answer = await pc.current.createAnswer();
-            await pc.current.setLocalDescription(answer);
+            const answer = await pcRef.current.createAnswer();
+            await pcRef.current.setLocalDescription(answer);
 
             await updateDoc(sessionRef, { answer });
             
-            // Listen for seller's ICE candidates after setting up the connection
-            const offerCandidatesRef = collection(firestore, 'liveSessions', sellerId, 'offers');
+            const offerCandidatesRef = collection(firestore, 'liveSessions', sellerId, 'offerCandidates');
             onSnapshot(offerCandidatesRef, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     if (change.type === 'added') {
                         const candidate = new RTCIceCandidate(change.doc.data());
-                        pc.current?.addIceCandidate(candidate);
+                        pcRef.current?.addIceCandidate(candidate);
                     }
                 });
             });
@@ -85,7 +86,7 @@ export default function BuyerLivePage({ params }: { params: { sellerId: string }
             }
             const data = snap.data();
 
-            if (data.isLive && data.offer) {
+            if (data.status === 'live' && data.offer) {
                 connectToSeller(data.offer);
             } else {
                  setConnecting(false);
@@ -94,8 +95,8 @@ export default function BuyerLivePage({ params }: { params: { sellerId: string }
 
         return () => {
             unsub();
-            if (pc.current) {
-                pc.current.close();
+            if (pcRef.current) {
+                pcRef.current.close();
             }
         };
     }, [firestore, sellerId]);
