@@ -170,26 +170,27 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-      // Any authenticated user can read the main session document to check for offers.
       allow read: if request.auth != null;
-      // Only the seller can create or update their own live session document.
-      allow write: if request.auth != null && request.auth.uid == sessionId;
-      
-      // Seller writes offer candidates.
+      // Allow seller to create/update their session document
+      allow create: if request.auth.uid == sessionId;
+      allow update: if request.auth.uid == sessionId || 
+                       // Allow any authenticated user to ONLY write the 'answer' field
+                       (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer']));
+
       match /offerCandidates/{candidateId} {
-        // Only the seller can read or write their own offer candidates.
-        allow read, write: if request.auth != null && request.auth.uid == sessionId;
+        // Only the seller can write their offer candidates.
+        allow write: if request.auth.uid == sessionId && request.resource.data.sellerId == request.auth.uid;
+        // Any authenticated user can read them to establish a connection.
+        allow read: if request.auth != null;
       }
       
-      // Buyers write answer candidates.
       match /answerCandidates/{candidateId} {
-        // Any authenticated user can write an answer candidate.
+        // Any authenticated user can write their answer candidates.
         allow write: if request.auth != null;
-        // Only the seller (session owner) can read the answer candidates.
-        allow read: if request.auth != null && request.auth.uid == sessionId;
+        // Only the seller (session owner) should read the answer candidates.
+        allow read: if request.auth.uid == sessionId;
       }
       
-      // Any authenticated user can read chat/events.
       match /events/{eventId} {
         allow read, write, list: if request.auth != null;
       }
@@ -270,3 +271,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
