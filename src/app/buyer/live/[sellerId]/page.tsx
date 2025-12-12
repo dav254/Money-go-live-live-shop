@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
@@ -305,7 +304,7 @@ function LiveRoomPage() {
 
 export default function SellerRoomWrapper() {
   return (
-    <BuyerLayout fullWidth>
+    <BuyerLayout>
       <LiveRoomPage />
     </BuyerLayout>
   )

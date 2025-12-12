@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { FlipHorizontal, Users, Heart, Camera, Gift, Zap, Loader2, MessageSquare, Send, CheckCircle, Package, Truck, XCircle, MoreVertical } from 'lucide-react';
-import { LiveActivityFeed, emitLocalEvent } from '@/components/studio/LiveActivityFeed';
+import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -164,6 +164,16 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
   )
 }
 
+const servers = {
+    iceServers: [
+        {
+            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
+        },
+    ],
+    iceCandidatePoolSize: 10,
+};
+
+
 export default function SellerLiveStudioPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useUser();
@@ -171,6 +181,7 @@ export default function SellerLiveStudioPage() {
   const { toast } = useToast();
   
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [pc, setPc] = useState<RTCPeerConnection | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [isStartingStream, setIsStartingStream] = useState(false);
@@ -185,11 +196,6 @@ export default function SellerLiveStudioPage() {
 
   const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
   
-  const [isDealModalOpen, setIsDealModalOpen] = useState(false);
-  const [isGiveawayModalOpen, setIsGiveawayModalOpen] = useState(false);
-  const [dealPercent, setDealPercent] = useState(20);
-  const [giveawayItem, setGiveawayItem] = useState("A Free T-Shirt!");
-
   const startCamera = useCallback(async (facingMode: 'user' | 'environment' = 'user') => {
     try {
       if (localStream) {
@@ -221,18 +227,83 @@ export default function SellerLiveStudioPage() {
   }, [localStream, startCamera]);
 
   const handleGoLive = async () => {
+    if (!firestore || !user || !localStream) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not start stream. Missing required resources.' });
+        return;
+    }
+
     setIsStartingStream(true);
-    const mockSessionId = `mock_session_${Date.now()}`;
-    setLiveSessionId(mockSessionId);
-    setIsLive(true);
-    toast({ title: "You are now live! (Simulation)", description: "This is a frontend-only preview." });
+
+    const peerConnection = new RTCPeerConnection(servers);
+    setPc(peerConnection);
+
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+
+    const sessionRef = doc(collection(firestore, 'liveSessions'));
+    const offerCandidatesRef = collection(sessionRef, 'offerCandidates');
+    const answerCandidatesRef = collection(sessionRef, 'answerCandidates');
+
+    setLiveSessionId(sessionRef.id);
+
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            addDoc(offerCandidatesRef, event.candidate.toJSON());
+        }
+    };
+    
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
+
+    const offer = {
+        sdp: offerDescription.sdp,
+        type: offerDescription.type,
+    };
+
+    await setDoc(sessionRef, {
+        id: sessionRef.id,
+        sellerId: user.uid,
+        status: 'live',
+        offer
+    });
+
+    onSnapshot(sessionRef, (snapshot) => {
+        const data = snapshot.data();
+        if (!peerConnection.currentRemoteDescription && data?.answer) {
+            const answerDescription = new RTCSessionDescription(data.answer);
+            peerConnection.setRemoteDescription(answerDescription);
+        }
+    });
+
+    onSnapshot(answerCandidatesRef, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                peerConnection.addIceCandidate(candidate);
+            }
+        });
+    });
+    
     setIsStartingStream(false);
+    setIsLive(true);
+    toast({ title: "You are now live!", description: "Buyers can join your stream." });
   };
   
   const handleEndLive = async () => {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         setLocalStream(null);
+    }
+    
+    if (pc) {
+        pc.close();
+        setPc(null);
+    }
+
+    if (liveSessionId && firestore) {
+        const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+        await updateDoc(sessionRef, { status: 'ended' });
     }
     
     setIsLive(false);
@@ -242,12 +313,20 @@ export default function SellerLiveStudioPage() {
     startCamera(); // Restart camera for next session
   };
 
-  const handlePinProduct = (product: Product) => {
+  const handlePinProduct = async (product: Product) => {
     setPinnedProduct(product);
+    if(liveSessionId && firestore) {
+        const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+        await updateDoc(sessionRef, { pinnedProductId: product.id });
+    }
   };
 
-  const handleUnpinProduct = () => {
+  const handleUnpinProduct = async () => {
     setPinnedProduct(null);
+     if(liveSessionId && firestore) {
+        const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+        await updateDoc(sessionRef, { pinnedProductId: null });
+    }
   };
 
   useEffect(() => {
@@ -259,32 +338,27 @@ export default function SellerLiveStudioPage() {
   }, []);
   
   const createLiveEvent = (eventData: object) => {
-      if (!liveSessionId) {
+      if (!liveSessionId || !firestore) {
           toast({ variant: 'destructive', title: 'Not Live', description: 'You must be live to send events.' });
           return;
       }
-      // For frontend-only, we emit to a local event bus
-      if (liveSessionId.startsWith('mock_')) {
-          emitLocalEvent(eventData);
-      }
-      // In a real app, you would also write to Firestore here.
+      const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
+      addDoc(eventsRef, { ...eventData, timestamp: serverTimestamp() });
   };
 
-  const spawnHeart = () => {
-    createLiveEvent({ type: 'like', text: `${user?.displayName || 'A viewer'} liked the stream!` });
-  };
-  
   const handleStartFlashDeal = () => {
+      // In a real app, you would get this from a dialog
+      const dealPercent = 20; 
       const text = `⚡️ FLASH SALE: ${dealPercent}% OFF! ⚡️`;
       createLiveEvent({ type: 'deal', text });
-      setIsDealModalOpen(false);
       toast({ title: "Flash Deal Started!", description: "Buyers will now see the deal banner." });
   };
 
   const handleStartGiveaway = () => {
+       // In a real app, you would get this from a dialog
+      const giveawayItem = 'A Free T-shirt';
       const text = `🎉 GIVEAWAY: ${giveawayItem} 🎉`;
       createLiveEvent({ type: 'giveaway', text });
-      setIsGiveawayModalOpen(false);
       toast({ title: "Giveaway Announced!", description: "Buyers will now see the announcement." });
   };
 
@@ -350,33 +424,8 @@ export default function SellerLiveStudioPage() {
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    <Dialog open={isDealModalOpen} onOpenChange={setIsDealModalOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline"><Zap className="mr-2 h-4 w-4 text-yellow-400"/> Start Flash Deal</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader><DialogTitle>Simulate a Flash Deal</DialogTitle></DialogHeader>
-                                <div className="py-4 space-y-2">
-                                    <Label>Discount Percentage</Label>
-                                    <Input type="number" value={dealPercent} onChange={e => setDealPercent(Number(e.target.value))} />
-                                </div>
-                                <DialogFooter><Button onClick={handleStartFlashDeal}>Show Banner</Button></DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                        <Dialog open={isGiveawayModalOpen} onOpenChange={setIsGiveawayModalOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline"><Gift className="mr-2 h-4 w-4 text-pink-400"/> Create Giveaway</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader><DialogTitle>Simulate a Giveaway</DialogTitle></DialogHeader>
-                                <div className="py-4 space-y-2">
-                                    <Label>Prize</Label>
-                                    <Input value={giveawayItem} onChange={e => setGiveawayItem(e.target.value)} />
-                                </div>
-                                <DialogFooter><Button onClick={handleStartGiveaway}>Show Banner</Button></DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                        <Button variant="outline" onClick={spawnHeart}><Heart className="mr-2 h-4 w-4 text-red-400"/> Simulate Reactions</Button>
+                    <Button variant="outline" onClick={handleStartFlashDeal}><Zap className="mr-2 h-4 w-4 text-yellow-400"/> Flash Deal</Button>
+                    <Button variant="outline" onClick={handleStartGiveaway}><Gift className="mr-2 h-4 w-4 text-pink-400"/> Giveaway</Button>
                 </div>
                 </CardContent>
             </Card>
