@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { FlipHorizontal, Loader2, Camera, Video, Settings, Mic, MicOff, CameraOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
