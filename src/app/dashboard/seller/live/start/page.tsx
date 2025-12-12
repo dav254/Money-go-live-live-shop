@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -147,7 +148,7 @@ export default function SellerLiveStudioPage() {
     // Listen for the buyer's ICE candidates
     const unsubAnswerCandidates = onSnapshot(answerCandidatesRef, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added' && pcRef.current) {
+        if (change.type === 'added' && pcRef.current?.currentRemoteDescription) {
           pcRef.current.addIceCandidate(new RTCIceCandidate(change.doc.data()));
         }
       });

@@ -170,21 +170,26 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-      allow read, list: if true;
-      allow create, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      // Any authenticated user can read the main session document to check for offers.
+      allow read: if request.auth != null;
+      // Only the seller can create or update their own live session document.
+      allow write: if request.auth != null && request.auth.uid == sessionId;
       
-      // Seller writes offer candidates
+      // Seller writes offer candidates.
       match /offerCandidates/{candidateId} {
-          allow read, write: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+        // Only the seller can read or write their own offer candidates.
+        allow read, write: if request.auth != null && request.auth.uid == sessionId;
       }
       
-      // Any authenticated user can write an answer candidate
+      // Buyers write answer candidates.
       match /answerCandidates/{candidateId} {
-          allow read, write: if request.auth != null;
+        // Any authenticated user can write an answer candidate.
+        allow write: if request.auth != null;
+        // Only the seller (session owner) can read the answer candidates.
+        allow read: if request.auth != null && request.auth.uid == sessionId;
       }
       
-      // Any authenticated user can read chat/events
+      // Any authenticated user can read chat/events.
       match /events/{eventId} {
         allow read, write, list: if request.auth != null;
       }
