@@ -11,7 +11,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, onSnapshot, getDocs, writeBatch, setDoc, Unsubscribe } from 'firebase/firestore';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { LiveActivityFeed, emitLocalEvent } from '@/components/studio/LiveActivityFeed';
+import { emitLocalEvent } from '@/components/studio/LiveActivityFeed';
 import { Product } from '@/lib/types';
 import { LiveShoppingEventFeed } from '@/components/live/live-shopping-event-feed';
 
@@ -289,4 +289,3 @@ export default function SellerLiveStudioPage() {
     </SellerLayout>
   );
 }
-
