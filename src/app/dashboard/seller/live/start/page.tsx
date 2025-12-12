@@ -207,33 +207,6 @@ export default function SellerLiveStudioPage() {
       setHasCameraPermission(false);
     }
   }, [localStream]);
-  
-  const useTestVideo = () => {
-    const videoUrl = '/test-video.mp4';
-    const videoElement = document.createElement('video');
-    videoElement.src = videoUrl;
-    videoElement.loop = true;
-    videoElement.muted = true;
-
-    videoElement.onloadedmetadata = () => {
-      videoElement.play().then(() => {
-        const stream = (videoElement as any).captureStream();
-        setLocalStream(stream);
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(e => console.error("Studio preview play failed:", e.name, e.message));
-        }
-      }).catch(e => {
-          console.error("Test video play failed:", e.name, e.message)
-      });
-    }
-    videoElement.onerror = (e) => {
-        let error = videoElement.error;
-        console.error("Test video loading error:", error?.code, error?.message)
-    }
-  };
-
 
   const switchCamera = useCallback(async () => {
     if (!localStream) {
@@ -356,7 +329,6 @@ export default function SellerLiveStudioPage() {
                                 Please allow camera access to use this feature. Check your browser settings.
                             </AlertDescription>
                         </Alert>
-                         <Button onClick={useTestVideo} variant="secondary" className="mt-4">Use Test Video Instead</Button>
                     </div>
                 )}
                 {pinnedProduct && (
