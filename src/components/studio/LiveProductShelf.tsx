@@ -21,7 +21,7 @@ const ProductRow = ({ product, onPin, onUnpin }: { product: Product; onPin: (p: 
     return (
         <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
             <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
-                <Image src={product.imageUrl} alt={product.name || 'product'} fill className="object-cover" />
+                <Image src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} alt={product.name || 'product'} fill className="object-cover" />
             </div>
             <div className="flex-1 overflow-hidden">
                 <p className="truncate text-sm font-semibold">{product.name}</p>
