@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { FlipHorizontal, Users, Heart, Camera, Gift, Zap, Loader2, MessageSquare, Send, CheckCircle, Package, Truck, XCircle, MoreVertical } from 'lucide-react';
-import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
+import { LiveActivityFeed, emitLocalEvent } from '@/components/studio/LiveActivityFeed';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -221,25 +221,12 @@ export default function SellerLiveStudioPage() {
   }, [localStream, startCamera]);
 
   const handleGoLive = async () => {
-    if (!user || !localStream) {
-      toast({ variant: 'destructive', title: 'Prerequisites not met', description: 'You must be logged in and have camera access to go live.' });
-      return;
-    }
     setIsStartingStream(true);
-
-    try {
-        // Simulate going live without backend calls
-        const mockSessionId = `mock_session_${Date.now()}`;
-        setLiveSessionId(mockSessionId);
-        setIsLive(true);
-        toast({ title: "You are now live! (Simulation)", description: "This is a frontend-only preview." });
-
-    } catch (error) {
-        console.error("Go Live Error: ", error);
-        toast({ variant: 'destructive', title: 'Could Not Go Live', description: 'An unexpected error occurred.' });
-    } finally {
-        setIsStartingStream(false);
-    }
+    const mockSessionId = `mock_session_${Date.now()}`;
+    setLiveSessionId(mockSessionId);
+    setIsLive(true);
+    toast({ title: "You are now live! (Simulation)", description: "This is a frontend-only preview." });
+    setIsStartingStream(false);
   };
   
   const handleEndLive = async () => {
@@ -255,17 +242,12 @@ export default function SellerLiveStudioPage() {
     startCamera(); // Restart camera for next session
   };
 
-  const handlePinProduct = async (product: Product) => {
-    if (!liveSessionId) return;
+  const handlePinProduct = (product: Product) => {
     setPinnedProduct(product);
-    // In a real scenario, this would update Firestore.
-    // For now, it just updates the local state.
   };
 
-  const handleUnpinProduct = async () => {
-    if (!liveSessionId) return;
+  const handleUnpinProduct = () => {
     setPinnedProduct(null);
-     // In a real scenario, this would update Firestore.
   };
 
   useEffect(() => {
@@ -276,18 +258,16 @@ export default function SellerLiveStudioPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const createLiveEvent = async (eventData: object) => {
+  const createLiveEvent = (eventData: object) => {
       if (!liveSessionId) {
           toast({ variant: 'destructive', title: 'Not Live', description: 'You must be live to send events.' });
           return;
       }
-      if (!firestore) return; // Don't try to write if firestore is not available.
-
-      const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
-      await addDoc(eventsRef, {
-          ...eventData,
-          timestamp: serverTimestamp()
-      });
+      // For frontend-only, we emit to a local event bus
+      if (liveSessionId.startsWith('mock_')) {
+          emitLocalEvent(eventData);
+      }
+      // In a real app, you would also write to Firestore here.
   };
 
   const spawnHeart = () => {
