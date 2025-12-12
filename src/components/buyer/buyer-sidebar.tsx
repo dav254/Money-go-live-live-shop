@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -61,6 +60,14 @@ export function BuyerSidebar() {
             <Link href="/messages">
               <MessageSquare />
               <span>Messages</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/seller/live/start')} tooltip="Live Studio">
+            <Link href="/dashboard/seller/live/start">
+              <RadioTower />
+              <span>Live Studio</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
