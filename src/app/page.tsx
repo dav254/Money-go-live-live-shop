@@ -237,7 +237,7 @@ const Index = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div style={{ display: "flex", alignItems: "center", gap: "2rem" }} className="hidden md:flex">
+          <div style={{ display: "none", alignItems: "center", gap: "2rem" }} className="md:flex">
             {["Features", "How It Works", "Pricing", "For Sellers"].map((item) => (
               <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} style={{ color: colors.mutedForeground, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, transition: "color 0.3s" }} className="hover:text-white">
                 {item}
@@ -246,13 +246,13 @@ const Index = () => {
           </div>
 
           {/* Desktop Buttons */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }} className="hidden md:flex">
+          <div style={{ display: "none", alignItems: "center", gap: "0.75rem" }} className="md:flex">
             <Button variant="ghost">Log In</Button>
             <Button variant="hero" size="default">Start Selling</Button>
           </div>
 
           {/* Mobile Menu Button */}
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: "none", border: "none", color: colors.foreground, cursor: "pointer", padding: "0.5rem" }} className="md:hidden">
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: "none", border: "none", color: colors.foreground, cursor: "pointer", padding: "0.5rem", display: 'block' }} className="md:hidden">
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
@@ -355,7 +355,7 @@ const Index = () => {
         </div>
 
         {/* Scroll Indicator */}
-        <div style={{ position: "absolute", bottom: "2rem", left: "50%", transform: "translateX(-50%)" }} className="animate-bounce-subtle">
+        <div style={{ position: "absolute", bottom: "2rem", left: "50%", transform: "translateX(-50%)" }} className="animate-bounce-subtle hidden md:block">
           <div style={{ width: "1.5rem", height: "2.5rem", borderRadius: "9999px", border: `2px solid ${colors.mutedForeground}4d`, display: "flex", justifyContent: "center", paddingTop: "0.5rem" }}>
             <div style={{ width: "0.25rem", height: "0.5rem", background: colors.primary, borderRadius: "9999px" }} />
           </div>
@@ -565,41 +565,9 @@ const Index = () => {
       {/* ===== RESELLER SECTION ===== */}
       <section style={{ ...sectionStyle, background: colors.darkCard }}>
         <div style={containerStyle}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "4rem", alignItems: "center" }}>
-            {/* Network Visualization */}
-            <div style={{ position: "relative", aspectRatio: "1", maxWidth: "400px", margin: "0 auto", order: 2 }} className="lg:order-1">
-                <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                    {/* Central Node */}
-                    <div style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                        width: "8rem",
-                        height: "8rem",
-                        borderRadius: "50%",
-                        background: gradients.primary,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 10,
-                        boxShadow: `0 0 50px ${colors.primary}77`,
-                    }}>
-                        <span style={{ color: colors.dark, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>YOU</span>
-                    </div>
-
-                    {/* Surrounding Nodes */}
-                    <div className="animate-float" style={{ animationDelay: '0s', position: 'absolute', top: '15%', left: '15%', width: '4rem', height: '4rem', background: gradients.secondary, borderRadius: '50%', boxShadow: `0 0 20px ${colors.secondary}55` }}></div>
-                    <div className="animate-float" style={{ animationDelay: '1.5s', position: 'absolute', top: '20%', right: '10%', width: '5rem', height: '5rem', background: gradients.gold, borderRadius: '1.5rem', transform: 'rotate(-15deg)', boxShadow: `0 0 30px ${colors.gold}55` }}></div>
-                    <div className="animate-float" style={{ animationDelay: '3s', position: 'absolute', bottom: '15%', left: '20%', width: '3.5rem', height: '3.5rem', background: gradients.neonPink, borderRadius: '50%', boxShadow: `0 0 25px ${colors.neonPink}55` }}></div>
-                    <div className="animate-float" style={{ animationDelay: '4.5s', position: 'absolute', bottom: '25%', right: '15%', width: '6rem', height: '4rem', background: gradients.accent, borderRadius: '1.25rem', transform: 'rotate(20deg)', boxShadow: `0 0 35px ${colors.accent}55` }}></div>
-                    
-                    {/* Floating Text */}
-                    <div className="animate-float" style={{ position: 'absolute', top: '30%', left: '75%', color: colors.neonGreen, fontWeight: 700, fontSize: '1rem', animationDelay: '0.5s' }}>+180 KES</div>
-                    <div className="animate-float" style={{ position: 'absolute', bottom: '35%', left: '5%', color: colors.gold, fontWeight: 700, fontSize: '0.8rem', animationDelay: '2.5s' }}>+50 KES</div>
-                </div>
-            </div>
-            <div style={{ order: 1, paddingBottom: '2rem', textAlign: 'center' }} className="lg:order-2 lg:text-left lg:pb-0">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "4rem", alignItems: "center" }} className="lg:grid-cols-2">
+            
+            <div style={{ order: 2, paddingBottom: '2rem', textAlign: 'center' }} className="lg:order-1 lg:text-left lg:pb-0">
               <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 1rem", borderRadius: "9999px", background: `${colors.secondary}33`, color: colors.secondary, fontSize: "0.875rem", fontWeight: 600, marginBottom: "1.5rem" }}>
                 <Share2 size={16} />
                 <span>Reseller Program</span>
@@ -628,6 +596,58 @@ const Index = () => {
                 Enable Reseller Program
               </Button>
             </div>
+            
+            {/* Network Visualization */}
+            <div style={{ position: "relative", aspectRatio: "1", maxWidth: "400px", margin: "0 auto", order: 1 }} className="lg:order-2">
+              <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                {/* Central Node */}
+                <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "8rem",
+                  height: "8rem",
+                  borderRadius: "50%",
+                  background: gradients.primary,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 10,
+                  boxShadow: `0 0 50px ${colors.primary}77`,
+                }}>
+                  <span style={{ color: colors.dark, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>YOU</span>
+                </div>
+                
+                {/* Surrounding Nodes */}
+                {[
+                  { top: '15%', left: '15%', size: '4rem', gradient: gradients.secondary, delay: 0 },
+                  { top: '20%', right: '10%', size: '5rem', gradient: gradients.gold, delay: 1.5, rotate: '-15deg' },
+                  { bottom: '15%', left: '20%', size: '3.5rem', gradient: gradients.neonPink, delay: 3 },
+                  { bottom: '25%', right: '15%', size: '4.5rem', gradient: gradients.accent, delay: 4.5, rotate: '20deg' }
+                ].map((node, index) => (
+                  <div key={index} className="animate-float" style={{
+                    position: 'absolute',
+                    top: node.top,
+                    left: node.left,
+                    right: node.right,
+                    bottom: node.bottom,
+                    width: node.size,
+                    height: node.size,
+                    background: node.gradient,
+                    borderRadius: '50%',
+                    transform: `rotate(${node.rotate || '0deg'})`,
+                    boxShadow: `0 0 30px ${colors.dark}55`,
+                    animationDelay: `${node.delay}s`,
+                  }}></div>
+                ))}
+                
+                {/* Floating Text */}
+                <div className="animate-float" style={{ position: 'absolute', top: '30%', left: '75%', color: colors.neonGreen, fontWeight: 700, fontSize: '1rem', animationDelay: '0.5s' }}>+180 KES</div>
+                <div className="animate-float" style={{ position: 'absolute', bottom: '35%', left: '5%', color: colors.gold, fontWeight: 700, fontSize: '0.8rem', animationDelay: '2.5s' }}>+50 KES</div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
