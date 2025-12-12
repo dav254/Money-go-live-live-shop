@@ -4,7 +4,7 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useFirestore } from '@/firebase';
-import { doc, onSnapshot, collection, addDoc, Unsubscribe, query, where, limit, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, Unsubscribe, query, where, limit, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Loader2 } from 'lucide-react';
 
@@ -54,7 +54,7 @@ export default function BuyerLivePage() {
             // Save buyer's ICE candidates to Firestore
             pcRef.current.onicecandidate = async event => {
                 if (event.candidate) {
-                    const answerCandidatesRef = collection(db, 'liveSessions', liveSession.id, 'answerCandidates');
+                    const answerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'answerCandidates');
                     await addDoc(answerCandidatesRef, event.candidate.toJSON());
                 }
             };
@@ -66,12 +66,12 @@ export default function BuyerLivePage() {
                 const answer = await pcRef.current.createAnswer();
                 await pcRef.current.setLocalDescription(answer);
                 
-                const sessionRef = doc(db, 'liveSessions', liveSession.id);
+                const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
                 await updateDoc(sessionRef, { answer: { type: answer.type, sdp: answer.sdp } });
             }
 
             // Listen for seller's ICE candidates
-            const offerCandidatesRef = collection(db, 'liveSessions', liveSession.id, 'offerCandidates');
+            const offerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'offerCandidates');
             const unsubCandidates = onSnapshot(offerCandidatesRef, (snapshot) => {
                 snapshot.docChanges().forEach(change => {
                     if (change.type === 'added') {
@@ -126,7 +126,3 @@ export default function BuyerLivePage() {
         </BuyerLayout>
     );
 }
-
-// Minimal db import for use in this specific component logic based on user's sample
-const db = getFirestore();
-const { updateDoc } = require("firebase/firestore");
