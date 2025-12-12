@@ -170,16 +170,15 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-      allow read: if true;
-      allow list: if true;
+      allow read, list: if true;
       allow create, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
       allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
 
       match /events/{eventId} {
         // Any authenticated user can create an event (like, comment).
         allow create: if request.auth != null;
-        // Allow any authenticated user to read the event feed.
-        allow read, list: if true;
+        // Only the seller hosting the session can read the event feed.
+        allow read, list: if request.auth != null && get(/databases/$(database)/documents/liveSessions/$(sessionId)).data.sellerId == request.auth.uid;
       }
 
       match /chat/{messageId} {
