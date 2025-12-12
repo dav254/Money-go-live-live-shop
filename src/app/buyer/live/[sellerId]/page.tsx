@@ -140,12 +140,12 @@ function LiveRoomPage() {
   
   // Real-time listener for the live session document to get pinned product updates
     useEffect(() => {
-        if (!liveSession?.id || !firestore) {
+        if (!liveSessionId || !firestore) {
             setPinnedProduct(null);
             return;
         }
         
-        const unsubscribe = onSnapshot(doc(firestore, 'liveSessions', liveSession.id), (docSnapshot) => {
+        const unsubscribe = onSnapshot(doc(firestore, 'liveSessions', liveSessionId), (docSnapshot) => {
             const sessionData = docSnapshot.data() as LiveSession;
             if (sessionData && sessionData.pinnedProductId) {
                 // We fetch the single pinned product document
@@ -163,7 +163,7 @@ function LiveRoomPage() {
         });
 
         return () => unsubscribe();
-    }, [liveSession, firestore]);
+    }, [liveSessionId, firestore]);
   
   const handleCheckout = async () => {
     if (!user || !firestore || !cartItems || cartItems.length === 0) {
@@ -309,5 +309,3 @@ export default function SellerRoomWrapper() {
     </BuyerLayout>
   )
 }
-
-    

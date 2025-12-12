@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -227,90 +226,21 @@ export default function SellerLiveStudioPage() {
   }, [localStream, startCamera]);
 
   const handleGoLive = async () => {
-    if (!firestore || !user || !localStream) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not start stream. Missing required resources.' });
-        return;
-    }
-
+    if (!firestore || !user) return;
+    
     setIsStartingStream(true);
-
-    const peerConnection = new RTCPeerConnection(servers);
-    setPc(peerConnection);
-
-    localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-    });
-
-    const sessionRef = doc(collection(firestore, 'liveSessions'));
-    const offerCandidatesRef = collection(sessionRef, 'offerCandidates');
-    const answerCandidatesRef = collection(sessionRef, 'answerCandidates');
-
-    setLiveSessionId(sessionRef.id);
-
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            addDoc(offerCandidatesRef, event.candidate.toJSON());
-        }
-    };
-    
-    const offerDescription = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offerDescription);
-
-    const offer = {
-        sdp: offerDescription.sdp,
-        type: offerDescription.type,
-    };
-
-    await setDoc(sessionRef, {
-        id: sessionRef.id,
-        sellerId: user.uid,
-        status: 'live',
-        offer
-    });
-
-    onSnapshot(sessionRef, (snapshot) => {
-        const data = snapshot.data();
-        if (!peerConnection.currentRemoteDescription && data?.answer) {
-            const answerDescription = new RTCSessionDescription(data.answer);
-            peerConnection.setRemoteDescription(answerDescription);
-        }
-    });
-
-    onSnapshot(answerCandidatesRef, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                peerConnection.addIceCandidate(candidate);
-            }
-        });
-    });
-    
-    setIsStartingStream(false);
+    const sessionId = `mock_session_${Date.now()}`;
+    setLiveSessionId(sessionId);
     setIsLive(true);
-    toast({ title: "You are now live!", description: "Buyers can join your stream." });
+    setIsStartingStream(false);
+    toast({ title: "You are now live! (Frontend Simulation)" });
   };
   
   const handleEndLive = async () => {
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        setLocalStream(null);
-    }
-    
-    if (pc) {
-        pc.close();
-        setPc(null);
-    }
-
-    if (liveSessionId && firestore) {
-        const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-        await updateDoc(sessionRef, { status: 'ended' });
-    }
-    
     setIsLive(false);
     setLiveSessionId(null);
     setPinnedProduct(null);
     toast({ title: "Stream Ended", description: "Your live session has concluded." });
-    startCamera(); // Restart camera for next session
   };
 
   const handlePinProduct = async (product: Product) => {
