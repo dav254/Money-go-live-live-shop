@@ -10,9 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, onSnapshot, getDocs, writeBatch, setDoc, Unsubscribe } from 'firebase/firestore';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
-import { Product } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,121 +107,6 @@ export default function SellerLiveStudioPage() {
       }
   }
 
-  const handleGoLive = async () => {
-    if (!firestore || !user || !localStreamRef.current) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Camera is not active. Please start your camera first.' });
-        return;
-    }
-
-    setIsConnecting(true);
-    cleanup();
-
-    // End any previous stale live sessions for this user
-    try {
-        const q = query(collection(firestore, 'liveSessions'), where('sellerId', '==', user.uid), where('status', '==', 'live'));
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const batch = writeBatch(firestore);
-          snapshot.forEach(doc => {
-              batch.update(doc.ref, { status: 'ended', endTime: serverTimestamp() });
-          });
-          await batch.commit();
-          console.log("Ended stale live sessions.");
-        }
-    } catch (error) {
-        console.error("Error ending stale live sessions:", error);
-    }
-
-    const peerConnection = new RTCPeerConnection(servers);
-    pcRef.current = peerConnection;
-
-    localStreamRef.current.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStreamRef.current!);
-    });
-
-    const sessionRef = doc(collection(firestore, 'liveSessions'));
-    const offerCandidatesRef = collection(sessionRef, 'offerCandidates');
-    const answerCandidatesRef = collection(sessionRef, 'answerCandidates');
-
-    peerConnection.onicecandidate = event => {
-        if (event.candidate) addDoc(offerCandidatesRef, event.candidate.toJSON());
-    };
-
-    try {
-        const offerDescription = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offerDescription);
-
-        const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        const initialTitle = `${user.displayName || 'Seller'}'s Live Show`;
-        setStreamTitle(initialTitle);
-
-        await setDoc(sessionRef, {
-            id: sessionRef.id,
-            sellerId: user.uid,
-            title: initialTitle,
-            status: 'live',
-            startTime: serverTimestamp(),
-            offer,
-        });
-        
-        const sessionUnsubscribe = onSnapshot(sessionRef, (snapshot) => {
-            const data = snapshot.data();
-            if (pcRef.current && !pcRef.current.currentRemoteDescription && data?.answer) {
-                console.log("Received answer from buyer.");
-                const answerDescription = new RTCSessionDescription(data.answer);
-                pcRef.current.setRemoteDescription(answerDescription).catch(e => console.error('Error setting remote desc:', e));
-            }
-        });
-
-        const answerCandidatesUnsubscribe = onSnapshot(answerCandidatesRef, snapshot => {
-            snapshot.docChanges().forEach(change => {
-                if (change.type === 'added' && pcRef.current?.signalingState !== 'closed') {
-                    console.log("Received ICE candidate from buyer.");
-                    pcRef.current.addIceCandidate(new RTCIceCandidate(change.doc.data()))
-                        .catch(e => console.error('Error adding received ice candidate', e));
-                }
-            });
-        });
-        
-        unsubscribeCallbacksRef.current.push(sessionUnsubscribe, answerCandidatesUnsubscribe);
-        
-        setLiveSessionId(sessionRef.id);
-        setIsLive(true);
-        toast({ title: "You are now live!", description: "Buyers can join your stream." });
-
-    } catch (error) {
-        console.error("Error starting live stream:", error);
-        toast({ variant: 'destructive', title: 'Stream Start Failed', description: 'Could not establish connection. Please try again.' });
-        cleanup();
-    } finally {
-        setIsConnecting(false);
-    }
-  };
-  
-  const handleEndLive = async () => {
-    if (liveSessionId && firestore) {
-        try {
-            await updateDoc(doc(firestore, 'liveSessions', liveSessionId), { status: 'ended', endTime: serverTimestamp() });
-        } catch(e) { console.error("Error ending live session doc:", e) }
-    }
-    cleanup();
-    setIsLive(false);
-    setLiveSessionId(null);
-    toast({ title: "Stream Ended" });
-  };
-  
-   const handleSaveSettings = async () => {
-    if (!liveSessionId || !firestore || !streamTitle.trim()) return;
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    try {
-        await updateDoc(sessionRef, { title: streamTitle.trim() });
-        toast({ title: "Stream Title Updated!" });
-        setIsSettingsOpen(false);
-    } catch (e) {
-        toast({ variant: 'destructive', title: "Error", description: "Could not update stream title." });
-    }
-  };
-
   useEffect(() => {
     return () => {
       cleanup();
@@ -234,19 +116,6 @@ export default function SellerLiveStudioPage() {
     };
   }, [cleanup]);
 
-  const handlePinProduct = async (product: Product) => {
-      if (!liveSessionId || !firestore) return;
-      const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-      await updateDoc(sessionRef, { pinnedProductId: product.id });
-      emitLocalEvent({ type: 'deal', text: `Seller pinned ${product.name}!` });
-  };
-  
-  const handleUnpinProduct = async () => {
-      if (!liveSessionId || !firestore) return;
-      const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-      await updateDoc(sessionRef, { pinnedProductId: null });
-  }
-  
   return (
     <SellerLayout>
         <div className="p-4 max-w-full mx-auto h-[calc(100vh-4rem)] flex flex-col lg:flex-row gap-4">
@@ -277,19 +146,6 @@ export default function SellerLiveStudioPage() {
                         </>
                     )}
                 </div>
-
-            </div>
-             <div className="w-full lg:w-1/3 flex flex-col gap-4 h-full">
-                <Card className="flex-1 flex flex-col">
-                    <CardHeader><CardTitle>Live Activity Feed</CardTitle></CardHeader>
-                    <CardContent className="flex-1 overflow-hidden"><LiveActivityFeed liveSessionId={liveSessionId} /></CardContent>
-                </Card>
-                <Card className="flex-1 flex flex-col">
-                    <CardHeader><CardTitle>Product Shelf</CardTitle></CardHeader>
-                    <CardContent className="flex-1 overflow-hidden">
-                        {user && <LiveProductShelf sellerId={user.uid} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} />}
-                    </CardContent>
-                </Card>
             </div>
         </div>
     </SellerLayout>
