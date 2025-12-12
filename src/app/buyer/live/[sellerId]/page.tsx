@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useFirestore } from '@/firebase';
-import { doc, onSnapshot, updateDoc, Unsubscribe, collection, addDoc, getDocs, query } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, onSnapshot, updateDoc, Unsubscribe, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
