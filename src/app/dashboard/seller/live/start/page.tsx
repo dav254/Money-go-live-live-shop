@@ -226,17 +226,81 @@ export default function SellerLiveStudioPage() {
   }, [localStream, startCamera]);
 
   const handleGoLive = async () => {
-    if (!firestore || !user) return;
-    
+    if (!firestore || !user || !localStream) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not start stream. Ensure camera is enabled.' });
+        return;
+    }
+
     setIsStartingStream(true);
-    const sessionId = `mock_session_${Date.now()}`;
-    setLiveSessionId(sessionId);
+
+    const peerConnection = new RTCPeerConnection(servers);
+    setPc(peerConnection);
+
+    localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+    });
+
+    const sessionCollectionRef = collection(firestore, 'liveSessions');
+    const sessionRef = doc(sessionCollectionRef);
+    setLiveSessionId(sessionRef.id);
+
+    const offerCandidatesRef = collection(sessionRef, 'offerCandidates');
+    const answerCandidatesRef = collection(sessionRef, 'answerCandidates');
+
+    peerConnection.onicecandidate = event => {
+        if (event.candidate) {
+            addDoc(offerCandidatesRef, event.candidate.toJSON());
+        }
+    };
+
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
+
+    const offer = {
+        sdp: offerDescription.sdp,
+        type: offerDescription.type,
+    };
+
+    await setDoc(sessionRef, {
+        id: sessionRef.id,
+        sellerId: user.uid,
+        title: `${user.displayName || 'Seller'}'s Live Show`,
+        status: 'live',
+        productIds: [],
+        viewerCount: 0,
+        startTime: serverTimestamp(),
+        offer,
+    });
+
+    onSnapshot(sessionRef, (snapshot) => {
+        const data = snapshot.data();
+        if (!peerConnection.currentRemoteDescription && data?.answer) {
+            const answerDescription = new RTCSessionDescription(data.answer);
+            peerConnection.setRemoteDescription(answerDescription);
+        }
+    });
+
+    onSnapshot(answerCandidatesRef, snapshot => {
+        snapshot.docChanges().forEach(change => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                peerConnection.addIceCandidate(candidate);
+            }
+        });
+    });
+
     setIsLive(true);
     setIsStartingStream(false);
-    toast({ title: "You are now live! (Frontend Simulation)" });
+    toast({ title: "You are now live!", description: "Buyers can join your stream." });
   };
   
   const handleEndLive = async () => {
+    if (liveSessionId && firestore) {
+      const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+      await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
+    }
+    pc?.close();
+    setPc(null);
     setIsLive(false);
     setLiveSessionId(null);
     setPinnedProduct(null);
@@ -262,6 +326,7 @@ export default function SellerLiveStudioPage() {
   useEffect(() => {
     startCamera();
     return () => {
+      pc?.close();
       localStream?.getTracks().forEach(track => track.stop());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
