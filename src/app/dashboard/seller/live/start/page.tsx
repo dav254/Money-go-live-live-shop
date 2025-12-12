@@ -11,9 +11,8 @@ import { useUser, useFirestore } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, onSnapshot, getDocs, writeBatch, setDoc, Unsubscribe } from 'firebase/firestore';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { emitLocalEvent } from '@/components/studio/LiveActivityFeed';
+import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Product } from '@/lib/types';
-import { LiveShoppingEventFeed } from '@/components/live/live-shopping-event-feed';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -279,49 +278,11 @@ export default function SellerLiveStudioPage() {
                     )}
                 </div>
 
-                <Card className="bg-card/50 w-full">
-                    <CardContent className="p-3 flex flex-wrap items-center justify-center gap-4">
-                        {!isLive ? (
-                        <Button onClick={handleGoLive} className="bg-red-600 hover:bg-red-700 font-bold px-8 py-6 text-lg" disabled={!isCameraOn || isConnecting}>
-                            {isConnecting && <Loader2 className="mr-2 h-6 w-6 animate-spin" />}Go Live
-                        </Button>
-                        ) : (
-                        <Button onClick={handleEndLive} variant="destructive" className="px-8 py-6 text-lg">End Live</Button>
-                        )}
-                         <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" disabled={!isLive}><Settings className="mr-2"/>Stream Settings</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Stream Settings</DialogTitle>
-                                    <DialogDescription>Update the title of your live stream.</DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="stream-title" className="text-right">
-                                            Title
-                                        </Label>
-                                        <Input
-                                            id="stream-title"
-                                            value={streamTitle}
-                                            onChange={(e) => setStreamTitle(e.target.value)}
-                                            className="col-span-3"
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button type="button" onClick={handleSaveSettings}>Save changes</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                    </CardContent>
-                </Card>
             </div>
              <div className="w-full lg:w-1/3 flex flex-col gap-4 h-full">
                 <Card className="flex-1 flex flex-col">
                     <CardHeader><CardTitle>Live Activity Feed</CardTitle></CardHeader>
-                    <CardContent className="flex-1 overflow-hidden"><LiveShoppingEventFeed liveSessionId={liveSessionId} /></CardContent>
+                    <CardContent className="flex-1 overflow-hidden"><LiveActivityFeed liveSessionId={liveSessionId} /></CardContent>
                 </Card>
                 <Card className="flex-1 flex flex-col">
                     <CardHeader><CardTitle>Product Shelf</CardTitle></CardHeader>
