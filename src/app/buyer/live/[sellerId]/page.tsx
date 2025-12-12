@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { collection, doc, query, where, limit, updateDoc, addDoc, onSnapshot, ge
 import type { LiveSession, Product, SellerShop, UserProfile } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 
+// WebRTC STUN servers configuration
 const servers = {
     iceServers: [
         {
@@ -33,6 +34,7 @@ function LiveRoomPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const [connectionState, setConnectionState] = useState<RTCIceConnectionState>('new');
+  const unsubscribeCallbacksRef = useRef<(() => void)[]>([]);
 
   const liveSessionQuery = useMemoFirebase(() => {
     if (!sellerId || !firestore) return null;
@@ -41,9 +43,18 @@ function LiveRoomPage() {
 
   const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
   const liveSession = liveSessions?.[0];
+  
+  const cleanup = useCallback(() => {
+      unsubscribeCallbacksRef.current.forEach(cb => cb());
+      unsubscribeCallbacksRef.current = [];
+      if (pcRef.current) {
+          pcRef.current.close();
+          pcRef.current = null;
+      }
+  }, []);
 
   useEffect(() => {
-    if (!liveSession || !firestore || !videoRef.current || pcRef.current) {
+    if (!liveSession || !firestore || pcRef.current) {
         if(liveSessions && liveSessions.length === 0 && !isLiveSessionLoading) {
             console.log('No live session found for this seller.');
         }
@@ -51,25 +62,21 @@ function LiveRoomPage() {
     }
 
     console.log('Found live session:', liveSession.id, " - setting up WebRTC connection...");
-    let isMounted = true;
-    let unsubscribeSession: (() => void) | undefined;
-    let unsubscribeCandidates: (() => void) | undefined;
 
     const setupConnection = async () => {
         const peerConnection = new RTCPeerConnection(servers);
         pcRef.current = peerConnection;
 
         peerConnection.oniceconnectionstatechange = () => {
-            if (isMounted) {
-                console.log('Buyer ICE Connection State Change:', peerConnection.iceConnectionState);
-                setConnectionState(peerConnection.iceConnectionState);
-            }
+            console.log('Buyer ICE Connection State Change:', peerConnection.iceConnectionState);
+            setConnectionState(peerConnection.iceConnectionState);
         };
 
         peerConnection.ontrack = (event) => {
             console.log('Received remote video track from seller!');
             if (videoRef.current) {
                 videoRef.current.srcObject = event.streams[0];
+                videoRef.current.play().catch(console.error);
             }
         };
 
@@ -100,7 +107,7 @@ function LiveRoomPage() {
                 console.log('Successfully updated Firestore with answer.');
             }
 
-            unsubscribeCandidates = onSnapshot(offerCandidatesRef, (snapshot) => {
+            const unsubCandidates = onSnapshot(offerCandidatesRef, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     if (change.type === 'added' && pcRef.current?.signalingState !== 'closed') {
                         console.log('Received remote ICE candidate from seller.');
@@ -108,6 +115,7 @@ function LiveRoomPage() {
                     }
                 });
             });
+            unsubscribeCallbacksRef.current.push(unsubCandidates);
         } catch (error) {
             console.error('!!! Buyer WebRTC setup failed:', error);
         }
@@ -117,15 +125,9 @@ function LiveRoomPage() {
 
     return () => {
         console.log('Cleaning up buyer WebRTC connection for session:', liveSession?.id);
-        isMounted = false;
-        unsubscribeSession?.();
-        unsubscribeCandidates?.();
-        if (pcRef.current) {
-            pcRef.current.close();
-            pcRef.current = null;
-        }
+        cleanup();
     };
-  }, [liveSession?.id, firestore, isLiveSessionLoading, liveSessions]);
+  }, [liveSession?.id, firestore, isLiveSessionLoading, liveSessions, cleanup]);
 
   const sellerShopRef = useMemoFirebase(() => sellerId ? doc(firestore, 'sellerShops', sellerId) : null, [firestore, sellerId]);
   const { data: sellerShop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
@@ -187,7 +189,9 @@ function LiveRoomPage() {
     <BuyerLayout>
         <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
             <div className="flex-1 bg-black relative flex items-center justify-center">
-                <div className='absolute z-10 flex items-center gap-2 text-white bg-black/50 px-3 py-2 rounded-lg'>{renderConnectionMessage()}</div>
+                 <div className="absolute z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 text-white bg-black/50 px-3 py-2 rounded-lg">
+                    {renderConnectionMessage()}
+                </div>
                 <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline muted />
                 <div className="absolute top-4 left-4 flex items-center gap-3">
                     <div className="flex items-center gap-2 bg-black/50 p-2 rounded-lg">
@@ -211,4 +215,3 @@ function LiveRoomPage() {
 }
 
 export default LiveRoomPage;
-
