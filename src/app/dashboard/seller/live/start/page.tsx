@@ -164,17 +164,6 @@ const MultiBuyerChat = ({ liveSessionId }: { liveSessionId: string | null }) => 
   )
 }
 
-// WebRTC Configuration
-const servers = {
-    iceServers: [
-        {
-            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'],
-        },
-    ],
-    iceCandidatePoolSize: 10,
-};
-
-
 export default function SellerLiveStudioPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useUser();
@@ -182,7 +171,6 @@ export default function SellerLiveStudioPage() {
   const { toast } = useToast();
   
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [pc, setPc] = useState<RTCPeerConnection | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isLive, setIsLive] = useState(false);
   const [isStartingStream, setIsStartingStream] = useState(false);
@@ -267,141 +255,61 @@ export default function SellerLiveStudioPage() {
     setIsStartingStream(true);
 
     try {
-        // 1. Create Live Session Doc
-        const newSessionRef = doc(collection(firestore, 'liveSessions'));
-        const newSessionId = newSessionRef.id;
-        await setDoc(newSessionRef, {
-            id: newSessionId,
-            sellerId: user.uid,
-            status: 'live',
-            startTime: serverTimestamp(),
-            productIds: [],
-        });
-
-        // 2. Setup WebRTC Peer Connection
-        const peerConnection = new RTCPeerConnection(servers);
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
-        });
-
-        // 3. Create Offer and Save to Firestore
-        const offerDescription = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offerDescription);
-
-        const offer = {
-            sdp: offerDescription.sdp,
-            type: offerDescription.type,
-        };
-        await updateDoc(newSessionRef, { offer });
-
-        // 4. Listen for ICE candidates
-        peerConnection.onicecandidate = event => {
-            if (event.candidate) {
-                const candidatesRef = collection(newSessionRef, 'offerCandidates');
-                addDoc(candidatesRef, event.candidate.toJSON());
-            }
-        };
-        
-        // 5. Listen for answer from buyer
-        onSnapshot(newSessionRef, async (snapshot) => {
-            const data = snapshot.data();
-            if (peerConnection.currentRemoteDescription) return;
-            if (data?.answer) {
-                const answerDescription = new RTCSessionDescription(data.answer);
-                await peerConnection.setRemoteDescription(answerDescription);
-            }
-        });
-
-        // 6. Listen for buyer's ICE candidates
-        const answerCandidatesRef = collection(newSessionRef, 'answerCandidates');
-        onSnapshot(answerCandidatesRef, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    const candidate = new RTCIceCandidate(change.doc.data());
-                    peerConnection.addIceCandidate(candidate);
-                }
-            });
-        });
-
-        setPc(peerConnection);
-        setLiveSessionId(newSessionId);
+        // Simulate going live without backend calls
+        const mockSessionId = `mock_session_${Date.now()}`;
+        setLiveSessionId(mockSessionId);
         setIsLive(true);
-        toast({ title: "You are now live!", description: "Waiting for viewers to connect..." });
+        toast({ title: "You are now live! (Simulation)", description: "This is a frontend-only preview." });
 
     } catch (error) {
         console.error("Go Live Error: ", error);
-        toast({ variant: 'destructive', title: 'Could Not Go Live', description: 'An unexpected error occurred. Please try again.' });
-        // Cleanup in case of failure
-        if (liveSessionId) {
-            handleEndLive(); // Attempt to clean up the session
-        }
+        toast({ variant: 'destructive', title: 'Could Not Go Live', description: 'An unexpected error occurred.' });
     } finally {
         setIsStartingStream(false);
     }
   };
   
   const handleEndLive = async () => {
-    if (!liveSessionId || !user) return;
-
-    if (pc) {
-        pc.close();
-        setPc(null);
-    }
-    
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         setLocalStream(null);
     }
-
-    try {
-       const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-       await updateDoc(sessionRef, {
-          status: 'ended',
-          endTime: serverTimestamp(),
-       });
-      setIsLive(false);
-      setLiveSessionId(null);
-      setPinnedProduct(null);
-      toast({ title: "Stream Ended", description: "Your live session has concluded." });
-      startCamera(); // Restart camera for next session
-    } catch (error) {
-      console.error("Error ending live session:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not end live session.' });
-    }
+    
+    setIsLive(false);
+    setLiveSessionId(null);
+    setPinnedProduct(null);
+    toast({ title: "Stream Ended", description: "Your live session has concluded." });
+    startCamera(); // Restart camera for next session
   };
 
   const handlePinProduct = async (product: Product) => {
     if (!liveSessionId) return;
     setPinnedProduct(product);
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    // Add product to the shelf and pin it
-    await updateDoc(sessionRef, { 
-        pinnedProductId: product.id,
-        productIds: arrayUnion(product.id)
-    });
+    // In a real scenario, this would update Firestore.
+    // For now, it just updates the local state.
   };
 
   const handleUnpinProduct = async () => {
     if (!liveSessionId) return;
     setPinnedProduct(null);
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    await updateDoc(sessionRef, { pinnedProductId: null });
+     // In a real scenario, this would update Firestore.
   };
 
   useEffect(() => {
     startCamera();
     return () => {
       localStream?.getTracks().forEach(track => track.stop());
-      pc?.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   const createLiveEvent = async (eventData: object) => {
-      if (!liveSessionId || !firestore) {
+      if (!liveSessionId) {
           toast({ variant: 'destructive', title: 'Not Live', description: 'You must be live to send events.' });
           return;
       }
+      if (!firestore) return; // Don't try to write if firestore is not available.
+
       const eventsRef = collection(firestore, 'liveSessions', liveSessionId, 'events');
       await addDoc(eventsRef, {
           ...eventData,
