@@ -14,6 +14,9 @@ import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { emitLocalEvent } from '@/components/studio/LiveActivityFeed';
 import { Product } from '@/lib/types';
 import { LiveShoppingEventFeed } from '@/components/live/live-shopping-event-feed';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // WebRTC STUN servers configuration
 const servers = {
@@ -41,6 +44,8 @@ export default function SellerLiveStudioPage() {
   const [isLive, setIsLive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [streamTitle, setStreamTitle] = useState('');
   
   const cleanup = useCallback(() => {
       console.log("Cleaning up WebRTC connections...");
@@ -151,11 +156,13 @@ export default function SellerLiveStudioPage() {
         await peerConnection.setLocalDescription(offerDescription);
 
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
+        const initialTitle = `${user.displayName || 'Seller'}'s Live Show`;
+        setStreamTitle(initialTitle);
 
         await setDoc(sessionRef, {
             id: sessionRef.id,
             sellerId: user.uid,
-            title: `${user.displayName || 'Seller'}'s Live Show`,
+            title: initialTitle,
             status: 'live',
             startTime: serverTimestamp(),
             offer,
@@ -205,6 +212,18 @@ export default function SellerLiveStudioPage() {
     setIsLive(false);
     setLiveSessionId(null);
     toast({ title: "Stream Ended" });
+  };
+  
+   const handleSaveSettings = async () => {
+    if (!liveSessionId || !firestore || !streamTitle.trim()) return;
+    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+    try {
+        await updateDoc(sessionRef, { title: streamTitle.trim() });
+        toast({ title: "Stream Title Updated!" });
+        setIsSettingsOpen(false);
+    } catch (e) {
+        toast({ variant: 'destructive', title: "Error", description: "Could not update stream title." });
+    }
   };
 
   useEffect(() => {
@@ -269,7 +288,33 @@ export default function SellerLiveStudioPage() {
                         ) : (
                         <Button onClick={handleEndLive} variant="destructive" className="px-8 py-6 text-lg">End Live</Button>
                         )}
-                        <Button variant="outline"><Settings className="mr-2"/>Stream Settings</Button>
+                         <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" disabled={!isLive}><Settings className="mr-2"/>Stream Settings</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Stream Settings</DialogTitle>
+                                    <DialogDescription>Update the title of your live stream.</DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="stream-title" className="text-right">
+                                            Title
+                                        </Label>
+                                        <Input
+                                            id="stream-title"
+                                            value={streamTitle}
+                                            onChange={(e) => setStreamTitle(e.target.value)}
+                                            className="col-span-3"
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" onClick={handleSaveSettings}>Save changes</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </CardContent>
                 </Card>
             </div>
