@@ -1,39 +1,18 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Button } from "@/components/ui/button";
-import type { Product, CartItem, Order, LiveSession, UserProfile, SellerShop } from "@/lib/types";
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useDoc } from '@/firebase';
-import { collection, query, where, doc, setDoc, serverTimestamp, writeBatch, getDocs, deleteDoc, updateDoc, addDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { useToast } from "@/hooks/use-toast";
-import { useRouter, useParams } from "next/navigation";
-import { FirestorePermissionError } from "@/firebase/errors";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CartDrawer } from "@/components/buyer/CartDrawer";
-import { Card } from "@/components/ui/card";
-import { ChatSystem } from "@/components/messages/chat-system";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { LiveProductCard } from '@/components/buyer/LiveProductCard';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Timestamp } from 'firebase/firestore';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ShoppingBag, X, Loader2, Info } from 'lucide-react';
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where, limit, updateDoc, addDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import type { LiveSession, Product, SellerShop, UserProfile } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 
-
-const ProductShelfSkeleton = () => (
-    <div className="flex gap-2 overflow-x-auto pb-2">
-        {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-neutral-900 p-2 rounded w-36 flex-shrink-0">
-                <Skeleton className="h-20 w-full rounded mb-2" />
-                <Skeleton className="h-4 w-3/4 mb-1" />
-                <Skeleton className="h-5 w-1/2 mb-2" />
-                <Skeleton className="h-7 w-full" />
-            </div>
-        ))}
-    </div>
-);
-
-// WebRTC Configuration
 const servers = {
     iceServers: [
         {
@@ -43,24 +22,18 @@ const servers = {
     iceCandidatePoolSize: 10,
 };
 
-interface LiveSessionWithSeller extends LiveSession {
-  seller: UserProfile & { shop?: SellerShop };
-}
-
 function LiveRoomPage() {
   const params = useParams();
   const sellerId = params.sellerId as string;
   
   const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
-  const { user } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
   const router = useRouter();
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [pc, setPc] = useState<RTCPeerConnection | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [connectionState, setConnectionState] = useState<RTCIceConnectionState>('new');
 
-  // Find the active live session for this seller
   const liveSessionQuery = useMemoFirebase(() => {
     if (!sellerId || !firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('sellerId', '==', sellerId), where('status', '==', 'live'), limit(1));
@@ -68,244 +41,174 @@ function LiveRoomPage() {
 
   const { data: liveSessions, isLoading: isLiveSessionLoading } = useCollection<LiveSession>(liveSessionQuery);
   const liveSession = liveSessions?.[0];
-  const liveSessionId = liveSession?.id;
 
-  // WebRTC Connection Logic
   useEffect(() => {
-    if (!liveSession || !('offer' in liveSession) || !firestore || pc) return;
-
-    const peerConnection = new RTCPeerConnection(servers);
-    setPc(peerConnection);
-
-    peerConnection.ontrack = (event) => {
-        if (videoRef.current) {
-            videoRef.current.srcObject = event.streams[0];
+    if (!liveSession || !firestore || !videoRef.current || pcRef.current) {
+        if(liveSessions && liveSessions.length === 0 && !isLiveSessionLoading) {
+            console.log('No live session found for this seller.');
         }
-    };
+        return;
+    }
 
-    const answerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'answerCandidates');
-    peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-            addDoc(answerCandidatesRef, event.candidate.toJSON());
-        }
-    };
-    
-    const offerDescription = new RTCSessionDescription(liveSession.offer as RTCSessionDescriptionInit);
-    peerConnection.setRemoteDescription(offerDescription).then(async () => {
-        const answerDescription = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answerDescription);
+    console.log('Found live session:', liveSession.id, " - setting up WebRTC connection...");
+    let isMounted = true;
+    let unsubscribeSession: (() => void) | undefined;
+    let unsubscribeCandidates: (() => void) | undefined;
 
-        const answer = {
-            type: answerDescription.type,
-            sdp: answerDescription.sdp,
+    const setupConnection = async () => {
+        const peerConnection = new RTCPeerConnection(servers);
+        pcRef.current = peerConnection;
+
+        peerConnection.oniceconnectionstatechange = () => {
+            if (isMounted) {
+                console.log('Buyer ICE Connection State Change:', peerConnection.iceConnectionState);
+                setConnectionState(peerConnection.iceConnectionState);
+            }
         };
 
-        const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
-        await updateDoc(sessionRef, { answer });
-    });
-    
-    const offerCandidatesRef = collection(firestore, 'liveSessions', liveSession.id, 'offerCandidates');
-    onSnapshot(offerCandidatesRef, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                peerConnection.addIceCandidate(candidate);
+        peerConnection.ontrack = (event) => {
+            console.log('Received remote video track from seller!');
+            if (videoRef.current) {
+                videoRef.current.srcObject = event.streams[0];
             }
-        });
-    });
+        };
 
-    return () => {
-        peerConnection.close();
+        try {
+            const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
+            const offerCandidatesRef = collection(sessionRef, 'offerCandidates');
+            const answerCandidatesRef = collection(sessionRef, 'answerCandidates');
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log('Buyer generated local ICE candidate:', event.candidate.type);
+                    addDoc(answerCandidatesRef, event.candidate.toJSON());
+                }
+            };
+            
+            if (liveSession.offer) {
+                console.log('Setting remote description from seller offer...');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(liveSession.offer));
+                
+                console.log('Creating answer...');
+                const answerDescription = await peerConnection.createAnswer();
+                
+                console.log('Setting local description with answer...');
+                await peerConnection.setLocalDescription(answerDescription);
+                
+                console.log('Updating Firestore with answer...');
+                await updateDoc(sessionRef, { answer: { type: answerDescription.type, sdp: answerDescription.sdp } });
+                console.log('Successfully updated Firestore with answer.');
+            }
+
+            unsubscribeCandidates = onSnapshot(offerCandidatesRef, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added' && pcRef.current?.signalingState !== 'closed') {
+                        console.log('Received remote ICE candidate from seller.');
+                        pcRef.current.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('!!! Buyer WebRTC setup failed:', error);
+        }
     };
 
-  }, [liveSession, firestore, pc]);
+    setupConnection();
 
-
-  // Fetch only the products featured in the live session
-    const featuredProductsQuery = useMemoFirebase(() => {
-        if (!firestore || !liveSession?.productIds || liveSession.productIds.length === 0) return null;
-        // Firestore 'in' query is limited to 30 items
-        return query(collection(firestore, 'products'), where('__name__', 'in', liveSession.productIds.slice(0, 30)));
-    }, [firestore, liveSession]);
-
-    const { data: featuredProducts, isLoading: areProductsLoading } = useCollection<Product>(featuredProductsQuery);
-
-
-  // Fetch Cart Items
-  const cartItemsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return collection(firestore, 'userProfiles', user.uid, 'cart');
-  }, [user, firestore]);
-  const { data: cartItems } = useCollection<CartItem>(cartItemsQuery);
-  
-  // Real-time listener for the live session document to get pinned product updates
-    useEffect(() => {
-        if (!liveSessionId || !firestore) {
-            setPinnedProduct(null);
-            return;
+    return () => {
+        console.log('Cleaning up buyer WebRTC connection for session:', liveSession?.id);
+        isMounted = false;
+        unsubscribeSession?.();
+        unsubscribeCandidates?.();
+        if (pcRef.current) {
+            pcRef.current.close();
+            pcRef.current = null;
         }
-        
-        const unsubscribe = onSnapshot(doc(firestore, 'liveSessions', liveSessionId), (docSnapshot) => {
-            const sessionData = docSnapshot.data() as LiveSession;
-            if (sessionData && sessionData.pinnedProductId) {
-                // We fetch the single pinned product document
-                const productRef = doc(firestore, 'products', sessionData.pinnedProductId);
-                onSnapshot(productRef, (productDoc) => {
-                    if (productDoc.exists()) {
-                        setPinnedProduct({ id: productDoc.id, ...productDoc.data() } as Product);
-                    } else {
-                        setPinnedProduct(null);
-                    }
+    };
+  }, [liveSession?.id, firestore, isLiveSessionLoading, liveSessions]);
+
+  const sellerShopRef = useMemoFirebase(() => sellerId ? doc(firestore, 'sellerShops', sellerId) : null, [firestore, sellerId]);
+  const { data: sellerShop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
+
+  const userProfileRef = useMemoFirebase(() => sellerId ? doc(firestore, 'userProfiles', sellerId) : null, [firestore, sellerId]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    if (liveSession?.id) {
+        const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
+        unsubscribe = onSnapshot(sessionRef, (snap) => {
+            const pinnedId = snap.data()?.pinnedProductId;
+            if (pinnedId) {
+                getDoc(doc(firestore, 'products', pinnedId)).then(productSnap => {
+                    if (productSnap.exists()) setPinnedProduct({ id: productSnap.id, ...productSnap.data() } as Product);
                 });
             } else {
                 setPinnedProduct(null);
             }
         });
-
-        return () => unsubscribe();
-    }, [liveSessionId, firestore]);
-  
-  const handleCheckout = async () => {
-    if (!user || !firestore || !cartItems || cartItems.length === 0) {
-      toast({ variant: 'destructive', title: 'Your cart is empty.' });
-      return;
     }
+    return () => unsubscribe?.();
+  }, [liveSession?.id, firestore]);
 
-    const newOrderRef = doc(collection(firestore, 'orders'));
+  if (isLiveSessionLoading || isShopLoading || isProfileLoading) {
+    return <div className="w-full h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
-    const sellerId = cartItems[0].sellerId;
-    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const shippingCost = 10; 
-    const totalAmount = subtotal + shippingCost;
-    
-    const orderItems = cartItems.map(item => ({
-        productId: item.productId,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        imageUrl: item.imageUrl
-    }));
+  if (!liveSession) {
+    return (
+        <div className="w-full h-screen flex items-center justify-center">
+            <Card className="max-w-md text-center"><CardHeader><Info className="mx-auto h-12 w-12 text-muted-foreground"/></CardHeader><CardContent><h2 className='text-xl font-bold'>Stream Not Found</h2><p className='text-muted-foreground'>This live session has ended or does not exist.</p></CardContent><CardFooter><Button onClick={() => router.push('/buyer/live')} className="w-full">Back to Live Rooms</Button></CardFooter></Card>
+        </div>
+    );
+  }
 
-    try {
-      const batch = writeBatch(firestore);
+  const sellerName = sellerShop?.shopName || userProfile?.fullName || 'Seller';
+  const sellerAvatar = sellerShop?.logoUrl || userProfile?.profilePictureUrl || 'https://picsum.photos/seed/avatar/80';
 
-      const newOrderData: Partial<Order> = {
-        id: newOrderRef.id,
-        buyerId: user.uid,
-        sellerId: sellerId,
-        items: orderItems,
-        subtotal: subtotal,
-        shippingCost: shippingCost,
-        totalAmount: totalAmount,
-        orderDate: serverTimestamp() as any,
-        shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
-        orderStatus: 'pending',
-        paymentMethod: 'pending',
-      };
-
-      batch.set(newOrderRef, newOrderData);
-
-      cartItems.forEach(item => {
-        const itemInCartRef = doc(firestore, 'userProfiles', user.uid, 'cart', item.productId);
-        batch.delete(itemInCartRef);
-      });
-
-      await batch.commit();
-
-      toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
-      router.push(`/checkout/${newOrderRef.id}`);
-
-    } catch (error) {
-      console.error("Error creating order:", error);
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: newOrderRef.path,
-        operation: 'create',
-        requestResourceData: { orderItems: orderItems.length },
-      }));
-    }
-  };
-
-  const handleDeleteItem = async (productId: string) => {
-    if (!user || !firestore) return;
-    const itemRef = doc(firestore, 'userProfiles', user.uid, 'cart', productId);
-    try {
-        await deleteDoc(itemRef);
-        toast({ title: 'Item removed from cart.' });
-    } catch (e) {
-        console.error("Error removing item from cart: ", e);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not remove item.' });
+  const renderConnectionMessage = () => {
+    switch (connectionState) {
+        case 'new':
+        case 'checking':
+            return <><Loader2 className='animate-spin h-5 w-5' /> Connecting...</>;
+        case 'failed':
+        case 'disconnected':
+        case 'closed':
+            return <span className="text-red-500">Connection failed.</span>;
+        case 'connected':
+        case 'completed':
+            return null; // Successfully connected, don't show a message
+        default:
+             return <><Loader2 className='animate-spin h-5 w-5' /> Status: {connectionState}</>;
     }
   };
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
-      {/* Main Content: Video, Product Shelf */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Video Player */}
-        <div className="relative flex-1 bg-black">
-          <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline />
-          <div className="absolute top-3 left-3 flex gap-2">
-            {liveSession && (
-                <div className="px-2 py-1 rounded text-xs font-semibold bg-red-600 animate-pulse flex items-center gap-1.5">
-                    <div className="h-2 w-2 rounded-full bg-white"></div>
-                    LIVE
-                </div>
-            )}
-          </div>
-          <div className="absolute bottom-4 left-4 max-w-sm w-full pr-8">
-            {pinnedProduct && (
-              <div className="mt-2 bg-black/60 backdrop-blur-sm p-2 rounded-lg border border-primary/50">
-                <LiveProductCard product={pinnedProduct} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom Section: Product Shelf & Cart */}
-        <div className="flex h-48 flex-shrink-0 border-t border-neutral-700 bg-neutral-900/50">
-          <div className="flex-1 p-3">
-            <h3 className="mb-2 text-sm font-bold">🛍️ Product Shelf</h3>
-            <ScrollArea className="h-[calc(100%-2rem)]">
-              <div className="flex gap-2 pb-2">
-                {areProductsLoading ? (
-                  <ProductShelfSkeleton />
-                ) : featuredProducts && featuredProducts.length > 0 ? (
-                  featuredProducts.map((p) => (
-                    <div key={p.id} className="flex flex-col items-center">
-                      <LiveProductCard product={p} />
+    <BuyerLayout>
+        <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
+            <div className="flex-1 bg-black relative flex items-center justify-center">
+                <div className='absolute z-10 flex items-center gap-2 text-white bg-black/50 px-3 py-2 rounded-lg'>{renderConnectionMessage()}</div>
+                <video ref={videoRef} className="h-full w-full object-contain" autoPlay playsInline muted />
+                <div className="absolute top-4 left-4 flex items-center gap-3">
+                    <div className="flex items-center gap-2 bg-black/50 p-2 rounded-lg">
+                        <Avatar><AvatarImage src={sellerAvatar} /><AvatarFallback>{sellerName.charAt(0)}</AvatarFallback></Avatar>
+                        <div><p className="font-bold text-white">{sellerName}</p><div className="flex items-center gap-1 text-xs text-white/80"><div className='h-2 w-2 rounded-full bg-red-500 animate-pulse'></div>LIVE</div></div>
                     </div>
-                  ))
-                ) : (
-                  <p className="p-4 text-center text-sm text-neutral-400">
-                    Seller has not featured any products.
-                  </p>
+                </div>
+                <div className="absolute top-4 right-4 flex items-center gap-2"><Button variant='ghost' size='icon' className='bg-black/50 text-white rounded-full' onClick={() => router.back()}><X size={18} /></Button></div>
+                {pinnedProduct && (
+                <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-sm border border-primary/50 p-3 rounded-xl max-w-xs animate-in fade-in zoom-in-95">
+                    <div className="flex gap-3">
+                        <Image src={pinnedProduct.imageUrl || ''} alt={pinnedProduct.name || 'product'} width={80} height={80} className="w-20 h-20 object-cover rounded-md border" />
+                        <div className="flex-1"><p className="font-semibold text-white text-sm">{pinnedProduct.name}</p><p className="text-primary font-bold">${pinnedProduct.price}</p><Button size="sm" className="mt-2 h-8 w-full bg-primary/20 text-primary-foreground hover:bg-primary/30 border border-primary"><ShoppingBag size={14} className='mr-2' /> Add to cart</Button></div>
+                    </div>
+                </div>
                 )}
-              </div>
-            </ScrollArea>
-          </div>
-          <div className="w-full max-w-xs border-l border-neutral-700">
-            <CartDrawer
-              cartItems={cartItems || []}
-              onCheckout={handleCheckout}
-              onDeleteItem={handleDeleteItem}
-            />
-          </div>
+            </div>
         </div>
-      </div>
-
-      {/* Right Panel: Chat System */}
-      <div className="w-full flex-shrink-0 lg:w-[380px] lg:border-l lg:border-neutral-800">
-        <ChatSystem />
-      </div>
-    </div>
+    </BuyerLayout>
   );
 }
 
+export default LiveRoomPage;
 
-export default function SellerRoomWrapper() {
-  return (
-    <BuyerLayout>
-      <LiveRoomPage />
-    </BuyerLayout>
-  )
-}

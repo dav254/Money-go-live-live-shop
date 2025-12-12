@@ -14,7 +14,6 @@ import React from 'react';
 const LiveSessionCard = ({ session }: { session: LiveSession }) => {
     const firestore = useFirestore();
 
-    // Correctly use session.sellerId to fetch seller data
     const sellerShopRef = useMemoFirebase(() => {
         if (!session.sellerId) return null;
         return doc(firestore, 'sellerShops', session.sellerId);
@@ -28,7 +27,7 @@ const LiveSessionCard = ({ session }: { session: LiveSession }) => {
     const { data: sellerShop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-    if (isShopLoading || isProfileLoading) {
+    if (isShopLoading || isProfileLoading || !session) {
         return (
             <div className="flex items-center gap-4 p-4 border rounded-lg bg-card">
                 <Skeleton className="h-12 w-12 rounded-full" />
@@ -60,6 +59,16 @@ export default function LiveSellersPage() {
 
   const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
 
+  const endedSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'ended'));
+  }, [firestore]);
+
+  const { data: endedSessions, isLoading: isLoadingEnded } = useCollection<LiveSession>(endedSessionsQuery);
+
+  const liveAndNotEnded = liveSessions?.filter(live => !endedSessions?.some(ended => ended.id === live.id));
+
+
   return (
     <BuyerLayout>
         <div className="p-4 space-y-4">
@@ -72,9 +81,9 @@ export default function LiveSellersPage() {
                     <Skeleton className="h-24 w-full" />
                     <Skeleton className="h-24 w-full" />
                 </div>
-            ) : liveSessions && liveSessions.length > 0 ? (
+            ) : liveAndNotEnded && liveAndNotEnded.length > 0 ? (
                 <div className="grid gap-4">
-                    {liveSessions.map((session) => (
+                    {liveAndNotEnded.map((session) => (
                         <LiveSessionCard key={session.id} session={session} />
                     ))}
                 </div>
