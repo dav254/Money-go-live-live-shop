@@ -5,8 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ShoppingBag, Heart, UserPlus, Gift, Zap } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 
 const eventIcons: { [key: string]: React.ReactNode } = {
   purchase: <ShoppingBag className="h-4 w-4 text-green-400" />,
@@ -45,36 +44,19 @@ export const emitLocalEvent = (event: any) => {
 
 
 export function LiveActivityFeed({ liveSessionId }: LiveActivityFeedProps) {
-  const firestore = useFirestore();
   const [localEvents, setLocalEvents] = useState<any[]>([]);
-
-  // Firestore-backed events for real sessions
-  const eventsQuery = useMemoFirebase(() => {
-    if (!liveSessionId || liveSessionId.startsWith('mock_')) return null; // Don't query for mock sessions
-    return query(
-      collection(firestore, 'liveSessions', liveSessionId, 'events'),
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
-  }, [liveSessionId, firestore]);
-  const { data: firestoreEvents, isLoading } = useCollection(eventsQuery);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Effect for handling local (simulated) events
   useEffect(() => {
-    // Only listen to local events if we are in a mock session
-    if (liveSessionId && liveSessionId.startsWith('mock_')) {
       const handleNewEvent = (event: any) => {
         setLocalEvents(prev => [event, ...prev].slice(0, 20));
       };
       localEventBus.subscribe(handleNewEvent);
       return () => localEventBus.unsubscribe(handleNewEvent);
-    } else {
-        // Clear local events if we switch to a real session
-        setLocalEvents([]);
-    }
-  }, [liveSessionId]);
+  }, []);
 
-  const events = liveSessionId?.startsWith('mock_') ? localEvents : firestoreEvents;
+  const events = localEvents;
 
   return (
     <div className="flex flex-col h-full">
