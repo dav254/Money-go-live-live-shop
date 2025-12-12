@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, onSnapshot, setDoc, Unsubscribe, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Loader2, Video, XCircle, Settings, Mic, MicOff } from 'lucide-react';
@@ -14,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 // WebRTC STUN servers configuration
 const servers = {
