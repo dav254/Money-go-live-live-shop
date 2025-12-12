@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -13,6 +14,7 @@ import React from 'react';
 const LiveSessionCard = ({ session }: { session: LiveSession }) => {
     const firestore = useFirestore();
 
+    // Correctly use session.sellerId to fetch seller data
     const sellerShopRef = useMemoFirebase(() => {
         if (!session.sellerId) return null;
         return doc(firestore, 'sellerShops', session.sellerId);
