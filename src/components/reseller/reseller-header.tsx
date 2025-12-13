@@ -9,7 +9,7 @@ import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
 import { SidebarTrigger } from '../ui/sidebar';
 import { useUser, useUserProfile } from '@/firebase';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { ResellerSidebar } from './reseller-sidebar';
 import { Logo } from '../logo';
 
