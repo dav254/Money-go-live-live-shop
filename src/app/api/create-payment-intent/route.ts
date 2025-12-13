@@ -88,8 +88,8 @@ export async function POST(request: Request) {
                      custom_id: JSON.stringify(finalMetadata),
                 }],
                 application_context: {
-                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?ref=${reference}`,
-                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || ''}`,
+                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId}?status=success`,
+                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId}?status=cancelled`,
                 },
             });
             
