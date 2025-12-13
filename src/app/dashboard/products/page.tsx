@@ -26,9 +26,8 @@ function ProductsPageContent() {
         <Tabs defaultValue={defaultTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="my-products">My Products</TabsTrigger>
-            <TabsTrigger value="add-new">Add New</TabsTrigger>
+            <TabsTrigger value="add-new">Add / Edit Product</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
-            <TabsTrigger value="studio">Studio</TabsTrigger>
             <TabsTrigger value="logistics">Logistics</TabsTrigger>
           </TabsList>
           <TabsContent value="my-products" className="space-y-4" forceMount={false}>
@@ -39,18 +38,6 @@ function ProductsPageContent() {
           </TabsContent>
           <TabsContent value="discounts" className="space-y-4" forceMount={false}>
              <DiscountedProductsTable />
-          </TabsContent>
-          <TabsContent value="studio" className="space-y-4" forceMount={false}>
-            <div className="flex h-full flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed p-12">
-                <h2 className="text-xl font-semibold">Enter the Video Studio</h2>
-                <p className="text-muted-foreground max-w-sm">Create TikTok-style videos for your products to engage buyers and boost sales.</p>
-                <Button asChild>
-                    <Link href="/seller/studio/record">
-                        <Video className="mr-2 h-4 w-4" />
-                        Start Recording
-                    </Link>
-                </Button>
-            </div>
           </TabsContent>
            <TabsContent value="logistics" className="space-y-4" forceMount={false}>
              <LogisticsTable />
