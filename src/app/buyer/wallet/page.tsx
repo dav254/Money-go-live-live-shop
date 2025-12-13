@@ -33,8 +33,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import type { PaymentMethod } from '@/lib/types';
+import { collection, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import type { PaymentMethod, Payment } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
@@ -158,37 +158,24 @@ export default function BuyerPaymentsPage() {
         if (!user || !firestore) return null;
         return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
     }, [firestore, user]);
+    
+    const transactionsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        // This query finds all payments where the buyer is involved, either directly
+        // via `userId` (for point purchases) or indirectly via an order they created.
+        // This might need optimization later with a dedicated `buyerId` field on payments.
+        // For now, we'll fetch payments linked to the user's orders. This is less direct.
+        // A better approach would be to ensure payments have a `buyerId` field.
+        // Let's assume for now that we query orders first, then payments.
+        // To simplify, let's query payments directly by userId (assuming it's there for all relevant tx)
+        return query(collection(firestore, 'payments'), where('userId', '==', user.uid));
+    }, [firestore, user]);
+
 
     const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
+    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
     
-    const isLoading = isUserLoading || isLoadingMethods;
-
-    const transactions = [
-        {
-          id: 'txn_1',
-          date: '13/12/2025',
-          type: 'product purchase',
-          description: 'Order #ORD123...',
-          status: 'completed',
-          amount: -49.99,
-        },
-        {
-          id: 'txn_2',
-          date: '12/12/2025',
-          type: 'points purchase',
-          description: 'Order #PTS456...',
-          status: 'completed',
-          amount: -10.00,
-        },
-        {
-          id: 'txn_3',
-          date: '11/12/2025',
-          type: 'product purchase',
-          description: 'Order #ORD121...',
-          status: 'pending',
-          amount: -85.50,
-        },
-    ];
+    const isLoading = isUserLoading || isLoadingMethods || isLoadingTransactions;
 
     const handleDeleteMethod = async (methodId: string) => {
         if (!user || !firestore) return;
@@ -292,15 +279,27 @@ export default function BuyerPaymentsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactions.map((tx) => (
-                        <TableRow key={tx.id}>
-                            <TableCell className="text-muted-foreground">{tx.date}</TableCell>
-                            <TableCell><Badge variant="outline" className="capitalize">{tx.type}</Badge></TableCell>
-                            <TableCell className="font-medium">{tx.description}</TableCell>
-                            <TableCell><Badge variant={tx.status === 'completed' ? 'default' : 'secondary'} className={tx.status === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.status}</Badge></TableCell>
-                            <TableCell className="text-right font-semibold">{tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        </TableRow>
-                        ))}
+                        {isLoadingTransactions ? (
+                             [...Array(3)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell colSpan={5}><Skeleton className="h-6 w-full" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : transactions && transactions.length > 0 ? (
+                            transactions.map((tx) => (
+                                <TableRow key={tx.id}>
+                                    <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate().toLocaleDateString()}</TableCell>
+                                    <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
+                                    <TableCell className="font-medium">Order #{tx.orderId?.substring(0, 8)}...</TableCell>
+                                    <TableCell><Badge variant={tx.paymentStatus === 'completed' ? 'default' : 'secondary'} className={tx.paymentStatus === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.paymentStatus}</Badge></TableCell>
+                                    <TableCell className="text-right font-semibold">${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">No transactions found.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
