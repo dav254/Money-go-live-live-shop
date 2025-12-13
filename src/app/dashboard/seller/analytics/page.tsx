@@ -34,7 +34,7 @@ import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import type { Order, Product, SellerShop } from '@/lib/types';
 
 
@@ -123,19 +123,38 @@ export default function SellerAnalyticsPage() {
   const chartData = React.useMemo(() => {
     if (!orders) return [];
     const salesByDay: { [key: string]: number } = {};
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Initialize last 7 days with 0 revenue
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(sevenDaysAgo);
+        d.setDate(d.getDate() + i);
+        const dateString = d.toISOString().split('T')[0];
+        salesByDay[dateString] = 0;
+    }
+
     orders.forEach((order) => {
-      if (order.orderDate) {
-        const date = order.orderDate.toDate().toLocaleDateString();
-        salesByDay[date] = (salesByDay[date] || 0) + order.totalAmount;
+      if (order.orderDate && order.orderDate.toDate() >= sevenDaysAgo) {
+          const dateString = order.orderDate.toDate().toISOString().split('T')[0];
+           if (salesByDay.hasOwnProperty(dateString)) {
+              salesByDay[dateString] += order.totalAmount;
+           }
       }
     });
     return Object.entries(salesByDay)
       .map(([date, revenue]) => ({ date, revenue }))
-      .slice(0, 10) 
-      .reverse();
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [orders]);
   
-  const topProducts = React.useMemo(() => products?.slice(0, 5) || [], [products]);
+  const topProducts = React.useMemo(() => {
+    if (!products) return [];
+    // This is a placeholder for a real top-performing logic, e.g. based on sales count
+    // For now, we sort by viewCount as a proxy.
+    return [...products]
+        .sort((a,b) => (b.viewCount || 0) - (a.viewCount || 0))
+        .slice(0, 5);
+    }, [products]);
 
 
   return (
@@ -185,14 +204,14 @@ export default function SellerAnalyticsPage() {
                 <CardHeader>
                     <CardTitle>Sales Overview</CardTitle>
                      <CardDescription>
-                        Revenue from recent sales activity.
+                        Revenue from the last 7 days.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
                     {isLoading ? <Skeleton className="h-80 w-full" /> : (
                         <ChartContainer config={chartConfig} className="h-80 w-full">
                             <RechartsBarChart data={chartData}>
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}/>
                                 <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                                 <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
@@ -204,6 +223,7 @@ export default function SellerAnalyticsPage() {
             <Card className="lg:col-span-3">
                 <CardHeader>
                     <CardTitle>Top Performing Products</CardTitle>
+                    <CardDescription>Your most viewed products.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -221,7 +241,8 @@ export default function SellerAnalyticsPage() {
                                         <TableCell className="text-right"><Skeleton className="h-5 w-12 ml-auto" /></TableCell>
                                     </TableRow>
                                 ))
-                            ) : topProducts.map(product => (
+                            ) : topProducts.length > 0 ? (
+                                topProducts.map(product => (
                                 <TableRow key={product.id}>
                                     <TableCell className="font-medium flex items-center gap-2">
                                         <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'product image'} width={40} height={40} className="rounded-md" />
@@ -229,7 +250,14 @@ export default function SellerAnalyticsPage() {
                                     </TableCell>
                                     <TableCell className="text-right">${product.price.toLocaleString()}</TableCell>
                                 </TableRow>
-                            ))}
+                            ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                                        No product data available.
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
