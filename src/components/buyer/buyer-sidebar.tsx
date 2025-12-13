@@ -108,6 +108,14 @@ export function BuyerSidebar() {
 
     <SidebarMenu className="mt-auto">
         <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/about')} tooltip="About Us">
+            <Link href="/buyer/about">
+              <Info />
+              <span>About Us</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')} tooltip="Help Center">
             <Link href="/buyer/help">
                 <HelpCircle />
