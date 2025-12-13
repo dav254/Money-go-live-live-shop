@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,12 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag, MoreVertical, Trash2, ArrowDownUp, ArrowRight } from 'lucide-react';
+import { CreditCard, Download, Gift, PlusCircle, Wallet, Bot, Loader2, History, ShoppingBag, MoreVertical, Trash2, ArrowDownUp, ArrowRight, Landmark, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
 import type { Payment, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,8 +36,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
 
+
+const paypalFormSchema = z.object({
+  email: z.string().email("Please enter a valid PayPal email address."),
+});
 
 const cardFormSchema = z.object({
   cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
@@ -45,48 +50,60 @@ const cardFormSchema = z.object({
   cvc: z.string().min(3, "CVC must be 3 digits.").max(3, "CVC must be 3 digits."),
 });
 
+
 const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
     const { user } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
-    const form = useForm<z.infer<typeof cardFormSchema>>({
+    const paypalForm = useForm<z.infer<typeof paypalFormSchema>>({
+        resolver: zodResolver(paypalFormSchema),
+        defaultValues: { email: user?.email || '' },
+    });
+
+     const cardForm = useForm<z.infer<typeof cardFormSchema>>({
         resolver: zodResolver(cardFormSchema),
         defaultValues: { cardNumber: '', expiry: '', cvc: '' },
     });
 
-    const handleSaveCard = async (values: z.infer<typeof cardFormSchema>) => {
-        if (!user) return;
+
+    const handleSaveMethod = async (type: 'paypal' | 'card', values: any) => {
+        if (!user || !firestore) return;
         setIsSaving(true);
+        
+        let methodData;
+        if (type === 'paypal') {
+            methodData = {
+                type: 'paypal',
+                details: values.email,
+                paypalEmail: values.email,
+            }
+        } else {
+             methodData = {
+                type: 'card',
+                details: `Visa **** ${values.cardNumber.slice(-4)}`,
+                // In a real app, you would tokenize the card with Paystack/Stripe
+                // and store the token, not the card details.
+            }
+        }
+
         try {
-            // In a real app, you would call your backend API to save the payment method
-            console.log("Saving card:", values);
+            const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+            await addDoc(paymentMethodsRef, methodData);
             toast({ title: "Success", description: "Payment method saved." });
             onMethodAdded();
         } catch (error) {
-            console.error("Error saving payment method:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Could not save payment method." });
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: collection(firestore, 'userProfiles', user.uid, 'paymentMethods').path,
+                operation: 'create',
+                requestResourceData: methodData,
+            }));
         } finally {
             setIsSaving(false);
         }
     };
     
-    const handleLinkPayPal = async () => {
-        if (!user) return;
-        setIsSaving(true);
-         try {
-            // In a real app, you would handle the PayPal linking flow
-            console.log("Linking PayPal");
-            toast({ title: "Success", description: "PayPal linked successfully." });
-            onMethodAdded();
-        } catch (error) {
-            console.error("Error linking PayPal:", error);
-            toast({ variant: 'destructive', title: "Error", description: "Could not link PayPal account." });
-        } finally {
-            setIsSaving(false);
-        }
-    }
-
     return (
         <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
@@ -99,16 +116,16 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
                     <TabsTrigger value="paypal">PayPal</TabsTrigger>
                 </TabsList>
                 <TabsContent value="card">
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(handleSaveCard)} className="space-y-4 py-4">
-                            <FormField control={form.control} name="cardNumber" render={({ field }) => (
+                    <Form {...cardForm}>
+                        <form onSubmit={cardForm.handleSubmit((v) => handleSaveMethod('card', v))} className="space-y-4 py-4">
+                            <FormField control={cardForm.control} name="cardNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Card Number</FormLabel><FormControl><Input placeholder="**** **** **** 1234" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="expiry" render={({ field }) => (
+                                <FormField control={cardForm.control} name="expiry" render={({ field }) => (
                                     <FormItem><FormLabel>Expiry</FormLabel><FormControl><Input placeholder="MM/YY" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="cvc" render={({ field }) => (
+                                <FormField control={cardForm.control} name="cvc" render={({ field }) => (
                                     <FormItem><FormLabel>CVC</FormLabel><FormControl><Input placeholder="123" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
@@ -122,13 +139,19 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
                     </Form>
                 </TabsContent>
                 <TabsContent value="paypal">
-                    <div className="py-4 text-center">
-                        <p className="text-sm text-muted-foreground mb-4">You will be redirected to PayPal to securely link your account.</p>
-                        <Button type="button" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" onClick={handleLinkPayPal} disabled={isSaving}>
-                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
-                            Continue with PayPal
-                        </Button>
-                    </div>
+                     <Form {...paypalForm}>
+                        <form onSubmit={paypalForm.handleSubmit((v) => handleSaveMethod('paypal', v))} className="space-y-4 py-4">
+                             <FormField control={paypalForm.control} name="email" render={({ field }) => (
+                                <FormItem><FormLabel>PayPal Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <DialogFooter>
+                                <Button type="submit" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" disabled={isSaving}>
+                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                    Save PayPal
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
                 </TabsContent>
             </Tabs>
         </DialogContent>
@@ -174,62 +197,44 @@ export default function BuyerWalletPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
-    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-    const [isLoadingMethods, setIsLoadingMethods] = useState(true);
 
     const transactionsQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
+        // A buyer's payments are linked via `userId` if it's a points purchase, or `buyerId` on an order.
+        // This query requires a composite index: (userId, paymentDate, desc)
         return query(
             collection(firestore, 'payments'), 
             where('userId', '==', user.uid), 
             orderBy('paymentDate', 'desc')
         );
     }, [user, firestore]);
+    
+    const paymentMethodsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+    }, [firestore, user]);
 
     const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
+    const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
 
     const isLoading = isUserLoading || isLoadingTransactions || isLoadingMethods;
     
-    useEffect(() => {
-      const fetchPaymentMethods = async () => {
-        setIsLoadingMethods(true);
-        try {
-          // In a real app, you would fetch payment methods from your API
-          // For now, we'll use dummy data
-          const dummyMethods: PaymentMethod[] = [
-            { id: '1', type: 'card', details: 'Visa **** 4242', isDefault: true },
-            { id: '2', type: 'paypal', details: 'user@example.com', isDefault: false },
-          ];
-          setPaymentMethods(dummyMethods);
-        } catch (error) {
-          console.error("Error fetching payment methods:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not load payment methods.' });
-        } finally {
-          setIsLoadingMethods(false);
-        }
-      };
-
-      if(user) {
-        fetchPaymentMethods();
-      }
-    }, [user, toast]);
-
-
     const currentBalance = useMemo(() => {
-        // This is a placeholder as we don't have a balance field.
+        // This is a placeholder as we don't have a balance field for buyers.
         return 2500.00;
     }, []);
 
     const handleDeleteMethod = async (methodId: string) => {
-        if (!user) return;
+        if (!user || !firestore) return;
+        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
         try {
-            // In a real app, call your backend to delete the method
-            console.log(`Deleting method ${methodId}`)
-            setPaymentMethods(prev => prev.filter(pm => pm.id !== methodId));
+            await deleteDoc(methodRef);
             toast({ title: 'Success', description: 'Payment method has been removed.' });
         } catch (error) {
-            console.error('Error deleting payment method:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not remove payment method.' });
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: methodRef.path,
+                operation: 'delete',
+            }));
         }
     };
 
@@ -295,11 +300,11 @@ export default function BuyerWalletPage() {
                                 <TableBody>
                                     {transactions && transactions.length > 0 ? transactions.map(t => (
                                         <TableRow key={t.id}>
-                                            <TableCell>{t.paymentDate.toDate().toLocaleDateString()}</TableCell>
+                                            <TableCell>{t.paymentDate?.toDate().toLocaleDateString()}</TableCell>
                                             <TableCell>
                                               <div className='flex items-center gap-2'>
                                                 {getTransactionIcon(t.transactionType)}
-                                                <span className='capitalize'>{t.transactionType.replace('-', ' ')}</span>
+                                                <span className='capitalize'>{t.transactionType?.replace('-', ' ')}</span>
                                               </div>
                                             </TableCell>
                                             <TableCell>Order #{t.orderId?.substring(0, 6)}...</TableCell>
@@ -342,7 +347,7 @@ export default function BuyerWalletPage() {
                             paymentMethods.map(pm => (
                                 <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
                                     <div className="flex items-center gap-3">
-                                        <CreditCard className="h-6 w-6 text-muted-foreground" />
+                                        {pm.type === 'paypal' ? <Mail className="h-6 w-6 text-muted-foreground" /> : <CreditCard className="h-6 w-6 text-muted-foreground" />}
                                         <div>
                                             <p className="font-semibold uppercase">{pm.type}</p>
                                             <p className="text-sm text-muted-foreground">{pm.details}</p>
@@ -401,4 +406,3 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
-
