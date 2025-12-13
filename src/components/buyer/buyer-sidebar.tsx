@@ -18,7 +18,8 @@ import {
   Info,
   HelpCircle,
   ShoppingCart,
-  RadioTower
+  RadioTower,
+  CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -87,10 +88,10 @@ export function BuyerSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wallet')} tooltip="Wallet">
+              <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wallet')} tooltip="Payments">
                 <Link href="/buyer/wallet">
-                  <Wallet />
-                  <span>Wallet</span>
+                  <CreditCard />
+                  <span>Payments</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

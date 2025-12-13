@@ -12,7 +12,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Heart, Package, Video, Wallet } from 'lucide-react';
+import { Heart, Package, Video, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -28,8 +28,8 @@ const shortcuts = [
     color: 'bg-blue-500/20 text-blue-500',
   },
   {
-    title: 'Wallet',
-    icon: Wallet,
+    title: 'Payment Methods',
+    icon: CreditCard,
     href: '/buyer/wallet',
     color: 'bg-green-500/20 text-green-500',
   },
