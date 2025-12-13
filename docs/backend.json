@@ -273,6 +273,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "walletBalance": {
+          "type": "number",
+          "description": "The user's available wallet balance in USD.",
+          "default": 0
         }
       },
       "required": [

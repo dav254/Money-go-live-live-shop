@@ -23,6 +23,7 @@ export interface UserProfile {
     verificationStatus?: 'pending' | 'verified' | 'rejected';
     following?: string[];
     shopName?: string; // For sellers
+    walletBalance?: number;
 }
 
 // Targeting options for a boost campaign

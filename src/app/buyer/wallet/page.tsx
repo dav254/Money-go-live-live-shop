@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, ReactNode } from 'react';
@@ -34,16 +33,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import type { PaymentMethod } from '@/lib/types';
+import type { Payment, PaymentMethod } from '@/lib/types';
 
 
 // --- Mock Data ---
-const mockTransactions = [
-    { id: 'txn_1', paymentDate: new Date(), transactionType: 'product-purchase', orderId: 'ORD123', paymentStatus: 'completed', amount: 49.99 },
-    { id: 'txn_2', paymentDate: new Date(Date.now() - 86400000), transactionType: 'points-purchase', orderId: 'PTS456', paymentStatus: 'completed', amount: 10.00 },
-    { id: 'txn_3', paymentDate: new Date(Date.now() - 172800000), transactionType: 'product-purchase', orderId: 'ORD121', paymentStatus: 'pending', amount: 85.50 },
+const mockTransactions: Payment[] = [
+    { id: 'txn_1', paymentDate: new Date(), transactionType: 'product-purchase', orderId: 'ORD123', paymentStatus: 'completed', amount: 49.99, paymentMethod: 'paypal', transactionId: 'paypal_1' },
+    { id: 'txn_2', paymentDate: new Date(Date.now() - 86400000), transactionType: 'points-purchase', userId: 'user_abc', paymentStatus: 'completed', amount: 10.00, paymentMethod: 'paystack', transactionId: 'ps_1' },
+    { id: 'txn_3', paymentDate: new Date(Date.now() - 172800000), transactionType: 'product-purchase', orderId: 'ORD121', paymentStatus: 'pending', amount: 85.50, paymentMethod: 'paypal', transactionId: 'paypal_2' },
 ];
 // --- End Mock Data ---
 
@@ -170,6 +169,7 @@ export default function BuyerWalletPage() {
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
     const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const firestore = useFirestore();
 
     const paymentMethodsQuery = useMemoFirebase(() => {
@@ -179,7 +179,17 @@ export default function BuyerWalletPage() {
 
     const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
 
-    const currentBalance = 2500.00;
+    const paymentsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        // This will query for both product purchases (orderId) and points purchases (userId)
+        return query(collection(firestore, 'payments'), where('userId', '==', user.uid));
+    }, [firestore, user]);
+    
+    const { data: transactions, isLoading: areTransactionsLoading } = useCollection<Payment>(paymentsQuery);
+    
+    const isLoading = isUserLoading || isProfileLoading || isLoadingMethods || areTransactionsLoading;
+    const currentBalance = userProfile?.walletBalance || 0;
+
 
     const handleDeleteMethod = async (methodId: string) => {
         if (!user || !firestore) return;
@@ -210,7 +220,11 @@ export default function BuyerWalletPage() {
                              <CardDescription>Your available GoFast wallet balance.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                           {isLoading ? (
+                               <Skeleton className="h-10 w-32" />
+                           ) : (
+                             <p className="text-4xl font-bold">${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                           )}
                         </CardContent>
                     </Card>
                     <Card>
@@ -252,16 +266,27 @@ export default function BuyerWalletPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {mockTransactions.length > 0 ? mockTransactions.map(t => (
+                                {isLoading ? (
+                                    [...Array(3)].map((_, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                            <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                                            <TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : transactions && transactions.length > 0 ? (
+                                    transactions.map(t => (
                                     <TableRow key={t.id}>
-                                        <TableCell>{t.paymentDate.toLocaleDateString()}</TableCell>
+                                        <TableCell>{t.paymentDate.toDate().toLocaleDateString()}</TableCell>
                                         <TableCell>
                                           <div className='flex items-center gap-2'>
                                             {getTransactionIcon(t.transactionType)}
                                             <span className='capitalize'>{t.transactionType?.replace('-', ' ')}</span>
                                           </div>
                                         </TableCell>
-                                        <TableCell>Order #{t.orderId?.substring(0, 6)}...</TableCell>
+                                        <TableCell>Order #{t.orderId?.substring(0, 6) || t.userId?.substring(0,6)}...</TableCell>
                                         <TableCell>
                                             <Badge variant={t.paymentStatus === 'completed' ? 'default' : 'secondary'} className={t.paymentStatus === 'completed' ? 'bg-green-600/80' : ''}>
                                                 {t.paymentStatus}
@@ -271,7 +296,8 @@ export default function BuyerWalletPage() {
                                             -${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </TableCell>
                                     </TableRow>
-                                )) : (
+                                ))
+                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={5} className="h-24 text-center">You have no transactions yet.</TableCell>
                                     </TableRow>
@@ -359,5 +385,3 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
-
-    
