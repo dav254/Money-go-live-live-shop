@@ -34,13 +34,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import type { PaymentMethod } from '@/lib/types';
+
 
 // --- Mock Data ---
-const mockPaymentMethods = [
-    { id: 'pm_1', type: 'paypal', details: 'buyer@example.com' },
-    { id: 'pm_2', type: 'card', details: 'Visa **** 4242' },
-];
-
 const mockTransactions = [
     { id: 'txn_1', paymentDate: new Date(), transactionType: 'product-purchase', orderId: 'ORD123', paymentStatus: 'completed', amount: 49.99 },
     { id: 'txn_2', paymentDate: new Date(Date.now() - 86400000), transactionType: 'points-purchase', orderId: 'PTS456', paymentStatus: 'completed', amount: 10.00 },
@@ -61,29 +60,47 @@ const cardFormSchema = z.object({
 
 
 const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
+    const { user } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
     const paypalForm = useForm<z.infer<typeof paypalFormSchema>>({
         resolver: zodResolver(paypalFormSchema),
-        defaultValues: { email: '' },
+        defaultValues: { email: user?.email || '' },
     });
 
-     const cardForm = useForm<z.infer<typeof cardFormSchema>>({
+    const cardForm = useForm<z.infer<typeof cardFormSchema>>({
         resolver: zodResolver(cardFormSchema),
         defaultValues: { cardNumber: '', expiry: '', cvc: '' },
     });
 
-
     const handleSaveMethod = async (type: 'paypal' | 'card', values: any) => {
+        if (!user || !firestore) {
+            toast({ variant: 'destructive', title: "Not logged in" });
+            return;
+        };
+
         setIsSaving(true);
-        // Simulate network delay
-        await new Promise(res => setTimeout(res, 1000));
-        
-        toast({ title: "Success (Frontend Only)", description: `Mock ${type} method saved.` });
-        onMethodAdded();
-        
-        setIsSaving(false);
+        try {
+            const methodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+            let data: Omit<PaymentMethod, 'id'>;
+
+            if (type === 'paypal') {
+                data = { type: 'paypal', details: values.email };
+            } else {
+                data = { type: 'card', details: `Visa **** ${values.cardNumber.slice(-4)}` };
+            }
+
+            await addDoc(methodsRef, data);
+            toast({ title: "Success", description: `Your ${type} method has been saved.` });
+            onMethodAdded();
+        } catch (error) {
+            console.error("Error saving payment method:", error);
+            toast({ variant: 'destructive', title: "Save Failed", description: "Could not save payment method." });
+        } finally {
+            setIsSaving(false);
+        }
     };
     
     return (
@@ -152,13 +169,28 @@ const getTransactionIcon = (type: string) => {
 export default function BuyerWalletPage() {
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
-    const [paymentMethods, setPaymentMethods] = useState(mockPaymentMethods);
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const paymentMethodsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+    }, [firestore, user]);
+
+    const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
 
     const currentBalance = 2500.00;
 
     const handleDeleteMethod = async (methodId: string) => {
-        setPaymentMethods(prev => prev.filter(pm => pm.id !== methodId));
-        toast({ title: 'Success (Frontend Only)', description: 'Mock payment method has been removed.' });
+        if (!user || !firestore) return;
+        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
+        try {
+            await deleteDoc(methodRef);
+            toast({ title: 'Success', description: 'Payment method has been removed.' });
+        } catch (error) {
+            console.error("Error deleting payment method:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not remove payment method.' });
+        }
     };
 
   return (
@@ -259,7 +291,12 @@ export default function BuyerWalletPage() {
                         <CardDescription>Manage your saved payment options for faster checkout.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {paymentMethods && paymentMethods.length > 0 ? (
+                        {isLoadingMethods ? (
+                            <div className="space-y-4">
+                                <Skeleton className="h-16 w-full" />
+                                <Skeleton className="h-16 w-full" />
+                            </div>
+                        ) : paymentMethods && paymentMethods.length > 0 ? (
                             paymentMethods.map(pm => (
                                 <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
                                     <div className="flex items-center gap-3">
@@ -323,3 +360,4 @@ export default function BuyerWalletPage() {
   );
 }
 
+    
