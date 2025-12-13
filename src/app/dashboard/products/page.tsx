@@ -9,9 +9,6 @@ import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
 import { LogisticsTable } from '@/components/seller/logistics-table';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Video } from 'lucide-react';
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
@@ -30,16 +27,16 @@ function ProductsPageContent() {
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="logistics">Logistics</TabsTrigger>
           </TabsList>
-          <TabsContent value="my-products" className="space-y-4" forceMount={false}>
+          <TabsContent value="my-products" className="space-y-4">
             <MyProductsTable />
           </TabsContent>
-          <TabsContent value="add-new" className="space-y-4" forceMount={false}>
+          <TabsContent value="add-new" className="space-y-4">
             <ProductUploadForm />
           </TabsContent>
-          <TabsContent value="discounts" className="space-y-4" forceMount={false}>
+          <TabsContent value="discounts" className="space-y-4">
              <DiscountedProductsTable />
           </TabsContent>
-           <TabsContent value="logistics" className="space-y-4" forceMount={false}>
+           <TabsContent value="logistics" className="space-y-4">
              <LogisticsTable />
           </TabsContent>
         </Tabs>

@@ -28,14 +28,10 @@ import { Button } from '@/components/ui/button';
 import {
   UploadCloud,
   X,
-  Plus,
-  Pencil,
-  Trash2,
-  Sparkles,
-  MapPin,
-  Truck,
   Info,
   DollarSign,
+  MapPin,
+  Truck,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';

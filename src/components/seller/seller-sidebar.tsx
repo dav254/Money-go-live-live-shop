@@ -99,7 +99,7 @@ export function SellerSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/studio')}>
-              <Link href="/dashboard/seller/studio">
+              <Link href="/dashboard/seller/live/start">
                 <RadioTower />
                 <span>Live Studio</span>
               </Link>
