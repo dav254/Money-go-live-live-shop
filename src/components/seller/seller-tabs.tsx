@@ -12,7 +12,7 @@ interface SellerTabsProps {
 }
 
 export function SellerTabs({ seller, products }: SellerTabsProps) {
-  const videoProducts = products.filter(p => p.videoUrl);
+  const videoProducts = products.filter(p => p.videoUrl || (p.videoUrls && p.videoUrls.length > 0));
 
   return (
     <Tabs defaultValue="products" className="w-full">
