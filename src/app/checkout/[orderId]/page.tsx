@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -104,6 +104,7 @@ export default function CheckoutPage() {
         if (order.items && order.items.length > 0) {
             return order.items;
         }
+        // Fallback for older single-item orders
         if (order.productId && order.productName && order.productPrice) {
             return [{
                 productId: order.productId,
