@@ -7,8 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, PlusCircle, MoreVertical, Trash2, Loader2, Landmark, Mail } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { CreditCard, PlusCircle, MoreVertical, Trash2, Loader2, Landmark, Mail, Download, History, Gift, Ticket } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,8 @@ import {
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import type { PaymentMethod } from '@/lib/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 const paypalFormSchema = z.object({
   email: z.string().email("Please enter a valid PayPal email address."),
@@ -161,6 +163,32 @@ export default function BuyerPaymentsPage() {
     
     const isLoading = isUserLoading || isLoadingMethods;
 
+    const transactions = [
+        {
+          id: 'txn_1',
+          date: '13/12/2025',
+          type: 'product purchase',
+          description: 'Order #ORD123...',
+          status: 'completed',
+          amount: -49.99,
+        },
+        {
+          id: 'txn_2',
+          date: '12/12/2025',
+          type: 'points purchase',
+          description: 'Order #PTS456...',
+          status: 'completed',
+          amount: -10.00,
+        },
+        {
+          id: 'txn_3',
+          date: '11/12/2025',
+          type: 'product purchase',
+          description: 'Order #ORD121...',
+          status: 'pending',
+          amount: -85.50,
+        },
+    ];
 
     const handleDeleteMethod = async (methodId: string) => {
         if (!user || !firestore) return;
@@ -176,8 +204,8 @@ export default function BuyerPaymentsPage() {
 
   return (
     <BuyerLayout>
-      <div className="container mx-auto max-w-2xl py-8">
-        <h1 className="font-headline text-3xl font-bold mb-8">Payment Methods</h1>
+      <div className="container mx-auto max-w-4xl py-8 space-y-8">
+        <h1 className="font-headline text-3xl font-bold">Payment Methods</h1>
         <Card>
             <CardHeader>
                 <CardTitle>My Payment Methods</CardTitle>
@@ -246,6 +274,53 @@ export default function BuyerPaymentsPage() {
                 </Dialog>
             </CardContent>
         </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><History /> Transaction History</CardTitle>
+                <CardDescription>A record of all your wallet activities.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Amount (USD)</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions.map((tx) => (
+                        <TableRow key={tx.id}>
+                            <TableCell className="text-muted-foreground">{tx.date}</TableCell>
+                            <TableCell><Badge variant="outline" className="capitalize">{tx.type}</Badge></TableCell>
+                            <TableCell className="font-medium">{tx.description}</TableCell>
+                            <TableCell><Badge variant={tx.status === 'completed' ? 'default' : 'secondary'} className={tx.status === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.status}</Badge></TableCell>
+                            <TableCell className="text-right font-semibold">{tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <CardFooter>
+                 <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
+                 <Button variant="link" className="ml-auto">View all transactions</Button>
+            </CardFooter>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Ticket /> Coupons &amp; Rewards</CardTitle>
+                <CardDescription>This feature is coming soon!</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-dashed border rounded-lg">
+                <p>Your available coupons and rewards will appear here.</p>
+                <Button variant="secondary" className="mt-4" disabled>View Coupons (0)</Button>
+            </CardContent>
+        </Card>
+
       </div>
     </BuyerLayout>
   );
