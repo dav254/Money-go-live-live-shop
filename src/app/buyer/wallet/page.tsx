@@ -15,8 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser } from '@/firebase';
-import type { PaymentMethod, Transaction } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import type { Payment, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -36,14 +36,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { collection, query, where, orderBy } from 'firebase/firestore';
 
-// Dummy data for transactions - in a real app, this would be fetched from an API
-const dummyTransactions: Transaction[] = [
-    { id: '1', date: new Date(), type: 'purchase', description: 'Vintage Leather Jacket', status: 'Completed', amount: -120.00 },
-    { id: '2', date: new Date(), type: 'withdrawal', description: 'Withdrawal to Bank', status: 'Completed', amount: -500.00 },
-    { id: '3', date: new Date(), type: 'refund', description: 'Refund for damaged item', status: 'Completed', amount: 45.50 },
-    { id: '4', date: new Date(), type: 'purchase', description: 'Handmade Ceramic Mug', status: 'Pending', amount: -25.50 },
-];
 
 const cardFormSchema = z.object({
   cardNumber: z.string().min(16, "Card number must be 16 digits.").max(16, "Card number must be 16 digits."),
@@ -166,11 +160,10 @@ const TransactionTableSkeleton = () => (
     </Table>
 );
 
-const getTransactionIcon = (type: Transaction['type']) => {
+const getTransactionIcon = (type: Payment['transactionType']) => {
     switch (type) {
-        case 'purchase': return <ShoppingBag className="h-4 w-4 text-blue-500" />;
-        case 'withdrawal': return <ArrowRight className="h-4 w-4 text-red-500" />;
-        case 'refund': return <ArrowDownUp className="h-4 w-4 text-green-500" />;
+        case 'product-purchase': return <ShoppingBag className="h-4 w-4 text-blue-500" />;
+        case 'points-purchase': return <ArrowRight className="h-4 w-4 text-red-500" />;
         default: return <Wallet className="h-4 w-4" />;
     }
 }
@@ -178,26 +171,26 @@ const getTransactionIcon = (type: Transaction['type']) => {
 
 export default function BuyerWalletPage() {
     const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [isLoadingMethods, setIsLoadingMethods] = useState(true);
 
-    useEffect(() => {
-      const fetchTransactions = async () => {
-        try {
-          const response = await fetch('/api/transactions');
-          if (!response.ok) throw new Error('Failed to fetch transactions');
-          const data = await response.json();
-          setTransactions(data);
-        } catch (error) {
-          console.error(error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch transaction history.' });
-        }
-      };
+    const transactionsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(
+            collection(firestore, 'payments'), 
+            where('userId', '==', user.uid), 
+            orderBy('paymentDate', 'desc')
+        );
+    }, [user, firestore]);
 
+    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
+
+    const isLoading = isUserLoading || isLoadingTransactions || isLoadingMethods;
+    
+    useEffect(() => {
       const fetchPaymentMethods = async () => {
         setIsLoadingMethods(true);
         try {
@@ -216,21 +209,16 @@ export default function BuyerWalletPage() {
         }
       };
 
-      const loadData = async () => {
-        setIsLoading(true);
-        await Promise.all([fetchTransactions(), fetchPaymentMethods()]);
-        setIsLoading(false);
-      }
-
       if(user) {
-        loadData();
+        fetchPaymentMethods();
       }
     }, [user, toast]);
 
 
     const currentBalance = useMemo(() => {
-        return transactions.reduce((sum, t) => sum + t.amount, 0) + 2500; // Starting balance
-    }, [transactions]);
+        // This is a placeholder as we don't have a balance field.
+        return 2500.00;
+    }, []);
 
     const handleDeleteMethod = async (methodId: string) => {
         if (!user) return;
@@ -262,11 +250,7 @@ export default function BuyerWalletPage() {
                              <CardDescription>Your available GoFast wallet balance.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {isLoading ? (
-                                <Skeleton className="h-10 w-3/4" />
-                            ) : (
-                                <p className="text-4xl font-bold">${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                            )}
+                            <p className="text-4xl font-bold">${currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         </CardContent>
                     </Card>
                     <Card>
@@ -311,21 +295,21 @@ export default function BuyerWalletPage() {
                                 <TableBody>
                                     {transactions && transactions.length > 0 ? transactions.map(t => (
                                         <TableRow key={t.id}>
-                                            <TableCell>{t.date.toLocaleDateString()}</TableCell>
+                                            <TableCell>{t.paymentDate.toDate().toLocaleDateString()}</TableCell>
                                             <TableCell>
                                               <div className='flex items-center gap-2'>
-                                                {getTransactionIcon(t.type)}
-                                                <span className='capitalize'>{t.type}</span>
+                                                {getTransactionIcon(t.transactionType)}
+                                                <span className='capitalize'>{t.transactionType.replace('-', ' ')}</span>
                                               </div>
                                             </TableCell>
-                                            <TableCell>{t.description}</TableCell>
+                                            <TableCell>Order #{t.orderId?.substring(0, 6)}...</TableCell>
                                             <TableCell>
-                                                <Badge variant={t.status === 'Completed' ? 'default' : 'secondary'} className={t.status === 'Completed' ? 'bg-green-600/80' : ''}>
-                                                    {t.status}
+                                                <Badge variant={t.paymentStatus === 'completed' ? 'default' : 'secondary'} className={t.paymentStatus === 'completed' ? 'bg-green-600/80' : ''}>
+                                                    {t.paymentStatus}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className={`text-right font-semibold ${t.amount > 0 ? 'text-green-600' : 'text-slate-800'}`}>
-                                                {t.amount > 0 ? '+' : ''}${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            <TableCell className={`text-right font-semibold text-red-500`}>
+                                                -${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                             </TableCell>
                                         </TableRow>
                                     )) : (
@@ -417,3 +401,4 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
+
