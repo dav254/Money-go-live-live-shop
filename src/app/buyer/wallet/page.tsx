@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, ReactNode } from 'react';
+import { useState, useMemo, ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,8 +15,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
-import type { Payment, PaymentMethod } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -36,8 +34,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { collection, query, where, orderBy, addDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
+
+// --- Mock Data ---
+const mockPaymentMethods = [
+    { id: 'pm_1', type: 'paypal', details: 'buyer@example.com' },
+    { id: 'pm_2', type: 'card', details: 'Visa **** 4242' },
+];
+
+const mockTransactions = [
+    { id: 'txn_1', paymentDate: new Date(), transactionType: 'product-purchase', orderId: 'ORD123', paymentStatus: 'completed', amount: 49.99 },
+    { id: 'txn_2', paymentDate: new Date(Date.now() - 86400000), transactionType: 'points-purchase', orderId: 'PTS456', paymentStatus: 'completed', amount: 10.00 },
+    { id: 'txn_3', paymentDate: new Date(Date.now() - 172800000), transactionType: 'product-purchase', orderId: 'ORD121', paymentStatus: 'pending', amount: 85.50 },
+];
+// --- End Mock Data ---
 
 
 const paypalFormSchema = z.object({
@@ -52,14 +61,12 @@ const cardFormSchema = z.object({
 
 
 const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
-    const { user } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
     const paypalForm = useForm<z.infer<typeof paypalFormSchema>>({
         resolver: zodResolver(paypalFormSchema),
-        defaultValues: { email: user?.email || '' },
+        defaultValues: { email: '' },
     });
 
      const cardForm = useForm<z.infer<typeof cardFormSchema>>({
@@ -69,39 +76,14 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
 
 
     const handleSaveMethod = async (type: 'paypal' | 'card', values: any) => {
-        if (!user || !firestore) return;
         setIsSaving(true);
+        // Simulate network delay
+        await new Promise(res => setTimeout(res, 1000));
         
-        let methodData;
-        if (type === 'paypal') {
-            methodData = {
-                type: 'paypal',
-                details: values.email,
-                paypalEmail: values.email,
-            }
-        } else {
-             methodData = {
-                type: 'card',
-                details: `Visa **** ${values.cardNumber.slice(-4)}`,
-                // In a real app, you would tokenize the card with Paystack/Stripe
-                // and store the token, not the card details.
-            }
-        }
-
-        try {
-            const paymentMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-            await addDoc(paymentMethodsRef, methodData);
-            toast({ title: "Success", description: "Payment method saved." });
-            onMethodAdded();
-        } catch (error) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: collection(firestore, 'userProfiles', user.uid, 'paymentMethods').path,
-                operation: 'create',
-                requestResourceData: methodData,
-            }));
-        } finally {
-            setIsSaving(false);
-        }
+        toast({ title: "Success (Frontend Only)", description: `Mock ${type} method saved.` });
+        onMethodAdded();
+        
+        setIsSaving(false);
     };
     
     return (
@@ -158,32 +140,7 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     );
 };
 
-const TransactionTableSkeleton = () => (
-    <Table>
-        <TableHeader>
-            <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Amount (USD)</TableHead>
-            </TableRow>
-        </TableHeader>
-        <TableBody>
-            {[...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                </TableRow>
-            ))}
-        </TableBody>
-    </Table>
-);
-
-const getTransactionIcon = (type: Payment['transactionType']) => {
+const getTransactionIcon = (type: string) => {
     switch (type) {
         case 'product-purchase': return <ShoppingBag className="h-4 w-4 text-blue-500" />;
         case 'points-purchase': return <ArrowRight className="h-4 w-4 text-red-500" />;
@@ -193,49 +150,15 @@ const getTransactionIcon = (type: Payment['transactionType']) => {
 
 
 export default function BuyerWalletPage() {
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+    const [paymentMethods, setPaymentMethods] = useState(mockPaymentMethods);
 
-    const transactionsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        // A buyer's payments are linked via `userId` if it's a points purchase, or `buyerId` on an order.
-        // This query requires a composite index: (userId, paymentDate, desc)
-        return query(
-            collection(firestore, 'payments'), 
-            where('userId', '==', user.uid), 
-            orderBy('paymentDate', 'desc')
-        );
-    }, [user, firestore]);
-    
-    const paymentMethodsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-    }, [firestore, user]);
-
-    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
-    const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
-
-    const isLoading = isUserLoading || isLoadingTransactions || isLoadingMethods;
-    
-    const currentBalance = useMemo(() => {
-        // This is a placeholder as we don't have a balance field for buyers.
-        return 2500.00;
-    }, []);
+    const currentBalance = 2500.00;
 
     const handleDeleteMethod = async (methodId: string) => {
-        if (!user || !firestore) return;
-        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
-        try {
-            await deleteDoc(methodRef);
-            toast({ title: 'Success', description: 'Payment method has been removed.' });
-        } catch (error) {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: methodRef.path,
-                operation: 'delete',
-            }));
-        }
+        setPaymentMethods(prev => prev.filter(pm => pm.id !== methodId));
+        toast({ title: 'Success (Frontend Only)', description: 'Mock payment method has been removed.' });
     };
 
   return (
@@ -286,45 +209,43 @@ export default function BuyerWalletPage() {
                       </Button>
                     </CardHeader>
                     <CardContent>
-                        {isLoading ? <TransactionTableSkeleton /> : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead>Description</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Amount (USD)</TableHead>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Amount (USD)</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mockTransactions.length > 0 ? mockTransactions.map(t => (
+                                    <TableRow key={t.id}>
+                                        <TableCell>{t.paymentDate.toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                          <div className='flex items-center gap-2'>
+                                            {getTransactionIcon(t.transactionType)}
+                                            <span className='capitalize'>{t.transactionType?.replace('-', ' ')}</span>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell>Order #{t.orderId?.substring(0, 6)}...</TableCell>
+                                        <TableCell>
+                                            <Badge variant={t.paymentStatus === 'completed' ? 'default' : 'secondary'} className={t.paymentStatus === 'completed' ? 'bg-green-600/80' : ''}>
+                                                {t.paymentStatus}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className={`text-right font-semibold text-red-500`}>
+                                            -${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {transactions && transactions.length > 0 ? transactions.map(t => (
-                                        <TableRow key={t.id}>
-                                            <TableCell>{t.paymentDate?.toDate().toLocaleDateString()}</TableCell>
-                                            <TableCell>
-                                              <div className='flex items-center gap-2'>
-                                                {getTransactionIcon(t.transactionType)}
-                                                <span className='capitalize'>{t.transactionType?.replace('-', ' ')}</span>
-                                              </div>
-                                            </TableCell>
-                                            <TableCell>Order #{t.orderId?.substring(0, 6)}...</TableCell>
-                                            <TableCell>
-                                                <Badge variant={t.paymentStatus === 'completed' ? 'default' : 'secondary'} className={t.paymentStatus === 'completed' ? 'bg-green-600/80' : ''}>
-                                                    {t.paymentStatus}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className={`text-right font-semibold text-red-500`}>
-                                                -${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </TableCell>
-                                        </TableRow>
-                                    )) : (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">You have no transactions yet.</TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        )}
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">You have no transactions yet.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                          <Button variant="link" className="mt-4 px-0">View all transactions</Button>
                     </CardContent>
                 </Card>
@@ -338,12 +259,7 @@ export default function BuyerWalletPage() {
                         <CardDescription>Manage your saved payment options for faster checkout.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {isLoadingMethods ? (
-                            <>
-                                <Skeleton className="h-16 w-full rounded-lg" />
-                                <Skeleton className="h-16 w-full rounded-lg" />
-                            </>
-                        ) : paymentMethods && paymentMethods.length > 0 ? (
+                        {paymentMethods && paymentMethods.length > 0 ? (
                             paymentMethods.map(pm => (
                                 <div key={pm.id} className="flex items-center justify-between rounded-lg border p-3">
                                     <div className="flex items-center gap-3">
@@ -406,3 +322,4 @@ export default function BuyerWalletPage() {
     </BuyerLayout>
   );
 }
+
