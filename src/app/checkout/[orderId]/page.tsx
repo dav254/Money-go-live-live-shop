@@ -92,10 +92,29 @@ export default function CheckoutPage() {
         fetchSellerShipping();
     }, [order, firestore]);
     
-    const liveTotalAmount = (order?.subtotal ?? 0) + liveShippingCost;
+    const subtotal = order?.subtotal ?? order?.productPrice ?? 0;
+    const liveTotalAmount = subtotal + liveShippingCost;
     
     const isLoading = isLoadingOrder || isUserLoading || isLoadingShipping;
     const error = orderError;
+
+    // This ensures backward compatibility. If `items` array doesn't exist, create it from legacy fields.
+    const orderItems = useMemo(() => {
+        if (!order) return [];
+        if (order.items && order.items.length > 0) {
+            return order.items;
+        }
+        if (order.productId && order.productName && order.productPrice) {
+            return [{
+                productId: order.productId,
+                name: order.productName,
+                price: order.productPrice,
+                quantity: order.quantity || 1,
+                imageUrl: order.productImage || '',
+            }];
+        }
+        return [];
+    }, [order]);
 
 
     const handlePayment = async (gateway: 'paystack' | 'paypal') => {
@@ -191,7 +210,7 @@ export default function CheckoutPage() {
                             <CardDescription>Review your order before payment.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {order.items.map((item) => (
+                            {orderItems.map((item) => (
                                 <div key={item.productId} className="flex items-center gap-4">
                                     <div className="relative h-16 w-16 rounded-md overflow-hidden border">
                                         <Image src={item.imageUrl || ''} alt={item.name || 'Product'} fill className="object-cover" />
@@ -207,7 +226,7 @@ export default function CheckoutPage() {
                             <Separator />
                             <div className="flex justify-between text-sm">
                                 <p>Subtotal</p>
-                                <p>${order.subtotal.toLocaleString()}</p>
+                                <p>${subtotal.toLocaleString()}</p>
                             </div>
                              <div className="flex justify-between text-sm">
                                 <p>Shipping</p>
