@@ -33,8 +33,7 @@ const chartConfig = {
   },
 };
 
-
-export default function ResellerDashboardPage({ user, userProfile, isLoading: layoutIsLoading }: { user: any, userProfile: UserProfile, isLoading: boolean }) {
+function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLoading }: { user: any, userProfile: UserProfile, isLoading: boolean }) {
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
@@ -114,7 +113,7 @@ export default function ResellerDashboardPage({ user, userProfile, isLoading: la
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${value}`}
+                                        tickFormatter={(value) => `$${"$"}{value}`}
                                     />
                                      <ChartTooltip
                                         cursor={false}
@@ -141,4 +140,12 @@ export default function ResellerDashboardPage({ user, userProfile, isLoading: la
         
       </div>
   );
+}
+
+export default function ResellerDashboardPage() {
+    return (
+        <ResellerLayout>
+            <ResellerDashboardPageContent user={null} userProfile={null} isLoading={false} />
+        </ResellerLayout>
+    )
 }
