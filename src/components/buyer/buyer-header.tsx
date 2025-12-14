@@ -12,6 +12,7 @@ import { BuyerSidebar } from './buyer-sidebar';
 import { SidebarTrigger } from '../ui/sidebar';
 import { useUser, useUserProfile } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
+import { ThemeToggle } from '../theme-toggle';
 
 export function BuyerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -70,6 +71,7 @@ export function BuyerHeader() {
       </div>
       
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="hidden md:inline-flex relative" asChild>
             <Link href="/notifications">
                 <Bell className="h-5 w-5" />

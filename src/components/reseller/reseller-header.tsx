@@ -12,6 +12,7 @@ import { useUser, useUserProfile } from '@/firebase';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { ResellerSidebar } from './reseller-sidebar';
 import { Logo } from '../logo';
+import { ThemeToggle } from '../theme-toggle';
 
 export function ResellerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -61,6 +62,7 @@ export function ResellerHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/notifications">
             <Bell />

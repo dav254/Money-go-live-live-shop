@@ -14,6 +14,7 @@ import { doc } from 'firebase/firestore';
 import { useMemo } from 'react';
 import type { SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { ThemeToggle } from '../theme-toggle';
 
 
 export function AdminHeader() {
@@ -48,6 +49,7 @@ export function AdminHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/notifications">
             <Bell />

@@ -17,6 +17,7 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
+import { ThemeToggle } from '../theme-toggle';
 
 
 export function SellerHeader() {
@@ -87,6 +88,7 @@ export function SellerHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/notifications">
             <Bell />
