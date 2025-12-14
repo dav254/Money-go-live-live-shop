@@ -34,15 +34,16 @@ export async function GET(request: Request) {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 6); // Correctly get the last 7 days including today
+    sevenDaysAgo.setDate(today.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const sevenDaysAgoTimestamp = Timestamp.fromDate(sevenDaysAgo);
 
+    // Simplified query to avoid complex indexing issues.
+    // The logic below will handle filtering by status.
     const ordersSnapshot = await db
       .collection('orders')
       .where('orderDate', '>=', sevenDaysAgoTimestamp)
-      .where('orderStatus', 'in', ['delivered', 'shipped', 'processing'])
       .get();
       
     const salesByDay: Record<string, number> = {};
@@ -59,10 +60,13 @@ export async function GET(request: Request) {
 
     ordersSnapshot.forEach(doc => {
       const order = doc.data() as Order;
-      // Ensure orderDate is valid and can be converted to a Date
+      // Filter for relevant statuses in the code
+      if (!['delivered', 'shipped', 'processing'].includes(order.orderStatus)) {
+          return;
+      }
+      
       if (order.orderDate && typeof (order.orderDate as any).toDate === 'function') {
         const orderDate = (order.orderDate as any).toDate();
-        // Check if the order date is within our 7-day window
         if (orderDate >= sevenDaysAgo && orderDate <= today) {
             const dateString = orderDate.toISOString().split('T')[0];
             if (salesByDay[dateString] !== undefined) {
@@ -83,7 +87,6 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error('API Sales Analytics Error:', error);
-    // Provide a more specific error message if available
     const errorMessage = error.message || 'An unexpected error occurred.';
     return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
   }
