@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useMemo, useEffect, useState } from 'react';
@@ -73,13 +72,13 @@ const mockRecentSales = [
 ];
 
 const mockSalesChartData = [
-    { date: '2025-12-08', revenue: 150, orders: 5 },
-    { date: '2025-12-09', revenue: 220, orders: 8 },
-    { date: '2025-12-10', revenue: 180, orders: 6 },
-    { date: '2025-12-11', revenue: 300, orders: 12 },
-    { date: '2025-12-12', revenue: 250, orders: 10 },
-    { date: '2025-12-13', revenue: 450, orders: 15 },
-    { date: '2025-12-14', revenue: 560, orders: 20 },
+    { date: '2025-12-08', revenue: 0, orders: 0 },
+    { date: '2025-12-09', revenue: 0, orders: 0 },
+    { date: '2025-12-10', revenue: 0, orders: 0 },
+    { date: '2025-12-11', revenue: 0, orders: 0 },
+    { date: '2025-12-12', revenue: 0, orders: 0 },
+    { date: '2025-12-13', revenue: 0, orders: 0 },
+    { date: '2025-12-14', revenue: 0, orders: 0 },
 ];
 
 const chartConfig = {
@@ -123,8 +122,11 @@ export default function AdminDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [salesChartData, setSalesChartData] = useState(mockSalesChartData);
+  const [pendingPayoutsTotal, setPendingPayoutsTotal] = useState(0);
   const [isChartLoading, setIsChartLoading] = useState(true);
+  const [isPayoutsLoading, setIsPayoutsLoading] = useState(true);
 
+  // Fetch Sales Analytics
   useEffect(() => {
     const fetchSalesData = async () => {
       if (!user) return;
@@ -141,14 +143,39 @@ export default function AdminDashboardPage() {
         setSalesChartData(data);
       } catch (error) {
         console.error("Error fetching sales data:", error);
-        // Fallback to mock data on error
-        setSalesChartData(mockSalesChartData);
+        setSalesChartData(mockSalesChartData); // Fallback to mock data on error
       } finally {
         setIsChartLoading(false);
       }
     };
     fetchSalesData();
   }, [user]);
+
+  // Fetch Payout Analytics
+  useEffect(() => {
+    const fetchPayoutData = async () => {
+        if (!user) return;
+        setIsPayoutsLoading(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/payout-analytics', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+             if (!response.ok) {
+                throw new Error('Failed to fetch payout data');
+            }
+            const data = await response.json();
+            setPendingPayoutsTotal(data.totalPending);
+        } catch (error) {
+            console.error("Error fetching payout data:", error);
+            setPendingPayoutsTotal(0); // Fallback to 0 on error
+        } finally {
+            setIsPayoutsLoading(false);
+        }
+    };
+    fetchPayoutData();
+  }, [user]);
+
 
   const todaysStats = useMemo(() => {
     if (!salesChartData || salesChartData.length === 0) {
@@ -162,10 +189,12 @@ export default function AdminDashboardPage() {
     };
   }, [salesChartData]);
 
-  
-  // Using the exact values you provided
-  const pendingPayoutsTotal = 2340.50;
-  const liveVisitors = 0;
+  const liveSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+  }, [firestore]);
+  const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
+
   const totalUsers = 1254;
   const totalProducts = 5678;
   const isLoading = false; // Mock data is always available
@@ -188,13 +217,13 @@ export default function AdminDashboardPage() {
       title: 'Pending Payouts',
       value: `$${pendingPayoutsTotal.toLocaleString(undefined, { minimumFractionDigits: 2})}`,
       icon: Clock,
-      isLoading: isLoading,
+      isLoading: isPayoutsLoading,
     },
     {
       title: 'Live Visitors',
-      value: liveVisitors.toLocaleString(),
+      value: (liveSessions?.length || 0).toLocaleString(),
       icon: Eye,
-      isLoading: false, 
+      isLoading: areLiveSessionsLoading, 
       color: 'text-green-500',
     },
     {
@@ -308,5 +337,3 @@ export default function AdminDashboardPage() {
     </AdminLayout>
   );
 }
-
-    
