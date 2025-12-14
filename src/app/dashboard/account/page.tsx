@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -317,21 +318,21 @@ const AccountSettingsContent = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label htmlFor="username">Username</Label>
-                        <Input id="username" defaultValue={userProfile?.username} />
+                        <Input id="username" defaultValue={userProfile?.username} disabled />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="display-name">Display Name</Label>
-                        <Input id="display-name" defaultValue={userProfile?.fullName} />
+                        <Input id="display-name" defaultValue={userProfile?.fullName} disabled />
                     </div>
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" defaultValue={userProfile?.email} readOnly />
+                        <Input id="email" type="email" defaultValue={userProfile?.email} readOnly disabled />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" type="tel" defaultValue={userProfile?.phoneNumber} />
+                        <Input id="phone" type="tel" defaultValue={userProfile?.phoneNumber} disabled />
                     </div>
                 </div>
                 <Button disabled>Save Changes</Button>
@@ -447,16 +448,6 @@ const AccountSettingsContent = () => {
                     </div>
                   </div>
                   <Button variant="outline" disabled>Manage</Button>
-                </div>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <Palette className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <Label>Dark / Light Theme</Label>
-                      <p className="text-sm text-muted-foreground">Switch between light and dark mode.</p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
                 </div>
                  <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="flex items-center gap-4">
