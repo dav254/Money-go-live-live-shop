@@ -110,10 +110,10 @@ service cloud.firestore {
       // Allow seller to update status from pending->processing or processing->shipped
       // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
-                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                      (
                        ( // Seller's permissions
                          resource.data.sellerId == request.auth.uid &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                          (
                            (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
                            (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
@@ -121,8 +121,9 @@ service cloud.firestore {
                        ) ||
                        ( // Buyer's permissions
                          resource.data.buyerId == request.auth.uid &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                          resource.data.orderStatus == 'shipped' &&
-                         resource.data.orderStatus == 'delivered'
+                         request.resource.data.orderStatus == 'delivered'
                        )
                      );
 
@@ -135,6 +136,14 @@ service cloud.firestore {
       allow read: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
       allow update: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /walletTransactions/{transactionId} {
+        // Only backend functions can create transactions.
+        allow create: if false; 
+        // Users can read their own transactions. Admins can read any.
+        allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow list: if request.auth != null && (request.query.where[0][2] == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
     }
 
     // Categories are publicly readable
@@ -271,5 +280,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
