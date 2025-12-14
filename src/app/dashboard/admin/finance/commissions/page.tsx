@@ -1,19 +1,216 @@
+'use client';
 
+import * as React from 'react';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getSortedRowModel,
+  SortingState,
+} from '@tanstack/react-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/components/layout/admin-layout';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, doc, orderBy, where } from 'firebase/firestore';
+import type { Order, UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { CaretSortIcon } from '@radix-ui/react-icons';
+import Link from 'next/link';
+
+const UserCell = ({ userId, label }: { userId: string; label: string }) => {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+
+  if (isLoading) return <Skeleton className="h-5 w-24" />;
+  return (
+    <div className="flex items-center gap-2">
+      <Avatar className="h-6 w-6">
+        <AvatarImage src={user?.profilePictureUrl} />
+        <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
+      </Avatar>
+      <div className="flex flex-col">
+        <span className="text-xs">{user?.fullName}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
+      </div>
+    </div>
+  );
+};
+
+const DataTableSkeleton = () => (
+  <div className="rounded-md border">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <TableRow key={i}>
+            {Array.from({ length: 6 }).map((_, j) => (
+              <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </div>
+);
+
+const getStatusBadge = (status: Order['orderStatus']) => {
+  switch (status) {
+    case 'delivered':
+      return <Badge className="bg-green-600/80 hover:bg-green-600/70">Cleared</Badge>;
+    case 'shipped':
+    case 'processing':
+    case 'pending':
+      return <Badge variant="secondary" className="bg-yellow-500/80 hover:bg-yellow-500/70">Pending</Badge>;
+    case 'cancelled':
+      return <Badge variant="destructive">Cancelled</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+};
+
+const columns: ColumnDef<Order>[] = [
+  {
+    accessorKey: 'productName',
+    header: 'Product',
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <div className="relative h-10 w-10 rounded-md overflow-hidden">
+          <Avatar className="h-10 w-10 rounded-md">
+            <AvatarImage src={row.original.productImage} />
+            <AvatarFallback>{row.original.productName?.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </div>
+        <div>
+            <p className="font-medium capitalize">{row.original.productName}</p>
+            <Button variant="link" asChild className="p-0 h-auto text-xs text-muted-foreground">
+                <Link href={`/dashboard/admin/orders/all?orderId=${row.original.id}`}>
+                    #{row.original.id.substring(0, 6)}...
+                </Link>
+            </Button>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'participants',
+    header: 'Participants',
+    cell: ({ row }) => (
+      <div className="space-y-2">
+        <UserCell userId={row.original.resellerId!} label="Reseller" />
+        <UserCell userId={row.original.sellerId} label="Seller" />
+      </div>
+    )
+  },
+  {
+    accessorKey: 'resellerCommission',
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')} className="w-full justify-end">
+        Commission
+        <CaretSortIcon className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <div className="text-right font-semibold text-green-500">
+        ${(row.original.resellerCommission || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'orderStatus',
+    header: 'Commission Status',
+    cell: ({ row }) => getStatusBadge(row.original.orderStatus),
+  },
+  {
+    accessorKey: 'orderDate',
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')} className="w-full justify-end">
+        Date
+        <CaretSortIcon className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div className="text-right">{row.original.orderDate?.toDate().toLocaleDateString()}</div>,
+  },
+];
 
 export default function AdminCommissionsPage() {
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'orderDate', desc: true }]);
+  const firestore = useFirestore();
+
+  const commissionsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'orders'), where('resellerId', '!=', null), orderBy('resellerId'), orderBy('orderDate', 'desc'));
+  }, [firestore]);
+
+  const { data: commissions, isLoading } = useCollection<Order>(commissionsQuery);
+
+  const table = useReactTable({
+    data: commissions || [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    state: { sorting },
+  });
+
   return (
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Finance Management: Commissions Overview
+          Finance: Reseller Commissions
         </h1>
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed p-12">
-            <p className="text-muted-foreground">Commissions overview will be here.</p>
-        </div>
+        <p className="text-muted-foreground">This table shows all commissions generated from reseller sales.</p>
+        {isLoading ? <DataTableSkeleton /> : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      No reseller commissions found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
 }
-
-    
