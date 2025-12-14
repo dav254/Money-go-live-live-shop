@@ -22,10 +22,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { Order, UserProfile } from '@/lib/types';
+import type { Order, UserProfile, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CaretSortIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, where } from 'firebase/firestore';
+
 
 // --- MOCK DATA ---
 
@@ -34,39 +37,6 @@ const mockUsers: UserProfile[] = [
     { id: 'seller-1', fullName: 'Trendy Threads', profilePictureUrl: 'https://picsum.photos/seed/seller1/40', userRole: 'seller' },
     { id: 'reseller-2', fullName: 'Marketer Mike', profilePictureUrl: 'https://picsum.photos/seed/reseller2/40', userRole: 'reseller' },
     { id: 'seller-2', fullName: 'Flashy Gadgets', profilePictureUrl: 'https://picsum.photos/seed/seller2/40', userRole: 'seller' },
-];
-
-const mockCommissions: Order[] = [
-    { 
-        id: 'order-001', 
-        productName: 'Classic Leather Handbag', 
-        productImage: 'https://picsum.photos/seed/product1/100',
-        resellerId: 'reseller-1',
-        sellerId: 'seller-1',
-        resellerCommission: 12.50,
-        orderStatus: 'delivered',
-        orderDate: new Date(new Date().setDate(new Date().getDate() - 1))
-    },
-    { 
-        id: 'order-002', 
-        productName: 'Wireless Bluetooth Headphones', 
-        productImage: 'https://picsum.photos/seed/product2/100',
-        resellerId: 'reseller-2',
-        sellerId: 'seller-2',
-        resellerCommission: 25.00,
-        orderStatus: 'shipped',
-        orderDate: new Date(new Date().setDate(new Date().getDate() - 2))
-    },
-    { 
-        id: 'order-003', 
-        productName: 'Vintage Denim Jacket', 
-        productImage: 'https://picsum.photos/seed/product3/100',
-        resellerId: 'reseller-1',
-        sellerId: 'seller-1',
-        resellerCommission: 8.75,
-        orderStatus: 'cancelled',
-        orderDate: new Date(new Date().setDate(new Date().getDate() - 3))
-    },
 ];
 
 // --- END MOCK DATA ---
@@ -132,24 +102,27 @@ const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'productName',
     header: 'Product',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <div className="relative h-10 w-10 rounded-md overflow-hidden">
-          <Avatar className="h-10 w-10 rounded-md">
-            <AvatarImage src={row.original.productImage} />
-            <AvatarFallback>{row.original.productName?.charAt(0)}</AvatarFallback>
-          </Avatar>
-        </div>
-        <div>
-            <p className="font-medium capitalize">{row.original.productName}</p>
-            <Button variant="link" asChild className="p-0 h-auto text-xs text-muted-foreground">
-                <Link href={`/dashboard/admin/orders/all?orderId=${row.original.id}`}>
-                    #{row.original.id.substring(0, 6)}...
+    cell: ({ row }) => {
+      const order = row.original;
+      return (
+        <div className="flex items-center gap-3">
+          <div className="relative h-10 w-10 rounded-md overflow-hidden">
+            <Avatar className="h-10 w-10 rounded-md">
+              <AvatarImage src={order.productImage} />
+              <AvatarFallback>{order.productName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </div>
+          <div>
+              <Button variant="link" asChild className="p-0 h-auto font-medium capitalize text-base">
+                <Link href={`/products/${order.productId}`}>
+                  {order.productName}
                 </Link>
-            </Button>
+              </Button>
+              <div className="text-xs text-muted-foreground">#{order.id.substring(0, 6)}...</div>
+          </div>
         </div>
-      </div>
-    ),
+      );
+    },
   },
   {
     id: 'participants',
@@ -188,24 +161,25 @@ const columns: ColumnDef<Order>[] = [
         <CaretSortIcon className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div className="text-right">{row.original.orderDate?.toLocaleDateString()}</div>,
+    cell: ({ row }) => <div className="text-right">{row.original.orderDate?.toDate().toLocaleDateString()}</div>,
   },
 ];
 
 export default function AdminCommissionsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'orderDate', desc: true }]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const firestore = useFirestore();
 
-  React.useEffect(() => {
-      // Simulate data fetching
-      const timer = setTimeout(() => {
-          setIsLoading(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-  }, []);
+  // Query for orders that have a resellerId
+  const resellerOrdersQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(collection(firestore, 'orders'), where('resellerId', '!=', null));
+  }, [firestore]);
+
+  const { data: orders, isLoading } = useCollection<Order>(resellerOrdersQuery);
+
 
   const table = useReactTable({
-    data: mockCommissions,
+    data: orders || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
