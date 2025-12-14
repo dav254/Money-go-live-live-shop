@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { PlusCircle, DotsHorizontalIcon } from 'lucide-react';
+import { PlusCircle, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,7 +82,7 @@ export const columns: ColumnDef<ApiKey>[] = [
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 w-8 p-0">
-                <DotsHorizontalIcon className="h-4 w-4" />
+                <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -162,4 +162,3 @@ export default function AdminApiKeysPage() {
     </AdminLayout>
   );
 }
-
