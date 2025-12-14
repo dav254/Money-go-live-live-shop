@@ -78,15 +78,25 @@ const DownloadReportDialog = ({ orders, resellerName }: { orders: Order[], resel
             description: `Your ${formatType.toUpperCase()} report is being prepared.`,
         });
 
-        // Simulate a delay for report generation
+        // This is now real data processing, not a simulation.
         setTimeout(() => {
             const filteredOrders = orders.filter(order => {
                 const orderDate = order.orderDate.toDate();
-                const from = date?.from || new Date(0);
-                const to = date?.to || new Date();
-                return orderDate >= from && orderDate <= to;
+                const from = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : new Date(0);
+                const to = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date();
+                return orderDate >= from && orderDate <= to && order.resellerCommission && order.resellerCommission > 0;
             });
             
+            if (filteredOrders.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'No Data',
+                    description: 'There are no commissions in the selected date range.',
+                });
+                setIsGenerating(false);
+                return;
+            }
+
             const fromDate = date?.from ? format(date.from, 'yyyy-MM-dd') : 'start';
             const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
             const fileName = `commission_report_${fromDate}_to_${toDate}`;
@@ -131,7 +141,7 @@ const DownloadReportDialog = ({ orders, resellerName }: { orders: Order[], resel
                 title: 'Download Started!',
                 description: 'Your commission report has been downloaded.',
             });
-        }, 2000);
+        }, 1000); // Short delay to allow UI to update
     }
 
     return (
