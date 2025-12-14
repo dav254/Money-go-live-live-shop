@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
@@ -11,26 +11,14 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart3, DollarSign, ExternalLink, Link as LinkIcon, TrendingUp } from 'lucide-react';
+import { BarChart3, DollarSign, Link as LinkIcon, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TopPerformingProducts } from '@/components/reseller/top-performing-products'; // Import the new component
+import { TopPerformingProducts } from '@/components/reseller/top-performing-products'; 
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Order } from '@/lib/types';
 
-// --- Static Placeholder Data (will be replaced by real data hooks) ---
-
-const isLoading = false; // This will be driven by your data fetching hooks
-
-const earnings = {
-  today: 75.50,
-  month: 1240.25,
-  withdrawable: 820.00,
-};
-
-const stats = {
-  shared: 152,
-  clicks: 1843,
-  conversions: 34,
-};
 
 // --- Component Definitions ---
 
@@ -59,6 +47,56 @@ const EarningsCard = ({ title, amount, icon: Icon, isPrimary, isLoading }: { tit
 
 
 export default function ResellerDashboardPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
+    }, [user, firestore]);
+    
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    const isLoading = isUserLoading || areOrdersLoading;
+
+    const earnings = useMemo(() => {
+        if (!orders) {
+            return { today: 0, month: 0, withdrawable: 0 };
+        }
+
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        let todayEarnings = 0;
+        let monthEarnings = 0;
+        let withdrawableBalance = 0;
+
+        orders.forEach(order => {
+            const orderDate = order.orderDate.toDate();
+            const commission = order.resellerCommission || 0;
+
+            if (orderDate >= todayStart) {
+                todayEarnings += commission;
+            }
+            if (orderDate >= monthStart) {
+                monthEarnings += commission;
+            }
+            if (order.orderStatus === 'delivered') {
+                withdrawableBalance += commission;
+            }
+        });
+
+        // This is a simplified calculation for withdrawable. A real app would subtract completed payouts.
+        return { today: todayEarnings, month: monthEarnings, withdrawable: withdrawableBalance };
+    }, [orders]);
+
+    const stats = {
+        shared: 0, // Placeholder
+        clicks: "N/A", // Placeholder
+        conversions: orders?.length || 0,
+    };
+
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
