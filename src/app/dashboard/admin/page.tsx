@@ -124,29 +124,23 @@ export default function AdminDashboardPage() {
   const firestore = useFirestore();
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- Real Data Fetching for Live Visitors ---
-  const liveSessionsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-  }, [firestore]);
-  
-  const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
-  const liveVisitors = liveSessions?.reduce((sum, session) => sum + (session.viewerCount || 0), 0) || 0;
-  // --- End Real Data Fetching ---
-
-  // Use mock data for other sections to keep them frontend-only as requested
+  // Use mock data for all sections to keep them frontend-only as requested
   const salesChartData = mockSalesChartData;
-  const todaysRevenue = salesChartData[salesChartData.length - 1].revenue;
-  const dailyOrders = salesChartData[salesChartData.length - 1].orders;
+  const todaysRevenue = 560;
+  const dailyOrders = 20;
+  const pendingPayoutsTotal = 2340.50;
+  const liveVisitors = 0;
+  const totalUsers = 1254;
+  const totalProducts = 5678;
+
   const isChartLoading = false; 
 
   // Simulate overall loading state
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
+    const timer = setTimeout(() => setIsLoading(false), 500); // Reduced delay
     return () => clearTimeout(timer);
   }, []);
 
-
-  const pendingPayoutsTotal = 2340.50;
 
   const stats = [
      {
@@ -171,18 +165,18 @@ export default function AdminDashboardPage() {
       title: 'Live Visitors',
       value: liveVisitors.toLocaleString(),
       icon: Eye,
-      isLoading: areLiveSessionsLoading, 
+      isLoading: false, 
       color: liveVisitors > 0 ? 'text-green-500' : 'text-muted-foreground',
     },
     {
       title: 'Total Users',
-      value: '1,254', 
+      value: totalUsers.toLocaleString(), 
       icon: Users,
       isLoading,
     },
     {
       title: 'Total Products',
-      value: '5,678', 
+      value: totalProducts.toLocaleString(), 
       icon: ShoppingBag,
       isLoading,
     },
@@ -268,7 +262,7 @@ export default function AdminDashboardPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `$${"$"}{value}`}
                     />
                      <ChartTooltip
                       cursor={false}
