@@ -18,6 +18,13 @@ import { TopPerformingProducts } from '@/components/reseller/top-performing-prod
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
+import { addDays, format } from 'date-fns';
 
 
 // --- Component Definitions ---
@@ -44,6 +51,13 @@ const EarningsCard = ({ title, amount, icon: Icon, isPrimary, isLoading }: { tit
         </CardContent>
     </Card>
 );
+
+const chartConfig = {
+  earnings: {
+    label: 'Earnings',
+    color: 'hsl(var(--primary))',
+  },
+};
 
 
 export default function ResellerDashboardPage() {
@@ -90,10 +104,32 @@ export default function ResellerDashboardPage() {
         // This is a simplified calculation for withdrawable. A real app would subtract completed payouts.
         return { today: todayEarnings, month: monthEarnings, withdrawable: withdrawableBalance };
     }, [orders]);
+    
+    const chartData = useMemo(() => {
+        const data: { date: string; earnings: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = addDays(new Date(), -i);
+            data.push({ date: format(date, 'MMM d'), earnings: 0 });
+        }
+
+        if (orders) {
+            orders.forEach(order => {
+                const commission = order.resellerCommission || 0;
+                if (commission > 0) {
+                    const orderDate = format(order.orderDate.toDate(), 'MMM d');
+                    const dayData = data.find(d => d.date === orderDate);
+                    if (dayData) {
+                        dayData.earnings += commission;
+                    }
+                }
+            });
+        }
+        return data;
+    }, [orders]);
 
     const stats = {
         shared: 0, // Placeholder
-        clicks: "N/A", // Placeholder
+        clicks: "N/A", // Not implemented
         conversions: orders?.length || 0,
     };
 
@@ -137,11 +173,36 @@ export default function ResellerDashboardPage() {
                             <TrendingUp />
                             Performance Overview
                         </CardTitle>
-                        <CardDescription>Clicks vs. Conversions this month.</CardDescription>
+                        <CardDescription>Your commission earnings for the last 7 days.</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-72 flex items-center justify-center bg-muted/50 rounded-md">
-                        <BarChart3 className="h-16 w-16 text-muted-foreground/50" />
-                        <p className="text-muted-foreground ml-4">Earnings & Clicks chart will be here.</p>
+                    <CardContent className="h-72">
+                         {isLoading ? (
+                            <Skeleton className="h-full w-full" />
+                         ) : (
+                            <ChartContainer config={chartConfig} className="w-full h-full">
+                                <BarChart accessibilityLayer data={chartData}>
+                                    <XAxis
+                                        dataKey="date"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        fontSize={12}
+                                    />
+                                     <YAxis
+                                        stroke="#888888"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => `$${value}`}
+                                    />
+                                     <ChartTooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent indicator="dot" />}
+                                    />
+                                    <Bar dataKey="earnings" fill="var(--color-earnings)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                         )}
                     </CardContent>
                 </Card>
             </div>
