@@ -69,12 +69,6 @@ export function ResellerHeader() {
             <span className="sr-only">Notifications</span>
           </Link>
         </Button>
-        <Button variant="ghost" size="icon" asChild>
-           <Link href="/messages">
-            <MessageSquare />
-            <span className="sr-only">Messages</span>
-          </Link>
-        </Button>
         <UserNav />
       </div>
     </header>
