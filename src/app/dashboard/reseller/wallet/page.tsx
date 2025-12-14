@@ -349,15 +349,16 @@ export default function ResellerWalletPage() {
     if (!user) return null;
     return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid), where('orderStatus', '==', 'delivered'));
   }, [firestore, user]);
-  const { data: completedOrders } = useCollection<Order>(resellerOrdersQuery);
-
-  const resellerPayoutsQuery = useMemoFirebase(() => {
+  
+  const payoutsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
   }, [firestore, user]);
+  
+  const { data: completedOrders, isLoading: areOrdersLoading } = useCollection<Order>(resellerOrdersQuery);
   const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
   
-  const isLoading = isUserLoading || isLoadingMethods || arePayoutsLoading;
+  const isLoading = isUserLoading || isLoadingMethods || arePayoutsLoading || areOrdersLoading;
 
   // Calculate wallet balances
   const { availableBalance, pendingBalance, totalEarned } = useMemo(() => {
