@@ -122,10 +122,12 @@ const StatCard = ({
 export default function AdminDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Use mock data for all sections to keep them frontend-only as requested
   const salesChartData = mockSalesChartData;
+  
+  // Using the exact values you provided
   const todaysRevenue = 560;
   const dailyOrders = 20;
   const pendingPayoutsTotal = 2340.50;
@@ -134,12 +136,6 @@ export default function AdminDashboardPage() {
   const totalProducts = 5678;
 
   const isChartLoading = false; 
-
-  // Simulate overall loading state
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500); // Reduced delay
-    return () => clearTimeout(timer);
-  }, []);
 
 
   const stats = [
@@ -166,7 +162,7 @@ export default function AdminDashboardPage() {
       value: liveVisitors.toLocaleString(),
       icon: Eye,
       isLoading: false, 
-      color: liveVisitors > 0 ? 'text-green-500' : 'text-muted-foreground',
+      color: 'text-green-500',
     },
     {
       title: 'Total Users',
