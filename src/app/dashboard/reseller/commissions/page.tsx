@@ -23,7 +23,7 @@ import {
   Download,
   Wallet,
 } from 'lucide-react';
-import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import React from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
@@ -130,7 +130,7 @@ export default function ResellerCommissionsPage() {
                 <CardTitle>Recent Commission History</CardTitle>
                 <CardDescription>Commissions are marked as 'pending' until the order is delivered.</CardDescription>
             </div>
-            <DateRangePicker />
+            {/* <DatePicker /> */}
           </CardHeader>
           <CardContent>
             <Table>
