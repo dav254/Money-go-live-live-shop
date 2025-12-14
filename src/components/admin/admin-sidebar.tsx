@@ -223,6 +223,7 @@ export function AdminSidebar() {
           basePath="analytics"
           items={[
             { href: 'revenue', label: 'Sales Analytics' },
+            { href: 'users', label: 'User Analytics' },
             { href: 'activity', label: 'User Activity Logs' },
             { href: 'errors', label: 'Frontend' },
           ]}

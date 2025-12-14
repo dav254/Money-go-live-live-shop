@@ -116,6 +116,7 @@ export default function AdminDashboardPage() {
   const [isChartLoading, setIsChartLoading] = useState(true);
 
   // Queries for dashboard stats
+  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
   const buyersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'buyer')), [firestore]);
   const sellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller')), [firestore]);
   const resellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')), [firestore]);
@@ -123,7 +124,7 @@ export default function AdminDashboardPage() {
   const completedPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'completed')), [firestore]);
   const pendingPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'pending')), [firestore]);
 
-
+  const { data: allUsers, isLoading: isLoadingAllUsers } = useCollection(usersQuery);
   const { data: buyers, isLoading: isLoadingBuyers } = useCollection(buyersQuery);
   const { data: sellers, isLoading: isLoadingSellers } = useCollection(sellersQuery);
   const { data: resellers, isLoading: isLoadingResellers } = useCollection(resellersQuery);
@@ -168,7 +169,7 @@ export default function AdminDashboardPage() {
 
 
   const isLoading =
-    isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
+    isLoadingAllUsers || isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
 
   useEffect(() => {
     async function fetchSalesData() {
@@ -236,6 +237,12 @@ export default function AdminDashboardPage() {
       color: 'text-destructive',
     },
     {
+      title: 'Total Users',
+      value: (allUsers?.length || 0).toLocaleString(),
+      icon: Users,
+      isLoading,
+    },
+    {
       title: 'Total Buyers',
       value: (buyers?.length || 0).toLocaleString(),
       icon: Users,
@@ -274,7 +281,7 @@ export default function AdminDashboardPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Admin Dashboard
         </h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           {stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
@@ -348,9 +355,9 @@ export default function AdminDashboardPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `$${"$"}{value}`}
                     />
-                    <ChartTooltip
+                     <ChartTooltip
                       cursor={false}
                       content={<ChartTooltipContent indicator="dot" />}
                     />
