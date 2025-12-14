@@ -22,6 +22,8 @@ import {
   ShieldAlert,
   ArrowRight,
   Eye,
+  ScreenShare,
+  Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -369,6 +371,49 @@ export default function AdminDashboardPage() {
               )}
             </CardContent>
           </Card>
+          
+           <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ScreenShare className="text-primary"/>
+                    Live Shopping Control Room
+                </CardTitle>
+                <CardDescription>Monitor and manage all live streams on the platform.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/admin/live-shopping/sessions">View Live Sessions</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/admin/live-shopping/flagged">Moderation Queue</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/admin/live-shopping/analytics">View Analytics</Link>
+                </Button>
+            </CardContent>
+           </Card>
+
+           <Card>
+            <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                    <Megaphone className="text-primary"/>
+                    Marketing & Growth
+                </CardTitle>
+                <CardDescription>Manage promotional content and send platform-wide announcements.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                 <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/admin/marketing/sliders">Manage Homepage</Link>
+                </Button>
+                 <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/admin/marketing/ads">Ads Manager</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-start">
+                    <Link href="/dashboard/admin/marketing/notifications">Send Notifications</Link>
+                </Button>
+            </CardContent>
+           </Card>
+
         </div>
       </div>
     </AdminLayout>
