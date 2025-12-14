@@ -65,7 +65,6 @@ const StatCard = ({
 
 export default function AdminFinanceAnalyticsPage() {
   const firestore = useFirestore();
-  const PLATFORM_COMMISSION_RATE = 0.10; // 10%
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -80,7 +79,7 @@ export default function AdminFinanceAnalyticsPage() {
     }
     const completedOrders = orders.filter(o => o.orderStatus === 'delivered');
     const grossValue = completedOrders.reduce((acc, o) => acc + o.totalAmount, 0);
-    const platformCommission = grossValue * PLATFORM_COMMISSION_RATE;
+    const platformCommission = completedOrders.reduce((acc, o) => acc + (o.platformFee || 0), 0);
     const netToSellers = grossValue - platformCommission;
     return { grossValue, platformCommission, netToSellers };
   }, [orders]);
@@ -110,7 +109,7 @@ export default function AdminFinanceAnalyticsPage() {
             isLoading={isLoading}
           />
           <StatCard
-            title="Platform Revenue (10%)"
+            title="Platform Revenue"
             value={`$${revenueStats.platformCommission.toLocaleString(undefined, {
               minimumFractionDigits: 2,
             })}`}
@@ -158,8 +157,8 @@ export default function AdminFinanceAnalyticsPage() {
                             ))
                         ) : recentTransactions.length > 0 ? (
                              recentTransactions.map(order => {
-                                 const platformFee = order.totalAmount * PLATFORM_COMMISSION_RATE;
-                                 const netAmount = order.totalAmount - platformFee;
+                                 const platformFee = order.platformFee || 0;
+                                 const netAmount = order.totalAmount - platformFee - (order.resellerCommission || 0);
                                  return (
                                     <TableRow key={order.id}>
                                         <TableCell className="font-mono text-xs text-muted-foreground">#{order.id}</TableCell>

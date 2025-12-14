@@ -86,10 +86,10 @@ export default function InvoiceViewPage() {
         );
     }
     
-    const subtotal = order.productPrice;
-    const shipping = order.shippingCost;
+    const subtotal = order.productPrice || 0;
+    const shipping = order.shippingCost || 0;
     const total = order.totalAmount;
-    const platformFee = order.platformFee || total * 0.10;
+    const platformFee = order.platformFee || 0;
     const resellerCommission = order.resellerCommission || 0;
     const netForSeller = total - platformFee - resellerCommission;
 
@@ -149,8 +149,8 @@ export default function InvoiceViewPage() {
                                     <tr className="border-b">
                                         <td className="py-2">{order.productName}</td>
                                         <td className="text-center py-2">{order.quantity}</td>
-                                        <td className="text-right py-2">${order.productPrice.toFixed(2)}</td>
-                                        <td className="text-right py-2">${(order.quantity * order.productPrice).toFixed(2)}</td>
+                                        <td className="text-right py-2">${subtotal.toFixed(2)}</td>
+                                        <td className="text-right py-2">${(order.quantity || 1 * subtotal).toFixed(2)}</td>
                                     </tr>
                                 </tbody>
                             </table>

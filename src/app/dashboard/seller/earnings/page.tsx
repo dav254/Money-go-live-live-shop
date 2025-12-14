@@ -95,15 +95,16 @@ export default function SellerEarningsPage() {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
-        const totalRevenue = orders
-            .filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped')
-            .reduce((sum, o) => sum + o.totalAmount, 0);
+        const completedOrders = orders
+            .filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped');
+
+        const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
 
         const salesToday = orders
              .filter(o => o.orderDate && o.orderDate.toDate() >= today)
              .reduce((sum, o) => sum + o.totalAmount, 0);
         
-        const platformFees = totalRevenue * 0.10; // Assuming a 10% fee
+        const platformFees = completedOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
 
         const totalPayouts = payouts
             .filter(p => p.status === 'completed')
@@ -215,7 +216,7 @@ export default function SellerEarningsPage() {
                     ))
                 ) : recentTransactions.length > 0 ? (
                     recentTransactions.map((order) => {
-                       const platformFee = order.platformFee || order.totalAmount * 0.10;
+                       const platformFee = order.platformFee || 0;
                        const resellerCommission = order.resellerCommission || 0;
                        const netEarning = order.totalAmount - platformFee - resellerCommission;
 
