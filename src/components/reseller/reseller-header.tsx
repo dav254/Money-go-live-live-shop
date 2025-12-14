@@ -24,7 +24,7 @@ export function ResellerHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 md:gap-4">
          {/* Mobile Sidebar */}
         <Sheet>
             <SheetTrigger asChild>
@@ -50,21 +50,14 @@ export function ResellerHeader() {
         {/* Desktop Sidebar Trigger */}
         <SidebarTrigger className="hidden md:flex" />
 
-        <div className="hidden md:flex items-center gap-3">
-          {isLoading ? (
-            <>
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <Skeleton className="h-5 w-24" />
-            </>
-          ) : (
-            <>
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={resellerAvatar} />
-                <AvatarFallback>{resellerName.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-semibold">{resellerName}</span>
-            </>
-          )}
+        <div className="hidden md:block">
+            {isLoading ? (
+              <Skeleton className="h-6 w-40" />
+            ) : (
+              <h1 className="text-lg font-semibold">
+                Welcome, <span className="text-primary">{resellerName}</span>
+              </h1>
+            )}
         </div>
       </div>
       <div className="flex items-center gap-2">
