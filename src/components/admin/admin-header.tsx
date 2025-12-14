@@ -34,15 +34,10 @@ export function AdminHeader() {
         <div className="flex items-center gap-3">
           {isLoading ? (
             <>
-              <Skeleton className="h-8 w-8 rounded-full" />
               <Skeleton className="h-5 w-24" />
             </>
           ) : (
             <>
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={adminAvatar} />
-                <AvatarFallback>{adminName.charAt(0)}</AvatarFallback>
-              </Avatar>
               <span className="hidden text-sm font-semibold sm:inline">
                 Welcome, {adminName}
               </span>
