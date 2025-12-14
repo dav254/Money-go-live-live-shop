@@ -160,7 +160,16 @@ const columns: ColumnDef<Order>[] = [
   {
     id: 'commissionStatus',
     header: 'Commission Status',
-    cell: () => getStatusBadge('pending'), // Placeholder
+    cell: ({ row }) => {
+        const status = row.original.orderStatus;
+        if (status === 'delivered') {
+            return getStatusBadge('cleared');
+        }
+        if (status === 'cancelled' || status === 'disputed') {
+            return getStatusBadge('cancelled');
+        }
+        return getStatusBadge('pending');
+    },
   },
   {
     id: 'date',
@@ -170,7 +179,7 @@ const columns: ColumnDef<Order>[] = [
         <CaretSortIcon className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div className="text-right">{'10/25/2023'}</div>, // Placeholder
+    cell: ({ row }) => <div className="text-right">{row.original.orderDate.toDate().toLocaleDateString()}</div>,
   },
 ];
 
