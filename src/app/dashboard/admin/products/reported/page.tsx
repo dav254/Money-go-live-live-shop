@@ -1,19 +1,184 @@
 
+'use client';
+
+import * as React from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { AdminLayout } from '@/components/layout/admin-layout';
+import type { Complaint, Product, UserProfile } from '@/lib/types';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
+import Link from 'next/link';
+
+const UserCell = ({ userId, label }: { userId: string, label: string }) => {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+
+  if (isLoading) return <Skeleton className="h-5 w-24" />;
+  return (
+    <div>
+      <p className="font-medium">{user?.fullName || 'N/A'}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+};
+
+const ProductCell = ({ productId }: { productId: string }) => {
+  const firestore = useFirestore();
+  const productRef = useMemoFirebase(() => doc(firestore, 'products', productId), [firestore, productId]);
+  const { data: product, isLoading } = useDoc<Product>(productRef);
+
+  if (isLoading) return <Skeleton className="h-12 w-32" />;
+  if (!product) return <p className="text-sm text-destructive">Product not found</p>;
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative h-12 w-12 rounded-md overflow-hidden">
+        <Image src={product.imageUrl} alt={product.name || 'product image'} fill className="object-cover" />
+      </div>
+      <div>
+        <Link href={`/products/${product.id}`} className="font-semibold hover:underline" target="_blank">
+            {product.name}
+        </Link>
+        <p className="text-xs text-muted-foreground">ID: {productId.substring(0, 6)}...</p>
+      </div>
+    </div>
+  );
+};
 
 export default function AdminReportedProductsPage() {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const complaintsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'complaints'), where('targetType', '==', 'product'));
+  }, [firestore]);
+
+  const { data: complaints, isLoading } = useCollection<Complaint>(complaintsQuery);
+  
+  const handleStatusUpdate = async (complaintId: string, status: 'resolved' | 'dismissed') => {
+      if (!firestore) return;
+      const complaintRef = doc(firestore, 'complaints', complaintId);
+      try {
+          await updateDoc(complaintRef, { status });
+          toast({ title: 'Success!', description: `The report has been marked as ${status}.` });
+      } catch (error) {
+          console.error("Failed to update complaint status:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not update the report status.' });
+      }
+  };
+
+  const handleProductAction = async (productId: string, action: 'unpublish' | 'delete') => {
+    // This is a placeholder for the actual logic.
+    // 'unpublish' would set a product's status to 'unpublished'.
+    // 'delete' would remove the product document.
+    toast({ title: 'Action Required', description: `Logic to ${action} product ${productId} needs to be implemented.` });
+  };
+
+
   return (
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Product Management: Reported Products
         </h1>
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed p-12">
-            <p className="text-muted-foreground">Reported products interface will be here.</p>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Reason</TableHead>
+                <TableHead>Reported By</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-12 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : complaints && complaints.length > 0 ? (
+                complaints.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <ProductCell productId={c.targetId} />
+                    </TableCell>
+                    <TableCell>
+                        <p className="font-medium">{c.reason}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.description}</p>
+                    </TableCell>
+                    <TableCell>
+                      <UserCell userId={c.complainantId} label="Complainant" />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                        {c.createdAt ? formatDistanceToNow(c.createdAt.toDate(), { addSuffix: true }) : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={c.status === 'open' ? 'secondary' : 'default'} className="capitalize">{c.status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <DotsHorizontalIcon className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Moderation</DropdownMenuLabel>
+                             <DropdownMenuItem asChild>
+                                <Link href={`/products/${c.targetId}`} target="_blank">View Product</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(c.id, 'dismissed')}>Dismiss Report</DropdownMenuItem>
+                            <DropdownMenuItem className="text-yellow-600" onClick={() => handleProductAction(c.targetId, 'unpublish')}>Unpublish Product</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleProductAction(c.targetId, 'delete')}>Delete Product</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    No reported products found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </AdminLayout>
   );
 }
-
-    
