@@ -4,5 +4,8 @@
   },
   "firestore": {
     "rules": "src/firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }
