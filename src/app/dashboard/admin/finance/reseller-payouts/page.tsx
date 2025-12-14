@@ -81,35 +81,48 @@ export default function AdminResellerPayoutsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'requestedAt', desc: true }]);
+  const [payouts, setPayouts] = React.useState<Payout[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const payoutsQuery = useMemoFirebase(() => {
-    // Modify this query if you add a specific flag for reseller payouts
-    return query(collection(firestore, 'payouts'), orderBy('requestedAt', 'desc'));
+  // Fetch all payouts and then filter by user role on the client
+  React.useEffect(() => {
+    const fetchAndFilterPayouts = async () => {
+        if (!firestore) return;
+        setIsLoading(true);
+
+        // 1. Fetch all payouts
+        const allPayoutsQuery = query(collection(firestore, 'payouts'), orderBy('requestedAt', 'desc'));
+        const payoutsSnapshot = await getDocs(allPayoutsQuery);
+        const allPayoutsData = payoutsSnapshot.docs.map(d => ({id: d.id, ...d.data()}) as Payout);
+
+        if (allPayoutsData.length === 0) {
+            setPayouts([]);
+            setIsLoading(false);
+            return;
+        }
+
+        // 2. Get unique user IDs from payouts
+        const userIds = [...new Set(allPayoutsData.map(p => p.sellerId))];
+
+        // 3. Fetch profiles for those users to check their role
+        const usersQuery = query(collection(firestore, 'userProfiles'), where('__name__', 'in', userIds));
+        const usersSnapshot = await getDocs(usersQuery);
+        const userRoles = new Map<string, string>();
+        usersSnapshot.forEach(doc => {
+            const data = doc.data() as UserProfile;
+            userRoles.set(doc.id, data.userRole);
+        });
+
+        // 4. Filter payouts to only include those from resellers
+        const resellerPayoutsData = allPayoutsData.filter(payout => userRoles.get(payout.sellerId) === 'reseller');
+        
+        setPayouts(resellerPayoutsData);
+        setIsLoading(false);
+    };
+
+    fetchAndFilterPayouts();
   }, [firestore]);
 
-  const { data: allPayouts, isLoading } = useCollection<Payout>(payoutsQuery);
-  const [resellerProfiles, setResellerProfiles] = React.useState<Map<string, UserProfile>>(new Map());
-
-  // We need to filter payouts to only show those from resellers.
-  // First, get all payouts, then get the profiles of the requesters and filter.
-  React.useEffect(() => {
-    if (allPayouts) {
-      const userIds = [...new Set(allPayouts.map(p => p.sellerId))];
-      if (userIds.length > 0) {
-        const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', userIds));
-        getDocs(usersQuery).then(snapshot => {
-          const profiles = new Map<string, UserProfile>();
-          snapshot.forEach(doc => profiles.set(doc.id, doc.data() as UserProfile));
-          setResellerProfiles(profiles);
-        });
-      }
-    }
-  }, [allPayouts, firestore]);
-  
-  const resellerPayouts = React.useMemo(() => {
-    if (!allPayouts || resellerProfiles.size === 0) return [];
-    return allPayouts.filter(payout => resellerProfiles.get(payout.sellerId)?.userRole === 'reseller');
-  }, [allPayouts, resellerProfiles]);
 
   const handleStatusUpdate = async (payoutId: string, status: 'processing' | 'completed' | 'failed') => {
     const payoutRef = doc(firestore, 'payouts', payoutId);
@@ -119,6 +132,8 @@ export default function AdminResellerPayoutsPage() {
         updateData.processedAt = new Date();
       }
       await updateDoc(payoutRef, updateData);
+      // Optimistically update local state for instant UI feedback
+      setPayouts(prev => prev.map(p => p.id === payoutId ? { ...p, status } : p));
       toast({ title: 'Success', description: `Payout status updated to ${status}.` });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update payout status.' });
@@ -191,7 +206,7 @@ export default function AdminResellerPayoutsPage() {
   ], []);
 
   const table = useReactTable({
-    data: resellerPayouts || [],
+    data: payouts,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
