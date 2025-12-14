@@ -27,8 +27,9 @@ import { DatePicker } from '@/components/dashboard/date-picker';
 import React from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, Payout } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const StatCard = ({ title, value, icon: Icon, description, isLoading, isPrimary }: { title: string, value: string, icon: React.ElementType, description?: string, isLoading: boolean, isPrimary?: boolean }) => (
     <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
@@ -60,35 +61,45 @@ export default function ResellerCommissionsPage() {
         if (!user?.uid || !firestore) return null;
         return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
     }, [firestore, user?.uid]);
+
+    const payoutsQuery = useMemoFirebase(() => {
+        if (!user?.uid || !firestore) return null;
+        return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
+    }, [firestore, user?.uid]);
     
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+    const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
 
-    const isLoading = isUserLoading || areOrdersLoading;
+    const isLoading = isUserLoading || areOrdersLoading || arePayoutsLoading;
 
     const commissionStats = React.useMemo(() => {
-        if (!orders) {
+        if (!orders || !payouts) {
             return { total: 0, pending: 0, withdrawable: 0, paidOut: 0 };
         }
         
         let total = 0;
         let pending = 0;
         let withdrawable = 0;
-        // Payouts would need another collection, for now, we assume 0
-        let paidOut = 0;
 
         orders.forEach(order => {
             const commission = order.resellerCommission || 0;
-            total += commission;
-            if (order.orderStatus === 'delivered') {
-                withdrawable += commission;
-            } else if (order.orderStatus === 'processing' || order.orderStatus === 'shipped') {
-                pending += commission;
+            if (commission > 0) {
+                total += commission;
+                if (order.orderStatus === 'delivered') {
+                    withdrawable += commission;
+                } else if (order.orderStatus === 'processing' || order.orderStatus === 'shipped') {
+                    pending += commission;
+                }
             }
         });
+        
+        const paidOut = payouts.reduce((acc, p) => acc + p.amount, 0);
+        withdrawable = withdrawable - paidOut;
+
 
         return { total, pending, withdrawable, paidOut };
 
-    }, [orders]);
+    }, [orders, payouts]);
     
     const recentHistory = React.useMemo(() => {
         if (!orders) return [];
@@ -111,8 +122,10 @@ export default function ResellerCommissionsPage() {
                 <Download className="mr-2 h-4 w-4" />
                 Download Report
             </Button>
-            <Button variant="destructive" className="font-bold">
-              Request Payout <ArrowRight className="ml-2 h-4 w-4" />
+            <Button asChild variant="destructive" className="font-bold">
+              <Link href="/dashboard/reseller/wallet">
+                Request Payout <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -130,7 +143,6 @@ export default function ResellerCommissionsPage() {
                 <CardTitle>Recent Commission History</CardTitle>
                 <CardDescription>Commissions are marked as 'pending' until the order is delivered.</CardDescription>
             </div>
-            {/* <DatePicker /> */}
           </CardHeader>
           <CardContent>
             <Table>
