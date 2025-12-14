@@ -11,6 +11,15 @@ const nextConfig: NextConfig = {
   },
   // This is required for the development server to work correctly in this environment.
   crossOrigin: 'anonymous',
+  // In a future version of Next.js, this will be required.
+  // For now, it's a good practice to add it to silence the warning.
+  devIndicators: {
+    allowedDevOrigins: [
+      'https://*.cloudworkstations.dev',
+      'https://*.firebaseapp.com',
+      'https://*.web.app',
+    ],
+  },
   images: {
     dangerouslyAllowSVG: true,
     remotePatterns: [
