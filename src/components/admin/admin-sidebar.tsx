@@ -198,7 +198,6 @@ export function AdminSidebar() {
             { href: 'roles', label: 'Roles & Permissions' },
             { href: 'security', label: 'Security & 2FA' },
             { href: 'backup', label: 'Backup & Restore' },
-            { href: 'api-keys', label: 'API Keys' },
             { href: 'theme', label: 'Themes' },
             { href: 'server-status', label: 'Server Status' },
           ]}
