@@ -122,32 +122,65 @@ const StatCard = ({
 export default function AdminDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const [isLoading, setIsLoading] = useState(false);
+  const [salesChartData, setSalesChartData] = useState(mockSalesChartData);
+  const [isChartLoading, setIsChartLoading] = useState(true);
 
-  // Use mock data for all sections to keep them frontend-only as requested
-  const salesChartData = mockSalesChartData;
+  useEffect(() => {
+    const fetchSalesData = async () => {
+      if (!user) return;
+      setIsChartLoading(true);
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch('/api/admin/sales-analytics', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch sales data');
+        }
+        const data = await response.json();
+        setSalesChartData(data);
+      } catch (error) {
+        console.error("Error fetching sales data:", error);
+        // Fallback to mock data on error
+        setSalesChartData(mockSalesChartData);
+      } finally {
+        setIsChartLoading(false);
+      }
+    };
+    fetchSalesData();
+  }, [user]);
+
+  const todaysStats = useMemo(() => {
+    if (!salesChartData || salesChartData.length === 0) {
+      return { revenue: 0, orders: 0 };
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const todayData = salesChartData.find(d => d.date === today);
+    return {
+      revenue: todayData?.revenue || 0,
+      orders: todayData?.orders || 0,
+    };
+  }, [salesChartData]);
+
   
   // Using the exact values you provided
-  const todaysRevenue = 560;
-  const dailyOrders = 20;
   const pendingPayoutsTotal = 2340.50;
   const liveVisitors = 0;
   const totalUsers = 1254;
   const totalProducts = 5678;
-
-  const isChartLoading = false; 
+  const isLoading = false; // Mock data is always available
 
 
   const stats = [
      {
       title: "Today's Revenue",
-      value: `$${todaysRevenue.toLocaleString()}`,
+      value: `$${todaysStats.revenue.toLocaleString()}`,
       icon: DollarSign,
       isLoading: isChartLoading,
     },
      {
       title: 'Daily Orders',
-      value: dailyOrders.toLocaleString(),
+      value: todaysStats.orders.toLocaleString(),
       icon: Package,
       isLoading: isChartLoading,
     },
@@ -275,3 +308,5 @@ export default function AdminDashboardPage() {
     </AdminLayout>
   );
 }
+
+    
