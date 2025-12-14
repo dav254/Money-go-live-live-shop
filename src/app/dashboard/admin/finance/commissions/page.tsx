@@ -94,12 +94,10 @@ const DataTableSkeleton = () => (
   </div>
 );
 
-const getStatusBadge = (status: Order['orderStatus']) => {
+const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'delivered':
+    case 'cleared':
       return <Badge className="bg-green-600/80 hover:bg-green-600/70">Cleared</Badge>;
-    case 'shipped':
-    case 'processing':
     case 'pending':
       return <Badge variant="secondary" className="bg-yellow-500/80 hover:bg-yellow-500/70">Pending</Badge>;
     case 'cancelled':
@@ -160,24 +158,24 @@ const columns: ColumnDef<Order>[] = [
     ),
   },
   {
-    accessorKey: 'orderStatus',
+    id: 'commissionStatus',
     header: 'Commission Status',
-    cell: ({ row }) => getStatusBadge(row.original.orderStatus),
+    cell: () => getStatusBadge('pending'), // Placeholder
   },
   {
-    accessorKey: 'orderDate',
+    id: 'date',
     header: ({ column }) => (
       <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')} className="w-full justify-end">
         Date
         <CaretSortIcon className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div className="text-right">{row.original.orderDate?.toDate().toLocaleDateString()}</div>,
+    cell: ({ row }) => <div className="text-right">{'10/25/2023'}</div>, // Placeholder
   },
 ];
 
 export default function AdminCommissionsPage() {
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'orderDate', desc: true }]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'date', desc: true }]);
   const firestore = useFirestore();
 
   // Query for orders that have a resellerId
