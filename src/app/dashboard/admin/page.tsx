@@ -44,7 +44,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { collection, query, where } from 'firebase/firestore';
-import type { LiveSession, UserProfile } from '@/lib/types';
+import type { LiveSession, UserProfile, Product } from '@/lib/types';
 
 
 // --- Static Placeholder Data ---
@@ -138,7 +138,7 @@ export default function AdminDashboardPage() {
     if (!firestore) return null;
     return query(collection(firestore, 'products'));
   }, [firestore]);
-  const { data: allProducts, isLoading: areProductsLoading } = useCollection<UserProfile>(productsQuery);
+  const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   const liveSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -212,7 +212,6 @@ export default function AdminDashboardPage() {
 
   const totalUsers = allUsers?.length || 0;
   const totalProducts = allProducts?.length || 0;
-  const isLoading = areUsersLoading || areProductsLoading;
 
 
   const stats = [
