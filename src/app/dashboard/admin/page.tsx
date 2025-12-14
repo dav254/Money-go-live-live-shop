@@ -359,7 +359,7 @@ export default function AdminDashboardPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `$${"$"}{value}`}
                     />
                      <ChartTooltip
                       cursor={false}
