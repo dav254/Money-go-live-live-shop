@@ -4,6 +4,7 @@ import { Manrope, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
+import { CookieConsentBanner } from '@/components/cookie-consent-banner';
 
 const fontManrope = Manrope({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function RootLayout({
         )}
       >
         <Providers>{children}</Providers>
+        <CookieConsentBanner />
       </body>
     </html>
   );
