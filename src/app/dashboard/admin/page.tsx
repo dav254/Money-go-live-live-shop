@@ -71,6 +71,16 @@ const mockRecentSales = [
   },
 ];
 
+const mockSalesChartData = [
+    { date: '2025-12-08', revenue: 150, orders: 5 },
+    { date: '2025-12-09', revenue: 220, orders: 8 },
+    { date: '2025-12-10', revenue: 180, orders: 6 },
+    { date: '2025-12-11', revenue: 300, orders: 12 },
+    { date: '2025-12-12', revenue: 250, orders: 10 },
+    { date: '2025-12-13', revenue: 450, orders: 15 },
+    { date: '2025-12-14', revenue: 560, orders: 20 },
+];
+
 const chartConfig = {
   revenue: {
     label: 'Revenue',
@@ -111,13 +121,15 @@ const StatCard = ({
 export default function AdminDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const [salesChartData, setSalesChartData] = useState<{ date: string; revenue: number; orders: number }[]>([]);
-  const [todaysRevenue, setTodaysRevenue] = useState(0);
-  const [dailyOrders, setDailyOrders] = useState(0);
-  const [isChartLoading, setIsChartLoading] = useState(true);
   const [liveVisitors, setLiveVisitors] = useState(Math.floor(Math.random() * 30) + 10);
 
-  // Queries for dashboard stats
+  // Use mock data for frontend-only display
+  const salesChartData = mockSalesChartData;
+  const todaysRevenue = salesChartData[salesChartData.length - 1].revenue;
+  const dailyOrders = salesChartData[salesChartData.length - 1].orders;
+  const isChartLoading = false; // Data is now local, so it's never loading
+
+  // Queries for other dashboard stats
   const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
   const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
   const completedPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'completed')), [firestore]);
@@ -151,39 +163,6 @@ export default function AdminDashboardPage() {
 
   const isLoading =
     isLoadingAllUsers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
-
-  useEffect(() => {
-    async function fetchSalesData() {
-      if (!user) return; // Don't fetch if user is not logged in
-
-      setIsChartLoading(true);
-      try {
-        const token = await user.getIdToken();
-        const response = await fetch('/api/admin/sales-analytics', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.details || 'Failed to fetch sales data');
-        }
-        const data = await response.json();
-        setSalesChartData(data);
-        if (data && data.length > 0) {
-            const todayData = data[data.length - 1];
-            setTodaysRevenue(todayData.revenue);
-            setDailyOrders(todayData.orders);
-        }
-
-      } catch (error: any) {
-        console.error(error.message);
-      } finally {
-        setIsChartLoading(false);
-      }
-    }
-    fetchSalesData();
-  }, [user]);
 
   const stats = [
      {
@@ -298,7 +277,7 @@ export default function AdminDashboardPage() {
                       tickLine={false}
                       axisLine={false}
                       tickMargin={8}
-                      tickFormatter={(value) => value.slice(5)} // Show MM-DD
+                      tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     />
                     <YAxis
                       stroke="#888888"
@@ -321,3 +300,5 @@ export default function AdminDashboardPage() {
       </div>
     </AdminLayout>
   );
+
+    
