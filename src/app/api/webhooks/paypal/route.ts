@@ -1,5 +1,5 @@
 
-'use client';
+'use server';
 
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
