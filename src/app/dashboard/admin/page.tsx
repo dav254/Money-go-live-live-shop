@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useMemo, useEffect, useState } from 'react';
@@ -43,7 +44,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { collection, query, where } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
+import type { LiveSession, UserProfile } from '@/lib/types';
 
 
 // --- Static Placeholder Data ---
@@ -126,6 +127,26 @@ export default function AdminDashboardPage() {
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [isPayoutsLoading, setIsPayoutsLoading] = useState(true);
 
+  // --- Data Fetching Hooks ---
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'userProfiles'));
+  }, [firestore]);
+  const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(usersQuery);
+
+  const productsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'products'));
+  }, [firestore]);
+  const { data: allProducts, isLoading: areProductsLoading } = useCollection<UserProfile>(productsQuery);
+
+  const liveSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+  }, [firestore]);
+  const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
+  
+
   // Fetch Sales Analytics
   useEffect(() => {
     const fetchSalesData = async () => {
@@ -189,15 +210,9 @@ export default function AdminDashboardPage() {
     };
   }, [salesChartData]);
 
-  const liveSessionsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-  }, [firestore]);
-  const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
-
-  const totalUsers = 1254;
-  const totalProducts = 5678;
-  const isLoading = false; // Mock data is always available
+  const totalUsers = allUsers?.length || 0;
+  const totalProducts = allProducts?.length || 0;
+  const isLoading = areUsersLoading || areProductsLoading;
 
 
   const stats = [
@@ -230,13 +245,13 @@ export default function AdminDashboardPage() {
       title: 'Total Users',
       value: totalUsers.toLocaleString(), 
       icon: Users,
-      isLoading,
+      isLoading: areUsersLoading,
     },
     {
       title: 'Total Products',
       value: totalProducts.toLocaleString(), 
       icon: ShoppingBag,
-      isLoading,
+      isLoading: areProductsLoading,
     },
   ];
 
@@ -320,7 +335,7 @@ export default function AdminDashboardPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${"$"}{value}`}
+                      tickFormatter={(value) => `$${value}`}
                     />
                      <ChartTooltip
                       cursor={false}
