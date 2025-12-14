@@ -38,11 +38,12 @@ async function checkLiveStreaming(): Promise<Status> {
     return checkExternalService('Live Streaming (Mux)', ['MUX_TOKEN_ID', 'MUX_TOKEN_SECRET']);
 }
 
-// Simulates an API response time check
-function getSimulatedApiResponseTime(): number {
-    const baseResponse = 50 + Math.random() * 100; // 50-150ms
-    const spike = Math.random() > 0.95 ? Math.random() * 200 : 0; // 5% chance of a spike
-    return Math.floor(baseResponse + spike);
+// Measures the actual API response time by performing a quick database health check.
+async function getRealApiResponseTime(): Promise<number> {
+    const startTime = Date.now();
+    await checkFirestoreHealth();
+    const endTime = Date.now();
+    return endTime - startTime;
 }
 
 
@@ -55,14 +56,16 @@ export async function GET(request: Request) {
         upload,
         firestore,
         live,
-        ai
+        ai,
+        apiResponseTime,
     ] = await Promise.all([
         paymentsHealthCheck(),
         followHealthCheck(),
         uploadHealthCheck(),
         checkFirestoreHealth(),
         checkLiveStreaming(),
-        checkAiServices()
+        checkAiServices(),
+        getRealApiResponseTime(),
     ]);
 
     const services: ServiceStatus[] = [
@@ -73,8 +76,6 @@ export async function GET(request: Request) {
       { name: 'Live Streaming (Mux)', status: live },
       { name: 'AI Services (Genkit)', status: ai },
     ];
-    
-    const apiResponseTime = getSimulatedApiResponseTime();
 
     return NextResponse.json({ services, apiResponseTime });
     
