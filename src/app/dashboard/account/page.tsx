@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -313,7 +312,7 @@ const AccountSettingsContent = () => {
                         <AvatarImage src={userProfile?.profilePictureUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
                         <AvatarFallback>{userProfile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
-                    <Button variant="outline"><Camera className="mr-2 h-4 w-4" /> Change Picture</Button>
+                    <Button variant="outline" disabled><Camera className="mr-2 h-4 w-4" /> Change Picture</Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
@@ -335,7 +334,7 @@ const AccountSettingsContent = () => {
                         <Input id="phone" type="tel" defaultValue={userProfile?.phoneNumber} />
                     </div>
                 </div>
-                <Button>Save Changes</Button>
+                <Button disabled>Save Changes</Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -423,7 +422,7 @@ const AccountSettingsContent = () => {
                             <Label>Enable 2FA</Label>
                             <p className="text-sm text-muted-foreground">Keep your account extra secure with a second verification step.</p>
                         </div>
-                        <Button>Enable</Button>
+                        <Button disabled>Enable</Button>
                     </div>
                 </div>
               </CardContent>
@@ -447,7 +446,7 @@ const AccountSettingsContent = () => {
                       <p className="text-sm text-muted-foreground">Manage your notification preferences.</p>
                     </div>
                   </div>
-                  <Button variant="outline">Manage</Button>
+                  <Button variant="outline" disabled>Manage</Button>
                 </div>
                  <div className="flex items-center justify-between rounded-lg border p-4">
                   <div className="flex items-center gap-4">
@@ -467,7 +466,7 @@ const AccountSettingsContent = () => {
                        <p className="text-sm text-muted-foreground">Select your preferred language.</p>
                     </div>
                   </div>
-                   <Select defaultValue="en">
+                   <Select defaultValue="en" disabled>
                       <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder="Language" />
                       </SelectTrigger>
@@ -531,5 +530,3 @@ export default function AccountSettingsPage() {
         </MainLayout>
     );
 }
-
-    
