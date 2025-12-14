@@ -250,7 +250,7 @@ function ReportIssueForm() {
     );
 }
 
-export default function ReportIssuePage() {
+export default function ReportIssuePage({ user, userProfile, isLoading }: any) {
     return (
         <ResellerLayout>
             <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
@@ -272,4 +272,3 @@ export default function ReportIssuePage() {
         </ResellerLayout>
     );
 }
-
