@@ -30,35 +30,46 @@ import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase
 import { collection, doc, query, where } from 'firebase/firestore';
 
 
-// --- MOCK DATA ---
-
-const mockUsers: UserProfile[] = [
-    { id: 'reseller-1', fullName: 'Jane Reseller', profilePictureUrl: 'https://picsum.photos/seed/reseller1/40', userRole: 'reseller' },
-    { id: 'seller-1', fullName: 'Trendy Threads', profilePictureUrl: 'https://picsum.photos/seed/seller1/40', userRole: 'seller' },
-    { id: 'reseller-2', fullName: 'Marketer Mike', profilePictureUrl: 'https://picsum.photos/seed/reseller2/40', userRole: 'reseller' },
-    { id: 'seller-2', fullName: 'Flashy Gadgets', profilePictureUrl: 'https://picsum.photos/seed/seller2/40', userRole: 'seller' },
-];
-
-// --- END MOCK DATA ---
-
-
 const UserCell = ({ userId, label }: { userId: string; label: string }) => {
-  const user = mockUsers.find(u => u.id === userId);
+    const firestore = useFirestore();
 
-  if (!user) return <Skeleton className="h-5 w-24" />;
-  return (
-    <div className="flex items-center gap-2">
-      <Avatar className="h-6 w-6">
-        <AvatarImage src={user?.profilePictureUrl} />
-        <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
-      </Avatar>
-      <div className="flex flex-col">
-        <span className="text-xs">{user?.fullName}</span>
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </div>
-    </div>
-  );
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !userId) return null;
+        return doc(firestore, 'userProfiles', userId);
+    }, [firestore, userId]);
+    
+    const { data: user, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-2">
+                <Skeleton className="h-6 w-6 rounded-full" />
+                <div className="flex flex-col space-y-1">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-3 w-12" />
+                </div>
+            </div>
+        );
+    }
+    
+    if (!user) {
+        return <span className="text-xs text-muted-foreground">Unknown User</span>;
+    }
+
+    return (
+        <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+                <AvatarImage src={user?.profilePictureUrl} />
+                <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+                <span className="text-xs font-medium">{user?.fullName}</span>
+                <span className="text-xs text-muted-foreground">{label}</span>
+            </div>
+        </div>
+    );
 };
+
 
 const DataTableSkeleton = () => (
   <div className="rounded-md border">
