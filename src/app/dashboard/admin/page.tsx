@@ -33,10 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Order, Payout, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
@@ -120,8 +118,8 @@ const StatCard = ({
 
 export default function AdminDashboardPage() {
   const { user } = useUser();
-  const firestore = useFirestore();
   const [liveVisitors, setLiveVisitors] = useState(Math.floor(Math.random() * 30) + 10);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Use mock data for frontend-only display
   const salesChartData = mockSalesChartData;
@@ -129,17 +127,11 @@ export default function AdminDashboardPage() {
   const dailyOrders = salesChartData[salesChartData.length - 1].orders;
   const isChartLoading = false; // Data is now local, so it's never loading
 
-  // Queries for other dashboard stats
-  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
-  const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
-  const completedPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'completed')), [firestore]);
-  const pendingPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'pending')), [firestore]);
-
-  const { data: allUsers, isLoading: isLoadingAllUsers } = useCollection(usersQuery);
-  const { data: products, isLoading: isLoadingProducts } = useCollection(productsQuery);
-  const { data: completedPayouts, isLoading: isLoadingPayouts } = useCollection<Payout>(completedPayoutsQuery);
-  const { data: pendingPayouts, isLoading: isLoadingPendingPayouts } = useCollection<Payout>(pendingPayoutsQuery);
-
+  // Simulate loading
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Simulate live visitor count
   useEffect(() => {
@@ -155,14 +147,7 @@ export default function AdminDashboardPage() {
   }, []);
 
 
-  const pendingPayoutsTotal = useMemo(() => {
-    if (!pendingPayouts) return 0;
-    return pendingPayouts.reduce((total, payout) => total + payout.amount, 0);
-  }, [pendingPayouts]);
-
-
-  const isLoading =
-    isLoadingAllUsers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
+  const pendingPayoutsTotal = 2340.50; // Mock data
 
   const stats = [
      {
@@ -192,13 +177,13 @@ export default function AdminDashboardPage() {
     },
     {
       title: 'Total Users',
-      value: (allUsers?.length || 0).toLocaleString(),
+      value: '1,254', // Mock data
       icon: Users,
       isLoading,
     },
     {
       title: 'Total Products',
-      value: (products?.length || 0).toLocaleString(),
+      value: '5,678', // Mock data
       icon: ShoppingBag,
       isLoading,
     },
@@ -284,7 +269,7 @@ export default function AdminDashboardPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${"$"}{value}`}
+                      tickFormatter={(value) => `$${value}`}
                     />
                      <ChartTooltip
                       cursor={false}
@@ -300,5 +285,4 @@ export default function AdminDashboardPage() {
       </div>
     </AdminLayout>
   );
-
-    
+}
