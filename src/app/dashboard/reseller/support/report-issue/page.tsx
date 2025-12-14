@@ -8,21 +8,28 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { ShieldAlert, Upload, HelpCircle, User, Package, Bug, File as FileIcon, X } from 'lucide-react';
+import { ShieldAlert, Upload, HelpCircle, User, Package, Bug, File as FileIcon, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { useUser } from '@/firebase';
+import { createComplaint } from '@/app/actions/complaint-actions';
 
 function ReportIssueForm() {
     const searchParams = useSearchParams();
-    const issueType = searchParams.get('type') || 'bug';
+    const { user } = useUser();
     const { toast } = useToast();
+    
+    const [issueType, setIssueType] = useState(searchParams.get('type') || 'bug');
+    const [subject, setSubject] = useState('');
+    const [description, setDescription] = useState('');
+    const [targetId, setTargetId] = useState('');
+    
     const [files, setFiles] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-    const [isUploading, setIsUploading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,28 +90,48 @@ function ReportIssueForm() {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        // In a real app, you would gather form data here.
-        setIsUploading(true);
-        toast({ title: 'Submitting Report...', description: 'Please wait while we upload your files.' });
+        if (!user) {
+            toast({ variant: 'destructive', title: 'You must be logged in to submit a report.'});
+            return;
+        }
+        if (!subject || !description) {
+            toast({ variant: 'destructive', title: 'Please fill out all required fields.' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        toast({ title: 'Submitting Report...', description: 'Please wait.' });
 
         try {
-            const uploadPromises = files.map(file => uploadToCloudinary(file));
-            const uploadedFiles = await Promise.all(uploadPromises);
+            const uploadedFileUrls = (await Promise.all(files.map(file => uploadToCloudinary(file)))).map(f => f.url);
 
-            // Now you have the URLs of the uploaded files in `uploadedFiles`.
-            // You can now submit these URLs along with the rest of the form data to your backend.
-            console.log('Uploaded files:', uploadedFiles);
+            const payload = {
+                complainantId: user.uid,
+                targetId: issueType === 'bug' ? 'system' : targetId,
+                targetType: issueType === 'bug' ? 'system' : (issueType === 'order' ? 'product' : 'user'),
+                reason: subject,
+                description,
+                orderId: issueType === 'order' ? targetId : undefined,
+                uploadedFileUrls,
+            };
 
-            toast({ title: 'Report Submitted', description: 'Thank you for your feedback. Our team will review it shortly.' });
-            // Reset form state
-            setFiles([]);
-            setUploadProgress({});
-            // Potentially reset other form fields as well.
-        } catch (error) {
+            const result = await createComplaint(payload as any);
+
+            if (result.success) {
+                toast({ title: 'Report Submitted', description: 'Thank you for your feedback. Our team will review it shortly.' });
+                setFiles([]);
+                setUploadProgress({});
+                setSubject('');
+                setDescription('');
+                setTargetId('');
+            } else {
+                throw new Error(result.error || 'Failed to submit report.');
+            }
+        } catch (error: any) {
             console.error("Error submitting report:", error);
-            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not upload your files. Please try again.' });
+            toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || 'Could not submit your report. Please try again.' });
         } finally {
-            setIsUploading(false);
+            setIsSubmitting(false);
         }
     };
 
@@ -123,7 +150,7 @@ function ReportIssueForm() {
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <Label htmlFor="issue-type">Report Type</Label>
-                        <Select defaultValue={issueType}>
+                        <Select value={issueType} onValueChange={setIssueType}>
                             <SelectTrigger id="issue-type">
                                 <SelectValue placeholder="Select a report type" />
                             </SelectTrigger>
@@ -137,27 +164,29 @@ function ReportIssueForm() {
                     
                     {issueType === 'buyer' && (
                         <div className="space-y-2">
-                            <Label htmlFor="buyer-id">Buyer Username or ID</Label>
-                            <Input id="buyer-id" placeholder="Enter the buyer's username or profile ID" />
+                            <Label htmlFor="target-id">Buyer Username or ID</Label>
+                            <Input id="target-id" value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="Enter the buyer's username or profile ID" />
                         </div>
                     )}
 
                     {issueType === 'order' && (
                         <div className="space-y-2">
-                            <Label htmlFor="order-id">Order ID</Label>
-                            <Input id="order-id" placeholder="Enter the relevant Order ID (e.g., #ORD-12345)" />
+                            <Label htmlFor="target-id">Order ID</Label>
+                            <Input id="target-id" value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="Enter the relevant Order ID (e.g., #ORD-12345)" />
                         </div>
                     )}
                     
                     <div className="space-y-2">
                         <Label htmlFor="subject">Subject</Label>
-                        <Input id="subject" placeholder="A brief summary of the issue" />
+                        <Input id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="A brief summary of the issue" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="description">Detailed Description</Label>
                         <Textarea
                             id="description"
                             rows={8}
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
                             placeholder="Please provide as much detail as possible. What happened? What did you expect to happen? Include steps to reproduce if it's a bug."
                         />
                     </div>
@@ -169,17 +198,17 @@ function ReportIssueForm() {
                             multiple
                             className="hidden"
                             onChange={handleFileChange}
-                            disabled={isUploading}
+                            disabled={isSubmitting}
                         />
                         <Button
                             type="button"
                             variant="outline"
                             className="w-full"
                             onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
+                            disabled={isSubmitting}
                         >
                             <Upload className="mr-2 h-4 w-4" />
-                            {isUploading ? 'Uploading...' : 'Choose File(s)'}
+                            {isSubmitting ? 'Submitting...' : 'Choose File(s)'}
                         </Button>
                     </div>
                     
@@ -202,7 +231,7 @@ function ReportIssueForm() {
                                         size="icon"
                                         className="h-7 w-7 text-muted-foreground"
                                         onClick={() => handleFileRemove(file.name)}
-                                        disabled={isUploading}
+                                        disabled={isSubmitting}
                                     >
                                         <X className="h-4 w-4" />
                                     </Button>
@@ -211,8 +240,9 @@ function ReportIssueForm() {
                         </div>
                     )}
 
-                    <Button type="submit" variant="destructive" className="w-full font-semibold" disabled={isUploading}>
-                        {isUploading ? 'Submitting...' : 'Submit Report'}
+                    <Button type="submit" variant="destructive" className="w-full font-semibold" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        {isSubmitting ? 'Submitting...' : 'Submit Report'}
                     </Button>
                 </CardContent>
             </form>
@@ -222,21 +252,24 @@ function ReportIssueForm() {
 
 export default function ReportIssuePage() {
     return (
-        <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
-                <div className="flex items-center justify-between space-y-2">
-                    <h1 className="font-headline text-3xl font-bold tracking-tight">
-                        Report an Issue
-                    </h1>
-                     <Button asChild variant="outline">
-                        <Link href="/dashboard/reseller/support/help-center">
-                            <HelpCircle className="mr-2 h-4 w-4" />
-                            Back to Help Center
-                        </Link>
-                    </Button>
-                </div>
+        <ResellerLayout>
+            <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
+                    <div className="flex items-center justify-between space-y-2">
+                        <h1 className="font-headline text-3xl font-bold tracking-tight">
+                            Report an Issue
+                        </h1>
+                        <Button asChild variant="outline">
+                            <Link href="/dashboard/reseller/support/help-center">
+                                <HelpCircle className="mr-2 h-4 w-4" />
+                                Back to Help Center
+                            </Link>
+                        </Button>
+                    </div>
                 <Suspense fallback={<div>Loading form...</div>}>
                     <ReportIssueForm />
                 </Suspense>
             </div>
+        </ResellerLayout>
     );
 }
+
