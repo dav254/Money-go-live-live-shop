@@ -1,27 +1,26 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
 import { SidebarTrigger } from '../ui/sidebar';
-import { useUser, useUserProfile } from '@/firebase';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { ResellerSidebar } from './reseller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
+import type { UserProfile } from '@/lib/types';
 
-export function ResellerHeader() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
- 
-  const isLoading = isUserLoading || isProfileLoading;
+interface ResellerHeaderProps {
+    userProfile: UserProfile | null;
+    isLoading: boolean;
+}
 
+export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) {
   const resellerName = userProfile?.fullName || 'Reseller';
-  const resellerAvatar = userProfile?.profilePictureUrl || `https://picsum.photos/seed/${user?.uid}/100`;
+  const resellerAvatar = userProfile?.profilePictureUrl || `https://picsum.photos/seed/${userProfile?.id}/100`;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">

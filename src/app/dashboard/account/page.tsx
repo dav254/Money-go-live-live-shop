@@ -1,13 +1,13 @@
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, cloneElement } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
   CardContent,
@@ -40,7 +40,6 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { File as FileIcon, X, UploadCloud } from 'lucide-react';
-import { ResellerLayout } from '@/components/layout/reseller-layout';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -58,9 +57,7 @@ const profileFormSchema = z.object({
 });
 
 
-const SellerVerificationForm = () => {
-    const { user } = useUser();
-    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -245,9 +242,7 @@ const SellerVerificationForm = () => {
     );
 };
 
-const AccountSettingsContent = () => {
-    const { user } = useUser();
-    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading }) => {
     const { toast } = useToast();
     const auth = getAuth();
     const firestore = useFirestore();
@@ -265,9 +260,9 @@ const AccountSettingsContent = () => {
     const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
-            fullName: '',
-            username: '',
-            phoneNumber: '',
+            fullName: userProfile?.fullName || '',
+            username: userProfile?.username || '',
+            phoneNumber: userProfile?.phoneNumber || '',
         }
     });
 
@@ -468,7 +463,7 @@ const AccountSettingsContent = () => {
                         <CardDescription>Verify your identity to unlock all seller features and build trust with buyers.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <SellerVerificationForm />
+                        <SellerVerificationForm user={user} userProfile={userProfile} isLoading={isProfileLoading}/>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -595,7 +590,7 @@ const AccountSettingsContent = () => {
   );
 }
 
-export default function AccountSettingsPage() {
+export default function AccountSettingsPageWrapper() {
     const { user, isLoading: isUserLoading } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const isLoading = isUserLoading || isProfileLoading;
@@ -613,7 +608,7 @@ export default function AccountSettingsPage() {
     if (userProfile?.userRole === 'seller') {
         return (
             <SellerLayout>
-                <AccountSettingsContent />
+                <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />
             </SellerLayout>
         );
     }
@@ -621,15 +616,16 @@ export default function AccountSettingsPage() {
     if (userProfile?.userRole === 'buyer') {
         return (
             <BuyerLayout>
-                <AccountSettingsContent />
+                <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />
             </BuyerLayout>
         );
     }
     
     if (userProfile?.userRole === 'reseller') {
+        // Here we pass the loaded data as props
         return (
             <ResellerLayout>
-                <AccountSettingsContent />
+                <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />
             </ResellerLayout>
         );
     }
@@ -637,7 +633,7 @@ export default function AccountSettingsPage() {
     // Fallback for other roles or if role is not defined
     return (
         <MainLayout>
-            <AccountSettingsContent />
+            <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />
         </MainLayout>
     );
 }

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, cloneElement } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sidebar,
@@ -16,6 +16,7 @@ import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Logo } from '../logo';
 import { ResellerHeader } from '../reseller/reseller-header';
+import React from 'react';
 
 export function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -25,10 +26,8 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading) {
       if (!user) {
-        // Not logged in, redirect to login page
         router.replace('/login');
       } else if (userProfile && userProfile.userRole !== 'reseller') {
-        // Logged in, but not a reseller, redirect to homepage for role-based routing
         router.replace('/');
       }
     }
@@ -44,10 +43,16 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Render nothing if we are about to redirect
   if (!user || (userProfile && userProfile.userRole !== 'reseller')) {
     return null;
   }
+  
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+      return cloneElement(child as React.ReactElement<any>, { user, userProfile, isLoading });
+    }
+    return child;
+  });
 
   return (
     <SidebarProvider>
@@ -60,10 +65,10 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
       </Sidebar>
       <SidebarInset>
-        <ResellerHeader />
+        <ResellerHeader userProfile={userProfile} isLoading={isLoading} />
         <main>
           <FirebaseErrorListener />
-          {children}
+          {childrenWithProps}
         </main>
       </SidebarInset>
     </SidebarProvider>
