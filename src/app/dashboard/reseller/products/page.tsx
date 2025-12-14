@@ -31,7 +31,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
 
         setIsSharing(true);
 
-        const baseUrl = `https://goearnvid.shop`;
+        const baseUrl = window.location.origin;
         const shareUrl = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
         
         try {

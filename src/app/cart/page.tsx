@@ -132,17 +132,20 @@ export default function CartPage() {
             id: newOrderRef.id,
             buyerId: user.uid,
             sellerId: firstItem.sellerId, // Simplified: assumes all items from one seller
-            productId: firstItem.productId, // Simplified
-            productName: firstItem.name, // Simplified
-            productImage: firstItem.imageUrl, // Simplified
-            productPrice: firstItem.price, // Simplified
+            items: cartItems.map(item => ({
+                productId: item.productId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                imageUrl: item.imageUrl
+            })),
+            subtotal: subtotal,
             shippingCost: shippingCost,
             totalAmount: total,
             orderDate: serverTimestamp() as any,
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            quantity: firstItem.quantity, // Simplified
             ...(resellerId && { resellerId: resellerId }),
         };
 
