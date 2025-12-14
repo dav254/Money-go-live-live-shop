@@ -22,14 +22,22 @@ import {
   ArrowRight,
   Download,
   Wallet,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { DatePicker } from '@/components/dashboard/date-picker';
-import React from 'react';
+import React, { useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Order, Payout } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRange } from 'react-day-picker';
+import { addDays, format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { Calendar } from '@/components/ui/calendar';
 
 const StatCard = ({ title, value, icon: Icon, description, isLoading, isPrimary }: { title: string, value: string, icon: React.ElementType, description?: string, isLoading: boolean, isPrimary?: boolean }) => (
     <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
@@ -52,6 +60,61 @@ const StatCard = ({ title, value, icon: Icon, description, isLoading, isPrimary 
       </CardContent>
     </Card>
 );
+
+const DownloadReportDialog = () => {
+    const [date, setDate] = React.useState<DateRange | undefined>({
+      from: addDays(new Date(), -30),
+      to: new Date(),
+    });
+    const { toast } = useToast();
+
+    const handleGenerate = () => {
+        toast({
+            title: 'Feature Coming Soon!',
+            description: 'Report generation is currently under development.',
+        });
+    }
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Download Commission Report</DialogTitle>
+                <DialogDescription>Select a date range and format for your report.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label>Date Range</Label>
+                    <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={1}
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label>Format</Label>
+                    <Select defaultValue="csv">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a format" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="csv">CSV (Comma-Separated Values)</SelectItem>
+                            <SelectItem value="pdf">PDF (Portable Document Format)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button onClick={handleGenerate}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Generate & Download
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    )
+}
 
 export default function ResellerCommissionsPage() {
     const { user, isLoading: isUserLoading } = useUser();
@@ -118,10 +181,15 @@ export default function ResellerCommissionsPage() {
             Commissions & Earnings
           </h1>
           <div className="flex items-center space-x-2">
-            <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Download Report
-            </Button>
+            <Dialog>
+                <DialogTrigger asChild>
+                     <Button variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Report
+                    </Button>
+                </DialogTrigger>
+                <DownloadReportDialog />
+            </Dialog>
             <Button asChild variant="destructive" className="font-bold">
               <Link href="/dashboard/reseller/wallet">
                 Request Payout <ArrowRight className="ml-2 h-4 w-4" />
