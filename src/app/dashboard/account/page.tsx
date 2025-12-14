@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -50,6 +50,13 @@ const passwordFormSchema = z.object({
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
+
+const profileFormSchema = z.object({
+    fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+    username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
+    phoneNumber: z.string().optional(),
+});
+
 
 const SellerVerificationForm = () => {
     const { user } = useUser();
@@ -243,12 +250,79 @@ const AccountSettingsContent = () => {
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const auth = getAuth();
+    const firestore = useFirestore();
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+    const [isProfileSaving, setIsProfileSaving] = useState(false);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
       resolver: zodResolver(passwordFormSchema),
       defaultValues: { oldPassword: '', newPassword: '', confirmPassword: '' },
     });
+    
+    const profileForm = useForm<z.infer<typeof profileFormSchema>>({
+        resolver: zodResolver(profileFormSchema),
+    });
+
+    useEffect(() => {
+        if (userProfile) {
+            profileForm.reset({
+                fullName: userProfile.fullName || '',
+                username: userProfile.username || '',
+                phoneNumber: userProfile.phoneNumber || '',
+            });
+            setAvatarUrl(userProfile.profilePictureUrl || `https://picsum.photos/seed/${user?.uid}/100/100`);
+        }
+    }, [userProfile, profileForm, user?.uid]);
+    
+    async function uploadToCloudinary(file: File): Promise<string> {
+        const timestamp = Math.round((new Date()).getTime() / 1000);
+        const paramsToSign = { timestamp, folder: 'avatars' };
+
+        const signatureResponse = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paramsToSign }),
+        });
+        const { signature } = await signatureResponse.json();
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+        formData.append('timestamp', timestamp.toString());
+        formData.append('signature', signature);
+        formData.append('folder', 'avatars');
+
+        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+        const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+
+        const response = await fetch(uploadUrl, { method: 'POST', body: formData });
+        if (!response.ok) throw new Error('Cloudinary upload failed.');
+        
+        const uploadedData = await response.json();
+        return uploadedData.secure_url;
+    };
+
+    const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        toast({ title: 'Uploading new picture...' });
+        
+        try {
+            const uploadedUrl = await uploadToCloudinary(file);
+            setAvatarUrl(uploadedUrl);
+            toast({ title: 'Picture Updated!', description: 'Click "Save Changes" to apply.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your picture.' });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
 
     async function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
       if (!user || !user.email) {
@@ -276,6 +350,27 @@ const AccountSettingsContent = () => {
       }
     }
 
+     async function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
+        if (!user || !firestore) return;
+        setIsProfileSaving(true);
+        const userRef = doc(firestore, 'userProfiles', user.uid);
+        
+        const dataToUpdate = {
+            ...values,
+            profilePictureUrl: avatarUrl,
+        };
+
+        try {
+            await updateDoc(userRef, dataToUpdate);
+            toast({ title: 'Profile Updated!', description: 'Your changes have been saved.' });
+        } catch (error) {
+            console.error("Profile update error:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not save your profile.' });
+        } finally {
+            setIsProfileSaving(false);
+        }
+    }
+
   return (
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -301,42 +396,62 @@ const AccountSettingsContent = () => {
           
           <TabsContent value="profile" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>My Profile</CardTitle>
-                <CardDescription>
-                  Manage your personal information.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center gap-6">
-                    <Avatar className="h-20 w-20">
-                        <AvatarImage src={userProfile?.profilePictureUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
-                        <AvatarFallback>{userProfile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <Button variant="outline" disabled><Camera className="mr-2 h-4 w-4" /> Change Picture</Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
-                        <Input id="username" defaultValue={userProfile?.username} disabled />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="display-name">Display Name</Label>
-                        <Input id="display-name" defaultValue={userProfile?.fullName} disabled />
-                    </div>
-                </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" defaultValue={userProfile?.email} readOnly disabled />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" type="tel" defaultValue={userProfile?.phoneNumber} disabled />
-                    </div>
-                </div>
-                <Button disabled>Save Changes</Button>
-              </CardContent>
+                <Form {...profileForm}>
+                    <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
+                        <CardHeader>
+                            <CardTitle>My Profile</CardTitle>
+                            <CardDescription>
+                            Manage your personal information.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex items-center gap-6">
+                                <Avatar className="h-20 w-20">
+                                    <AvatarImage src={avatarUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
+                                    <AvatarFallback>{userProfile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
+                                <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()} disabled={isUploading}>
+                                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4" />}
+                                    {isUploading ? 'Uploading...' : 'Change Picture'}
+                                </Button>
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField control={profileForm.control} name="username" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Username</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={profileForm.control} name="fullName" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Display Name</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email Address</Label>
+                                    <Input id="email" type="email" defaultValue={userProfile?.email} readOnly disabled />
+                                </div>
+                                <FormField control={profileForm.control} name="phoneNumber" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Phone Number</FormLabel>
+                                        <FormControl><Input type="tel" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <Button type="submit" disabled={isProfileSaving || isUploading}>
+                                {isProfileSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                Save Changes
+                            </Button>
+                        </CardContent>
+                    </form>
+                </Form>
             </Card>
           </TabsContent>
 
