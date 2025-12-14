@@ -43,7 +43,9 @@ export function AdminHeader() {
                 <AvatarImage src={adminAvatar} />
                 <AvatarFallback>{adminName.charAt(0)}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-semibold">{adminName}</span>
+              <span className="hidden text-sm font-semibold sm:inline">
+                Welcome, {adminName}
+              </span>
             </>
           )}
         </div>
