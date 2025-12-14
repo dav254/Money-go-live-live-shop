@@ -67,7 +67,7 @@ const columns: ColumnDef<LiveSession>[] = [
   {
     accessorKey: 'viewerCount',
     header: () => <div className="text-right">Viewers</div>,
-    cell: ({ row }) => <div className="text-right flex items-center justify-end gap-2"><Users className="h-4 w-4 text-muted-foreground" /> {row.original.viewerCount.toLocaleString()}</div>,
+    cell: ({ row }) => <div className="text-right flex items-center justify-end gap-2"><Users className="h-4 w-4 text-muted-foreground" /> {(row.original.viewerCount || 0).toLocaleString()}</div>,
   },
    {
     accessorKey: 'startTime',
