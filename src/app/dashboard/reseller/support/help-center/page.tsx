@@ -40,8 +40,7 @@ export default function ResellerHelpCenterPage() {
     }, [articles]);
 
     return (
-        <ResellerLayout>
-            <div className="flex-1 space-y-8 p-8 pt-6">
+        <div className="flex-1 space-y-8 p-8 pt-6">
                  <div className="flex items-center justify-between space-y-2">
                     <h1 className="font-headline text-3xl font-bold tracking-tight">
                         Help Center
@@ -113,6 +112,5 @@ export default function ResellerHelpCenterPage() {
                     </CardContent>
                 </Card>
             </div>
-        </ResellerLayout>
     );
 }

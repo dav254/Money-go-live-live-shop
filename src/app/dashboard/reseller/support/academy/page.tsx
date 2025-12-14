@@ -34,8 +34,7 @@ export default function ResellerAcademyPage() {
     const { data: tutorials, isLoading } = useCollection<HelpArticle>(tutorialsQuery);
 
     return (
-        <ResellerLayout>
-            <div className="flex-1 space-y-8 p-8 pt-6">
+        <div className="flex-1 space-y-8 p-8 pt-6">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold tracking-tight">
                         Go Earn Academy
@@ -154,6 +153,5 @@ export default function ResellerAcademyPage() {
                     </div>
                 </div>
             </div>
-        </ResellerLayout>
     );
 }

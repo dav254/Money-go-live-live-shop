@@ -58,7 +58,6 @@ export default function CaptionGeneratorPage() {
   };
 
   return (
-    <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <Card>
@@ -158,6 +157,5 @@ export default function CaptionGeneratorPage() {
           </Card>
         </div>
       </div>
-    </ResellerLayout>
   );
 }

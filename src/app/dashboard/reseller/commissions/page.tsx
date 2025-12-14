@@ -27,7 +27,7 @@ import {
 import React, { useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Order, Payout } from '@/lib/types';
+import type { Order, Payout, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -188,7 +188,7 @@ const DownloadReportDialog = ({ orders, resellerName }: { orders: Order[], resel
     )
 }
 
-export default function ResellerCommissionsPage() {
+export default function ResellerCommissionsPage({ user: authUser, userProfile }: { user: any, userProfile: UserProfile }) {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
@@ -246,7 +246,6 @@ export default function ResellerCommissionsPage() {
 
 
   return (
-    <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -331,6 +330,5 @@ export default function ResellerCommissionsPage() {
           </CardContent>
         </Card>
       </div>
-    </ResellerLayout>
   );
 }

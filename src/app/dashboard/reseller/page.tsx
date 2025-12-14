@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, UserProfile } from '@/lib/types';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
@@ -34,8 +34,7 @@ const chartConfig = {
 };
 
 
-export default function ResellerDashboardPage() {
-    const { user, isLoading: isUserLoading } = useUser();
+export default function ResellerDashboardPage({ user, userProfile, isLoading: layoutIsLoading }: { user: any, userProfile: UserProfile, isLoading: boolean }) {
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
@@ -45,7 +44,7 @@ export default function ResellerDashboardPage() {
     
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
-    const isLoading = isUserLoading || areOrdersLoading;
+    const isLoading = layoutIsLoading || areOrdersLoading;
     
     const chartData = useMemo(() => {
         const data: { date: string; earnings: number }[] = [];
@@ -71,7 +70,6 @@ export default function ResellerDashboardPage() {
 
 
   return (
-    <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
             <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -142,6 +140,5 @@ export default function ResellerDashboardPage() {
         </Card>
         
       </div>
-    </ResellerLayout>
   );
 }

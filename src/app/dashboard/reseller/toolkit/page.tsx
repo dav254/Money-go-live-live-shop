@@ -139,12 +139,10 @@ const BuyPointsDialog = () => {
 };
 
 
-export default function ResellerToolkitPage() {
+export default function ResellerToolkitPage({ userProfile, isLoading }: { userProfile: any, isLoading: boolean }) {
   const { user } = useUser();
-  const { userProfile, isLoading } = useUserProfile(user?.uid);
 
   return (
-    <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
             <div>
@@ -202,6 +200,5 @@ export default function ResellerToolkitPage() {
             ))}
         </div>
       </div>
-    </ResellerLayout>
   );
 }
