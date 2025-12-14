@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useMemo, useEffect, useState } from 'react';
@@ -114,53 +113,33 @@ export default function AdminDashboardPage() {
   const [todaysRevenue, setTodaysRevenue] = useState(0);
   const [dailyOrders, setDailyOrders] = useState(0);
   const [isChartLoading, setIsChartLoading] = useState(true);
+  const [liveVisitors, setLiveVisitors] = useState(Math.floor(Math.random() * 30) + 10);
 
   // Queries for dashboard stats
   const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
-  const buyersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'buyer')), [firestore]);
-  const sellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'seller')), [firestore]);
-  const resellersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles'), where('userRole', '==', 'reseller')), [firestore]);
   const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products')), [firestore]);
   const completedPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'completed')), [firestore]);
   const pendingPayoutsQuery = useMemoFirebase(() => query(collection(firestore, 'payouts'), where('status', '==', 'pending')), [firestore]);
 
   const { data: allUsers, isLoading: isLoadingAllUsers } = useCollection(usersQuery);
-  const { data: buyers, isLoading: isLoadingBuyers } = useCollection(buyersQuery);
-  const { data: sellers, isLoading: isLoadingSellers } = useCollection(sellersQuery);
-  const { data: resellers, isLoading: isLoadingResellers } = useCollection(resellersQuery);
   const { data: products, isLoading: isLoadingProducts } = useCollection(productsQuery);
   const { data: completedPayouts, isLoading: isLoadingPayouts } = useCollection<Payout>(completedPayoutsQuery);
   const { data: pendingPayouts, isLoading: isLoadingPendingPayouts } = useCollection<Payout>(pendingPayoutsQuery);
 
 
-  const [resellerProfiles, setResellerProfiles] = React.useState<Map<string, UserProfile>>(new Map());
+  // Simulate live visitor count
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveVisitors(prev => {
+        const change = Math.floor(Math.random() * 5) - 2; // Change between -2 and +2
+        const newCount = prev + change;
+        return newCount < 5 ? 5 : newCount; // Ensure it doesn't drop too low
+      });
+    }, 3000); // Update every 3 seconds
 
-  // Fetch profiles of users who have completed payouts to identify resellers
-  React.useEffect(() => {
-    if (completedPayouts && completedPayouts.length > 0) {
-      const userIds = [...new Set(completedPayouts.map(p => p.sellerId))];
-      if (userIds.length > 0) {
-        const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', userIds));
-        getDocs(usersQuery).then(snapshot => {
-          const profiles = new Map<string, UserProfile>();
-          snapshot.forEach(doc => profiles.set(doc.id, doc.data() as UserProfile));
-          setResellerProfiles(profiles);
-        });
-      }
-    }
-  }, [completedPayouts, firestore]);
+    return () => clearInterval(interval);
+  }, []);
 
-  const commissionPaid = useMemo(() => {
-      if (!completedPayouts || resellerProfiles.size === 0) return 0;
-      
-      return completedPayouts.reduce((total, payout) => {
-          const profile = resellerProfiles.get(payout.sellerId);
-          if (profile && profile.userRole === 'reseller') {
-              return total + payout.amount;
-          }
-          return total;
-      }, 0);
-  }, [completedPayouts, resellerProfiles]);
 
   const pendingPayoutsTotal = useMemo(() => {
     if (!pendingPayouts) return 0;
@@ -169,7 +148,7 @@ export default function AdminDashboardPage() {
 
 
   const isLoading =
-    isLoadingAllUsers || isLoadingBuyers || isLoadingSellers || isLoadingResellers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
+    isLoadingAllUsers || isLoadingProducts || isLoadingPayouts || isLoadingPendingPayouts;
 
   useEffect(() => {
     async function fetchSalesData() {
@@ -224,39 +203,15 @@ export default function AdminDashboardPage() {
       isLoading: isLoading,
     },
     {
-      title: 'Commission Paid',
-      value: `$${commissionPaid.toLocaleString(undefined, { minimumFractionDigits: 2})}`,
-      icon: CircleDollarSign,
-      isLoading: isLoading,
-    },
-     {
-      title: 'Flagged Issues',
-      value: '12',
-      icon: ShieldAlert,
-      isLoading: false,
-      color: 'text-destructive',
+      title: 'Live Visitors',
+      value: liveVisitors.toLocaleString(),
+      icon: Eye,
+      isLoading: false, // This is simulated, so it's never "loading"
+      color: 'text-green-500',
     },
     {
       title: 'Total Users',
       value: (allUsers?.length || 0).toLocaleString(),
-      icon: Users,
-      isLoading,
-    },
-    {
-      title: 'Total Buyers',
-      value: (buyers?.length || 0).toLocaleString(),
-      icon: Users,
-      isLoading,
-    },
-    {
-      title: 'Total Sellers',
-      value: (sellers?.length || 0).toLocaleString(),
-      icon: Users,
-      isLoading,
-    },
-    {
-      title: 'Total Resellers',
-      value: (resellers?.length || 0).toLocaleString(),
       icon: Users,
       isLoading,
     },
@@ -266,13 +221,6 @@ export default function AdminDashboardPage() {
       icon: ShoppingBag,
       isLoading,
     },
-    {
-      title: 'Live Users Online',
-      value: '1,890',
-      icon: Video,
-      color: 'text-red-500',
-      isLoading: false,
-    }, // Placeholder
   ];
 
   return (
@@ -281,7 +229,7 @@ export default function AdminDashboardPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Admin Dashboard
         </h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
@@ -371,4 +319,3 @@ export default function AdminDashboardPage() {
       </div>
     </AdminLayout>
   );
-}
