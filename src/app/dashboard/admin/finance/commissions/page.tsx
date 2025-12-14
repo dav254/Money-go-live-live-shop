@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,19 +22,60 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, doc, orderBy, where } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CaretSortIcon } from '@radix-ui/react-icons';
 import Link from 'next/link';
 
-const UserCell = ({ userId, label }: { userId: string; label: string }) => {
-  const firestore = useFirestore();
-  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
-  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+// --- MOCK DATA ---
 
-  if (isLoading) return <Skeleton className="h-5 w-24" />;
+const mockUsers: UserProfile[] = [
+    { id: 'reseller-1', fullName: 'Jane Reseller', profilePictureUrl: 'https://picsum.photos/seed/reseller1/40', userRole: 'reseller' },
+    { id: 'seller-1', fullName: 'Trendy Threads', profilePictureUrl: 'https://picsum.photos/seed/seller1/40', userRole: 'seller' },
+    { id: 'reseller-2', fullName: 'Marketer Mike', profilePictureUrl: 'https://picsum.photos/seed/reseller2/40', userRole: 'reseller' },
+    { id: 'seller-2', fullName: 'Flashy Gadgets', profilePictureUrl: 'https://picsum.photos/seed/seller2/40', userRole: 'seller' },
+];
+
+const mockCommissions: Order[] = [
+    { 
+        id: 'order-001', 
+        productName: 'Classic Leather Handbag', 
+        productImage: 'https://picsum.photos/seed/product1/100',
+        resellerId: 'reseller-1',
+        sellerId: 'seller-1',
+        resellerCommission: 12.50,
+        orderStatus: 'delivered',
+        orderDate: new Date(new Date().setDate(new Date().getDate() - 1))
+    },
+    { 
+        id: 'order-002', 
+        productName: 'Wireless Bluetooth Headphones', 
+        productImage: 'https://picsum.photos/seed/product2/100',
+        resellerId: 'reseller-2',
+        sellerId: 'seller-2',
+        resellerCommission: 25.00,
+        orderStatus: 'shipped',
+        orderDate: new Date(new Date().setDate(new Date().getDate() - 2))
+    },
+    { 
+        id: 'order-003', 
+        productName: 'Vintage Denim Jacket', 
+        productImage: 'https://picsum.photos/seed/product3/100',
+        resellerId: 'reseller-1',
+        sellerId: 'seller-1',
+        resellerCommission: 8.75,
+        orderStatus: 'cancelled',
+        orderDate: new Date(new Date().setDate(new Date().getDate() - 3))
+    },
+];
+
+// --- END MOCK DATA ---
+
+
+const UserCell = ({ userId, label }: { userId: string; label: string }) => {
+  const user = mockUsers.find(u => u.id === userId);
+
+  if (!user) return <Skeleton className="h-5 w-24" />;
   return (
     <div className="flex items-center gap-2">
       <Avatar className="h-6 w-6">
@@ -146,22 +188,24 @@ const columns: ColumnDef<Order>[] = [
         <CaretSortIcon className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div className="text-right">{row.original.orderDate?.toDate().toLocaleDateString()}</div>,
+    cell: ({ row }) => <div className="text-right">{row.original.orderDate?.toLocaleDateString()}</div>,
   },
 ];
 
 export default function AdminCommissionsPage() {
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'orderDate', desc: true }]);
-  const firestore = useFirestore();
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const commissionsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'orders'), where('resellerId', '!=', null), orderBy('resellerId'), orderBy('orderDate', 'desc'));
-  }, [firestore]);
-
-  const { data: commissions, isLoading } = useCollection<Order>(commissionsQuery);
+  React.useEffect(() => {
+      // Simulate data fetching
+      const timer = setTimeout(() => {
+          setIsLoading(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+  }, []);
 
   const table = useReactTable({
-    data: commissions || [],
+    data: mockCommissions,
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
