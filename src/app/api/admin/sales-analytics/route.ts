@@ -8,7 +8,7 @@ import type { Order } from '@/lib/types';
 export async function GET(request: Request) {
   try {
     // Correctly initialize Firebase Admin and get services
-    const adminApp = await initializeAdminApp();
+    const adminApp = initializeAdminApp();
     const auth = getAuth(adminApp);
     const db = getFirestore(adminApp);
     
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
+    sevenDaysAgo.setDate(today.getDate() - 6); // Correctly get the last 7 days including today
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
     const sevenDaysAgoTimestamp = Timestamp.fromDate(sevenDaysAgo);
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
     const salesByDay: Record<string, number> = {};
     const ordersByDay: Record<string, number> = {};
     
+    // Initialize the last 7 days with 0 revenue and 0 orders
     for (let i = 0; i < 7; i++) {
         const date = new Date(sevenDaysAgo);
         date.setDate(sevenDaysAgo.getDate() + i);
@@ -58,18 +59,23 @@ export async function GET(request: Request) {
 
     ordersSnapshot.forEach(doc => {
       const order = doc.data() as Order;
-      if (order.orderDate) {
-        const dateString = (order.orderDate as any).toDate().toISOString().split('T')[0];
-        if (salesByDay[dateString] !== undefined) {
-             salesByDay[dateString] += order.totalAmount;
-             ordersByDay[dateString] += 1;
+      // Ensure orderDate is valid and can be converted to a Date
+      if (order.orderDate && typeof (order.orderDate as any).toDate === 'function') {
+        const orderDate = (order.orderDate as any).toDate();
+        // Check if the order date is within our 7-day window
+        if (orderDate >= sevenDaysAgo && orderDate <= today) {
+            const dateString = orderDate.toISOString().split('T')[0];
+            if (salesByDay[dateString] !== undefined) {
+                 salesByDay[dateString] += order.totalAmount;
+                 ordersByDay[dateString] += 1;
+            }
         }
       }
     });
 
     const chartData = Object.entries(salesByDay).map(([date, revenue]) => ({
       date,
-      revenue,
+      revenue: revenue || 0,
       orders: ordersByDay[date] || 0,
     })).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -77,6 +83,8 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error('API Sales Analytics Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+    // Provide a more specific error message if available
+    const errorMessage = error.message || 'An unexpected error occurred.';
+    return NextResponse.json({ error: 'Internal Server Error', details: errorMessage }, { status: 500 });
   }
 }
