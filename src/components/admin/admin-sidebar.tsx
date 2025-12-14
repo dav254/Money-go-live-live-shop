@@ -154,7 +154,7 @@ export function AdminSidebar() {
           basePath="finance"
           items={[
             { href: 'analytics', label: 'Financial Analytics' },
-            { href: 'payments', label: 'Payments' },
+            { href: 'payments', label: 'All Payments' },
             { href: 'invoices', label: 'Invoice Generator' },
             { href: 'commissions', label: 'Commissions' },
             { href: 'seller-payouts', label: 'Seller Payouts' },
