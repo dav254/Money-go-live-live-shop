@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -43,6 +43,9 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
+import { collection, query, where } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
+
 
 // --- Static Placeholder Data ---
 const mockRecentSales = [
@@ -118,36 +121,32 @@ const StatCard = ({
 
 export default function AdminDashboardPage() {
   const { user } = useUser();
-  const [liveVisitors, setLiveVisitors] = useState(Math.floor(Math.random() * 30) + 10);
+  const firestore = useFirestore();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Use mock data for frontend-only display
+  // --- Real Data Fetching for Live Visitors ---
+  const liveSessionsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+  }, [firestore]);
+  
+  const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
+  const liveVisitors = liveSessions?.reduce((sum, session) => sum + (session.viewerCount || 0), 0) || 0;
+  // --- End Real Data Fetching ---
+
+  // Use mock data for other sections to keep them frontend-only as requested
   const salesChartData = mockSalesChartData;
   const todaysRevenue = salesChartData[salesChartData.length - 1].revenue;
   const dailyOrders = salesChartData[salesChartData.length - 1].orders;
-  const isChartLoading = false; // Data is now local, so it's never loading
+  const isChartLoading = false; 
 
-  // Simulate loading
+  // Simulate overall loading state
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  // Simulate live visitor count
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveVisitors(prev => {
-        const change = Math.floor(Math.random() * 5) - 2; // Change between -2 and +2
-        const newCount = prev + change;
-        return newCount < 5 ? 5 : newCount; // Ensure it doesn't drop too low
-      });
-    }, 3000); // Update every 3 seconds
 
-    return () => clearInterval(interval);
-  }, []);
-
-
-  const pendingPayoutsTotal = 2340.50; // Mock data
+  const pendingPayoutsTotal = 2340.50;
 
   const stats = [
      {
@@ -172,18 +171,18 @@ export default function AdminDashboardPage() {
       title: 'Live Visitors',
       value: liveVisitors.toLocaleString(),
       icon: Eye,
-      isLoading: false, // This is simulated, so it's never "loading"
-      color: 'text-green-500',
+      isLoading: areLiveSessionsLoading, 
+      color: liveVisitors > 0 ? 'text-green-500' : 'text-muted-foreground',
     },
     {
       title: 'Total Users',
-      value: '1,254', // Mock data
+      value: '1,254', 
       icon: Users,
       isLoading,
     },
     {
       title: 'Total Products',
-      value: '5,678', // Mock data
+      value: '5,678', 
       icon: ShoppingBag,
       isLoading,
     },
