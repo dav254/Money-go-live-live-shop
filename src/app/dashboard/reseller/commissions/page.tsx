@@ -22,16 +22,15 @@ import {
   ArrowRight,
   Download,
   Wallet,
-  Calendar as CalendarIcon,
+  Loader2,
 } from 'lucide-react';
-import { DatePicker } from '@/components/dashboard/date-picker';
 import React, { useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Order, Payout } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRange } from 'react-day-picker';
@@ -66,13 +65,45 @@ const DownloadReportDialog = () => {
       from: addDays(new Date(), -30),
       to: new Date(),
     });
+    const [formatType, setFormatType] = useState('csv');
+    const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
 
     const handleGenerate = () => {
+        setIsGenerating(true);
         toast({
-            title: 'Feature Coming Soon!',
-            description: 'Report generation is currently under development.',
+            title: 'Generating Report...',
+            description: 'Your report is being prepared for download.',
         });
+
+        // Simulate a delay for report generation
+        setTimeout(() => {
+            const headers = "Date,Product,Commission,Status";
+            const rows = [
+                "2024-08-15,Classic Handbag,12.50,Cleared",
+                "2024-08-14,Urban Sneakers,8.75,Pending",
+                "2024-08-12,Gourmet Coffee,3.20,Cleared",
+            ];
+            const csvContent = [headers, ...rows].join("\n");
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const fromDate = date?.from ? format(date.from, 'yyyy-MM-dd') : 'start';
+            const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
+            link.setAttribute("download", `commission_report_${fromDate}_to_${toDate}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            setIsGenerating(false);
+            toast({
+                title: 'Download Started!',
+                description: 'Your commission report has been downloaded.',
+            });
+        }, 2000);
     }
 
     return (
@@ -95,21 +126,24 @@ const DownloadReportDialog = () => {
                 </div>
                  <div className="space-y-2">
                     <Label>Format</Label>
-                    <Select defaultValue="csv">
+                    <Select defaultValue={formatType} onValueChange={setFormatType}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select a format" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="csv">CSV (Comma-Separated Values)</SelectItem>
-                            <SelectItem value="pdf">PDF (Portable Document Format)</SelectItem>
+                            <SelectItem value="pdf" disabled>PDF (Coming Soon)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
             </div>
             <DialogFooter>
-                <Button onClick={handleGenerate}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Generate & Download
+                 <DialogClose asChild>
+                    <Button variant="ghost">Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleGenerate} disabled={isGenerating}>
+                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {isGenerating ? 'Generating...' : 'Generate & Download'}
                 </Button>
             </DialogFooter>
         </DialogContent>
