@@ -25,7 +25,7 @@ import { usePathname } from 'next/navigation';
 export function ResellerSidebar() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
-
+  
   return (
     <>
     <SidebarGroup>
