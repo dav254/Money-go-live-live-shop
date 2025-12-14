@@ -37,6 +37,8 @@ import { DateRange } from 'react-day-picker';
 import { addDays, format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const StatCard = ({ title, value, icon: Icon, description, isLoading, isPrimary }: { title: string, value: string, icon: React.ElementType, description?: string, isLoading: boolean, isPrimary?: boolean }) => (
     <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
@@ -60,7 +62,7 @@ const StatCard = ({ title, value, icon: Icon, description, isLoading, isPrimary 
     </Card>
 );
 
-const DownloadReportDialog = () => {
+const DownloadReportDialog = ({ orders, resellerName }: { orders: Order[], resellerName?: string }) => {
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: addDays(new Date(), -30),
       to: new Date(),
@@ -73,30 +75,56 @@ const DownloadReportDialog = () => {
         setIsGenerating(true);
         toast({
             title: 'Generating Report...',
-            description: 'Your report is being prepared for download.',
+            description: `Your ${formatType.toUpperCase()} report is being prepared.`,
         });
 
         // Simulate a delay for report generation
         setTimeout(() => {
-            const headers = "Date,Product,Commission,Status";
-            const rows = [
-                "2024-08-15,Classic Handbag,12.50,Cleared",
-                "2024-08-14,Urban Sneakers,8.75,Pending",
-                "2024-08-12,Gourmet Coffee,3.20,Cleared",
-            ];
-            const csvContent = [headers, ...rows].join("\n");
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
+            const filteredOrders = orders.filter(order => {
+                const orderDate = order.orderDate.toDate();
+                const from = date?.from || new Date(0);
+                const to = date?.to || new Date();
+                return orderDate >= from && orderDate <= to;
+            });
+            
             const fromDate = date?.from ? format(date.from, 'yyyy-MM-dd') : 'start';
             const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
-            link.setAttribute("download", `commission_report_${fromDate}_to_${toDate}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            const fileName = `commission_report_${fromDate}_to_${toDate}`;
+
+            if (formatType === 'csv') {
+                const headers = "Date,Product,Commission,Status";
+                const rows = filteredOrders.map(order => {
+                    const status = order.orderStatus === 'delivered' ? 'Cleared' : 'Pending';
+                    return `${format(order.orderDate.toDate(), 'yyyy-MM-dd')},"${order.productName}",${order.resellerCommission?.toFixed(2)},${status}`;
+                });
+                const csvContent = [headers, ...rows].join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `${fileName}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else if (formatType === 'pdf') {
+                const doc = new jsPDF();
+                doc.text(`Commission Report for ${resellerName || 'Reseller'}`, 14, 16);
+                doc.text(`From: ${fromDate} To: ${toDate}`, 14, 22);
+
+                autoTable(doc, {
+                    startY: 30,
+                    head: [['Date', 'Product', 'Commission', 'Status']],
+                    body: filteredOrders.map(order => [
+                        format(order.orderDate.toDate(), 'yyyy-MM-dd'),
+                        order.productName,
+                        `$${order.resellerCommission?.toFixed(2)}`,
+                        order.orderStatus === 'delivered' ? 'Cleared' : 'Pending'
+                    ]),
+                });
+
+                doc.save(`${fileName}.pdf`);
+            }
             
             setIsGenerating(false);
             toast({
@@ -132,7 +160,7 @@ const DownloadReportDialog = () => {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="csv">CSV (Comma-Separated Values)</SelectItem>
-                            <SelectItem value="pdf" disabled>PDF (Coming Soon)</SelectItem>
+                            <SelectItem value="pdf">PDF (Portable Document Format)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -222,7 +250,7 @@ export default function ResellerCommissionsPage() {
                         Download Report
                     </Button>
                 </DialogTrigger>
-                <DownloadReportDialog />
+                <DownloadReportDialog orders={orders || []} resellerName={user?.displayName || ''} />
             </Dialog>
             <Button asChild variant="destructive" className="font-bold">
               <Link href="/dashboard/reseller/wallet">
