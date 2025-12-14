@@ -8,6 +8,7 @@ import {
   ShoppingBag, Shield, Lock, CreditCard, User, Handshake, Menu, X, Facebook, 
   Twitter, Instagram, Youtube, Mail, Phone
 } from "lucide-react";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 
 // ===== INLINE STYLES & DESIGN TOKENS =====
 const colors = {
@@ -1027,10 +1028,9 @@ const Index = () => {
           </div>
         </div>
       </footer>
+      <CookieConsentBanner />
     </main>
   );
 };
 
 export default Index;
-
-    
