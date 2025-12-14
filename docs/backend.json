@@ -1,6 +1,22 @@
 
 {
   "entities": {
+    "WalletTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Wallet Transaction",
+      "type": "object",
+      "description": "Represents a single transaction record in a user's wallet or the platform's revenue ledger.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string", "description": "The ID of the user (seller/reseller) or a system ID like 'platform_revenue'." },
+        "orderId": { "type": "string", "description": "The order that generated this transaction." },
+        "type": { "type": "string", "enum": ["SALE_EARNING", "COMMISSION", "PLATFORM_FEE", "PAYOUT_REQUEST", "PAYOUT_COMPLETED", "REFUND"] },
+        "amount": { "type": "number", "description": "The monetary value of the transaction. Can be positive or negative." },
+        "description": { "type": "string", "description": "A brief description of the transaction." },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "orderId", "type", "amount", "timestamp"]
+    },
     "ErrorLog": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Error Log",
@@ -1169,6 +1185,15 @@
           "schema": { "$ref": "#/backend/entities/Payout" },
           "description": "Stores seller payout requests for admin processing.",
           "params": [{ "name": "payoutId", "description": "The unique ID for the payout request." }]
+        }
+      },
+      {
+        "path": "/walletTransactions/{transactionId}",
+        "definition": {
+            "entityName": "WalletTransaction",
+            "schema": { "$ref": "#/backend/entities/WalletTransaction" },
+            "description": "Stores all individual wallet transactions for sellers, resellers, and platform revenue.",
+            "params": [{ "name": "transactionId", "description": "The unique ID for the transaction." }]
         }
       },
       {

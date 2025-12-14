@@ -137,6 +137,14 @@ service cloud.firestore {
       allow update: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
+    match /walletTransactions/{transactionId} {
+        // Only backend functions can create transactions.
+        allow create: if false; 
+        // Users can read their own transactions. Admins can read any.
+        allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow list: if request.auth != null && (request.query.where[0][2] == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+    }
+
     // Categories are publicly readable
     match /categories/{categoryId} {
         allow read: if true;
@@ -170,18 +178,28 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-      allow read, list: if true;
-      allow create, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read: if request.auth != null;
+      // Allow seller to create/update their session document
+      allow create: if request.auth.uid == sessionId;
+      allow update: if request.auth.uid == sessionId || 
+                       // Allow any authenticated user to ONLY write the 'answer' field
+                       (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer']));
 
-      match /events/{eventId} {
-        // Any authenticated user can create an event (like, comment).
-        allow create: if request.auth != null;
-        // Only the seller hosting the session can read the event feed.
-        allow read, list: if request.auth != null;
+      match /offerCandidates/{candidateId} {
+        // Only the seller can write their offer candidates.
+        allow write: if request.auth.uid == sessionId && request.resource.data.sellerId == request.auth.uid;
+        // Any authenticated user can read them to establish a connection.
+        allow read: if request.auth != null;
       }
-
-      match /chat/{messageId} {
+      
+      match /answerCandidates/{candidateId} {
+        // Any authenticated user can write their answer candidates.
+        allow write: if request.auth != null;
+        // Only the seller (session owner) should read the answer candidates.
+        allow read: if request.auth.uid == sessionId;
+      }
+      
+      match /events/{eventId} {
         allow read, write, list: if request.auth != null;
       }
     }

@@ -22,43 +22,46 @@ export const processOrderAndDistributeEarnings = functions.firestore
         return null;
       }
 
-      const { sellerId, resellerId, totalAmount } = orderData;
-
+      const { sellerId, resellerId, totalAmount, productPrice, commissionRate } = orderData;
+      
       try {
-        // 2. Fetch Product & User Details for Commission Rates
-        // Assuming a simple flat-rate for now. This can be expanded.
-        const platformFeeRate = 0.05; // 5% platform fee
-        const resellerCommissionRate = resellerId ? 0.10 : 0; // 10% if reseller exists
+        // 2. Calculate Fees & Commissions
+        const platformFeeRate = 0.10; // 10% platform fee
+        const platformFee = productPrice * platformFeeRate;
 
-        // 3. Calculate Earnings
-        const resellerCommission = totalAmount * resellerCommissionRate;
-        const platformFee = totalAmount * platformFeeRate;
-        const sellerEarnings = totalAmount - resellerCommission - platformFee;
+        let resellerCommission = 0;
+        if (resellerId && commissionRate) {
+            // Commission is based on product price, not total amount with shipping
+            resellerCommission = productPrice * (commissionRate / 100);
+        }
+
+        // 3. Calculate Net Seller Earnings
+        const sellerEarnings = productPrice - platformFee - resellerCommission;
 
         const batch = db.batch();
         const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
-        // 4. Create Seller Transaction
+        // 4. Create Seller Wallet Transaction
         const sellerTransactionRef = db.collection("walletTransactions").doc();
         batch.set(sellerTransactionRef, {
           userId: sellerId,
-          date: timestamp,
-          type: "SALE",
+          orderId: orderId,
+          type: "SALE_EARNING",
           amount: sellerEarnings,
-          description: `Sale of order #${orderId}`,
-          sourceId: orderId,
+          description: `Earnings from order #${orderId.substring(0, 6)}`,
+          timestamp: timestamp,
         });
 
-        // 5. Create Reseller Transaction (if applicable)
+        // 5. Create Reseller Wallet Transaction (if applicable)
         if (resellerId && resellerCommission > 0) {
           const resellerTransactionRef = db.collection("walletTransactions").doc();
           batch.set(resellerTransactionRef, {
             userId: resellerId,
-            date: timestamp,
+            orderId: orderId,
             type: "COMMISSION",
             amount: resellerCommission,
-            description: `Commission for order #${orderId}`,
-            sourceId: orderId,
+            description: `Commission for order #${orderId.substring(0, 6)}`,
+            timestamp: timestamp,
           });
         }
 
@@ -66,11 +69,11 @@ export const processOrderAndDistributeEarnings = functions.firestore
         const platformTransactionRef = db.collection("walletTransactions").doc();
         batch.set(platformTransactionRef, {
           userId: "platform_revenue", // Special ID for platform earnings
-          date: timestamp,
+          orderId: orderId,
           type: "PLATFORM_FEE",
           amount: platformFee,
-          description: `Platform fee for order #${orderId}`,
-          sourceId: orderId,
+          description: `Platform fee for order #${orderId.substring(0, 6)}`,
+          timestamp: timestamp,
         });
 
         // 7. Commit all transactions at once
