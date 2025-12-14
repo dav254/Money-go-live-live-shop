@@ -264,6 +264,11 @@ const AccountSettingsContent = () => {
     
     const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
+        defaultValues: {
+            fullName: '',
+            username: '',
+            phoneNumber: '',
+        }
     });
 
     useEffect(() => {
@@ -435,7 +440,7 @@ const AccountSettingsContent = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <Label htmlFor="email">Email Address</Label>
-                                    <Input id="email" type="email" defaultValue={userProfile?.email} readOnly disabled />
+                                    <Input id="email" type="email" value={userProfile?.email || ''} readOnly disabled />
                                 </div>
                                 <FormField control={profileForm.control} name="phoneNumber" render={({ field }) => (
                                     <FormItem>
