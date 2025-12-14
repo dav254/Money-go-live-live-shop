@@ -40,6 +40,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { File as FileIcon, X, UploadCloud } from 'lucide-react';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -515,10 +516,20 @@ export default function AccountSettingsPage() {
         );
     }
     
-    // Fallback for resellers or other roles
+    if (userProfile?.userRole === 'reseller') {
+        return (
+            <ResellerLayout>
+                <AccountSettingsContent />
+            </ResellerLayout>
+        );
+    }
+    
+    // Fallback for other roles or if role is not defined
     return (
         <MainLayout>
             <AccountSettingsContent />
         </MainLayout>
     );
 }
+
+    
