@@ -5,13 +5,19 @@ import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Bot, Film, TrendingUp, Sparkles, Trophy } from 'lucide-react';
+import { BookOpen, Bot, Film, TrendingUp, Sparkles, Trophy, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit } from 'firebase/firestore';
 import type { HelpArticle } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const upcomingCourses = [
+  { icon: TrendingUp, title: "Viral Marketing 101", description: "Learn to sell effectively on WhatsApp, TikTok, and Instagram." },
+  { icon: BookOpen, title: "Product Selection", description: "How to choose trending products with the highest commission rates." },
+  { icon: Film, title: "Content is King", description: "Master the art of creating short-form videos that lead to sales." },
+  { icon: Sparkles, title: "AI Masterclass", description: "Advanced tips for using the AI Toolkit to maximize your earnings." },
+];
 
 export default function ResellerAcademyPage() {
     const firestore = useFirestore();
@@ -96,6 +102,32 @@ export default function ResellerAcademyPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Upcoming Courses */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-primary">
+                                    <Clock />
+                                    Upcoming Courses
+                                </CardTitle>
+                                <CardDescription>A sneak peek at the new skills you'll be able to learn soon.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {upcomingCourses.map((course) => (
+                                <div key={course.title} className="flex items-center justify-between rounded-lg border p-4 bg-muted/30">
+                                    <div className="flex items-center gap-4">
+                                        <course.icon className="h-6 w-6 text-muted-foreground" />
+                                        <div>
+                                            <h3 className="font-semibold">{course.title}</h3>
+                                            <p className="text-sm text-muted-foreground">{course.description}</p>
+                                        </div>
+                                    </div>
+                                    <Badge variant="outline">Coming Soon</Badge>
+                                </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+
                     </div>
 
                     <div className="space-y-8">
