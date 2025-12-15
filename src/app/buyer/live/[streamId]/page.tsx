@@ -15,7 +15,6 @@ const PEER_CONFIG = {
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'turn:numb.viagenie.ca', username: 'webrtc@live.com', credential: 'muazkh' }
         ]
     }
 };
@@ -39,11 +38,11 @@ const BuyerLiveStreamPage = () => {
     
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
-    const initializePeerAndConnect = useCallback((offer: any) => {
+    const initializePeerAndConnect = useCallback(async (offer: any) => {
         if (typeof window === 'undefined') return;
 
         setStatus('CONNECTING');
-        import('peerjs').then(({ default: Peer }) => {
+        import('peerjs').then(async ({ default: Peer }) => {
             if (peerRef.current) {
                 peerRef.current.destroy();
             }
@@ -55,37 +54,38 @@ const BuyerLiveStreamPage = () => {
                 setStatus('CALLING');
                 if (!peerRef.current || !firestore) return;
                 
-                const call = peerRef.current.call(sellerId, new MediaStream(), {
-                    sdpTransform: (sdp) => {
-                        return sdp;
-                    }
-                });
+                const conn = peerRef.current.connect(sellerId);
+                conn.on('open', async () => {
+                    const remoteOffer = new RTCSessionDescription(offer);
+                    const peerConnection = (peerRef.current as any).connections[sellerId][0].peerConnection;
+                    await peerConnection.setRemoteDescription(remoteOffer);
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
 
-                await call.peerConnection.setRemoteDescription(offer);
-                const answer = await call.peerConnection.createAnswer();
-                await call.peerConnection.setLocalDescription(answer);
+                    const sessionDoc = doc(firestore, 'liveSessions', sellerId);
+                    await updateDoc(sessionDoc, { answer: { type: answer.type, sdp: answer.sdp } });
+                    
+                    const call = peerRef.current.call(sellerId, new MediaStream());
+                    
+                    call.on('stream', (remoteStream) => {
+                        if (videoRef.current) {
+                            videoRef.current.srcObject = remoteStream;
+                            videoRef.current.play().catch(e => console.error("Video play failed", e));
+                        }
+                        setStatus('CONNECTED');
+                        toast({ title: "Connected!", description: "You are now watching the live stream." });
+                    });
 
-                const sessionDoc = doc(firestore, 'liveSessions', sellerId);
-                await updateDoc(sessionDoc, { answer: { type: answer.type, sdp: answer.sdp } });
+                    call.on('error', (err) => {
+                        console.error('Call error:', err);
+                        setStatus('ERROR');
+                        toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream.` });
+                    });
 
-                call.on('stream', (remoteStream) => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = remoteStream;
-                        videoRef.current.play().catch(e => console.error("Video play failed", e));
-                    }
-                    setStatus('CONNECTED');
-                    toast({ title: "Connected!", description: "You are now watching the live stream." });
-                });
-
-                call.on('error', (err) => {
-                    console.error('Call error:', err);
-                    setStatus('ERROR');
-                    toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream.` });
-                });
-
-                call.on('close', () => {
-                    toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
-                    router.push('/buyer/live');
+                    call.on('close', () => {
+                        toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
+                        router.push('/buyer/live');
+                    });
                 });
             });
 

@@ -12,12 +12,10 @@ import type { Peer } from 'peerjs';
 import { doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 
-
 const PEER_CONFIG = {
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'turn:numb.viagenie.ca', username: 'webrtc@live.com', credential: 'muazkh' }
         ]
     }
 };
@@ -61,40 +59,46 @@ const SellerLivePage = () => {
         if (!user || !firestore) return;
         
         import('peerjs').then(({ default: Peer }) => {
+            if (peerRef.current) {
+                peerRef.current.destroy();
+            }
+
             const peer = new Peer(user.uid, PEER_CONFIG);
             peerRef.current = peer;
 
             peer.on('open', async (id) => {
                 const sessionRef = doc(firestore, 'liveSessions', user.uid);
+                
+                const connection = peer.connect(id); // Connect to self to setup
+                
+                const offer = await connection.peerConnection.createOffer();
+                await connection.peerConnection.setLocalDescription(offer);
+
                 const sessionData: Partial<LiveSession> = {
                     id: user.uid,
                     sellerId: user.uid,
                     title: `${user.displayName || 'Seller'}'s Live Show`,
                     status: 'live',
                     startTime: new Date(),
+                    offer: { type: offer.type, sdp: offer.sdp }
                 };
-                
-                // Create the call object to get the offer
-                const call = peer.call(id, stream); // Call self to generate offer
-                callRef.current = call;
-
-                if (call && call.peerConnection) {
-                    const offer = await call.peerConnection.createOffer();
-                    await call.peerConnection.setLocalDescription(offer);
-                    sessionData.offer = { type: offer.type, sdp: offer.sdp };
-                }
 
                 await setDoc(sessionRef, sessionData, { merge: true });
                 setLiveSessionId(user.uid);
-                setLiveStatus('LIVE');
-                toast({ title: "🎉 You are LIVE!", description: "Your stream has started." });
 
-                 onSnapshot(sessionRef, (snapshot) => {
+                onSnapshot(sessionRef, (snapshot) => {
                     const data = snapshot.data() as LiveSession;
-                    if (data && data.answer && callRef.current && callRef.current.peerConnection.signalingState !== 'stable') {
-                        callRef.current.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+                    if (data && data.answer && connection.peerConnection.signalingState !== 'stable') {
+                        connection.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
                             .catch((e: any) => console.error("Error setting remote description:", e));
                     }
+                });
+
+                peer.on('call', (call) => {
+                    call.answer(stream);
+                    callRef.current = call;
+                    setLiveStatus('LIVE');
+                    toast({ title: "🎉 You are LIVE!", description: "A viewer has connected." });
                 });
             });
 
