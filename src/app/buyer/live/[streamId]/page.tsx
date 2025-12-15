@@ -13,21 +13,33 @@ const BuyerLiveStreamPage = () => {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const sellerId = params.streamId as string;
+    const sellerId = params.streamId as string; // This can be undefined on first render
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
-    const [status, setStatus] = useState<'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('CONNECTING');
+    const [status, setStatus] = useState<'INITIALIZING' | 'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
 
     useEffect(() => {
-        if (typeof window === 'undefined' || !sellerId) return;
+        // Wait until sellerId is available from the router
+        if (typeof window === 'undefined' || !sellerId) {
+            return;
+        }
 
+        setStatus('CONNECTING');
         import('peerjs').then(({ default: Peer }) => {
-            const peer = new Peer(); // Create a peer for the buyer with a random ID
+            // Create a peer for the buyer with a random ID
+            const peer = new Peer(); 
             peerRef.current = peer;
 
             peer.on('open', (buyerId) => {
                 setStatus('CALLING');
                 console.log(`Buyer PeerJS client is open with ID: ${buyerId}. Calling seller: ${sellerId}`);
+
+                if (!sellerId) {
+                    console.error("Seller ID is undefined, cannot make a call.");
+                    setStatus('ERROR');
+                    toast({ variant: 'destructive', title: 'Error', description: 'No Seller ID provided in the URL.' });
+                    return;
+                }
 
                 // Now that we are connected to the PeerJS server, we can make a call.
                 const call = peer.call(sellerId, new MediaStream()); // Send an empty stream initially
@@ -44,7 +56,7 @@ const BuyerLiveStreamPage = () => {
                 call.on('error', (err) => {
                     console.error('Call error:', err);
                     setStatus('ERROR');
-                    toast({ variant: 'destructive', title: 'Stream Error', description: 'Could not connect to the stream.' });
+                    toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream. Please check the ID and if the seller is live.` });
                 });
 
                 call.on('close', () => {
@@ -56,7 +68,11 @@ const BuyerLiveStreamPage = () => {
             peer.on('error', (err) => {
                 console.error('PeerJS connection error:', err);
                 setStatus('ERROR');
-                toast({ variant: 'destructive', title: 'Connection Failed', description: 'Could not connect to the live streaming network.' });
+                if (err.type === 'peer-unavailable') {
+                    toast({ variant: 'destructive', title: 'Seller Offline', description: 'The seller is not currently live or the ID is incorrect.' });
+                } else {
+                    toast({ variant: 'destructive', title: 'Connection Failed', description: 'Could not connect to the live streaming network.' });
+                }
             });
         });
 
@@ -66,10 +82,12 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
         };
-    }, [sellerId, toast, router]);
+    }, [sellerId, toast, router]); // Dependency on sellerId ensures this runs when it becomes available
 
     const renderStatus = () => {
         switch (status) {
+            case 'INITIALIZING':
+                 return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Getting stream details...</p></div>;
             case 'CONNECTING':
                 return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Connecting to live network...</p></div>;
             case 'CALLING':
@@ -77,7 +95,7 @@ const BuyerLiveStreamPage = () => {
             case 'CONNECTED':
                 return null; // Video will be playing
             case 'ERROR':
-                 return <div className="flex flex-col items-center gap-2"><WifiOff className="h-8 w-8 text-destructive" /><p>Connection failed. Please check the Seller ID and try again.</p><Button onClick={() => router.push('/buyer/live')} className="mt-4">Go Back</Button></div>;
+                 return <div className="flex flex-col items-center gap-2 text-center max-w-sm"><WifiOff className="h-8 w-8 text-destructive" /><p>Connection failed. Please check the Seller ID and ensure they are live.</p><Button onClick={() => router.push('/buyer/live')} className="mt-4">Go Back</Button></div>;
             default:
                 return null;
         }
