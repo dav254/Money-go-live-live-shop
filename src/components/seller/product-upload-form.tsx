@@ -187,13 +187,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to upload products.' });
         return;
     }
-    if (files.length === 0 && existingImageUrls.length === 0 && existingVideoUrls.length === 0) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Please upload at least one image or video.' });
-        return;
-    }
 
     setIsUploading(true);
-    toast({ title: isEditMode ? 'Updating Product...' : 'Starting Uploads', description: 'Your product is being saved.' });
+    toast({ title: isEditMode ? 'Updating Product...' : 'Saving Product...', description: 'Your product is being saved.' });
 
     try {
       const uploadPromises = files.map(file => uploadToCloudinary(file));
@@ -237,8 +233,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       } else {
           productData.uploadDate = serverTimestamp();
           const productsCollectionRef = collection(firestore, 'products');
-          await addDoc(productsCollectionRef, productData);
-          toast({ title: 'Success!', description: 'Your product has been published.' });
+          const newDocRef = await addDoc(productsCollectionRef, productData);
+          toast({ title: 'Success!', description: 'Your product details have been saved.' });
+          // Store new product ID for the next step in the studio flow
+          if (onFormSubmit) {
+            localStorage.setItem('selectedProductId', newDocRef.id);
+          }
       }
 
       form.reset();
@@ -264,6 +264,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
+          <CardHeader>
+             <CardTitle>Add New Product</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-8 pt-6">
 
             {/* Product Information Section */}
@@ -458,7 +461,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           <CardFooter className="flex justify-end gap-2">
             <Button type="button" variant="outline">Save as Draft</Button>
             <Button type="submit" disabled={isUploading}>
-              {isUploading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Publish Product')}
+              {isUploading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save and Continue')}
             </Button>
           </CardFooter>
         </Card>
