@@ -246,7 +246,7 @@ export interface ChatMessage {
 export interface Notification {
     id: string;
     userId: string;
-    type: 'order' | 'commission' | 'message' | 'announcement';
+    type: 'order' | 'commission' | 'message' | 'announcement' | 'invoice';
     title: string;
     message: string;
     link?: string;
@@ -286,9 +286,14 @@ export interface LiveSession {
     viewerCount: number;
     startTime: any;
     endTime?: any;
+    // Mux-specific fields
     muxStreamId?: string;
     muxStreamKey?: string;
     muxPlaybackId?: string;
+    // Fields for previous WebRTC implementation (can be deprecated)
+    offer?: any;
+    answer?: any;
+    pinnedProduct?: Product;
 }
 
 export interface SupportTicket {

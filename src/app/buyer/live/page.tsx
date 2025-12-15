@@ -1,98 +1,126 @@
-
 'use client';
 
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { RadioTower, User } from 'lucide-react';
 import { LiveSellerCard } from '@/components/buyer/LiveSellerCard';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
-import type { LiveSession, SellerShop, UserProfile } from '@/lib/types';
-import { useDoc } from '@/firebase/firestore/use-doc';
+import { collection, query, where, limit } from 'firebase/firestore';
+import type { LiveSession, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RadioTower } from 'lucide-react';
-import React from 'react';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import Link from 'next/link';
 
-const LiveSessionCard = ({ session }: { session: LiveSession }) => {
+const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
     const firestore = useFirestore();
 
-    const sellerShopRef = useMemoFirebase(() => {
-        if (!session.sellerId) return null;
-        return doc(firestore, 'sellerShops', session.sellerId);
-    }, [firestore, session.sellerId]);
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!session.sellerId) return null;
+    const sellerProfileRef = useMemoFirebase(() => {
+        if (!firestore) return null;
         return doc(firestore, 'userProfiles', session.sellerId);
     }, [firestore, session.sellerId]);
+    
+    const { data: seller, isLoading } = useDoc<UserProfile>(sellerProfileRef);
 
-    const { data: sellerShop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
-    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
-    if (isShopLoading || isProfileLoading || !session) {
-        return (
-            <div className="flex items-center gap-4 p-4 border rounded-lg bg-card">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-16" />
+    if (isLoading || !seller) {
+        return <Skeleton className="h-20 w-full" />;
+    }
+    
+    return (
+        <Link href={`/buyer/live/${session.sellerId}`} className="block">
+          <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <img src={seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} className="h-12 w-12 rounded-full border-2 border-red-500" />
+                    <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-md font-bold">LIVE</div>
+                </div>
+                <div>
+                    <h2 className="font-bold">{seller.shopName || seller.fullName}</h2>
+                    <p className="text-sm text-neutral-400">{session.title}</p>
                 </div>
             </div>
-        )
-    }
+            <div className="flex items-center gap-2 text-sm text-neutral-400">
+                <User className="h-4 w-4" />
+                <span>{session.viewerCount || 0}</span>
+            </div>
+          </Card>
+        </Link>
+    )
+}
 
-    const seller = {
-        id: session.sellerId,
-        name: sellerShop?.shopName || userProfile?.fullName || 'Live Seller',
-        viewers: session.viewerCount || 0,
-        avatar: sellerShop?.logoUrl || userProfile?.profilePictureUrl || 'https://picsum.photos/seed/avatar/80'
+
+const JoinLivePage = () => {
+    const router = useRouter();
+    const firestore = useFirestore();
+    const [sellerIdInput, setSellerIdInput] = useState('');
+
+    const liveSessionsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, 'liveSessions'), 
+            where('status', '==', 'live'),
+            limit(20)
+        );
+    }, [firestore]);
+
+    const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
+
+    const connectToSeller = () => {
+        if (sellerIdInput.trim()) {
+            router.push(`/buyer/live/${sellerIdInput.trim()}`);
+        }
     };
 
-    return <LiveSellerCard seller={seller} />;
-}
-
-export default function LiveSellersPage() {
-  const firestore = useFirestore();
-
-  const liveSessionsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-  }, [firestore]);
-
-  const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
-
-  const endedSessionsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'ended'));
-  }, [firestore]);
-
-  const { data: endedSessions, isLoading: isLoadingEnded } = useCollection<LiveSession>(endedSessionsQuery);
-
-  const liveAndNotEnded = liveSessions?.filter(live => !endedSessions?.some(ended => ended.id === live.id));
-
-
-  return (
-    <BuyerLayout>
-        <div className="p-4 space-y-4">
-            <h1 className="text-2xl font-bold font-headline flex items-center gap-2">
-                <RadioTower className="text-primary"/>
-                Live Now
-            </h1>
-            {isLoading ? (
-                 <div className="grid gap-4">
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
+    return (
+        <BuyerLayout>
+            <div className="flex-1 space-y-8 p-8 pt-6">
+                <h1 className="font-headline text-3xl font-bold tracking-tight">Live Studio</h1>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                            <RadioTower className="text-primary"/>
+                            Join a Live Stream
+                            </CardTitle>
+                            <CardDescription>Enter the Seller's Live Stream ID to start watching.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex w-full max-w-sm items-center space-x-2">
+                                <Input 
+                                    type="text" 
+                                    placeholder="Enter Seller ID" 
+                                    value={sellerIdInput} 
+                                    onChange={(e) => setSellerIdInput(e.target.value)} 
+                                />
+                                <Button type="button" onClick={connectToSeller} disabled={!sellerIdInput.trim()}>
+                                    Watch Live
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Currently Live</CardTitle>
+                            <CardDescription>Sellers who are live right now.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+                            {isLoading && Array.from({length: 3}).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+                            {!isLoading && liveSessions && liveSessions.length > 0 ? (
+                                liveSessions.map(session => (
+                                    <LiveSellerEntry key={session.id} session={session} />
+                                ))
+                            ) : (
+                                !isLoading && <p className="text-center text-muted-foreground py-8">No sellers are live right now.</p>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
-            ) : liveAndNotEnded && liveAndNotEnded.length > 0 ? (
-                <div className="grid gap-4">
-                    {liveAndNotEnded.map((session) => (
-                        <LiveSessionCard key={session.id} session={session} />
-                    ))}
-                </div>
-            ) : (
-                <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
-                    <p className="text-muted-foreground">No sellers are live at the moment. <br/> Check back soon!</p>
-                </div>
-            )}
-        </div>
-    </BuyerLayout>
-  );
-}
+            </div>
+        </BuyerLayout>
+    );
+};
+
+export default JoinLivePage;
