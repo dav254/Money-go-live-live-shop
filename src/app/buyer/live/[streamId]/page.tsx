@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -26,10 +27,10 @@ const BuyerLiveStreamPage = () => {
             secure: true,
         });
 
-        peer.on('open', (id) => {
+        peer.on('open', () => {
             setStatus(`Calling seller...`);
             
-            const call = peer.call(sellerId, undefined);
+            const call = peer.call(sellerId, undefined as any);
 
             if (!call) {
                 setStatus('Could not initiate call. Please check the Seller ID.');

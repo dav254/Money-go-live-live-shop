@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -5,7 +6,7 @@ import Peer from 'peerjs';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, RadioTower, Loader2, VideoOff } from 'lucide-react';
+import { Copy, Check, RadioTower, VideoOff } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 const SellerLivePage = () => {
     const { user } = useUser();
     const localVideoRef = useRef<HTMLVideoElement>(null);
-    const [peer, setPeer] = useState<Peer | null>(null);
     const [status, setStatus] = useState('Initializing...');
     const [isLive, setIsLive] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -30,15 +30,13 @@ const SellerLivePage = () => {
             path: '/',
             secure: true,
         });
-        setPeer(peerInstance);
-        setStatus('Ready. Start your camera to go live.');
 
         peerInstance.on('open', (id) => {
             console.log('My peer ID is: ' + id);
+            setStatus('Ready. Start your camera to go live.');
         });
 
         peerInstance.on('call', (call) => {
-            // Automatically answer incoming calls with the local video stream
             const stream = localVideoRef.current?.srcObject as MediaStream;
             if (stream) {
                 call.answer(stream);
@@ -72,6 +70,11 @@ const SellerLivePage = () => {
         } catch (err) {
             console.error('Failed to get local stream', err);
             setStatus('Error: Failed to access camera. Please check permissions.');
+            toast({
+                variant: 'destructive',
+                title: 'Camera Access Denied',
+                description: 'Please enable camera permissions in your browser settings to go live.',
+            });
         }
     };
     
@@ -97,7 +100,7 @@ const SellerLivePage = () => {
                         <CardDescription>{status}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
                              <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
                              {!isLive && (
                                  <div className="absolute flex flex-col items-center gap-2 text-muted-foreground">

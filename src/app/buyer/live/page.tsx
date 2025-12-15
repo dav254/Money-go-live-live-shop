@@ -1,16 +1,15 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioTower, User } from 'lucide-react';
-import { LiveSellerCard } from '@/components/buyer/LiveSellerCard';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, limit, doc } from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc } from '@/firebase/firestore/use-doc';
@@ -35,7 +34,7 @@ const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
           <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <img src={seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} className="h-12 w-12 rounded-full border-2 border-red-500" />
+                    <img src={seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} alt={seller.fullName} className="h-12 w-12 rounded-full border-2 border-red-500" />
                     <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-md font-bold">LIVE</div>
                 </div>
                 <div>
@@ -62,8 +61,7 @@ const JoinLivePage = () => {
         if (!firestore) return null;
         return query(
             collection(firestore, 'liveSessions'), 
-            where('status', '==', 'live'),
-            limit(20)
+            where('status', '==', 'live')
         );
     }, [firestore]);
 
