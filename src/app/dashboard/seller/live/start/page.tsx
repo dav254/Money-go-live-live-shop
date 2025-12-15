@@ -28,7 +28,7 @@ const SellerLivePage = () => {
     const peerRef = useRef<Peer | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
 
-    const initializePeer = (id: string) => {
+    const initializePeer = (id: string, stream: MediaStream) => {
         if (typeof window === 'undefined') return;
 
         if (peerRef.current) {
@@ -44,9 +44,8 @@ const SellerLivePage = () => {
         });
         
         newPeer.on('call', (call) => {
-            if (localStreamRef.current) {
-                call.answer(localStreamRef.current);
-            }
+            // This is the critical part: answer the call with the seller's stream
+            call.answer(stream); 
         });
 
         newPeer.on('error', (err) => {
@@ -54,7 +53,7 @@ const SellerLivePage = () => {
             if (err.type === 'unavailable-id') {
                 const tempId = `${user!.uid}-${Math.random().toString(36).substring(2, 8)}`;
                 toast({ variant: 'destructive', title: 'Live ID Taken', description: `Your primary ID is in use. Using a temporary ID: ${tempId}` });
-                initializePeer(tempId);
+                initializePeer(tempId, stream);
             } else {
                  setLiveStatus('ERROR');
             }
@@ -79,6 +78,7 @@ const SellerLivePage = () => {
             localStreamRef.current = mediaStream;
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
+                videoRef.current.play().catch(e => console.error("Video play failed:", e));
             }
             setIsCameraReady(true);
             return mediaStream;
@@ -96,11 +96,12 @@ const SellerLivePage = () => {
         setLiveStatus('CONNECTING');
         const stream = await getCameraStream(facingMode as 'user' | 'environment');
         if (stream) {
-            initializePeer(user.uid);
+            initializePeer(user.uid, stream);
         }
     };
 
     useEffect(() => {
+        // Cleanup function to stop tracks and destroy peer connection
         return () => {
             if (peerRef.current) {
                 peerRef.current.destroy();
