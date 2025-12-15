@@ -182,6 +182,12 @@ const Index = () => {
         height: 2px;
         background: linear-gradient(90deg, ${colors.primary}, ${colors.secondary}, ${colors.gold});
       }
+      
+      .md-hidden { display: none; }
+      @media (max-width: 768px) {
+        .md-flex { display: none; }
+        .md-hidden { display: block; }
+      }
     `;
     document.head.appendChild(styleSheet);
   }
@@ -238,7 +244,7 @@ const Index = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <div style={{ display: "none", alignItems: "center", gap: "2rem" }} className="md:flex">
+          <div style={{ display: "flex", alignItems: "center", gap: "2rem" }} className="md-flex">
             {["Features", "How It Works", "Pricing", "For Sellers"].map((item) => (
               <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} style={{ color: colors.mutedForeground, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, transition: "color 0.3s" }} className="hover:text-white">
                 {item}
@@ -247,20 +253,20 @@ const Index = () => {
           </div>
 
           {/* Desktop Buttons */}
-          <div style={{ display: "none", alignItems: "center", gap: "0.75rem" }} className="md:flex">
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }} className="md-flex">
             <Button variant="ghost">Log In</Button>
             <Button variant="hero" size="default">Start Selling</Button>
           </div>
 
           {/* Mobile Menu Button */}
-          <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: "none", border: "none", color: colors.foreground, cursor: "pointer", padding: "0.5rem", display: 'block' }} className="md:hidden">
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: "none", border: "none", color: colors.foreground, cursor: "pointer", padding: "0.5rem" }} className="md-hidden">
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div style={{ padding: "1.5rem 1rem", borderTop: `1px solid ${colors.border}` }} className="md:hidden animate-fade-in">
+          <div style={{ padding: "1.5rem 1rem", borderTop: `1px solid ${colors.border}` }} className="md-hidden animate-fade-in">
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               {["Features", "How It Works", "Pricing", "For Sellers"].map((item) => (
                 <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} style={{ color: colors.mutedForeground, textDecoration: "none", fontWeight: 500, padding: "0.5rem 0" }}>
