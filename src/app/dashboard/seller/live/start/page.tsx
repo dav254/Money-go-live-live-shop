@@ -5,7 +5,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, RadioTower, Loader2, WifiOff, AlertTriangle, FlipHorizontal } from 'lucide-react';
+import { Copy, RadioTower, Loader2, WifiOff, AlertTriangle, FlipHorizontal, Video, CameraOff } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ const SellerLivePage = () => {
     const [peerId, setPeerId] = useState<string | null>(null);
     const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
     const [facingMode, setFacingMode] = useState('environment');
+    const [isCameraReady, setIsCameraReady] = useState(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
@@ -34,7 +35,6 @@ const SellerLivePage = () => {
             peerRef.current.destroy();
         }
 
-        // Use public PeerJS server
         const newPeer = new Peer(id);
         peerRef.current = newPeer;
 
@@ -51,11 +51,10 @@ const SellerLivePage = () => {
 
         newPeer.on('error', (err) => {
             console.error('PeerJS Error:', err);
-             // Handle 'unavailable-id' error by generating a temporary ID
             if (err.type === 'unavailable-id') {
                 const tempId = `${user!.uid}-${Math.random().toString(36).substring(2, 8)}`;
                 toast({ variant: 'destructive', title: 'Live ID Taken', description: `Your primary ID is in use. Using a temporary ID: ${tempId}` });
-                initializePeer(tempId); // Recursively try with a new ID
+                initializePeer(tempId);
             } else {
                  setLiveStatus('ERROR');
             }
@@ -81,29 +80,27 @@ const SellerLivePage = () => {
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
             }
+            setIsCameraReady(true);
             return mediaStream;
         } catch (err) {
             console.error("Failed to get local stream", err);
             setLiveStatus('ERROR');
-            toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access your camera or microphone.' });
+            setIsCameraReady(false);
+            toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access your camera or microphone. Please check browser permissions.' });
             return null;
         }
     }
 
-    useEffect(() => {
-        const startCameraAndPeer = async () => {
-            if (!user) return;
-            setLiveStatus('CONNECTING');
-            const stream = await getCameraStream(facingMode as 'user' | 'environment');
-            if (stream) {
-                initializePeer(user.uid);
-            }
-        };
-
-        if(user) {
-            startCameraAndPeer();
+    const startCameraAndPeer = async () => {
+        if (!user) return;
+        setLiveStatus('CONNECTING');
+        const stream = await getCameraStream(facingMode as 'user' | 'environment');
+        if (stream) {
+            initializePeer(user.uid);
         }
+    };
 
+    useEffect(() => {
         return () => {
             if (peerRef.current) {
                 peerRef.current.destroy();
@@ -116,7 +113,7 @@ const SellerLivePage = () => {
                 updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
             }
         };
-    }, [user, facingMode, firestore]);
+    }, [liveSessionId, firestore]);
 
     const handleGoLive = async () => {
         if (!firestore || !user || !peerId) return;
@@ -225,19 +222,28 @@ const SellerLivePage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">
                         <Card className="overflow-hidden">
-                           <div className="aspect-video w-full bg-black relative">
-                                <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                           <div className="aspect-video w-full bg-black relative flex items-center justify-center">
+                                <video ref={videoRef} autoPlay muted playsInline className={`w-full h-full object-cover transition-opacity ${isCameraReady ? 'opacity-100' : 'opacity-0'}`} />
+                                {!isCameraReady && liveStatus !== 'CONNECTING' && (
+                                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
+                                        <CameraOff className="h-12 w-12 text-muted-foreground mb-4" />
+                                        <p>Your camera is off</p>
+                                        <Button onClick={startCameraAndPeer} className="mt-4">Start Camera</Button>
+                                    </div>
+                                )}
                                 {liveStatus === 'CONNECTING' && (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
                                         <Loader2 className="h-8 w-8 animate-spin mb-2" />
                                         <p>Starting camera...</p>
                                     </div>
                                 )}
-                             <div className="absolute top-4 right-4">
-                                <Button onClick={toggleFacingMode} size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70">
-                                    <FlipHorizontal size={20} />
-                                </Button>
-                             </div>
+                             {isCameraReady && (
+                                <div className="absolute top-4 right-4">
+                                    <Button onClick={toggleFacingMode} size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70">
+                                        <FlipHorizontal size={20} />
+                                    </Button>
+                                </div>
+                             )}
                            </div>
                         </Card>
                     </div>
