@@ -12,18 +12,13 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Peer } from 'peerjs';
-import { doc, setDoc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
 
-// Define the PeerJS configuration with STUN and TURN servers
 const PEER_CONFIG = {
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            {
-                urls: 'turn:numb.viagenie.ca',
-                username: 'webrtc@live.com',
-                credential: 'muazkh'
-            }
+            { urls: 'turn:numb.viagenie.ca', username: 'webrtc@live.com', credential: 'muazkh' }
         ]
     }
 };
@@ -50,14 +45,13 @@ const SellerLivePage = () => {
                 peerRef.current.destroy();
             }
             
-            // Use the PEER_CONFIG when initializing the Peer object
             const newPeer = new Peer(id, PEER_CONFIG);
             peerRef.current = newPeer;
 
             newPeer.on('open', (openedId) => {
                 setPeerId(openedId);
                 setLiveStatus('READY');
-                toast({ title: "Ready to Go Live", description: `Connected to live network with ID: ${openedId}` });
+                toast({ title: "Ready to Go Live", description: `Connected to live network.` });
             });
             
             newPeer.on('call', (call) => {
@@ -112,6 +106,21 @@ const SellerLivePage = () => {
     };
 
     useEffect(() => {
+        let unsubscribeFromAnswer: (() => void) | undefined;
+    
+        if (peerId && firestore) {
+            const sessionRef = doc(firestore, 'liveSessions', peerId);
+            unsubscribeFromAnswer = onSnapshot(sessionRef, (snapshot) => {
+                const data = snapshot.data();
+                if (data?.answer && peerRef.current) {
+                    const call = peerRef.current.connections[Object.keys(peerRef.current.connections)[0]]?.[0];
+                    if (call) {
+                        call.peerConnection.setRemoteDescription(data.answer);
+                    }
+                }
+            });
+        }
+    
         return () => {
             if (peerRef.current) {
                 peerRef.current.destroy();
@@ -119,27 +128,34 @@ const SellerLivePage = () => {
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
             }
-            if (liveSessionId) {
+            if (liveSessionId && firestore) {
                 const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
                 updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
             }
+            if (unsubscribeFromAnswer) {
+                unsubscribeFromAnswer();
+            }
         };
-    }, [liveSessionId, firestore]);
+    }, [peerId, liveSessionId, firestore]);
 
     const handleGoLive = async () => {
-       if (!peerId || !firestore) return;
+       if (!peerId || !firestore || !user) return;
 
        const sessionRef = doc(firestore, 'liveSessions', peerId);
        setLiveSessionId(peerId);
 
+       const peerConnection = peerRef.current!.connections[Object.keys(peerRef.current!.connections)[0]]?.[0]?.peerConnection;
+       
+       const offer = await peerRef.current!.call(peerId, localStreamRef.current!).peerConnection.createOffer();
+       await peerRef.current!.call(peerId, localStreamRef.current!).peerConnection.setLocalDescription(offer);
+
        await setDoc(sessionRef, {
            id: peerId,
-           sellerId: user!.uid,
-           title: `${user!.displayName || 'Seller'}'s Live Show`,
+           sellerId: user.uid,
+           title: `${user.displayName || 'Seller'}'s Live Show`,
            status: 'live',
            startTime: serverTimestamp(),
-           productIds: [],
-           viewerCount: 0,
+           offer: { type: offer.type, sdp: offer.sdp },
        });
 
        setLiveStatus('LIVE');
@@ -198,7 +214,7 @@ const SellerLivePage = () => {
                     <Card className="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Live Preview</CardTitle>
-                            <CardDescription><StatusCard /></CardDescription>
+                            <StatusCard />
                         </CardHeader>
                         <CardContent>
                              <div className="aspect-video w-full bg-black rounded-lg relative overflow-hidden">

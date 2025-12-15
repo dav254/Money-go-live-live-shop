@@ -9,19 +9,14 @@ import { Loader2, WifiOff, User, RadioTower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 
-// Define the PeerJS configuration with STUN and TURN servers
 const PEER_CONFIG = {
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            {
-                urls: 'turn:numb.viagenie.ca',
-                username: 'webrtc@live.com',
-                credential: 'muazkh'
-            }
+            { urls: 'turn:numb.viagenie.ca', username: 'webrtc@live.com', credential: 'muazkh' }
         ]
     }
 };
@@ -52,7 +47,7 @@ const BuyerLiveStreamPage = () => {
             return;
         }
 
-        if (!liveSession || liveSession.status !== 'live') {
+        if (!liveSession || liveSession.status !== 'live' || !liveSession.offer) {
             setStatus('SELLER_OFFLINE');
             return;
         }
@@ -65,15 +60,20 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
 
-            // Use the PEER_CONFIG when initializing the Peer object
             const peer = new Peer(undefined, PEER_CONFIG);
             peerRef.current = peer;
 
-            peer.on('open', (buyerId) => {
+            peer.on('open', async (buyerId) => {
                 setStatus('CALLING');
-                if (!peerRef.current) return;
+                if (!peerRef.current || !firestore) return;
                 
                 const call = peerRef.current.call(sellerId, new MediaStream());
+
+                const answer = await call.peerConnection.createAnswer();
+                await call.peerConnection.setLocalDescription(answer);
+
+                const sessionDoc = doc(firestore, 'liveSessions', sellerId);
+                await updateDoc(sessionDoc, { answer: { type: answer.type, sdp: answer.sdp } });
 
                 call.on('stream', (remoteStream) => {
                     if (videoRef.current) {
@@ -112,7 +112,7 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
         };
-    }, [sellerId, toast, router, liveSession, isSessionLoading]);
+    }, [sellerId, toast, router, liveSession, isSessionLoading, firestore]);
 
     const renderStatus = () => {
         const messages = {
