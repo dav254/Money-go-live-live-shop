@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { RadioTower, User } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
-import type { LiveSession, UserProfile } from '@/lib/types';
+import type { LiveSession, UserProfile, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import Link from 'next/link';
@@ -22,23 +22,31 @@ const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
         if (!firestore) return null;
         return doc(firestore, 'userProfiles', session.sellerId);
     }, [firestore, session.sellerId]);
+
+    const sellerShopRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return doc(firestore, 'sellerShops', session.sellerId);
+    }, [firestore, session.sellerId]);
     
-    const { data: seller, isLoading } = useDoc<UserProfile>(sellerProfileRef);
+    const { data: seller, isLoading: isProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
+    const { data: shop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
+
+    const isLoading = isProfileLoading || isShopLoading;
 
     if (isLoading || !seller) {
         return <Skeleton className="h-20 w-full" />;
     }
     
     return (
-        <Link href={`/buyer/live/${session.muxPlaybackId}`} className="block">
+        <Link href={`/buyer/live/${session.sellerId}`} className="block">
           <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <img src={seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} alt={seller.fullName} className="h-12 w-12 rounded-full border-2 border-red-500" />
+                    <img src={shop?.logoUrl || seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} alt={seller.fullName} className="h-12 w-12 rounded-full border-2 border-red-500" />
                     <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-md font-bold">LIVE</div>
                 </div>
                 <div>
-                    <h2 className="font-bold">{seller.shopName || seller.fullName}</h2>
+                    <h2 className="font-bold">{shop?.shopName || seller.fullName}</h2>
                     <p className="text-sm text-neutral-400">{session.title}</p>
                 </div>
             </div>
@@ -84,13 +92,13 @@ const JoinLivePage = () => {
                             <RadioTower className="text-primary"/>
                             Join a Live Stream
                             </CardTitle>
-                            <CardDescription>Enter the Seller's Live Stream Playback ID to start watching.</CardDescription>
+                            <CardDescription>Enter the Seller's Live Stream ID to start watching.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="flex w-full max-w-sm items-center space-x-2">
                                 <Input 
                                     type="text" 
-                                    placeholder="Enter Playback ID" 
+                                    placeholder="Enter Seller ID" 
                                     value={sellerIdInput} 
                                     onChange={(e) => setSellerIdInput(e.target.value)} 
                                 />
