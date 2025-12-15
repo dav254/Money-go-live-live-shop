@@ -1,10 +1,11 @@
+
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, RadioTower, Loader2, Info, Youtube, WifiOff, AlertTriangle } from 'lucide-react';
+import { Copy, RadioTower, Loader2, WifiOff, AlertTriangle } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +14,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Peer, DataConnection, MediaConnection } from 'peerjs';
 
-const MUX_RTMP_URL = 'rtmps://global-live.mux.com:443/app';
-
 const SellerLivePage = () => {
     const { user } = useUser();
     const { toast } = useToast();
-    const [streamDetails, setStreamDetails] = useState<{ streamKey: string; playbackId: string } | null>(null);
     const [liveStatus, setLiveStatus] = useState<'CONNECTING' | 'LIVE' | 'ERROR' | 'ID_TAKEN'>('CONNECTING');
-    const [streamTitle, setStreamTitle] = useState("My Awesome Live Show");
     const [peerId, setPeerId] = useState<string | null>(null);
 
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,20 +25,15 @@ const SellerLivePage = () => {
     const localStreamRef = useRef<MediaStream | null>(null);
 
     const initializePeer = (id: string) => {
-        // Ensure we're running on the client
         if (typeof window === 'undefined') return;
 
-        // Dynamically import PeerJS on the client side
         import('peerjs').then(({ default: Peer }) => {
             if (peerRef.current) {
                 peerRef.current.destroy();
             }
 
-            const newPeer = new Peer(id, {
-                host: 'localhost',
-                port: 9000,
-                path: '/myapp'
-            });
+            // Use the public PeerJS server by not specifying host/port
+            const newPeer = new Peer(id);
 
             newPeer.on('open', (openedId) => {
                 console.log('PeerJS connection opened with ID:', openedId);
@@ -71,7 +63,6 @@ const SellerLivePage = () => {
                         title: 'Live ID Taken',
                         description: `Your ID "${id}" is in use. Trying a different one...`,
                     });
-                    // Attempt to connect with a unique ID
                     const uniqueId = `${id}-${Math.random().toString(36).substring(2, 7)}`;
                     initializePeer(uniqueId);
                 } else {
@@ -98,7 +89,6 @@ const SellerLivePage = () => {
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
                 }
-                // Once camera is ready, initialize Peer with the user's ID
                 initializePeer(user.uid);
 
             } catch (err) {
@@ -108,7 +98,9 @@ const SellerLivePage = () => {
             }
         };
 
-        startCameraAndPeer();
+        if(user) {
+            startCameraAndPeer();
+        }
 
         return () => {
             if (peerRef.current) {

@@ -1,55 +1,94 @@
 
 'use client';
 
-import React from 'react';
-import MuxPlayer from '@mux/mux-player-react';
-import { useParams } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import type { Peer, MediaConnection } from 'peerjs';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, VideoOff } from 'lucide-react';
-import { LiveChat } from '@/components/buyer/LiveChat';
-import { LiveProductCard } from '@/components/buyer/LiveProductCard';
-import { products } from '@/lib/placeholder-data';
-
+import { Loader2, WifiOff, User } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 const BuyerLiveStreamPage = () => {
     const params = useParams();
-    const playbackId = params.streamId as string;
-    
+    const router = useRouter();
+    const { toast } = useToast();
+    const sellerId = params.streamId as string;
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const peerRef = useRef<Peer | null>(null);
+    const [status, setStatus] = useState<'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('CONNECTING');
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !sellerId) return;
+
+        import('peerjs').then(({ default: Peer }) => {
+            const peer = new Peer(); // Create a peer for the buyer with a random ID
+            peerRef.current = peer;
+
+            peer.on('open', (buyerId) => {
+                setStatus('CALLING');
+                console.log(`Buyer PeerJS client is open with ID: ${buyerId}. Calling seller: ${sellerId}`);
+
+                // Now that we are connected to the PeerJS server, we can make a call.
+                const call = peer.call(sellerId, new MediaStream()); // Send an empty stream initially
+
+                call.on('stream', (remoteStream) => {
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = remoteStream;
+                        videoRef.current.play().catch(e => console.error("Video play failed", e));
+                    }
+                    setStatus('CONNECTED');
+                    toast({ title: "Connected!", description: "You are now watching the live stream." });
+                });
+
+                call.on('error', (err) => {
+                    console.error('Call error:', err);
+                    setStatus('ERROR');
+                    toast({ variant: 'destructive', title: 'Stream Error', description: 'Could not connect to the stream.' });
+                });
+
+                call.on('close', () => {
+                    toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
+                    router.push('/buyer/live');
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS connection error:', err);
+                setStatus('ERROR');
+                toast({ variant: 'destructive', title: 'Connection Failed', description: 'Could not connect to the live streaming network.' });
+            });
+        });
+
+        // Cleanup on component unmount
+        return () => {
+            if (peerRef.current) {
+                peerRef.current.destroy();
+            }
+        };
+    }, [sellerId, toast, router]);
+
+    const renderStatus = () => {
+        switch (status) {
+            case 'CONNECTING':
+                return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Connecting to live network...</p></div>;
+            case 'CALLING':
+                return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Calling seller: {sellerId}...</p></div>;
+            case 'CONNECTED':
+                return null; // Video will be playing
+            case 'ERROR':
+                 return <div className="flex flex-col items-center gap-2"><WifiOff className="h-8 w-8 text-destructive" /><p>Connection failed. Please check the Seller ID and try again.</p><Button onClick={() => router.push('/buyer/live')} className="mt-4">Go Back</Button></div>;
+            default:
+                return null;
+        }
+    };
+
     return (
         <BuyerLayout fullWidth={true}>
-            <div className="h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-4 bg-black">
-                
-                {/* Main Video Section */}
-                <div className="lg:col-span-3 h-full flex flex-col">
-                    <div className="flex-1 w-full bg-black flex items-center justify-center relative overflow-hidden">
-                       {playbackId ? (
-                             <MuxPlayer
-                                streamType="live"
-                                playbackId={playbackId}
-                                className="w-full h-full"
-                                autoPlay
-                                muted
-                                placeholder={<div className="w-full h-full flex flex-col items-center justify-center bg-black text-white"><Loader2 className="h-8 w-8 animate-spin" /><p className="mt-2">Connecting to live stream...</p></div>}
-                             />
-                       ) : (
-                           <div className="flex flex-col items-center justify-center text-white">
-                               <VideoOff className="h-12 w-12 text-muted-foreground" />
-                               <p className="mt-4">No stream ID provided.</p>
-                           </div>
-                       )}
-                    </div>
-                     <div className="bg-black border-t border-neutral-700 p-2">
-                        <h3 className="text-white text-sm font-semibold mb-2 ml-2">Featured Products</h3>
-                        <div className="flex gap-2 overflow-x-auto pb-2">
-                            {products.slice(0, 5).map(p => <LiveProductCard key={p.id} product={p} />)}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Chat Section */}
-                <div className="lg:col-span-1 h-full hidden lg:flex">
-                   <LiveChat liveSessionId={playbackId} />
+            <div className="h-[calc(100vh-4rem)] bg-black text-white flex items-center justify-center">
+                <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-contain ${status !== 'CONNECTED' ? 'hidden' : ''}`} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                    {renderStatus()}
                 </div>
             </div>
         </BuyerLayout>
