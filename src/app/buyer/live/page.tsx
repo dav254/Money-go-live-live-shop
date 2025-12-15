@@ -19,12 +19,12 @@ const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
     const firestore = useFirestore();
 
     const sellerProfileRef = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !session.sellerId) return null;
         return doc(firestore, 'userProfiles', session.sellerId);
     }, [firestore, session.sellerId]);
 
     const sellerShopRef = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !session.sellerId) return null;
         return doc(firestore, 'sellerShops', session.sellerId);
     }, [firestore, session.sellerId]);
     
