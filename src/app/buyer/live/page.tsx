@@ -42,12 +42,12 @@ const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
           <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <img src={shop?.logoUrl || seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} alt={seller.fullName} className="h-12 w-12 rounded-full border-2 border-red-500" />
+                    <img src={shop?.logoUrl || seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} alt={shop?.shopName || seller.fullName} className="h-12 w-12 rounded-full border-2 border-red-500 object-cover" />
                     <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-md font-bold">LIVE</div>
                 </div>
                 <div>
                     <h2 className="font-bold">{shop?.shopName || seller.fullName}</h2>
-                    <p className="text-sm text-neutral-400">{session.title}</p>
+                    <p className="text-sm text-neutral-400 truncate max-w-xs">{session.title}</p>
                 </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-neutral-400">
@@ -74,6 +74,20 @@ const JoinLivePage = () => {
     }, [firestore]);
 
     const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
+    
+    // Deduplicate the sessions to show only one entry per seller
+    const uniqueLiveSellers = useMemo(() => {
+        if (!liveSessions) return [];
+        const seenSellers = new Set();
+        return liveSessions.filter(session => {
+            if (seenSellers.has(session.sellerId)) {
+                return false;
+            } else {
+                seenSellers.add(session.sellerId);
+                return true;
+            }
+        });
+    }, [liveSessions]);
 
     const connectToSeller = () => {
         if (sellerIdInput.trim()) {
@@ -115,8 +129,8 @@ const JoinLivePage = () => {
                         </CardHeader>
                         <CardContent className="space-y-3 max-h-96 overflow-y-auto">
                             {isLoading && Array.from({length: 3}).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
-                            {!isLoading && liveSessions && liveSessions.length > 0 ? (
-                                liveSessions.map(session => (
+                            {!isLoading && uniqueLiveSellers && uniqueLiveSellers.length > 0 ? (
+                                uniqueLiveSellers.map(session => (
                                     <LiveSellerEntry key={session.id} session={session} />
                                 ))
                             ) : (
@@ -131,3 +145,4 @@ const JoinLivePage = () => {
 };
 
 export default JoinLivePage;
+
