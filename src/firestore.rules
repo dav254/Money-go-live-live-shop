@@ -94,11 +94,17 @@ service cloud.firestore {
 
     // Orders can be read by the buyer, the seller, or an admin.
     // Admins can list all orders.
-    // Buyers can create orders.
+    // Buyers and Resellers can only list orders where their ID is present.
     match /orders/{orderId} {
       allow list: if request.auth != null && (
-          (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin') ||
-          (request.query.resource.resellerId == request.auth.uid)
+          get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
+          (request.query.where.size() > 0 && 
+            (
+              (request.query.where[0][0] == 'buyerId' && request.query.where[0][2] == request.auth.uid) ||
+              (request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
+              (request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid)
+            )
+          )
       );
       allow read: if request.auth != null && 
                      (resource.data.buyerId == request.auth.uid || 
@@ -110,10 +116,10 @@ service cloud.firestore {
       // Allow seller to update status from pending->processing or processing->shipped
       // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                      (
                        ( // Seller's permissions
                          resource.data.sellerId == request.auth.uid &&
-                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                          (
                            (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
                            (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
@@ -121,7 +127,6 @@ service cloud.firestore {
                        ) ||
                        ( // Buyer's permissions
                          resource.data.buyerId == request.auth.uid &&
-                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                          resource.data.orderStatus == 'shipped' &&
                          request.resource.data.orderStatus == 'delivered'
                        )
@@ -280,3 +285,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
