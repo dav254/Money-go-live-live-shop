@@ -145,4 +145,3 @@ const JoinLivePage = () => {
 };
 
 export default JoinLivePage;
-
