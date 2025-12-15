@@ -13,36 +13,32 @@ const BuyerLiveStreamPage = () => {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
-    const sellerId = params.streamId as string; // This can be undefined on first render
+    const sellerId = params.streamId as string;
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
     const [status, setStatus] = useState<'INITIALIZING' | 'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
 
     useEffect(() => {
-        // Wait until sellerId is available from the router
+        // CRITICAL FIX: Do not proceed if the sellerId from the URL is not yet available.
         if (typeof window === 'undefined' || !sellerId) {
             return;
         }
 
         setStatus('CONNECTING');
         import('peerjs').then(({ default: Peer }) => {
-            // Create a peer for the buyer with a random ID
-            const peer = new Peer(); 
+            if (peerRef.current) {
+                peerRef.current.destroy();
+            }
+
+            const peer = new Peer();
             peerRef.current = peer;
 
             peer.on('open', (buyerId) => {
                 setStatus('CALLING');
                 console.log(`Buyer PeerJS client is open with ID: ${buyerId}. Calling seller: ${sellerId}`);
 
-                if (!sellerId) {
-                    console.error("Seller ID is undefined, cannot make a call.");
-                    setStatus('ERROR');
-                    toast({ variant: 'destructive', title: 'Error', description: 'No Seller ID provided in the URL.' });
-                    return;
-                }
-
                 // Now that we are connected to the PeerJS server, we can make a call.
-                const call = peer.call(sellerId, new MediaStream()); // Send an empty stream initially
+                const call = peer.call(sellerId, new MediaStream());
 
                 call.on('stream', (remoteStream) => {
                     if (videoRef.current) {
@@ -82,7 +78,7 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
         };
-    }, [sellerId, toast, router]); // Dependency on sellerId ensures this runs when it becomes available
+    }, [sellerId, toast, router]);
 
     const renderStatus = () => {
         switch (status) {
