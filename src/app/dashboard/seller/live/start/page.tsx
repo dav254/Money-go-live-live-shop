@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -35,6 +36,30 @@ const SellerLivePage = () => {
     const peerRef = useRef<Peer | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
 
+    const cleanup = useCallback(async () => {
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+        }
+        if (peerId && firestore) {
+            const sessionRef = doc(firestore, 'liveSessions', peerId);
+            try {
+                // Attempt to set status to ended, or delete if it fails.
+                await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
+            } catch (e) {
+                // If update fails (e.g. document doesn't exist), try to delete.
+                await deleteDoc(sessionRef).catch(() => {});
+            }
+        }
+        setLiveStatus('OFFLINE');
+        setIsCameraReady(false);
+        setPeerId(null);
+    }, [peerId, firestore]);
+
     const initializePeer = useCallback((id: string, stream: MediaStream) => {
         if (typeof window === 'undefined') return;
 
@@ -53,7 +78,6 @@ const SellerLivePage = () => {
             });
             
             newPeer.on('call', (call) => {
-                // Answer incoming calls with the local stream
                 call.answer(stream); 
             });
 
@@ -99,18 +123,11 @@ const SellerLivePage = () => {
     }, [user, facingMode, getCameraStream, initializePeer]);
 
     useEffect(() => {
+        // This is the cleanup function that runs when the component unmounts.
         return () => {
-            if (peerRef.current) {
-                peerRef.current.destroy();
-            }
-            if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach(track => track.stop());
-            }
-             if (peerId && firestore) {
-                deleteDoc(doc(firestore, 'liveSessions', peerId));
-            }
+            cleanup();
         };
-    }, [peerId, firestore]);
+    }, [cleanup]);
 
     const handleGoLive = async () => {
        if (!peerId || !firestore || !user || !localStreamRef.current) return;
@@ -146,22 +163,7 @@ const SellerLivePage = () => {
     };
 
     const handleEndLive = async () => {
-        if (!peerId) return;
-
-        const sessionRef = doc(firestore, 'liveSessions', peerId);
-        await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
-
-        setLiveStatus('OFFLINE');
-        setPeerId(null);
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-            localStreamRef.current = null;
-        }
-        setIsCameraReady(false);
+        await cleanup();
     };
 
     const copyToClipboard = (text: string, fieldName: string) => {
