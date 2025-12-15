@@ -5,20 +5,20 @@ import React, { useEffect, useState, useRef } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, RadioTower, Loader2, WifiOff, AlertTriangle } from 'lucide-react';
+import { Copy, RadioTower, Loader2, WifiOff, AlertTriangle, FlipHorizontal } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { Peer, DataConnection, MediaConnection } from 'peerjs';
+import type { Peer } from 'peerjs';
 
 const SellerLivePage = () => {
     const { user } = useUser();
     const { toast } = useToast();
     const [liveStatus, setLiveStatus] = useState<'CONNECTING' | 'LIVE' | 'ERROR' | 'ID_TAKEN'>('CONNECTING');
     const [peerId, setPeerId] = useState<string | null>(null);
+    const [facingMode, setFacingMode] = useState('environment');
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
@@ -32,7 +32,6 @@ const SellerLivePage = () => {
                 peerRef.current.destroy();
             }
 
-            // Use the public PeerJS server by not specifying host/port
             const newPeer = new Peer(id);
 
             newPeer.on('open', (openedId) => {
@@ -42,13 +41,13 @@ const SellerLivePage = () => {
                 toast({ title: 'You are live!', description: `Broadcasting with ID: ${openedId}` });
             });
 
-            newPeer.on('connection', (conn: DataConnection) => {
+            newPeer.on('connection', (conn) => {
                 conn.on('data', (data) => {
                     console.log('Received data:', data);
                 });
             });
 
-            newPeer.on('call', (call: MediaConnection) => {
+            newPeer.on('call', (call) => {
                 if (localStreamRef.current) {
                     call.answer(localStreamRef.current);
                 }
@@ -78,23 +77,42 @@ const SellerLivePage = () => {
             peerRef.current = newPeer;
         });
     };
+    
+    const getCameraStream = async (mode: 'user' | 'environment') => {
+         try {
+            if (localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach(track => track.stop());
+            }
+
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: mode,
+                },
+                audio: true,
+            });
+            
+            localStreamRef.current = mediaStream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+            }
+            return mediaStream;
+        } catch (err) {
+            console.error("Failed to get local stream", err);
+            setLiveStatus('ERROR');
+            toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access your camera or microphone.' });
+            return null;
+        }
+    }
 
     useEffect(() => {
         const startCameraAndPeer = async () => {
             if (!user) return;
             setLiveStatus('CONNECTING');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localStreamRef.current = stream;
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
+            const stream = await getCameraStream(facingMode as 'user' | 'environment');
+            if (stream) {
                 initializePeer(user.uid);
-
-            } catch (err) {
-                console.error("Failed to get local stream", err);
-                setLiveStatus('ERROR');
-                toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access your camera or microphone.' });
             }
         };
 
@@ -110,48 +128,69 @@ const SellerLivePage = () => {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
             }
         };
-    }, [user]);
+    }, [user, facingMode]);
 
     const copyToClipboard = (text: string, fieldName: string) => {
         navigator.clipboard.writeText(text).then(() => {
             toast({ title: `${fieldName} Copied!` });
         });
     };
+
+    const toggleFacingMode = () => {
+      setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    };
     
-    const getStatusIndicator = () => {
+    const StatusCard = () => {
+        let title, description, icon;
         switch (liveStatus) {
             case 'LIVE':
-                return (
-                    <div className="flex items-center gap-2 text-green-400">
-                        <RadioTower className="h-4 w-4 animate-pulse" />
-                        <span>Live & Broadcasting</span>
-                    </div>
-                );
+                title = "You are Live!";
+                description = "Your stream is broadcasting. Share your Live ID with buyers.";
+                icon = <RadioTower className="h-6 w-6 text-green-500 animate-pulse" />;
+                break;
             case 'CONNECTING':
-                return (
-                    <div className="flex items-center gap-2 text-yellow-400">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Connecting to Live Server...</span>
-                    </div>
-                );
+                title = "Connecting...";
+                description = "Attempting to connect to the live streaming network. This may take a moment.";
+                icon = <Loader2 className="h-6 w-6 text-yellow-500 animate-spin" />;
+                break;
              case 'ID_TAKEN':
-                return (
-                    <div className="flex items-center gap-2 text-yellow-400">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>ID taken, creating a new one...</span>
-                    </div>
-                );
+                title = "Reconnecting...";
+                description = "Your primary ID was taken. Assigning a new one.";
+                icon = <Loader2 className="h-6 w-6 text-yellow-500 animate-spin" />;
+                break;
             case 'ERROR':
-                return (
-                    <div className="flex items-center gap-2 text-red-400">
-                        <WifiOff className="h-4 w-4" />
-                        <span>Connection Failed</span>
-                    </div>
-                );
             default:
-                return null;
+                title = "Connection Failed";
+                description = "Could not connect to the live server. Please check your network connection and refresh the page.";
+                icon = <WifiOff className="h-6 w-6 text-red-500" />;
+                break;
         }
-    };
+
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                        {icon}
+                        {title}
+                    </CardTitle>
+                    <CardDescription>
+                        {description}
+                    </CardDescription>
+                </CardHeader>
+                {liveStatus === 'LIVE' && peerId && (
+                     <CardContent className="space-y-2">
+                        <Label>Your Live ID</Label>
+                        <div className="flex items-center gap-2">
+                            <Input value={peerId} readOnly className="font-mono bg-muted" />
+                            <Button size="icon" variant="secondary" onClick={() => copyToClipboard(peerId, 'Live ID')}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardContent>
+                )}
+            </Card>
+        )
+    }
 
     return (
         <SellerLayout>
@@ -163,42 +202,16 @@ const SellerLivePage = () => {
                         <Card className="overflow-hidden">
                            <div className="aspect-video w-full bg-black relative">
                              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                             <div className="absolute top-4 left-4">
-                                {getStatusIndicator()}
+                             <div className="absolute top-4 right-4">
+                                <Button onClick={toggleFacingMode} size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70">
+                                    <FlipHorizontal size={20} />
+                                </Button>
                              </div>
                            </div>
                         </Card>
                     </div>
                     <div className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                <RadioTower className="text-primary" />
-                                Your Live Credentials
-                                </CardTitle>
-                                <CardDescription>
-                                    Share your Live ID with your buyers so they can join your stream.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {liveStatus === 'LIVE' && peerId ? (
-                                    <div className="space-y-2">
-                                        <Label>Your Live ID</Label>
-                                        <div className="flex items-center gap-2">
-                                            <Input value={peerId} readOnly className="font-mono bg-muted" />
-                                            <Button size="icon" variant="secondary" onClick={() => copyToClipboard(peerId, 'Live ID')}>
-                                                <Copy className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                     <div className="space-y-2">
-                                        <Label>Your Live ID</Label>
-                                         <Skeleton className="h-10 w-full" />
-                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <StatusCard />
                          <Alert variant="destructive">
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Important</AlertTitle>
