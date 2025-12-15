@@ -6,7 +6,7 @@ import Peer from 'peerjs';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, RadioTower, VideoOff } from 'lucide-react';
+import { Copy, Check, RadioTower, VideoOff, Wifi, Loader2 } from 'lucide-react';
 import { useUser } from '@/firebase';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,52 +21,83 @@ const SellerLivePage = () => {
     const { toast } = useToast();
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setStatus("Please log in to start a stream.");
+            return;
+        };
 
-        // Initialize PeerJS with the user's UID
-        const peerInstance = new Peer(user.uid, {
-            host: '0.peerjs.com',
-            port: 443,
-            path: '/',
-            secure: true,
-        });
+        setStatus('Connecting to Peer network...');
 
-        peerInstance.on('open', (id) => {
+        let peer: Peer;
+        try {
+             peer = new Peer(user.uid, {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' },
+                        { urls: "stun:stun1.l.google.com:19302" },
+                        { urls: "stun:stun2.l.google.com:19302" },
+                    ]
+                }
+            });
+        } catch (error) {
+            console.error("Failed to create Peer instance", error);
+            setStatus("Error: Could not initialize peer connection.");
+            toast({ variant: "destructive", title: "Connection Error", description: "Could not initialize real-time connection."});
+            return;
+        }
+
+        peer.on('open', (id) => {
             console.log('My peer ID is: ' + id);
             setStatus('Ready. Start your camera to go live.');
         });
 
-        peerInstance.on('call', (call) => {
+        peer.on('call', (call) => {
             const stream = localVideoRef.current?.srcObject as MediaStream;
             if (stream) {
                 call.answer(stream);
                 setStatus('Connected to a buyer!');
+                toast({ title: "Viewer Connected!", description: "A buyer has joined your stream." });
                 call.on('close', () => {
                     setStatus('Buyer disconnected. Waiting for new viewers.');
                 });
             } else {
                 console.error("No local stream to answer call with.");
+                toast({ variant: "destructive", title: "Stream Error", description: "Tried to answer a call, but your camera is not streaming." });
             }
         });
 
-        peerInstance.on('error', (err) => {
+        peer.on('error', (err) => {
             console.error('PeerJS error:', err);
-            setStatus(`Error: ${err.message}. Please refresh.`);
+            let description = 'An unknown PeerJS error occurred.';
+            if (err.type === 'network') {
+                description = 'Network connection lost. Please check your internet and refresh.';
+            } else if (err.type === 'peer-unavailable') {
+                 description = 'Could not connect to a user. They may have left.';
+            }
+            setStatus(`Error: ${err.message}`);
+            toast({ variant: "destructive", title: "Connection Error", description });
         });
 
         return () => {
-            peerInstance.destroy();
+            peer.destroy();
         };
-    }, [user]);
+    }, [user, toast]);
 
     const goLive = async () => {
         try {
+            setStatus("Accessing camera...");
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
             setIsLive(true);
-            setStatus('Live! Waiting for viewers to connect.');
+            setStatus('Broadcasting! Share your ID with viewers.');
+            toast({ title: "You are live!", description: "Your stream is now active." });
         } catch (err) {
             console.error('Failed to get local stream', err);
             setStatus('Error: Failed to access camera. Please check permissions.');
@@ -97,7 +128,10 @@ const SellerLivePage = () => {
                            <RadioTower className={isLive ? "text-red-500 animate-pulse" : "text-primary"} />
                            Your Live Session
                         </CardTitle>
-                        <CardDescription>{status}</CardDescription>
+                        <CardDescription className="flex items-center gap-2">
+                            {status.includes('Connecting') && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {status}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
@@ -111,7 +145,7 @@ const SellerLivePage = () => {
                         </div>
                         
                         {!isLive && (
-                             <Button onClick={goLive} className="w-full" size="lg">
+                             <Button onClick={goLive} className="w-full" size="lg" disabled={status.includes('Connecting')}>
                                 Start Camera & Go Live
                             </Button>
                         )}
