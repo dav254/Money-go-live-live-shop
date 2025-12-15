@@ -98,7 +98,7 @@ const BuyerLiveStreamPage = () => {
     };
 
     return (
-        <BuyerLayout fullWidth={true}>
+        <BuyerLayout>
             <div className="h-[calc(100vh-4rem)] bg-black text-white flex items-center justify-center">
                 <video ref={videoRef} autoPlay playsInline className={`w-full h-full object-contain ${status !== 'CONNECTED' ? 'hidden' : ''}`} />
                 <div className="absolute inset-0 flex items-center justify-center">
