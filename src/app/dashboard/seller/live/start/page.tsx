@@ -135,6 +135,7 @@ export default function SellerLiveStudioPage() {
         pinnedProduct: null,
     }, { merge: true });
 
+    // Listen for the buyer's answer
     const unsubSession = onSnapshot(sessionRef, (snapshot) => {
       const data = snapshot.data();
       if (pcRef.current && !pcRef.current.currentRemoteDescription && data?.answer) {
@@ -143,6 +144,7 @@ export default function SellerLiveStudioPage() {
       }
     });
 
+    // Listen for ICE candidates from the buyer
     const unsubAnswerCandidates = onSnapshot(answerCandidatesRef, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added' && pcRef.current?.currentRemoteDescription) {
