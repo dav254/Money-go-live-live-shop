@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Peer } from 'peerjs';
-import { doc, setDoc, updateDoc, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, onSnapshot, deleteDoc } from 'firebase/firestore';
 
 const PEER_CONFIG = {
     config: {
@@ -29,7 +28,6 @@ const SellerLivePage = () => {
     const { toast } = useToast();
     const [liveStatus, setLiveStatus] = useState<'OFFLINE' | 'CONNECTING' | 'READY' | 'LIVE' | 'ERROR'>('OFFLINE');
     const [peerId, setPeerId] = useState<string | null>(null);
-    const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
     const [facingMode, setFacingMode] = useState('environment');
     const [isCameraReady, setIsCameraReady] = useState(false);
 
@@ -37,7 +35,7 @@ const SellerLivePage = () => {
     const peerRef = useRef<Peer | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
 
-    const initializePeer = (id: string, stream: MediaStream) => {
+    const initializePeer = useCallback((id: string, stream: MediaStream) => {
         if (typeof window === 'undefined') return;
 
         import('peerjs').then(({ default: Peer }) => {
@@ -55,24 +53,19 @@ const SellerLivePage = () => {
             });
             
             newPeer.on('call', (call) => {
-                call.answer(stream);
+                // Answer incoming calls with the local stream
+                call.answer(stream); 
             });
 
             newPeer.on('error', (err) => {
                 console.error('PeerJS Error:', err);
-                if (err.type === 'unavailable-id') {
-                    const tempId = `${user!.uid}-${Math.random().toString(36).substring(2, 8)}`;
-                    toast({ variant: 'destructive', title: 'Live ID Taken', description: `Using temporary ID: ${tempId}` });
-                    initializePeer(tempId, stream);
-                } else {
-                     setLiveStatus('ERROR');
-                     toast({ variant: 'destructive', title: 'Connection Error', description: `Could not connect to live network: ${err.message}` });
-                }
+                 setLiveStatus('ERROR');
+                 toast({ variant: 'destructive', title: 'Connection Error', description: `Could not connect to live network: ${err.message}` });
             });
         });
-    };
+    }, [toast]);
     
-    const getCameraStream = async (mode: 'user' | 'environment') => {
+    const getCameraStream = useCallback(async (mode: 'user' | 'environment') => {
         try {
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -94,33 +87,18 @@ const SellerLivePage = () => {
             setLiveStatus('ERROR');
             return null;
         }
-    }
+    }, [toast]);
 
-    const startCameraAndPeer = async () => {
+    const startCameraAndPeer = useCallback(async () => {
         if (!user) return;
         setLiveStatus('CONNECTING');
         const stream = await getCameraStream(facingMode as 'user' | 'environment');
         if (stream) {
             initializePeer(user.uid, stream);
         }
-    };
+    }, [user, facingMode, getCameraStream, initializePeer]);
 
     useEffect(() => {
-        let unsubscribeFromAnswer: (() => void) | undefined;
-    
-        if (peerId && firestore) {
-            const sessionRef = doc(firestore, 'liveSessions', peerId);
-            unsubscribeFromAnswer = onSnapshot(sessionRef, (snapshot) => {
-                const data = snapshot.data();
-                if (data?.answer && peerRef.current) {
-                    const call = peerRef.current.connections[Object.keys(peerRef.current.connections)[0]]?.[0];
-                    if (call) {
-                        call.peerConnection.setRemoteDescription(data.answer);
-                    }
-                }
-            });
-        }
-    
         return () => {
             if (peerRef.current) {
                 peerRef.current.destroy();
@@ -128,26 +106,16 @@ const SellerLivePage = () => {
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
             }
-            if (liveSessionId && firestore) {
-                const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-                updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
-            }
-            if (unsubscribeFromAnswer) {
-                unsubscribeFromAnswer();
+             if (peerId && firestore) {
+                deleteDoc(doc(firestore, 'liveSessions', peerId));
             }
         };
-    }, [peerId, liveSessionId, firestore]);
+    }, [peerId, firestore]);
 
     const handleGoLive = async () => {
        if (!peerId || !firestore || !user) return;
 
        const sessionRef = doc(firestore, 'liveSessions', peerId);
-       setLiveSessionId(peerId);
-
-       const peerConnection = peerRef.current!.connections[Object.keys(peerRef.current!.connections)[0]]?.[0]?.peerConnection;
-       
-       const offer = await peerRef.current!.call(peerId, localStreamRef.current!).peerConnection.createOffer();
-       await peerRef.current!.call(peerId, localStreamRef.current!).peerConnection.setLocalDescription(offer);
 
        await setDoc(sessionRef, {
            id: peerId,
@@ -155,20 +123,44 @@ const SellerLivePage = () => {
            title: `${user.displayName || 'Seller'}'s Live Show`,
            status: 'live',
            startTime: serverTimestamp(),
-           offer: { type: offer.type, sdp: offer.sdp },
+           offer: null, // Placeholder for the offer
+           answer: null,
+       });
+
+       const peerConnection = peerRef.current?.connections[Object.keys(peerRef.current.connections)[0]]?.[0]?.peerConnection;
+       if (!peerConnection) {
+            // This is a failsafe. We should establish a call first.
+            // For now, let's create a dummy call to ourselves to get a peerConnection.
+            const dummyCall = peerRef.current?.call(peerId, localStreamRef.current!);
+            if(dummyCall) {
+                const pc = dummyCall.peerConnection;
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                 await updateDoc(sessionRef, { offer: { type: offer.type, sdp: offer.sdp } });
+            }
+       } else {
+           const offer = await peerConnection.createOffer();
+           await peerConnection.setLocalDescription(offer);
+           await updateDoc(sessionRef, { offer: { type: offer.type, sdp: offer.sdp } });
+       }
+       
+       onSnapshot(sessionRef, (snapshot) => {
+           const data = snapshot.data();
+           if (data?.answer && peerConnection && peerConnection.remoteDescription?.sdp !== data.answer.sdp) {
+               peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+           }
        });
 
        setLiveStatus('LIVE');
     };
 
     const handleEndLive = async () => {
-        if (!liveSessionId) return;
+        if (!peerId) return;
 
-        const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+        const sessionRef = doc(firestore, 'liveSessions', peerId);
         await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
 
         setLiveStatus('OFFLINE');
-        setLiveSessionId(null);
         setPeerId(null);
         if (peerRef.current) {
             peerRef.current.destroy();
@@ -187,13 +179,24 @@ const SellerLivePage = () => {
         });
     };
 
-    const toggleFacingMode = async () => {
+    const toggleFacingMode = useCallback(async () => {
       const newMode = facingMode === 'user' ? 'environment' : 'user';
       setFacingMode(newMode);
       if (liveStatus !== 'OFFLINE') {
-          await getCameraStream(newMode as 'user' | 'environment');
+          const newStream = await getCameraStream(newMode as 'user' | 'environment');
+          if (newStream && peerRef.current) {
+              // Replace the stream in existing calls
+              for (const conn of Object.values(peerRef.current.connections)) {
+                  // @ts-ignore
+                  const call = conn[0];
+                  if (call) {
+                     const sender = call.peerConnection.getSenders().find((s:any) => s.track.kind === 'video');
+                     if(sender) sender.replaceTrack(newStream.getVideoTracks()[0]);
+                  }
+              }
+          }
       }
-    };
+    }, [facingMode, liveStatus, getCameraStream]);
     
     const StatusCard = () => {
         switch (liveStatus) {
@@ -220,8 +223,9 @@ const SellerLivePage = () => {
                              <div className="aspect-video w-full bg-black rounded-lg relative overflow-hidden">
                                 <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
                                  {!isCameraReady && liveStatus !== 'OFFLINE' && (
-                                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                                     <div className="absolute inset-0 flex items-center justify-center bg-black/50 flex-col gap-2">
                                          <Loader2 className="h-8 w-8 animate-spin" />
+                                         <p className="text-sm">Starting camera...</p>
                                      </div>
                                  )}
                                  <div className="absolute top-3 right-3">

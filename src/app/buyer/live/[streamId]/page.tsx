@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Peer } from 'peerjs';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -9,7 +8,7 @@ import { Loader2, WifiOff, User, RadioTower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 
 const PEER_CONFIG = {
@@ -40,18 +39,7 @@ const BuyerLiveStreamPage = () => {
     
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
-    useEffect(() => {
-        if (!sellerId) return;
-        if (isSessionLoading) {
-            setStatus('CHECKING_STATUS');
-            return;
-        }
-
-        if (!liveSession || liveSession.status !== 'live' || !liveSession.offer) {
-            setStatus('SELLER_OFFLINE');
-            return;
-        }
-        
+    const initializePeerAndConnect = useCallback((offer: any) => {
         if (typeof window === 'undefined') return;
 
         setStatus('CONNECTING');
@@ -63,12 +51,17 @@ const BuyerLiveStreamPage = () => {
             const peer = new Peer(undefined, PEER_CONFIG);
             peerRef.current = peer;
 
-            peer.on('open', async (buyerId) => {
+            peer.on('open', async () => {
                 setStatus('CALLING');
                 if (!peerRef.current || !firestore) return;
                 
-                const call = peerRef.current.call(sellerId, new MediaStream());
+                const call = peerRef.current.call(sellerId, new MediaStream(), {
+                    sdpTransform: (sdp) => {
+                        return sdp;
+                    }
+                });
 
+                await call.peerConnection.setRemoteDescription(offer);
                 const answer = await call.peerConnection.createAnswer();
                 await call.peerConnection.setLocalDescription(answer);
 
@@ -106,13 +99,28 @@ const BuyerLiveStreamPage = () => {
                 }
             });
         });
+    }, [sellerId, firestore, toast, router]);
+
+    useEffect(() => {
+        if (!sellerId) return;
+        if (isSessionLoading) {
+            setStatus('CHECKING_STATUS');
+            return;
+        }
+
+        if (!liveSession || liveSession.status !== 'live' || !liveSession.offer) {
+            setStatus('SELLER_OFFLINE');
+            return;
+        }
+        
+        initializePeerAndConnect(liveSession.offer);
 
         return () => {
             if (peerRef.current) {
                 peerRef.current.destroy();
             }
         };
-    }, [sellerId, toast, router, liveSession, isSessionLoading, firestore]);
+    }, [sellerId, liveSession, isSessionLoading, initializePeerAndConnect]);
 
     const renderStatus = () => {
         const messages = {
@@ -131,8 +139,8 @@ const BuyerLiveStreamPage = () => {
         const Icon = currentStatus.icon;
 
         return (
-            <div className="flex flex-col items-center gap-4 text-center p-4 rounded-lg bg-black/50">
-                 <Icon className={`h-8 w-8 animate-spin ${status === 'SELLER_OFFLINE' || status === 'ERROR' ? 'text-red-500' : ''}`} />
+            <div className="flex flex-col items-center gap-4 text-center p-4 rounded-lg bg-black/50 text-white">
+                 <Icon className={`h-8 w-8 ${status === 'CONNECTING' || status === 'CALLING' || status === 'INITIALIZING' || status === 'CHECKING_STATUS' ? 'animate-spin' : ''} ${status === 'SELLER_OFFLINE' || status === 'ERROR' ? 'text-red-500' : ''}`} />
                 <p className="font-semibold">{currentStatus.text}</p>
                 {(status === 'SELLER_OFFLINE' || status === 'ERROR') && (
                     <Button onClick={() => router.push('/buyer/live')}>Back to Live List</Button>
