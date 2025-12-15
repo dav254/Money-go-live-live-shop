@@ -264,77 +264,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
-          <CardHeader>
-            <CardTitle className="font-headline text-2xl">{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
-            <CardDescription>{isEditMode ? 'Update the details of your product.' : 'Upload media to Cloudinary and fill in the details.'}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-8">
-            {/* Media Upload Section */}
-            <div>
-              <FormLabel>Media (Images & Videos)</FormLabel>
-              <div className="mt-2 flex justify-center rounded-lg border border-dashed border-input px-6 py-10">
-                <div className="text-center">
-                  <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="mt-4 flex text-sm leading-6 text-gray-600">
-                    <label
-                      htmlFor="file-upload"
-                      className="relative cursor-pointer rounded-md bg-background font-semibold text-primary focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 hover:text-primary/80"
-                    >
-                      <span>Upload files</span>
-                      <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} accept="image/*,video/*" disabled={allMediaCount >=5}/>
-                    </label>
-                    <p className="pl-1">or drag and drop</p>
-                  </div>
-                  <p className="text-xs leading-5 text-gray-500">Up to 5 files (PNG, JPG, MP4, etc.). Max 100MB each.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Preview Gallery Section */}
-            {allMediaCount > 0 && (
-              <div className="space-y-4">
-                <FormLabel>Media Preview</FormLabel>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {existingImageUrls.map((url) => (
-                      <div key={url} className="relative group aspect-square rounded-md overflow-hidden border">
-                          <Image src={url} alt="Existing product media" fill className="object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                              <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleExistingMediaRemove(url, 'image')}><Trash2 size={16} /></Button>
-                          </div>
-                      </div>
-                  ))}
-                   {existingVideoUrls.map((url) => (
-                      <div key={url} className="relative group aspect-square rounded-md overflow-hidden border">
-                          <video src={url} className="h-full w-full object-cover" muted loop autoPlay />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                              <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleExistingMediaRemove(url, 'video')}><Trash2 size={16} /></Button>
-                          </div>
-                      </div>
-                  ))}
-                  {files.map((file) => (
-                    <div key={file.name} className="relative group aspect-square rounded-md overflow-hidden border">
-                      {file.type.startsWith('image/') ? (
-                        <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover" />
-                      ) : (
-                        <video src={URL.createObjectURL(file)} className="h-full w-full object-cover" muted loop autoPlay />
-                      )}
-                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <Button size="icon" variant="ghost" className="text-white hover:bg-white/20 hover:text-white" onClick={() => handleFileRemove(file.name)}><Trash2 size={16} /></Button>
-                        </div>
-                      {isUploading && uploadProgress[file.name] !== undefined && (
-                        <div className="absolute bottom-0 left-0 right-0 p-2">
-                           <Progress value={uploadProgress[file.name]} className="h-2 bg-white/30 backdrop-blur-sm" />
-                           <p className="text-xs text-white text-center mt-1">{Math.round(uploadProgress[file.name])}%</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          <CardContent className="space-y-8 pt-6">
 
             {/* Product Information Section */}
-            <div className="space-y-6 pt-8 border-t">
+            <div className="space-y-6">
                <h3 className="text-lg font-medium leading-6 text-foreground">Product Information</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <FormField
