@@ -45,17 +45,17 @@ export async function POST(request: Request) {
     const userProfile = userProfileDoc.data();
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    const newSessionRef = doc(collection(db, 'liveSessions'));
+    const newSessionRef = doc(db, 'liveSessions', sellerId);
 
     await setDoc(newSessionRef, {
-      id: newSessionRef.id,
+      id: sellerId,
       sellerId: sellerId,
       title: `${sellerName}'s Live Show`,
       status: 'live',
       productIds: [],
       viewerCount: 0,
       startTime: Timestamp.now(),
-    });
+    }, { merge: true });
 
     return NextResponse.json({ success: true, liveSessionId: newSessionRef.id });
 
@@ -86,7 +86,6 @@ export async function PUT(request: Request) {
     const db = getFirestore(adminApp);
     const sessionRef = doc(db, 'liveSessions', liveSessionId);
 
-    // Optional: Verify that the user owns the session before ending it.
     const sessionDoc = await sessionRef.get();
     if (!sessionDoc.exists() || sessionDoc.data()?.sellerId !== sellerId) {
         return NextResponse.json({ error: 'Forbidden: You do not own this live session.' }, { status: 403 });
