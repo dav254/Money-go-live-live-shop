@@ -113,8 +113,9 @@ const SellerLivePage = () => {
     }, [peerId, firestore]);
 
     const handleGoLive = async () => {
-       if (!peerId || !firestore || !user) return;
+       if (!peerId || !firestore || !user || !localStreamRef.current) return;
 
+       setLiveStatus('LIVE');
        const sessionRef = doc(firestore, 'liveSessions', peerId);
 
        await setDoc(sessionRef, {
@@ -123,35 +124,25 @@ const SellerLivePage = () => {
            title: `${user.displayName || 'Seller'}'s Live Show`,
            status: 'live',
            startTime: serverTimestamp(),
-           offer: null, // Placeholder for the offer
+           offer: null,
            answer: null,
        });
 
-       const peerConnection = peerRef.current?.connections[Object.keys(peerRef.current.connections)[0]]?.[0]?.peerConnection;
-       if (!peerConnection) {
-            // This is a failsafe. We should establish a call first.
-            // For now, let's create a dummy call to ourselves to get a peerConnection.
-            const dummyCall = peerRef.current?.call(peerId, localStreamRef.current!);
-            if(dummyCall) {
-                const pc = dummyCall.peerConnection;
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                 await updateDoc(sessionRef, { offer: { type: offer.type, sdp: offer.sdp } });
-            }
-       } else {
-           const offer = await peerConnection.createOffer();
-           await peerConnection.setLocalDescription(offer);
-           await updateDoc(sessionRef, { offer: { type: offer.type, sdp: offer.sdp } });
+       const dummyCall = peerRef.current?.call(peerId, localStreamRef.current!);
+       if (dummyCall) {
+            const pc = dummyCall.peerConnection;
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            
+            await updateDoc(sessionRef, { offer: { type: offer.type, sdp: offer.sdp } });
+            
+            onSnapshot(sessionRef, (snapshot) => {
+                const data = snapshot.data();
+                if (data?.answer && pc.remoteDescription?.sdp !== data.answer.sdp) {
+                    pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                }
+            });
        }
-       
-       onSnapshot(sessionRef, (snapshot) => {
-           const data = snapshot.data();
-           if (data?.answer && peerConnection && peerConnection.remoteDescription?.sdp !== data.answer.sdp) {
-               peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-           }
-       });
-
-       setLiveStatus('LIVE');
     };
 
     const handleEndLive = async () => {
@@ -185,7 +176,6 @@ const SellerLivePage = () => {
       if (liveStatus !== 'OFFLINE') {
           const newStream = await getCameraStream(newMode as 'user' | 'environment');
           if (newStream && peerRef.current) {
-              // Replace the stream in existing calls
               for (const conn of Object.values(peerRef.current.connections)) {
                   // @ts-ignore
                   const call = conn[0];
