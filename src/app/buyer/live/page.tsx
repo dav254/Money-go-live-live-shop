@@ -30,7 +30,7 @@ const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
     }
     
     return (
-        <Link href={`/buyer/live/${session.sellerId}`} className="block">
+        <Link href={`/buyer/live/${session.muxPlaybackId}`} className="block">
           <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
             <div className="flex items-center gap-4">
                 <div className="relative">
@@ -84,13 +84,13 @@ const JoinLivePage = () => {
                             <RadioTower className="text-primary"/>
                             Join a Live Stream
                             </CardTitle>
-                            <CardDescription>Enter the Seller's Live Stream ID to start watching.</CardDescription>
+                            <CardDescription>Enter the Seller's Live Stream Playback ID to start watching.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="flex w-full max-w-sm items-center space-x-2">
                                 <Input 
                                     type="text" 
-                                    placeholder="Enter Seller ID" 
+                                    placeholder="Enter Playback ID" 
                                     value={sellerIdInput} 
                                     onChange={(e) => setSellerIdInput(e.target.value)} 
                                 />
