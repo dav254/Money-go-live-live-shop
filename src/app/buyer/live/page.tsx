@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { RadioTower, User } from 'lucide-react';
 import { LiveSellerCard } from '@/components/buyer/LiveSellerCard';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { collection, query, where, limit, doc } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc } from '@/firebase/firestore/use-doc';
