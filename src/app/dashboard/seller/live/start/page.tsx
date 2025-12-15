@@ -4,34 +4,107 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, RadioTower, Loader2, WifiOff, AlertTriangle, FlipHorizontal, Video, CameraOff, Camera } from 'lucide-react';
-import { useUser } from '@/firebase';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RadioTower, Loader2, WifiOff, AlertTriangle, Video, CameraOff, Camera } from 'lucide-react';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { Peer } from 'peerjs';
+import { doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
+
+
+const PEER_CONFIG = {
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'turn:numb.viagenie.ca', username: 'webrtc@live.com', credential: 'muazkh' }
+        ]
+    }
+};
 
 const SellerLivePage = () => {
     const { user } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [liveStatus, setLiveStatus] = useState<'OFFLINE' | 'CONNECTING' | 'READY' | 'LIVE' | 'ERROR'>('OFFLINE');
-    const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
     const [isCameraReady, setIsCameraReady] = useState(false);
-
     const videoRef = useRef<HTMLVideoElement>(null);
+    const peerRef = useRef<Peer | null>(null);
+    const localStreamRef = useRef<MediaStream | null>(null);
+    const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
+    const callRef = useRef<any>(null);
+
 
     const cleanup = useCallback(async () => {
+        if (callRef.current) {
+            callRef.current.close();
+            callRef.current = null;
+        }
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
+        if (liveSessionId && firestore) {
+            const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+            await updateDoc(sessionRef, { status: 'ended' });
+        }
         setLiveStatus('OFFLINE');
         setIsCameraReady(false);
         setLiveSessionId(null);
-    }, []);
+    }, [liveSessionId, firestore]);
 
-    const localStreamRef = useRef<MediaStream | null>(null);
+    const initializePeer = useCallback((stream: MediaStream) => {
+        if (!user || !firestore) return;
+        
+        import('peerjs').then(({ default: Peer }) => {
+            const peer = new Peer(user.uid, PEER_CONFIG);
+            peerRef.current = peer;
 
+            peer.on('open', async (id) => {
+                const sessionRef = doc(firestore, 'liveSessions', user.uid);
+                const sessionData: Partial<LiveSession> = {
+                    id: user.uid,
+                    sellerId: user.uid,
+                    title: `${user.displayName || 'Seller'}'s Live Show`,
+                    status: 'live',
+                    startTime: new Date(),
+                };
+                
+                // Create the call object to get the offer
+                const call = peer.call(id, stream); // Call self to generate offer
+                callRef.current = call;
+
+                if (call && call.peerConnection) {
+                    const offer = await call.peerConnection.createOffer();
+                    await call.peerConnection.setLocalDescription(offer);
+                    sessionData.offer = { type: offer.type, sdp: offer.sdp };
+                }
+
+                await setDoc(sessionRef, sessionData, { merge: true });
+                setLiveSessionId(user.uid);
+                setLiveStatus('LIVE');
+                toast({ title: "🎉 You are LIVE!", description: "Your stream has started." });
+
+                 onSnapshot(sessionRef, (snapshot) => {
+                    const data = snapshot.data() as LiveSession;
+                    if (data && data.answer && callRef.current && callRef.current.peerConnection.signalingState !== 'stable') {
+                        callRef.current.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
+                            .catch((e: any) => console.error("Error setting remote description:", e));
+                    }
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                setLiveStatus('ERROR');
+            });
+        });
+    }, [user, firestore, toast]);
+    
     const getCameraStream = useCallback(async () => {
         try {
             if (localStreamRef.current) {
@@ -64,66 +137,25 @@ const SellerLivePage = () => {
         toast({ title: "Ready to Go Live", description: `Camera is on.` });
     }, [user, getCameraStream, toast]);
 
+    const handleGoLive = async () => {
+        const stream = await getCameraStream();
+        if (stream) {
+            initializePeer(stream);
+        }
+    };
+    
+    const handleEndLive = async () => {
+        await cleanup();
+    };
 
     useEffect(() => {
+        // Ensure cleanup runs when the component unmounts or the user leaves the page
+        window.addEventListener('beforeunload', cleanup);
         return () => {
+            window.removeEventListener('beforeunload', cleanup);
             cleanup();
         };
     }, [cleanup]);
-
-    const handleGoLive = async () => {
-        if (!user) return;
-        
-        setLiveStatus('LIVE');
-
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/live-session', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to start live session.');
-            }
-
-            const data = await response.json();
-            setLiveSessionId(data.liveSessionId);
-            toast({
-                title: '🎉 You are LIVE!',
-                description: 'Your stream has started and is now visible to buyers.',
-            });
-        } catch (error: any) {
-            console.error("Error starting live session:", error);
-            toast({ variant: 'destructive', title: 'Error', description: error.message });
-            setLiveStatus('ERROR');
-        }
-    };
-
-
-    const handleEndLive = async () => {
-         if (!liveSessionId || !user) return;
-
-         try {
-             const token = await user.getIdToken();
-             await fetch('/api/live-session', {
-                 method: 'PUT',
-                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                 body: JSON.stringify({ liveSessionId }),
-             });
-         } catch (error) {
-             console.error("Error ending live session:", error);
-         } finally {
-             await cleanup();
-         }
-    };
-
 
     const StatusCard = () => {
         switch (liveStatus) {
