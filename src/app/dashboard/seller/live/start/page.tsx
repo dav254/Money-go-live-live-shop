@@ -15,6 +15,9 @@ import { useToast } from '@/hooks/use-toast';
 const SellerLivePage = () => {
     const { user } = useUser();
     const localVideoRef = useRef<HTMLVideoElement>(null);
+    const peerRef = useRef<Peer | null>(null);
+    const localStreamRef = useRef<MediaStream | null>(null);
+
     const [status, setStatus] = useState('Initializing...');
     const [isLive, setIsLive] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
@@ -24,92 +27,87 @@ const SellerLivePage = () => {
         if (!user) {
             setStatus("Please log in to start a stream.");
             return;
-        };
-
-        setStatus('Connecting to Peer network...');
-
-        let peer: Peer;
-        try {
-             peer = new Peer(user.uid, {
-                host: '0.peerjs.com',
-                port: 443,
-                path: '/',
-                secure: true,
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478' },
-                        { urls: "stun:stun1.l.google.com:19302" },
-                        { urls: "stun:stun2.l.google.com:19302" },
-                    ]
-                }
-            });
-        } catch (error) {
-            console.error("Failed to create Peer instance", error);
-            setStatus("Error: Could not initialize peer connection.");
-            toast({ variant: "destructive", title: "Connection Error", description: "Could not initialize real-time connection."});
-            return;
         }
 
-        peer.on('open', (id) => {
-            console.log('My peer ID is: ' + id);
-            setStatus('Ready. Start your camera to go live.');
-        });
-
-        peer.on('call', (call) => {
-            const stream = localVideoRef.current?.srcObject as MediaStream;
-            if (stream) {
-                call.answer(stream);
-                setStatus('Connected to a buyer!');
-                toast({ title: "Viewer Connected!", description: "A buyer has joined your stream." });
-                call.on('close', () => {
-                    setStatus('Buyer disconnected. Waiting for new viewers.');
+        const setupLiveStream = async () => {
+            // 1. Get Camera and Mic permissions
+            setStatus("Accessing camera...");
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStreamRef.current = stream;
+                if (localVideoRef.current) {
+                    localVideoRef.current.srcObject = stream;
+                }
+                setStatus("Camera is active. Connecting to live server...");
+            } catch (err) {
+                console.error('Failed to get local stream', err);
+                setStatus('Error: Failed to access camera. Please check permissions.');
+                toast({
+                    variant: 'destructive',
+                    title: 'Camera Access Denied',
+                    description: 'Please enable camera permissions in your browser settings to go live.',
                 });
-            } else {
-                console.error("No local stream to answer call with.");
-                toast({ variant: "destructive", title: "Stream Error", description: "Tried to answer a call, but your camera is not streaming." });
+                return; // Stop if camera fails
             }
-        });
 
-        peer.on('error', (err) => {
-            console.error('PeerJS error:', err);
-            let description = 'An unknown PeerJS error occurred.';
-            if (err.type === 'network') {
-                description = 'Network connection lost. Please check your internet and refresh.';
-            } else if (err.type === 'peer-unavailable') {
-                 description = 'Could not connect to a user. They may have left.';
+            // 2. Initialize PeerJS connection
+            try {
+                const peer = new Peer(user.uid, {
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
+                    secure: true,
+                    config: {
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:global.stun.twilio.com:3478' },
+                            { urls: "stun:stun1.l.google.com:19302" },
+                            { urls: "stun:stun2.l.google.com:19302" },
+                        ]
+                    }
+                });
+                peerRef.current = peer;
+
+                peer.on('open', (id) => {
+                    console.log('PeerJS connection open. My peer ID is: ' + id);
+                    setStatus('Broadcasting! You are live.');
+                    setIsLive(true);
+                    toast({ title: "You are live!", description: "Your stream is now active." });
+                });
+
+                peer.on('call', (call) => {
+                    if (localStreamRef.current) {
+                        call.answer(localStreamRef.current);
+                        setStatus('Connected to a viewer!');
+                        toast({ title: "Viewer Connected!", description: "A buyer has joined your stream." });
+                        call.on('close', () => {
+                            setStatus('Viewer disconnected. Waiting for new viewers.');
+                        });
+                    }
+                });
+
+                peer.on('error', (err) => {
+                    console.error('PeerJS error:', err);
+                    setStatus(`Error: ${err.message}`);
+                    toast({ variant: "destructive", title: "Connection Error", description: err.message });
+                });
+
+            } catch (error) {
+                console.error("Failed to create Peer instance", error);
+                setStatus("Error: Could not initialize peer connection.");
+                toast({ variant: "destructive", title: "Connection Error", description: "Could not initialize real-time connection."});
             }
-            setStatus(`Error: ${err.message}`);
-            toast({ variant: "destructive", title: "Connection Error", description });
-        });
+        };
+
+        setupLiveStream();
 
         return () => {
-            peer.destroy();
+            localStreamRef.current?.getTracks().forEach(track => track.stop());
+            peerRef.current?.destroy();
         };
     }, [user, toast]);
 
-    const goLive = async () => {
-        try {
-            setStatus("Accessing camera...");
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-            setIsLive(true);
-            setStatus('Broadcasting! Share your ID with viewers.');
-            toast({ title: "You are live!", description: "Your stream is now active." });
-        } catch (err) {
-            console.error('Failed to get local stream', err);
-            setStatus('Error: Failed to access camera. Please check permissions.');
-            toast({
-                variant: 'destructive',
-                title: 'Camera Access Denied',
-                description: 'Please enable camera permissions in your browser settings to go live.',
-            });
-        }
-    };
-    
-     const copyToClipboard = () => {
+    const copyToClipboard = () => {
         if (!user?.uid) return;
         navigator.clipboard.writeText(user.uid).then(() => {
             setIsCopied(true);
@@ -129,33 +127,32 @@ const SellerLivePage = () => {
                            Your Live Session
                         </CardTitle>
                         <CardDescription className="flex items-center gap-2">
-                            {status.includes('Connecting') && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {status.includes('...') && <Loader2 className="h-4 w-4 animate-spin" />}
                             {status}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="aspect-video w-full bg-black rounded-lg overflow-hidden flex items-center justify-center relative">
                              <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                             {!isLive && (
-                                 <div className="absolute flex flex-col items-center gap-2 text-muted-foreground">
+                             {!isLive && !status.includes('Error') && (
+                                 <div className="absolute flex flex-col items-center gap-2 text-white/70">
+                                    <Loader2 className="h-10 w-10 animate-spin" />
+                                    <p>{status}</p>
+                                </div>
+                             )}
+                              {status.includes('Error') && (
+                                <div className="absolute flex flex-col items-center gap-2 text-destructive">
                                     <VideoOff className="h-10 w-10" />
-                                    <p>Your camera is off</p>
                                 </div>
                              )}
                         </div>
-                        
-                        {!isLive && (
-                             <Button onClick={goLive} className="w-full" size="lg" disabled={status.includes('Connecting')}>
-                                Start Camera & Go Live
-                            </Button>
-                        )}
                         
                         {user?.uid && (
                             <div className="space-y-2 pt-4">
                                 <Label>Your Unique Live Stream ID</Label>
                                 <div className="flex items-center gap-2">
                                     <Input value={user.uid} readOnly className="font-mono" />
-                                    <Button size="icon" onClick={copyToClipboard}>
+                                    <Button size="icon" onClick={copyToClipboard} disabled={!isLive}>
                                         {isCopied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
                                     </Button>
                                 </div>
