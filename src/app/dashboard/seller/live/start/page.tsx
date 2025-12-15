@@ -34,17 +34,20 @@ const SellerLivePage = () => {
         if (peerRef.current) {
             peerRef.current.destroy();
         }
-
+        
+        // Connect to the public PeerJS server
         const newPeer = new Peer(id);
         peerRef.current = newPeer;
 
         newPeer.on('open', (openedId) => {
             setPeerId(openedId);
             setLiveStatus('READY');
+            toast({ title: "Ready to Go Live", description: `Connected to live network with ID: ${openedId}` });
         });
         
+        // This is the crucial part: listen for incoming calls and answer them
         newPeer.on('call', (call) => {
-            // This is the critical part: answer the call with the seller's stream
+            // Answer the call with the seller's local video/audio stream
             call.answer(stream); 
         });
 
@@ -52,10 +55,11 @@ const SellerLivePage = () => {
             console.error('PeerJS Error:', err);
             if (err.type === 'unavailable-id') {
                 const tempId = `${user!.uid}-${Math.random().toString(36).substring(2, 8)}`;
-                toast({ variant: 'destructive', title: 'Live ID Taken', description: `Your primary ID is in use. Using a temporary ID: ${tempId}` });
+                toast({ variant: 'destructive', title: 'Live ID Taken', description: `Using temporary ID: ${tempId}` });
                 initializePeer(tempId, stream);
             } else {
                  setLiveStatus('ERROR');
+                 toast({ variant: 'destructive', title: 'Connection Error', description: `Could not connect to live network: ${err.message}` });
             }
         });
     };
@@ -109,7 +113,7 @@ const SellerLivePage = () => {
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => track.stop());
             }
-            if (liveSessionId) {
+            if (liveSessionId && firestore) {
                 const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
                 updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
             }
