@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Peer, MediaConnection } from 'peerjs';
+import type { Peer } from 'peerjs';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Loader2, WifiOff, User, RadioTower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +11,20 @@ import { Button } from '@/components/ui/button';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
+
+// Define the PeerJS configuration with STUN and TURN servers
+const PEER_CONFIG = {
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            {
+                urls: 'turn:numb.viagenie.ca',
+                username: 'webrtc@live.com',
+                credential: 'muazkh'
+            }
+        ]
+    }
+};
 
 const BuyerLiveStreamPage = () => {
     const params = useParams();
@@ -24,7 +38,6 @@ const BuyerLiveStreamPage = () => {
     
     const [status, setStatus] = useState<'INITIALIZING' | 'CHECKING_STATUS' | 'SELLER_OFFLINE' | 'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
 
-    // 1. Check Firestore first to see if the seller is actually live
     const sessionRef = useMemoFirebase(() => {
         if (!firestore || !sellerId) return null;
         return doc(firestore, 'liveSessions', sellerId);
@@ -33,6 +46,7 @@ const BuyerLiveStreamPage = () => {
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
     useEffect(() => {
+        if (!sellerId) return;
         if (isSessionLoading) {
             setStatus('CHECKING_STATUS');
             return;
@@ -42,11 +56,8 @@ const BuyerLiveStreamPage = () => {
             setStatus('SELLER_OFFLINE');
             return;
         }
-
-        // 2. If seller is live, then proceed with PeerJS connection
-        if (typeof window === 'undefined' || !sellerId) {
-            return;
-        }
+        
+        if (typeof window === 'undefined') return;
 
         setStatus('CONNECTING');
         import('peerjs').then(({ default: Peer }) => {
@@ -54,14 +65,15 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
 
-            const peer = new Peer();
+            // Use the PEER_CONFIG when initializing the Peer object
+            const peer = new Peer(undefined, PEER_CONFIG);
             peerRef.current = peer;
 
             peer.on('open', (buyerId) => {
                 setStatus('CALLING');
-                console.log(`Buyer PeerJS client is open with ID: ${buyerId}. Calling seller: ${sellerId}`);
-
-                const call = peer.call(sellerId, new MediaStream());
+                if (!peerRef.current) return;
+                
+                const call = peerRef.current.call(sellerId, new MediaStream());
 
                 call.on('stream', (remoteStream) => {
                     if (videoRef.current) {
@@ -75,7 +87,7 @@ const BuyerLiveStreamPage = () => {
                 call.on('error', (err) => {
                     console.error('Call error:', err);
                     setStatus('ERROR');
-                    toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream. Please check the ID and if the seller is live.` });
+                    toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream.` });
                 });
 
                 call.on('close', () => {
@@ -95,7 +107,6 @@ const BuyerLiveStreamPage = () => {
             });
         });
 
-        // Cleanup on component unmount
         return () => {
             if (peerRef.current) {
                 peerRef.current.destroy();
@@ -104,23 +115,30 @@ const BuyerLiveStreamPage = () => {
     }, [sellerId, toast, router, liveSession, isSessionLoading]);
 
     const renderStatus = () => {
-        switch (status) {
-            case 'INITIALIZING':
-            case 'CHECKING_STATUS':
-                 return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Checking stream status...</p></div>;
-            case 'SELLER_OFFLINE':
-                return <div className="flex flex-col items-center gap-2 text-center max-w-sm"><RadioTower className="h-8 w-8 text-destructive" /><p>This seller is not currently live. Please check back later.</p><Button onClick={() => router.push('/buyer/live')} className="mt-4">Back to Live List</Button></div>;
-            case 'CONNECTING':
-                return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Connecting to live network...</p></div>;
-            case 'CALLING':
-                return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Calling seller: {sellerId}...</p></div>;
-            case 'CONNECTED':
-                return null; // Video will be playing
-            case 'ERROR':
-                 return <div className="flex flex-col items-center gap-2 text-center max-w-sm"><WifiOff className="h-8 w-8 text-destructive" /><p>Connection failed. Please check the Seller ID and ensure they are live.</p><Button onClick={() => router.push('/buyer/live')} className="mt-4">Go Back</Button></div>;
-            default:
-                return null;
-        }
+        const messages = {
+            'INITIALIZING': { icon: Loader2, text: 'Initializing...' },
+            'CHECKING_STATUS': { icon: Loader2, text: 'Checking stream status...' },
+            'SELLER_OFFLINE': { icon: WifiOff, text: 'This seller is not currently live.' },
+            'CONNECTING': { icon: Loader2, text: 'Connecting to live network...' },
+            'CALLING': { icon: RadioTower, text: 'Calling seller...' },
+            'ERROR': { icon: WifiOff, text: 'Could not connect to the stream.' },
+            'CONNECTED': null,
+        };
+
+        const currentStatus = messages[status];
+        if (!currentStatus) return null;
+
+        const Icon = currentStatus.icon;
+
+        return (
+            <div className="flex flex-col items-center gap-4 text-center p-4 rounded-lg bg-black/50">
+                 <Icon className={`h-8 w-8 animate-spin ${status === 'SELLER_OFFLINE' || status === 'ERROR' ? 'text-red-500' : ''}`} />
+                <p className="font-semibold">{currentStatus.text}</p>
+                {(status === 'SELLER_OFFLINE' || status === 'ERROR') && (
+                    <Button onClick={() => router.push('/buyer/live')}>Back to Live List</Button>
+                )}
+            </div>
+        )
     };
 
     return (
@@ -136,4 +154,3 @@ const BuyerLiveStreamPage = () => {
 };
 
 export default BuyerLiveStreamPage;
-
