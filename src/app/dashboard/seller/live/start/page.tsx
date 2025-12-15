@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Peer } from 'peerjs';
+import Peer from 'peerjs';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 const SellerLivePage = () => {
@@ -29,30 +29,36 @@ const SellerLivePage = () => {
 
     const initializePeer = (id: string) => {
         if (typeof window === 'undefined') return;
+
+        if (peerRef.current) {
+            peerRef.current.destroy();
+        }
+
+        // Use public PeerJS server
+        const newPeer = new Peer(id);
+        peerRef.current = newPeer;
+
+        newPeer.on('open', (openedId) => {
+            setPeerId(openedId);
+            setLiveStatus('READY');
+        });
         
-        import('peerjs').then(({ default: Peer }) => {
-            if (peerRef.current) {
-                peerRef.current.destroy();
+        newPeer.on('call', (call) => {
+            if (localStreamRef.current) {
+                call.answer(localStreamRef.current);
             }
+        });
 
-            const newPeer = new Peer(id);
-            peerRef.current = newPeer;
-
-            newPeer.on('open', (openedId) => {
-                setPeerId(openedId);
-                setLiveStatus('READY');
-            });
-            
-            newPeer.on('call', (call) => {
-                if (localStreamRef.current) {
-                    call.answer(localStreamRef.current);
-                }
-            });
-
-            newPeer.on('error', (err) => {
-                console.error('PeerJS Error:', err);
-                setLiveStatus('ERROR');
-            });
+        newPeer.on('error', (err) => {
+            console.error('PeerJS Error:', err);
+             // Handle 'unavailable-id' error by generating a temporary ID
+            if (err.type === 'unavailable-id') {
+                const tempId = `${user!.uid}-${Math.random().toString(36).substring(2, 8)}`;
+                toast({ variant: 'destructive', title: 'Live ID Taken', description: `Your primary ID is in use. Using a temporary ID: ${tempId}` });
+                initializePeer(tempId); // Recursively try with a new ID
+            } else {
+                 setLiveStatus('ERROR');
+            }
         });
     };
     
@@ -220,7 +226,13 @@ const SellerLivePage = () => {
                     <div className="lg:col-span-2">
                         <Card className="overflow-hidden">
                            <div className="aspect-video w-full bg-black relative">
-                             <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                                <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                                {liveStatus === 'CONNECTING' && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white">
+                                        <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                                        <p>Starting camera...</p>
+                                    </div>
+                                )}
                              <div className="absolute top-4 right-4">
                                 <Button onClick={toggleFacingMode} size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70">
                                     <FlipHorizontal size={20} />
