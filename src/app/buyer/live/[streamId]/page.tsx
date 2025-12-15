@@ -13,6 +13,7 @@ const BuyerLiveStreamPage = () => {
     const sellerId = params.streamId as string;
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
     const [status, setStatus] = useState('Initializing...');
+    const peerRef = useRef<Peer | null>(null);
     
     useEffect(() => {
         if (!sellerId) {
@@ -26,14 +27,17 @@ const BuyerLiveStreamPage = () => {
             path: '/',
             secure: true,
         });
+        peerRef.current = peer;
 
-        peer.on('open', () => {
-            setStatus(`Calling seller...`);
+        peer.on('open', (id) => {
+            setStatus(`Connecting to seller...`);
             
-            const call = peer.call(sellerId, undefined as any);
+            if (!peerRef.current) return;
+
+            const call = peerRef.current.call(sellerId, undefined as any);
 
             if (!call) {
-                setStatus('Could not initiate call. Please check the Seller ID.');
+                setStatus('Could not initiate call. Please check the Seller ID and try again.');
                 return;
             }
 
@@ -78,7 +82,7 @@ const BuyerLiveStreamPage = () => {
                             <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
                             {status !== 'Watching Live Now' && (
                                 <div className="absolute flex flex-col items-center gap-2 text-muted-foreground">
-                                    {status.startsWith('Calling') || status.startsWith('Initializing') ? 
+                                    {status.startsWith('Connecting') || status.startsWith('Initializing') ? 
                                         <Loader2 className="h-8 w-8 animate-spin" /> : 
                                         <WifiOff className="h-8 w-8" />
                                     }
