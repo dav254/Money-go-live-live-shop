@@ -5,21 +5,45 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Peer, MediaConnection } from 'peerjs';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Loader2, WifiOff, User } from 'lucide-react';
+import { Loader2, WifiOff, User, RadioTower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
 
 const BuyerLiveStreamPage = () => {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
+    const firestore = useFirestore();
     const sellerId = params.streamId as string;
+    
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
-    const [status, setStatus] = useState<'INITIALIZING' | 'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
+    
+    const [status, setStatus] = useState<'INITIALIZING' | 'CHECKING_STATUS' | 'SELLER_OFFLINE' | 'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
+
+    // 1. Check Firestore first to see if the seller is actually live
+    const sessionRef = useMemoFirebase(() => {
+        if (!firestore || !sellerId) return null;
+        return doc(firestore, 'liveSessions', sellerId);
+    }, [firestore, sellerId]);
+    
+    const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
     useEffect(() => {
-        // CRITICAL FIX: Do not proceed if the sellerId from the URL is not yet available.
+        if (isSessionLoading) {
+            setStatus('CHECKING_STATUS');
+            return;
+        }
+
+        if (!liveSession || liveSession.status !== 'live') {
+            setStatus('SELLER_OFFLINE');
+            return;
+        }
+
+        // 2. If seller is live, then proceed with PeerJS connection
         if (typeof window === 'undefined' || !sellerId) {
             return;
         }
@@ -37,7 +61,6 @@ const BuyerLiveStreamPage = () => {
                 setStatus('CALLING');
                 console.log(`Buyer PeerJS client is open with ID: ${buyerId}. Calling seller: ${sellerId}`);
 
-                // Now that we are connected to the PeerJS server, we can make a call.
                 const call = peer.call(sellerId, new MediaStream());
 
                 call.on('stream', (remoteStream) => {
@@ -78,12 +101,15 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
         };
-    }, [sellerId, toast, router]);
+    }, [sellerId, toast, router, liveSession, isSessionLoading]);
 
     const renderStatus = () => {
         switch (status) {
             case 'INITIALIZING':
-                 return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Getting stream details...</p></div>;
+            case 'CHECKING_STATUS':
+                 return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Checking stream status...</p></div>;
+            case 'SELLER_OFFLINE':
+                return <div className="flex flex-col items-center gap-2 text-center max-w-sm"><RadioTower className="h-8 w-8 text-destructive" /><p>This seller is not currently live. Please check back later.</p><Button onClick={() => router.push('/buyer/live')} className="mt-4">Back to Live List</Button></div>;
             case 'CONNECTING':
                 return <div className="flex flex-col items-center gap-2"><Loader2 className="h-8 w-8 animate-spin" /><p>Connecting to live network...</p></div>;
             case 'CALLING':
@@ -110,3 +136,4 @@ const BuyerLiveStreamPage = () => {
 };
 
 export default BuyerLiveStreamPage;
+
