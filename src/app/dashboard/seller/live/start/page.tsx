@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -16,6 +17,7 @@ const PEER_CONFIG = {
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun.services.mozilla.com' },
         ]
     }
 };
@@ -29,7 +31,6 @@ const SellerLivePage = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
-    const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
     const callRef = useRef<any>(null);
 
 
@@ -46,14 +47,13 @@ const SellerLivePage = () => {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
-        if (liveSessionId && firestore) {
-            const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
+        if (user && firestore) {
+            const sessionRef = doc(firestore, 'liveSessions', user.uid);
             await updateDoc(sessionRef, { status: 'ended' });
         }
         setLiveStatus('OFFLINE');
         setIsCameraReady(false);
-        setLiveSessionId(null);
-    }, [liveSessionId, firestore]);
+    }, [user, firestore]);
 
     const initializePeer = useCallback((stream: MediaStream) => {
         if (!user || !firestore) return;
@@ -66,44 +66,23 @@ const SellerLivePage = () => {
             const peer = new Peer(user.uid, PEER_CONFIG);
             peerRef.current = peer;
 
-            peer.on('open', async (id) => {
-                const sessionRef = doc(firestore, 'liveSessions', user.uid);
-                
-                const connection = peer.connect(id); // Connect to self to setup
-                
-                const offer = await connection.peerConnection.createOffer();
-                await connection.peerConnection.setLocalDescription(offer);
-
-                const sessionData: Partial<LiveSession> = {
-                    id: user.uid,
-                    sellerId: user.uid,
-                    title: `${user.displayName || 'Seller'}'s Live Show`,
-                    status: 'live',
-                    startTime: new Date(),
-                    offer: { type: offer.type, sdp: offer.sdp }
-                };
-
-                await setDoc(sessionRef, sessionData, { merge: true });
-                setLiveSessionId(user.uid);
-
-                onSnapshot(sessionRef, (snapshot) => {
-                    const data = snapshot.data() as LiveSession;
-                    if (data && data.answer && connection.peerConnection.signalingState !== 'stable') {
-                        connection.peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
-                            .catch((e: any) => console.error("Error setting remote description:", e));
-                    }
-                });
+            peer.on('open', (id) => {
+                setLiveStatus('LIVE');
+                toast({ title: "🎉 You are LIVE!", description: "Waiting for viewers to connect." });
 
                 peer.on('call', (call) => {
                     call.answer(stream);
                     callRef.current = call;
-                    setLiveStatus('LIVE');
-                    toast({ title: "🎉 You are LIVE!", description: "A viewer has connected." });
+                    
+                    call.on('close', () => {
+                        toast({ title: 'Viewer Disconnected' });
+                    });
                 });
             });
 
             peer.on('error', (err) => {
                 console.error('PeerJS error:', err);
+                toast({ variant: 'destructive', title: 'Connection Error', description: `Could not maintain live connection: ${err.type}` });
                 setLiveStatus('ERROR');
             });
         });
@@ -142,7 +121,7 @@ const SellerLivePage = () => {
     }, [user, getCameraStream, toast]);
 
     const handleGoLive = async () => {
-        const stream = await getCameraStream();
+        const stream = localStreamRef.current || await getCameraStream();
         if (stream) {
             initializePeer(stream);
         }
@@ -153,7 +132,6 @@ const SellerLivePage = () => {
     };
 
     useEffect(() => {
-        // Ensure cleanup runs when the component unmounts or the user leaves the page
         window.addEventListener('beforeunload', cleanup);
         return () => {
             window.removeEventListener('beforeunload', cleanup);
