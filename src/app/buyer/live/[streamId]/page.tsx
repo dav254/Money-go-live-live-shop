@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -8,17 +7,19 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Loader2, WifiOff, User, RadioTower } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 
 const PEER_CONFIG = {
-    config: {
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun.services.mozilla.com' },
-        ]
-    }
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.services.mozilla.com' },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+    ],
+  },
 };
 
 const BuyerLiveStreamPage = () => {
@@ -32,17 +33,47 @@ const BuyerLiveStreamPage = () => {
     const peerRef = useRef<Peer | null>(null);
     const callRef = useRef<any>(null);
     
-    const [status, setStatus] = useState<'INITIALIZING' | 'CHECKING_STATUS' | 'SELLER_OFFLINE' | 'CONNECTING' | 'CALLING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
+    const [status, setStatus] = useState<'INITIALIZING' | 'WAITING_FOR_SELLER' | 'SELLER_OFFLINE' | 'CONNECTING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
 
-    const sessionRef = useMemoFirebase(() => {
-        if (!firestore || !sellerId) return null;
-        return doc(firestore, 'liveSessions', sellerId);
+    // Effect to listen for the live session document in real-time
+    useEffect(() => {
+        if (!firestore || !sellerId) return;
+
+        setStatus('WAITING_FOR_SELLER');
+        const sessionRef = doc(firestore, 'liveSessions', sellerId);
+        
+        const unsubscribe = onSnapshot(sessionRef, (snapshot) => {
+            if (snapshot.exists() && snapshot.data()?.status === 'live') {
+                // Seller is live, now we can connect.
+                connectToPeer();
+            } else {
+                // Seller is not live or the session has ended.
+                if (status !== 'SELLER_OFFLINE') {
+                   setStatus('SELLER_OFFLINE');
+                }
+            }
+        }, (error) => {
+            console.error("Error subscribing to live session:", error);
+            setStatus('ERROR');
+        });
+        
+        // Timeout to prevent waiting forever
+        const timeoutId = setTimeout(() => {
+            if (status === 'WAITING_FOR_SELLER') {
+                setStatus('SELLER_OFFLINE');
+            }
+        }, 15000); // 15-second timeout
+
+        return () => {
+            unsubscribe();
+            clearTimeout(timeoutId);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [firestore, sellerId]);
-    
-    const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
-    const connectToPeer = useCallback(async () => {
-        if (typeof window === 'undefined' || !sellerId) return;
+
+    const connectToPeer = useCallback(() => {
+        if (status === 'CONNECTING' || status === 'CONNECTED' || typeof window === 'undefined' || !sellerId) return;
 
         setStatus('CONNECTING');
         import('peerjs').then(async ({ default: Peer }) => {
@@ -54,7 +85,6 @@ const BuyerLiveStreamPage = () => {
             peerRef.current = peer;
 
             peer.on('open', () => {
-                setStatus('CALLING');
                 if (!peerRef.current) return;
                 
                 const call = peerRef.current.call(sellerId, new MediaStream()); // Call with an empty stream
@@ -92,34 +122,21 @@ const BuyerLiveStreamPage = () => {
                 }
             });
         });
-    }, [sellerId, toast, router]);
+    }, [sellerId, toast, router, status]);
 
     useEffect(() => {
-        if (isSessionLoading) {
-            setStatus('CHECKING_STATUS');
-            return;
-        }
-
-        if (!liveSession || liveSession.status !== 'live') {
-            setStatus('SELLER_OFFLINE');
-            return;
-        }
-        
-        connectToPeer();
-
         return () => {
             if (callRef.current) callRef.current.close();
             if (peerRef.current) peerRef.current.destroy();
         };
-    }, [liveSession, isSessionLoading, connectToPeer]);
+    }, []);
 
     const renderStatus = () => {
         const messages = {
             'INITIALIZING': { icon: Loader2, text: 'Initializing...' },
-            'CHECKING_STATUS': { icon: Loader2, text: 'Checking stream status...' },
+            'WAITING_FOR_SELLER': { icon: Loader2, text: 'Waiting for seller to go live...' },
             'SELLER_OFFLINE': { icon: WifiOff, text: 'This seller is not currently live.' },
-            'CONNECTING': { icon: Loader2, text: 'Connecting to live network...' },
-            'CALLING': { icon: RadioTower, text: 'Calling seller...' },
+            'CONNECTING': { icon: RadioTower, text: 'Connecting to live stream...' },
             'ERROR': { icon: WifiOff, text: 'Could not connect to the stream.' },
             'CONNECTED': null,
         };
@@ -131,7 +148,7 @@ const BuyerLiveStreamPage = () => {
 
         return (
             <div className="flex flex-col items-center gap-4 text-center p-4 rounded-lg bg-black/50 text-white">
-                 <Icon className={`h-8 w-8 ${status.includes('ING') ? 'animate-spin' : ''} ${status === 'SELLER_OFFLINE' || status === 'ERROR' ? 'text-red-500' : ''}`} />
+                 <Icon className={`h-8 w-8 ${status.includes('ING') || status.includes('WAITING') ? 'animate-spin' : ''} ${status === 'SELLER_OFFLINE' || status === 'ERROR' ? 'text-red-500' : ''}`} />
                 <p className="font-semibold">{currentStatus.text}</p>
                 {(status === 'SELLER_OFFLINE' || status === 'ERROR') && (
                     <Button onClick={() => router.push('/buyer/live')}>Back to Live List</Button>
