@@ -26,6 +26,7 @@ const ResellerRow = ({ application }: { application: ResellerApplication }) => {
 
     // Fetch the specific reseller profile for this row
     const resellerProfileRef = useMemoFirebase(() => {
+        if (!firestore) return null;
         return doc(firestore, 'userProfiles', application.resellerId);
     }, [firestore, application.resellerId]);
     
@@ -33,6 +34,7 @@ const ResellerRow = ({ application }: { application: ResellerApplication }) => {
 
 
     const handleUpdateStatus = async (status: 'approved' | 'rejected') => {
+        if (!firestore) return;
         setIsUpdating(true);
         const appRef = doc(firestore, 'resellerApplications', application.id);
         try {
