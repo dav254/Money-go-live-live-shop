@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -16,8 +17,6 @@ const PEER_CONFIG = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun.services.mozilla.com' },
-      { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
     ],
   },
 };
@@ -48,7 +47,7 @@ const BuyerLiveStreamPage = () => {
                 connectToPeer();
             } else {
                 // Seller is not live or the session has ended.
-                if (status !== 'SELLER_OFFLINE') {
+                if (status !== 'SELLER_OFFLINE' && status !== 'INITIALIZING') {
                    setStatus('SELLER_OFFLINE');
                 }
             }
@@ -57,7 +56,7 @@ const BuyerLiveStreamPage = () => {
             setStatus('ERROR');
         });
         
-        // Timeout to prevent waiting forever
+        // Timeout to prevent waiting forever if seller never appears
         const timeoutId = setTimeout(() => {
             if (status === 'WAITING_FOR_SELLER') {
                 setStatus('SELLER_OFFLINE');
@@ -81,13 +80,13 @@ const BuyerLiveStreamPage = () => {
                 peerRef.current.destroy();
             }
 
-            const peer = new Peer(undefined, PEER_CONFIG);
+            const peer = new Peer(PEER_CONFIG); // Let PeerJS assign a random ID
             peerRef.current = peer;
 
-            peer.on('open', () => {
+            peer.on('open', (id) => {
                 if (!peerRef.current) return;
                 
-                const call = peerRef.current.call(sellerId, new MediaStream()); // Call with an empty stream
+                const call = peerRef.current.call(sellerId, new MediaStream());
                 callRef.current = call;
                 
                 call.on('stream', (remoteStream) => {
