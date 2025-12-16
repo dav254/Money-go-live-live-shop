@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useFirestore } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
+
 
 const BuyerLiveStreamPage = () => {
     const params = useParams();
@@ -51,6 +53,9 @@ const BuyerLiveStreamPage = () => {
                     toast({ variant: 'destructive', title: 'Connection Failed', description: 'Could not connect to the live streaming network.' });
                 }
             });
+            
+            // Set initial status once peer is initialized
+            setStatus('WAITING_FOR_SELLER');
         });
 
         return () => {
@@ -61,43 +66,10 @@ const BuyerLiveStreamPage = () => {
         };
     }, []);
 
-    // This effect listens for the live session document in real-time
-    useEffect(() => {
-        if (!firestore || !sellerId || !peerRef) return;
-
-        setStatus('WAITING_FOR_SELLER');
-        const sessionRef = doc(firestore, 'liveSessions', sellerId);
-        
-        const unsubscribe = onSnapshot(sessionRef, (snapshot) => {
-            if (snapshot.exists() && snapshot.data()?.status === 'live') {
-                if (status !== 'CONNECTED' && status !== 'CONNECTING') {
-                   connectToPeer();
-                }
-            } else {
-                if (status !== 'SELLER_OFFLINE' && status !== 'INITIALIZING') {
-                   setStatus('SELLER_OFFLINE');
-                }
-            }
-        }, (error) => {
-            console.error("Error subscribing to live session:", error);
-            setStatus('ERROR');
-        });
-        
-        // Timeout to prevent waiting forever if seller never appears
-        const timeoutId = setTimeout(() => {
-            if (status === 'WAITING_FOR_SELLER') {
-                setStatus('SELLER_OFFLINE');
-            }
-        }, 15000); // 15-second timeout
-
-        return () => {
-            unsubscribe();
-            clearTimeout(timeoutId);
-        };
-    }, [firestore, sellerId, peerRef.current]);
-
     const connectToPeer = useCallback(() => {
-        if (!peerRef.current || !sellerId || status === 'CONNECTING' || status === 'CONNECTED') return;
+        if (!peerRef.current || !sellerId || status === 'CONNECTING' || status === 'CONNECTED') {
+            return;
+        }
 
         setStatus('CONNECTING');
         
@@ -132,9 +104,47 @@ const BuyerLiveStreamPage = () => {
         }).catch(err => {
              console.error('Error getting dummy stream for call:', err);
              setStatus('ERROR');
+             toast({ variant: 'destructive', title: 'Media Error', description: 'Could not access your audio devices to make the call.'});
         });
         
     }, [sellerId, toast, router, status]);
+
+    // This effect listens for the live session document in real-time
+    useEffect(() => {
+        if (!firestore || !sellerId || !peerRef.current) return;
+
+        const sessionRef = doc(firestore, 'liveSessions', sellerId);
+        
+        const unsubscribe = onSnapshot(sessionRef, (snapshot) => {
+            const sessionData = snapshot.data() as LiveSession;
+            if (snapshot.exists() && sessionData.status === 'live') {
+                if (status !== 'CONNECTED' && status !== 'CONNECTING') {
+                   connectToPeer();
+                }
+            } else {
+                if (status !== 'SELLER_OFFLINE' && status !== 'INITIALIZING') {
+                   setStatus('SELLER_OFFLINE');
+                   if(callRef.current) callRef.current.close();
+                }
+            }
+        }, (error) => {
+            console.error("Error subscribing to live session:", error);
+            setStatus('ERROR');
+        });
+        
+        // Timeout to prevent waiting forever if seller never appears
+        const timeoutId = setTimeout(() => {
+            if (status === 'WAITING_FOR_SELLER') {
+                setStatus('SELLER_OFFLINE');
+            }
+        }, 15000); // 15-second timeout
+
+        return () => {
+            unsubscribe();
+            clearTimeout(timeoutId);
+        };
+    }, [firestore, sellerId, peerRef.current, connectToPeer, status]);
+
 
     const renderStatus = () => {
         const messages = {

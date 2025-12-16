@@ -5,19 +5,13 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioTower, Loader2, WifiOff, AlertTriangle, Video, CameraOff, Camera } from 'lucide-react';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Peer } from 'peerjs';
-import { doc, setDoc, updateDoc, onSnapshot, getDoc } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
-import { initializeAdminApp } from '@/firebase/admin';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
-// This is a simplified PeerJS setup for the seller side.
-// In a production app, this would be more robust.
-let peerInstance: Peer | null = null;
-
-const SellerLivePage = () => {
+export default function SellerLivePage() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -25,17 +19,49 @@ const SellerLivePage = () => {
     const [isCameraReady, setIsCameraReady] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
+    const peerRef = useRef<Peer | null>(null);
+
+    const cleanup = useCallback(async () => {
+        // Stop all media tracks
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+
+        // Destroy the peer connection
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+
+        // Update Firestore status
+        if (user && firestore) {
+            try {
+                const sessionRef = doc(firestore, 'liveSessions', user.uid);
+                await updateDoc(sessionRef, { status: 'ended', endTime: new Date().toISOString() });
+            } catch (error) {
+                console.log("Cleanup: No active session to end or already ended.");
+            }
+        }
+        
+        setLiveStatus('OFFLINE');
+        setIsCameraReady(false);
+    }, [user, firestore]);
 
     const initializePeer = useCallback(async (stream: MediaStream) => {
         if (!user || !firestore) return;
         
         const { default: Peer } = await import('peerjs');
         
-        if (peerInstance) {
-            peerInstance.destroy();
+        // Ensure any old peer instance is destroyed before creating a new one
+        if (peerRef.current) {
+            peerRef.current.destroy();
         }
         
-        peerInstance = new Peer(user.uid, {
+        const newPeer = new Peer(user.uid, {
              config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
@@ -43,9 +69,11 @@ const SellerLivePage = () => {
                 ]
             }
         });
+        peerRef.current = newPeer;
 
-        peerInstance.on('open', async (id) => {
+        newPeer.on('open', async (id) => {
              const sessionRef = doc(firestore, 'liveSessions', user.uid);
+             // Use setDoc with merge to ensure the document is created or updated
              await setDoc(sessionRef, {
                 id: user.uid,
                 sellerId: user.uid,
@@ -57,21 +85,31 @@ const SellerLivePage = () => {
             setLiveStatus('LIVE');
             toast({ title: "🎉 You are LIVE!", description: "Waiting for viewers to connect." });
 
-            peerInstance?.on('call', (call) => {
-                call.answer(stream);
-                call.on('stream', (remoteStream) => {
-                    // Seller doesn't need to see the remote stream
-                });
+            // Listen for incoming calls from buyers
+            newPeer.on('call', (call) => {
+                call.answer(stream); // Answer the call with the seller's stream
+                // We don't need to do anything with the buyer's stream here
             });
         });
 
-        peerInstance.on('error', (err) => {
+        newPeer.on('error', (err) => {
             console.error('PeerJS error:', err);
             toast({ variant: 'destructive', title: 'Connection Error', description: `Could not maintain live connection: ${err.type}` });
+            cleanup(); // Clean up on error
             setLiveStatus('ERROR');
         });
+        
+        newPeer.on('disconnected', () => {
+             toast({ variant: 'destructive', title: 'Disconnected', description: 'Reconnecting to the PeerJS server...' });
+             newPeer.reconnect();
+        });
+        
+        newPeer.on('close', () => {
+             console.log('Peer connection closed.');
+             cleanup();
+        })
 
-    }, [user, firestore, toast]);
+    }, [user, firestore, toast, cleanup]);
 
     const getCameraStream = useCallback(async () => {
         try {
@@ -105,37 +143,13 @@ const SellerLivePage = () => {
     }, [user, getCameraStream]);
 
     const handleGoLive = async () => {
+        if (liveStatus !== 'READY') return;
         const stream = localStreamRef.current || await getCameraStream();
         if (stream) {
             initializePeer(stream);
         }
     };
     
-     const cleanup = useCallback(async () => {
-        if (peerInstance) {
-            peerInstance.destroy();
-            peerInstance = null;
-        }
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => track.stop());
-            localStreamRef.current = null;
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-        if (user && firestore) {
-            try {
-                const sessionRef = doc(firestore, 'liveSessions', user.uid);
-                await updateDoc(sessionRef, { status: 'ended' });
-            } catch (error) {
-                // It might fail if doc doesn't exist, which is fine on cleanup.
-                console.log("Cleanup: No active session to end or already ended.");
-            }
-        }
-        setLiveStatus('OFFLINE');
-        setIsCameraReady(false);
-    }, [user, firestore]);
-
     const handleEndLive = async () => {
         await cleanup();
         toast({ title: 'Stream Ended', description: 'You are no longer live.' });
@@ -227,5 +241,3 @@ const SellerLivePage = () => {
         </SellerLayout>
     );
 };
-
-export default SellerLivePage;
