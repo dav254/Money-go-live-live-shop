@@ -31,15 +31,22 @@ export default function BuyerLiveViewPage() {
     useEffect(() => {
         videoRef.current?.load();
         videoRef.current?.play().catch(error => {
-            console.warn("Autoplay was prevented. User interaction might be needed.", error);
+            // This warning is expected in some browsers that require user interaction to play video.
+            if (error.name !== 'NotAllowedError') {
+                 console.warn("Autoplay was prevented. User interaction might be needed.", error);
+            }
         });
     }, [videoSrc]);
 
-    const handleError = () => {
-        setErrorCount(prev => prev + 1);
-        // After a few errors, we can assume the stream ended
-        if (errorCount > 3) {
-            console.log("Stream appears to have ended.");
+    const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        const videoElement = e.currentTarget;
+        // Ignore "abort" errors, which can happen during normal reloads.
+        if (videoElement.error && videoElement.error.code !== videoElement.error.MEDIA_ERR_ABORTED) {
+            setErrorCount(prev => prev + 1);
+             // After a few genuine errors, we can assume the stream ended
+            if (errorCount > 3) {
+                console.log("Stream appears to have ended.");
+            }
         }
     };
 
