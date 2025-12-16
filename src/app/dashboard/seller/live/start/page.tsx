@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Video, Radio, Power, Camera, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useUser, useFirestore, useUserProfile } from "@/firebase";
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 export default function SellerLiveStudio() {
   const { user } = useUser();
@@ -16,23 +17,42 @@ export default function SellerLiveStudio() {
   const firestore = useFirestore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const { toast } = useToast();
 
-  const cleanup = () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-          (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-          videoRef.current.srcObject = null;
+  const cleanupStream = useCallback(() => {
+    console.log("Cleaning up stream...");
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+        mediaRecorder.current.stop();
+        mediaRecorder.current = null;
+    }
+    setIsCameraOn(false);
+  }, []);
+
+  // Effect to clean up when the component is unmounted
+  useEffect(() => {
+    return () => {
+      if (isLive) {
+        stopLive();
       }
-      if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
-          mediaRecorder.current.stop();
-      }
-  };
+      cleanupStream();
+    };
+  }, []); // Empty dependency array ensures this only runs on mount and unmount
+
 
   async function startCamera() {
-    cleanup(); // Clean up any existing streams first
+    if (isCameraOn) return;
+    
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setHasCameraPermission(false);
         toast({ variant: 'destructive', title: 'Media Devices not supported' });
@@ -47,6 +67,7 @@ export default function SellerLiveStudio() {
             },
             audio: true,
         });
+        streamRef.current = stream;
 
         if (videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -55,29 +76,6 @@ export default function SellerLiveStudio() {
         setHasCameraPermission(true);
         setIsCameraOn(true);
 
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-        
-        recorder.ondataavailable = async (e) => {
-            if (e.data.size > 0) {
-                const formData = new FormData();
-                formData.append("video", e.data, "live.webm");
-                try {
-                    await fetch("/api/live/upload", {
-                        method: "POST",
-                        body: formData,
-                    });
-                } catch (error) {
-                    console.error("Failed to upload video chunk:", error);
-                }
-            }
-        };
-
-        recorder.onstart = () => {
-            if(recorder.state === 'recording') recorder.requestData();
-        };
-
-        mediaRecorder.current = recorder;
-
     } catch (err) {
         console.error("Camera access error:", err);
         setHasCameraPermission(false);
@@ -85,10 +83,29 @@ export default function SellerLiveStudio() {
   }
 
   async function goLive() {
-    if (!mediaRecorder.current || !user || !firestore || !userProfile) {
+    if (!streamRef.current || !user || !firestore || !userProfile) {
         toast({ variant: 'destructive', title: 'Initialization Error', description: 'User or camera not ready.' });
         return;
     }
+    
+    // Initialize MediaRecorder right before going live
+    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm; codecs=vp9' });
+    mediaRecorder.current = recorder;
+
+    recorder.ondataavailable = async (e) => {
+        if (e.data.size > 0) {
+            const formData = new FormData();
+            formData.append("video", e.data, "live.webm");
+            try {
+                await fetch("/api/live/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+            } catch (error) {
+                console.error("Failed to upload video chunk:", error);
+            }
+        }
+    };
     
     // Create live session document in Firestore
     const sessionRef = doc(firestore, 'liveSessions', user.uid);
@@ -98,7 +115,7 @@ export default function SellerLiveStudio() {
         title: `${userProfile.fullName}'s Live Show`,
         status: 'live',
         startTime: serverTimestamp(),
-    });
+    }, { merge: true });
 
     mediaRecorder.current.start(5000); 
     setIsLive(true);
@@ -115,21 +132,12 @@ export default function SellerLiveStudio() {
     // Update session status in Firestore
     if (user && firestore) {
         const sessionRef = doc(firestore, 'liveSessions', user.uid);
-        await setDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() }, { merge: true });
+        await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
     }
-    cleanup();
+    // Don't call cleanupStream here, just stop the recorder
+    mediaRecorder.current = null;
   }
 
-  // Cleanup stream on component unmount
-  useEffect(() => {
-    return () => {
-        if(isLive) {
-            stopLive();
-        } else {
-            cleanup();
-        }
-    }
-  }, [isLive]);
 
   return (
     <SellerLayout>
