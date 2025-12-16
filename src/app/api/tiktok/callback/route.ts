@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error(`TikTok Auth Error: ${error}`);
     // Redirect to the settings page with an error message
-    return NextResponse.redirect(new URL('/dashboard/seller/settings?error=tiktok_auth_failed', request.url));
+    return NextResponse.redirect(new URL('/dashboard/seller/settings?success=tiktok_connection_failed', request.url));
   }
 
   if (!code || !state) {
