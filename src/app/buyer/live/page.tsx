@@ -8,33 +8,71 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { RadioTower, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import type { LiveSession, UserProfile } from '@/lib/types';
+import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const LiveSellerEntry = () => {
+
+const LiveSellerCard = ({ session }: { session: LiveSession }) => {
+    const firestore = useFirestore();
+
+    const sellerProfileRef = useMemoFirebase(() => {
+        return doc(firestore, 'userProfiles', session.sellerId);
+    }, [firestore, session.sellerId]);
+    
+    const { data: seller, isLoading } = useDoc<UserProfile>(sellerProfileRef);
+    
+    if (isLoading) {
+        return (
+             <div className="block">
+              <Card className="bg-neutral-900 border-neutral-800 p-4 rounded-lg flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                    <Skeleton className="h-12 w-12 rounded-full" />
+                    <div className="space-y-1">
+                        <Skeleton className="h-5 w-24" />
+                        <Skeleton className="h-4 w-32" />
+                    </div>
+                </div>
+              </Card>
+            </div>
+        )
+    }
+
     return (
-        <div className="block">
+        <Link href={`/buyer/live/${session.sellerId}`} className="block">
           <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-md font-bold">LIVE</div>
+                    <Avatar className="h-12 w-12 border-2 border-red-500">
+                        <AvatarImage src={seller?.profilePictureUrl} />
+                        <AvatarFallback>{seller?.fullName?.charAt(0)}</AvatarFallback>
+                    </Avatar>
                 </div>
                 <div>
-                    <Skeleton className="h-5 w-24 mb-1" />
-                    <Skeleton className="h-4 w-32" />
+                    <h2 className="font-bold">{seller?.fullName || 'Live Seller'}</h2>
+                    <p className="text-sm text-neutral-400">{session.title}</p>
                 </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-neutral-400">
                 <User className="h-4 w-4" />
-                <Skeleton className="h-4 w-8" />
+                <span>{session.viewerCount || 0}</span>
             </div>
           </Card>
-        </div>
+        </Link>
     )
 }
 
 
 const JoinLivePage = () => {
-    const router = useRouter();
+    const firestore = useFirestore();
+
+    const liveSessionsQuery = useMemoFirebase(() => {
+        return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+    }, [firestore]);
+
+    const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
 
     return (
         <BuyerLayout>
@@ -46,7 +84,15 @@ const JoinLivePage = () => {
                         <CardDescription>Sellers who are live right now.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3 max-h-96 overflow-y-auto">
-                        <p className="text-center text-muted-foreground py-8">No sellers are live right now.</p>
+                        {isLoading ? (
+                            <p className="text-center text-muted-foreground py-8">Looking for live streams...</p>
+                        ) : liveSessions && liveSessions.length > 0 ? (
+                            liveSessions.map(session => (
+                                <LiveSellerCard key={session.id} session={session} />
+                            ))
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">No sellers are live right now.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -282,18 +282,10 @@ export interface LiveSession {
     sellerId: string;
     title: string;
     status: 'upcoming' | 'live' | 'ended';
-    productIds: string[];
-    viewerCount: number;
+    productIds?: string[];
+    viewerCount?: number;
     startTime: any;
     endTime?: any;
-    // Mux-specific fields
-    muxStreamId?: string;
-    muxStreamKey?: string;
-    muxPlaybackId?: string;
-    // Fields for previous WebRTC implementation (can be deprecated)
-    offer?: any;
-    answer?: any;
-    pinnedProduct?: Product;
 }
 
 export interface SupportTicket {
