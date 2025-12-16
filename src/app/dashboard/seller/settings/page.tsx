@@ -150,9 +150,12 @@ export default function SellerSettingsPage() {
   };
   
   const handleConnectTikTok = () => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to connect your account.' });
+        return;
+    }
     try {
-      const authUrl = getTikTokAuthUrl();
-      // In a real application, you might open this in a popup window for a better UX.
+      const authUrl = getTikTokAuthUrl(user.uid);
       window.location.href = authUrl;
     } catch (error: any) {
       toast({
@@ -394,7 +397,7 @@ export default function SellerSettingsPage() {
                     <Textarea 
                         id="return-policy" 
                         rows={6} 
-                        defaultValue="We accept returns within 7 days for a full refund. Items must be unused and in original packaging. Buyer pays for return shipping." 
+                        defaultValue="We accept returns within 7 days for a full refund. Items must be unused and in original packaging. Buyer pays return shipping." 
                     />
                 </div>
                 <div className="space-y-2">

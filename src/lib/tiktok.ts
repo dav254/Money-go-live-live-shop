@@ -5,29 +5,31 @@ const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
 const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
 
 // NOTE: You must configure this in your TikTok Developer App settings.
-const REDIRECT_URI = 'https://your-app-url.com/api/tiktok/callback';
+const REDIRECT_URI = process.env.NEXT_PUBLIC_TIKTOK_REDIRECT_URI || 'https://your-app-url.com/api/tiktok/callback';
+
 
 /**
  * Generates the URL to which we redirect the user for TikTok authentication.
+ * @param goEarnUserId The current user's ID to pass through the state parameter.
  * @returns The TikTok OAuth URL.
  */
-export function getTikTokAuthUrl(): string {
+export function getTikTokAuthUrl(goEarnUserId: string): string {
     if (!TIKTOK_CLIENT_KEY) {
         throw new Error("TikTok client key is not configured.");
     }
-    const csrfState = Math.random().toString(36).substring(2);
-    // In a real app, you would save this `csrfState` to the user's session or a temporary store
-    // to verify it in the callback.
-
+    
     const url = new URL('https://www.tiktok.com/v2/auth/authorize/');
     url.searchParams.append('client_key', TIKTOK_CLIENT_KEY);
+    // Request the necessary scopes for uploading video and getting user info
     url.searchParams.append('scope', 'video.upload,user.info.basic');
     url.searchParams.append('response_type', 'code');
     url.searchParams.append('redirect_uri', REDIRECT_URI);
-    url.searchParams.append('state', csrfState);
+    // Pass the user's Go Earn ID in the state parameter to identify them in the callback
+    url.searchParams.append('state', goEarnUserId);
 
     return url.toString();
 }
+
 
 /**
  * Exchanges an authorization code for an access token.
@@ -48,20 +50,22 @@ export async function getTikTokAccessToken(code: string): Promise<any> {
         redirect_uri: REDIRECT_URI,
     });
 
-    // Placeholder for the actual API call.
     // In a real implementation, you would use `fetch` to make this POST request.
-    console.log('--- MOCK TIKTOK API CALL ---');
+    // For now, we continue to mock the response for demonstration.
+    console.log('--- MOCK TIKTOK API CALL for Access Token ---');
     console.log('POST to', url.toString());
     console.log('Body:', body.toString());
     console.log('--- END MOCK --');
 
-    // Mock response
+    // Mock response simulating a successful token exchange
     return {
         access_token: 'mock_access_token_for_' + code,
-        expires_in: 3600,
-        refresh_token: 'mock_refresh_token',
-        open_id: 'mock_open_id',
+        expires_in: 86400, // 24 hours in seconds
+        refresh_token: 'mock_refresh_token_for_' + code,
+        refresh_expires_in: 31536000, // 1 year in seconds
+        open_id: 'mock_open_id_' + Math.random().toString(36).substring(2),
         scope: 'video.upload,user.info.basic',
+        token_type: 'Bearer',
     };
 }
 
