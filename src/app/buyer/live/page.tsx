@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -14,10 +13,13 @@ import type { LiveSession, UserProfile, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
     const firestore = useFirestore();
 
+    // Memoize the document references
     const sellerProfileRef = useMemoFirebase(() => {
         if (!firestore || !session.sellerId) return null;
         return doc(firestore, 'userProfiles', session.sellerId);
@@ -28,21 +30,27 @@ const LiveSellerEntry = ({ session }: { session: LiveSession }) => {
         return doc(firestore, 'sellerShops', session.sellerId);
     }, [firestore, session.sellerId]);
     
+    // Fetch data using the memoized refs
     const { data: seller, isLoading: isProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
     const { data: shop, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
 
     const isLoading = isProfileLoading || isShopLoading;
 
-    if (isLoading || !seller) {
+    if (isLoading) {
         return <Skeleton className="h-20 w-full" />;
     }
     
+    if (!seller) return null;
+
     return (
         <Link href={`/buyer/live/${session.sellerId}`} className="block">
           <Card className="bg-neutral-900 border-neutral-800 hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all">
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <img src={shop?.logoUrl || seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} alt={shop?.shopName || seller.fullName} className="h-12 w-12 rounded-full border-2 border-red-500 object-cover" />
+                    <Avatar className="h-12 w-12 border-2 border-red-500">
+                        <AvatarImage src={shop?.logoUrl || seller.profilePictureUrl || `https://picsum.photos/seed/${seller.id}/48`} />
+                        <AvatarFallback>{shop?.shopName?.charAt(0) || seller.fullName.charAt(0)}</AvatarFallback>
+                    </Avatar>
                     <div className="absolute -bottom-1 -right-1 bg-red-500 text-white text-xs px-1.5 rounded-md font-bold">LIVE</div>
                 </div>
                 <div>
@@ -75,10 +83,9 @@ const JoinLivePage = () => {
 
     const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
     
-    // Deduplicate the sessions to show only one entry per seller
     const uniqueLiveSellers = useMemo(() => {
         if (!liveSessions) return [];
-        const seenSellers = new Set();
+        const seenSellers = new Set<string>();
         return liveSessions.filter(session => {
             if (seenSellers.has(session.sellerId)) {
                 return false;

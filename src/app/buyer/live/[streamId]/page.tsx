@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -10,16 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useFirestore } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
-
-const PEER_CONFIG = {
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun.services.mozilla.com' },
-    ],
-  },
-};
 
 const BuyerLiveStreamPage = () => {
     const params = useParams();
@@ -34,19 +23,57 @@ const BuyerLiveStreamPage = () => {
     
     const [status, setStatus] = useState<'INITIALIZING' | 'WAITING_FOR_SELLER' | 'SELLER_OFFLINE' | 'CONNECTING' | 'CONNECTED' | 'ERROR'>('INITIALIZING');
 
-    // Effect to listen for the live session document in real-time
+    // This effect is responsible for creating and cleaning up the PeerJS instance.
     useEffect(() => {
-        if (!firestore || !sellerId) return;
+        if (typeof window === 'undefined') return;
+
+        let peer: Peer | null = null;
+        
+        import('peerjs').then(({ default: Peer }) => {
+            peer = new Peer({ // Let PeerJS assign a random ID for the buyer
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun.services.mozilla.com' },
+                    ],
+                }
+            });
+
+            peerRef.current = peer;
+
+            peer.on('error', (err) => {
+                console.error('PeerJS connection error:', err);
+                setStatus('ERROR');
+                if (err.type === 'peer-unavailable') {
+                    toast({ variant: 'destructive', title: 'Seller Offline', description: 'The seller is not currently live or the ID is incorrect.' });
+                    setStatus('SELLER_OFFLINE');
+                } else {
+                    toast({ variant: 'destructive', title: 'Connection Failed', description: 'Could not connect to the live streaming network.' });
+                }
+            });
+        });
+
+        return () => {
+            if (callRef.current) callRef.current.close();
+            if (peerRef.current) peerRef.current.destroy();
+            callRef.current = null;
+            peerRef.current = null;
+        };
+    }, []);
+
+    // This effect listens for the live session document in real-time
+    useEffect(() => {
+        if (!firestore || !sellerId || !peerRef) return;
 
         setStatus('WAITING_FOR_SELLER');
         const sessionRef = doc(firestore, 'liveSessions', sellerId);
         
         const unsubscribe = onSnapshot(sessionRef, (snapshot) => {
             if (snapshot.exists() && snapshot.data()?.status === 'live') {
-                // Seller is live, now we can connect.
-                connectToPeer();
+                if (status !== 'CONNECTED' && status !== 'CONNECTING') {
+                   connectToPeer();
+                }
             } else {
-                // Seller is not live or the session has ended.
                 if (status !== 'SELLER_OFFLINE' && status !== 'INITIALIZING') {
                    setStatus('SELLER_OFFLINE');
                 }
@@ -67,68 +94,47 @@ const BuyerLiveStreamPage = () => {
             unsubscribe();
             clearTimeout(timeoutId);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [firestore, sellerId]);
-
+    }, [firestore, sellerId, peerRef.current]);
 
     const connectToPeer = useCallback(() => {
-        if (status === 'CONNECTING' || status === 'CONNECTED' || typeof window === 'undefined' || !sellerId) return;
+        if (!peerRef.current || !sellerId || status === 'CONNECTING' || status === 'CONNECTED') return;
 
         setStatus('CONNECTING');
-        import('peerjs').then(async ({ default: Peer }) => {
-            if (peerRef.current) {
-                peerRef.current.destroy();
-            }
-
-            const peer = new Peer(PEER_CONFIG); // Let PeerJS assign a random ID
-            peerRef.current = peer;
-
-            peer.on('open', (id) => {
-                if (!peerRef.current) return;
-                
-                const call = peerRef.current.call(sellerId, new MediaStream());
-                callRef.current = call;
-                
-                call.on('stream', (remoteStream) => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = remoteStream;
-                        videoRef.current.play().catch(e => console.error("Video play failed", e));
-                    }
-                    setStatus('CONNECTED');
-                    toast({ title: "Connected!", description: "You are now watching the live stream." });
-                });
-
-                call.on('error', (err) => {
-                    console.error('Call error:', err);
-                    setStatus('ERROR');
-                    toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream.` });
-                });
-
-                call.on('close', () => {
-                    toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
-                    router.push('/buyer/live');
-                });
-            });
-
-            peer.on('error', (err) => {
-                console.error('PeerJS connection error:', err);
+        
+        // Use a dummy stream to initiate the call, the remote stream will replace it
+        navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then(dummyStream => {
+            const call = peerRef.current?.call(sellerId, dummyStream);
+            if (!call) {
                 setStatus('ERROR');
-                if (err.type === 'peer-unavailable') {
-                    toast({ variant: 'destructive', title: 'Seller Offline', description: 'The seller is not currently live or the ID is incorrect.' });
-                    setStatus('SELLER_OFFLINE');
-                } else {
-                    toast({ variant: 'destructive', title: 'Connection Failed', description: 'Could not connect to the live streaming network.' });
+                return;
+            }
+            callRef.current = call;
+            
+            call.on('stream', (remoteStream) => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = remoteStream;
+                    videoRef.current.play().catch(e => console.error("Video play failed", e));
                 }
+                setStatus('CONNECTED');
+                toast({ title: "Connected!", description: "You are now watching the live stream." });
             });
-        });
-    }, [sellerId, toast, router, status]);
 
-    useEffect(() => {
-        return () => {
-            if (callRef.current) callRef.current.close();
-            if (peerRef.current) peerRef.current.destroy();
-        };
-    }, []);
+            call.on('error', (err) => {
+                console.error('Call error:', err);
+                setStatus('ERROR');
+                toast({ variant: 'destructive', title: 'Stream Error', description: `Could not connect to the stream.` });
+            });
+
+            call.on('close', () => {
+                toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
+                router.push('/buyer/live');
+            });
+        }).catch(err => {
+             console.error('Error getting dummy stream for call:', err);
+             setStatus('ERROR');
+        });
+        
+    }, [sellerId, toast, router, status]);
 
     const renderStatus = () => {
         const messages = {
