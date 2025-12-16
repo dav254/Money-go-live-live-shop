@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRef, useState, useEffect } from "react";
@@ -60,7 +61,7 @@ export default function SellerLiveStudio() {
 
         recorder.onstart = () => {
             // Immediately send the first chunk
-            recorder.requestData();
+            if(recorder.state === 'recording') recorder.requestData();
         };
 
         mediaRecorder.current = recorder;
