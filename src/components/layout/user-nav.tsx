@@ -25,7 +25,9 @@ export function UserNav() {
         title: "Signed Out",
         description: "You have been successfully signed out.",
       });
-      router.push('/login');
+      // Ensure redirection to the login page
+      router.push('/login'); 
+      router.refresh(); // Force a refresh to clear any client-side state
     } catch (error) {
       console.error("Sign out error", error);
       toast({
