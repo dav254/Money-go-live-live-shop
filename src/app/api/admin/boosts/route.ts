@@ -180,7 +180,9 @@ async function handleAdminAction(db: FirebaseFirestore.Firestore, body: { boostI
     }
     
     if (action === 'approved') {
-      const mockAccessToken = 'admin_approval_placeholder_token';
+      // Simulate getting the seller's access token.
+      // In a real app, this would be fetched securely from the user's profile.
+      const mockAccessToken = 'admin_approval_placeholder_token_for_seller_' + boostData.sellerId;
       const uploadResult = await uploadVideoToTikTok(boostData, mockAccessToken);
 
       if (uploadResult.success) {
@@ -191,17 +193,23 @@ async function handleAdminAction(db: FirebaseFirestore.Firestore, body: { boostI
         });
         return NextResponse.json({ message: `Boost request ${boostId} approved and processed successfully.` });
       } else {
+         // If upload fails, reject the request and refund points
          await boostRef.update({
             status: 'rejected',
             rejectionReason: `TikTok API Error: ${uploadResult.message}`,
             updatedAt: Timestamp.now()
         });
+        // Refund points
+        const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
+        await sellerProfileRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
+        
         throw new Error(uploadResult.message);
       }
 
     } else if (action === 'rejected') {
       const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
 
+      // Use a transaction to ensure both operations succeed or fail together.
       await db.runTransaction(async (transaction) => {
         transaction.update(sellerProfileRef, {
           aiPoints: FieldValue.increment(boostData.pointsPaid)
