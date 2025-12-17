@@ -84,27 +84,22 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
-    const [videoFile, setVideoFile] = React.useState<File | null>(null);
+    const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
     const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
-    const videoInputRef = React.useRef<HTMLInputElement>(null);
+    
+    const selectedProduct = products.find(p => p.id === selectedProductId);
 
     const pointsCost = durationDays * 100;
     const hasEnoughPoints = (userProfile?.aiPoints || 0) >= pointsCost;
 
-    const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            if (file.size > 100 * 1024 * 1024) { // 100MB limit
-                toast({ variant: 'destructive', title: 'File too large', description: 'Please select a video file under 100MB.' });
-                return;
-            }
-            setVideoFile(file);
-        }
-    };
+    React.useEffect(() => {
+        // Reset video URL when product selection changes
+        setVideoUrl(null);
+    }, [selectedProductId]);
     
     const handleSubmit = async () => {
-        if (!videoFile || !user || !selectedProductId) {
-            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please upload a video and select a product.' });
+        if (!videoUrl || !user || !selectedProductId) {
+            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select a product and a video.' });
             return;
         }
         if (!hasEnoughPoints) {
@@ -113,49 +108,12 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         }
 
         setIsSubmitting(true);
-        toast({ title: 'Submitting Boost Request...', description: 'Please wait while we upload your video.' });
+        toast({ title: 'Submitting Boost Request...', description: 'Please wait.' });
         
         try {
-            const timestamp = Math.round(Date.now() / 1000);
-            const folder = 'boost_videos';
-            const paramsToSign = { timestamp, folder };
-
-            const signatureResponse = await fetch('/api/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paramsToSign }),
-            });
-
-            if (!signatureResponse.ok) {
-                throw new Error('Failed to get upload signature from server.');
-            }
-            const { signature } = await signatureResponse.json();
-            
-            const formData = new FormData();
-            formData.append('file', videoFile);
-            formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
-            formData.append('timestamp', timestamp.toString());
-            formData.append('signature', signature);
-            formData.append('folder', folder);
-
-            const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-            const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
-            
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!uploadResponse.ok) {
-                 const errorData = await uploadResponse.json();
-                 throw new Error(errorData.error.message || 'Video upload to Cloudinary failed.');
-            }
-            
-            const uploadedData = await uploadResponse.json();
-            
             const payload = {
                 productId: selectedProductId,
-                videoUrl: uploadedData.secure_url,
+                videoUrl: videoUrl,
                 caption: caption,
                 durationDays: durationDays,
                 pointsCost: pointsCost,
@@ -204,25 +162,16 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 <DialogHeader>
                     <DialogTitle>Create New TikTok Boost</DialogTitle>
                     <DialogDescription>
-                        Promote your product video on TikTok. This action will deduct AI points from your account.
+                        Promote a product video on TikTok. This action will deduct AI points from your account.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     
                     <div className="space-y-2">
-                        <Label>1. Upload Video</Label>
-                        <input type="file" accept="video/*" ref={videoInputRef} onChange={handleVideoFileChange} className="hidden" />
-                        <Button variant="outline" className="w-full h-24 border-dashed" onClick={() => videoInputRef.current?.click()}>
-                           <UploadCloud className="h-6 w-6 mr-2" />
-                           {videoFile ? `Selected: ${videoFile.name}` : 'Click to select a video'}
-                        </Button>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>2. Associate with a Product</Label>
+                        <Label>1. Choose a Product</Label>
                         <Select onValueChange={setSelectedProductId}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Choose a product..." />
+                                <SelectValue placeholder="Select a product..." />
                             </SelectTrigger>
                             <SelectContent>
                                 {products.map(p => (
@@ -233,6 +182,19 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                             </SelectContent>
                         </Select>
                     </div>
+                    
+                    {selectedProduct && selectedProduct.videoUrls && selectedProduct.videoUrls.length > 0 && (
+                        <div className="space-y-2">
+                             <Label>2. Select a Video</Label>
+                             <div className="grid grid-cols-3 gap-2">
+                                 {selectedProduct.videoUrls.map((url, index) => (
+                                     <button key={index} onClick={() => setVideoUrl(url)} className={`relative aspect-video rounded-md overflow-hidden border-2 ${videoUrl === url ? 'border-primary' : 'border-transparent'}`}>
+                                         <video src={url} className="w-full h-full object-cover" muted />
+                                     </button>
+                                 ))}
+                             </div>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <Label htmlFor="caption">3. Ad Caption</Label>
@@ -274,7 +236,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 </div>
                 <DialogFooter>
                     <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoFile || !selectedProductId || !hasEnoughPoints}>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoUrl || !selectedProductId || !hasEnoughPoints}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
