@@ -412,3 +412,4 @@ export interface Transaction {
   status: 'Completed' | 'Pending';
   amount: number;
 }
+
