@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
 /**
  * POST handler for approving or rejecting a boost request.
- * On approval, it triggers the (mock) TikTok upload process.
+ * On approval, it triggers the (now real) TikTok upload process.
  * Can also handle boost creation.
  */
 export async function POST(request: Request) {
@@ -180,10 +180,26 @@ async function handleAdminAction(db: FirebaseFirestore.Firestore, body: { boostI
     }
     
     if (action === 'approved') {
-      // Simulate getting the seller's access token.
-      // In a real app, this would be fetched securely from the user's profile.
-      const mockAccessToken = 'admin_approval_placeholder_token_for_seller_' + boostData.sellerId;
-      const uploadResult = await uploadVideoToTikTok(boostData, mockAccessToken);
+      const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
+      const sellerProfileSnap = await sellerProfileRef.get();
+      if (!sellerProfileSnap.exists) {
+          throw new Error('Seller profile not found for boost request.');
+      }
+      
+      const sellerProfile = sellerProfileSnap.data() as UserProfile;
+      const accessToken = (sellerProfile as any).connections?.tiktok?.accessToken;
+
+      if (!accessToken) {
+          await boostRef.update({
+            status: 'rejected',
+            rejectionReason: 'Seller has not connected their TikTok account.',
+            updatedAt: Timestamp.now()
+          });
+          await sellerProfileRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
+          return NextResponse.json({ error: 'Seller has not connected their TikTok account. Request rejected and points refunded.' }, { status: 400 });
+      }
+
+      const uploadResult = await uploadVideoToTikTok(boostData, accessToken);
 
       if (uploadResult.success) {
         await boostRef.update({
@@ -199,11 +215,10 @@ async function handleAdminAction(db: FirebaseFirestore.Firestore, body: { boostI
             rejectionReason: `TikTok API Error: ${uploadResult.message}`,
             updatedAt: Timestamp.now()
         });
-        // Refund points
-        const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
+        
         await sellerProfileRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
         
-        throw new Error(uploadResult.message);
+        return NextResponse.json({ error: `TikTok upload failed: ${uploadResult.message}. Points have been refunded.` }, { status: 500 });
       }
 
     } else if (action === 'rejected') {

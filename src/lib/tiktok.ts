@@ -5,7 +5,7 @@ const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
 const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
 
 // NOTE: You must configure this in your TikTok Developer App settings.
-const REDIRECT_URI = process.env.NEXT_PUBLIC_TIKTOK_REDIRECT_URI || 'https://your-app-url.com/api/tiktok/callback';
+const REDIRECT_URI = process.env.NEXT_PUBLIC_TIKTOK_REDIRECT_URI || 'http://localhost:3000/api/tiktok/callback';
 
 
 /**
@@ -33,8 +33,9 @@ export function getTikTokAuthUrl(goEarnUserId: string): string {
 
 /**
  * Exchanges an authorization code for an access token.
+ * This now performs a real API call.
  * @param code The authorization code from the TikTok callback.
- * @returns The access token data.
+ * @returns The access token data from TikTok.
  */
 export async function getTikTokAccessToken(code: string): Promise<any> {
     if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) {
@@ -50,56 +51,103 @@ export async function getTikTokAccessToken(code: string): Promise<any> {
         redirect_uri: REDIRECT_URI,
     });
 
-    // In a real implementation, you would use `fetch` to make this POST request.
-    // For now, we continue to mock the response for demonstration.
-    console.log('--- MOCK TIKTOK API CALL for Access Token ---');
-    console.log('POST to', url.toString());
-    console.log('Body:', body.toString());
-    console.log('--- END MOCK --');
+    const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: body,
+    });
 
-    // Mock response simulating a successful token exchange
-    return {
-        access_token: 'mock_access_token_for_' + code,
-        expires_in: 86400, // 24 hours in seconds
-        refresh_token: 'mock_refresh_token_for_' + code,
-        refresh_expires_in: 31536000, // 1 year in seconds
-        open_id: 'mock_open_id_' + Math.random().toString(36).substring(2),
-        scope: 'video.upload,user.info.basic',
-        token_type: 'Bearer',
-    };
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("TikTok Access Token Error:", errorData);
+        throw new Error(errorData.error_description || 'Failed to exchange authorization code for token.');
+    }
+    
+    return await response.json();
 }
 
 
 /**
- * Placeholder function to simulate uploading a video to TikTok.
- * In a real-world scenario, this would involve a multi-step process with the TikTok API:
- * 1. POST to /v2/video/upload/ to get an upload URL.
- * 2. PUT the video file to the signed upload URL.
- * 3. Check the upload status.
+ * Uploads a video to TikTok using the official API.
+ * This is a multi-step process.
  * @param boost The boost request containing video details.
  * @param accessToken The TikTok access token for the user.
+ * @returns An object indicating success, the new video ID, and a message.
  */
 export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: string): Promise<{ success: boolean; videoId?: string; message: string }> {
     if (!accessToken) {
         return { success: false, message: "Missing TikTok access token." };
     }
 
-    console.log(`--- MOCK TIKTOK VIDEO UPLOAD for Boost ID: ${boost.id} ---`);
-    console.log(`- Using Access Token: ${accessToken}`);
-    console.log(`- Video URL to upload: ${boost.videoUrl}`);
-    console.log(`- Caption: ${boost.caption}`);
-    console.log('--- END MOCK --');
+    try {
+        // Step 1: Initiate video upload to get an upload URL
+        const initResponse = await fetch('https://open.tiktokapis.com/v2/video/upload/', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json; charset=UTF-8',
+            },
+        });
 
-    // This is where the actual multi-step upload logic would go.
-    // For now, we simulate a successful upload and return a mock video ID.
+        if (!initResponse.ok) {
+            const errorData = await initResponse.json();
+            throw new Error(`TikTok API Error (Init): ${errorData.error.message}`);
+        }
+        
+        const initData = await initResponse.json();
+        const uploadUrl = initData.data.upload_url;
 
-    const mockTikTokVideoId = `tt_${new Date().getTime()}`;
+        // Step 2: Download our video from Cloudinary and upload it to TikTok's URL
+        const videoResponse = await fetch(boost.videoUrl);
+        const videoBlob = await videoResponse.blob();
 
-    // The database update is now handled by the calling API route, not this library function.
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'video/mp4',
+            },
+            body: videoBlob,
+        });
 
-    return {
-        success: true,
-        videoId: mockTikTokVideoId,
-        message: "Video successfully uploaded to TikTok (simulated)."
-    };
+        if (uploadResponse.status !== 200) {
+             throw new Error(`TikTok API Error (Upload): Failed to upload video file. Status: ${uploadResponse.status}`);
+        }
+
+        // Step 3: Create the post on TikTok using the uploaded video
+        const createResponse = await fetch('https://open.tiktokapis.com/v2/video/post/', {
+            method: 'POST',
+            headers: {
+                 'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json; charset=UTF-8',
+            },
+            body: JSON.stringify({
+                video_id: initData.data.video_id,
+                post_info: {
+                    title: boost.caption,
+                    privacy_level: 'PUBLIC_TO_EVERYONE',
+                    // Add more options like brand content toggles, etc. here if needed
+                }
+            })
+        });
+
+        if (!createResponse.ok) {
+            const errorData = await createResponse.json();
+            throw new Error(`TikTok API Error (Post): ${errorData.error.message}`);
+        }
+
+        const createData = await createResponse.json();
+        const videoId = createData.data.video_id;
+
+        return {
+            success: true,
+            videoId: videoId,
+            message: "Video successfully uploaded and posted to TikTok.",
+        };
+
+    } catch (error: any) {
+        console.error('Full TikTok upload process failed:', error);
+        return { success: false, message: error.message || 'An unknown error occurred during TikTok upload.' };
+    }
 }
