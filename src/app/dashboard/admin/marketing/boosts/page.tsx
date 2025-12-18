@@ -30,15 +30,18 @@ import {
 import {
     Card,
     CardContent,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 // --- Mock Data for UI demonstration ---
 const mockBoosts: BoostRequest[] = [
@@ -208,14 +211,6 @@ export default function AdminBoostsPage() {
         if (!user) return;
         setIsLoading(true);
 
-        if (status !== 'pending') {
-            // Use mock data for non-pending tabs
-            setBoosts(mockBoosts.filter(b => b.status === status));
-            setIsLoading(false);
-            return;
-        }
-
-        // Fetch live data only for the 'pending' tab
         try {
             const token = await user.getIdToken();
             const response = await fetch(`/api/admin/boosts?status=${status}`, {
