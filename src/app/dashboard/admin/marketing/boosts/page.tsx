@@ -131,7 +131,7 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
         try {
             const token = await user.getIdToken();
             const response = await fetch('/api/admin/boosts', {
-                method: 'POST',
+                method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -231,49 +231,41 @@ export default function AdminBoostsPage() {
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
 
     const fetchBoosts = React.useCallback(async (status: string) => {
-        if (!user) return;
-        
-        // Use mock data for the 'approved' tab
-        if (status === 'approved') {
-            setIsLoading(true);
-            setTimeout(() => { // Simulate network delay
-                setBoosts(mockApprovedBoosts);
-                setIsLoading(false);
-            }, 500);
-            return;
-        }
-
-        // Use mock data for the 'rejected' tab
-        if (status === 'rejected') {
-            setIsLoading(true);
-            setTimeout(() => { // Simulate network delay
-                setBoosts(mockRejectedBoosts);
-                setIsLoading(false);
-            }, 500);
-            return;
-        }
-        
-        // Use mock data for the 'active' tab
-        if (status === 'active') {
-            setIsLoading(true);
-            setTimeout(() => { // Simulate network delay
-                setBoosts(mockActiveBoosts);
-                setIsLoading(false);
-            }, 500);
-            return;
-        }
-
         setIsLoading(true);
+        if (status === 'approved') {
+            setBoosts(mockApprovedBoosts);
+            setIsLoading(false);
+            return;
+        }
+        if (status === 'rejected') {
+            setBoosts(mockRejectedBoosts);
+            setIsLoading(false);
+            return;
+        }
+         if (status === 'active') {
+            setBoosts(mockActiveBoosts);
+            setIsLoading(false);
+            return;
+        }
+        if (!user) {
+            setIsLoading(false);
+            return;
+        };
+        
         try {
             const token = await user.getIdToken();
             const response = await fetch(`/api/admin/boosts?status=${status}`, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
-            if (!response.ok) throw new Error('Failed to fetch data');
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.error || 'Failed to fetch boost requests.');
+            }
             const data = await response.json();
             setBoosts(data);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch boost requests.' });
+        } catch (error: any) {
+            console.error("Error fetching admin boosts:", error);
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
         } finally {
             setIsLoading(false);
         }
@@ -302,6 +294,7 @@ export default function AdminBoostsPage() {
         },
         {
             id: 'actions',
+            header: 'Actions',
             cell: ({ row }) => (
                 <Button variant="outline" size="sm" onClick={() => openReviewDialog(row.original)} disabled={row.original.status !== 'pending'}>
                     Review
@@ -340,7 +333,7 @@ export default function AdminBoostsPage() {
                                         {isLoading ? (
                                             Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
-                                                    {columns.map(c => <TableCell key={c.id || i}><Skeleton className="h-6 w-full" /></TableCell>)}
+                                                    {columns.map((c, j) => <TableCell key={`${i}-${c.id || j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
                                                 </TableRow>
                                             ))
                                         ) : table.getRowModel().rows.length > 0 ? (
@@ -368,3 +361,4 @@ export default function AdminBoostsPage() {
         </AdminLayout>
     );
 }
+
