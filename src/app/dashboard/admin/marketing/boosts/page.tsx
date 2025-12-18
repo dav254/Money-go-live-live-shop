@@ -137,9 +137,9 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                         <div>
                             <h4 className="font-semibold mb-2">Targeting</h4>
                             <div className="text-sm space-y-1">
-                                <p><strong>Age:</strong> {boost.target.age}</p>
-                                <p><strong>Counties:</strong> {boost.target.counties.join(', ')}</p>
-                                <p><strong>Interests:</strong> {boost.target.interests.join(', ')}</p>
+                                <p><strong>Age:</strong> {boost.target?.age || 'N/A'}</p>
+                                <p><strong>Counties:</strong> {boost.target?.counties?.join(', ') || 'N/A'}</p>
+                                <p><strong>Interests:</strong> {boost.target?.interests?.join(', ') || 'N/A'}</p>
                             </div>
                         </div>
                     </div>
@@ -276,7 +276,7 @@ export default function AdminBoostsPage() {
                 accessorKey: 'createdAt',
                 header: 'Submitted',
                 cell: ({ row }) => {
-                    const date = (row.original.createdAt as any)?.toDate ? (row.original.createdAt as any).toDate() : new Date(row.original.createdAt as any);
+                    const date = new Date(row.original.createdAt as any);
                     return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
                 }
             },
