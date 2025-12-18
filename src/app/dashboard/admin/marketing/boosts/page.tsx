@@ -76,6 +76,25 @@ const mockApprovedBoosts: BoostRequest[] = [
     },
 ];
 
+const mockRejectedBoosts: BoostRequest[] = [
+    {
+        id: 'boost-rejected-1',
+        sellerId: 'seller-ghi-789',
+        productId: 'prod-ghi',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'This is an example of a rejected caption because it contains forbidden words.',
+        durationDays: 5,
+        pointsPaid: 500,
+        status: 'rejected',
+        rejectionReason: 'Content guideline violation.',
+        createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() as any,
+        updatedAt: new Date().toISOString() as any,
+        target: { counties: ['Kisumu'], age: 'all', interests: ['tech'] },
+        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+    },
+];
+
+
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     boost: BoostRequest | null;
@@ -206,6 +225,16 @@ export default function AdminBoostsPage() {
             return;
         }
 
+        // Use mock data for the 'rejected' tab
+        if (status === 'rejected') {
+            setIsLoading(true);
+            setTimeout(() => { // Simulate network delay
+                setBoosts(mockRejectedBoosts);
+                setIsLoading(false);
+            }, 500);
+            return;
+        }
+        
         // Handle other tabs if needed (currently not implemented for backend)
         if (status !== 'pending') {
             setBoosts([]);
@@ -290,7 +319,7 @@ export default function AdminBoostsPage() {
                                         {isLoading ? (
                                             Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
-                                                    {columns.map((c, j) => <TableCell key={`${c.id || 'col'}-${j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
+                                                    {columns.map(c => <TableCell key={c.id || i}><Skeleton className="h-6 w-full" /></TableCell>)}
                                                 </TableRow>
                                             ))
                                         ) : table.getRowModel().rows.length > 0 ? (
