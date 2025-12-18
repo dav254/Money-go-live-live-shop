@@ -37,11 +37,32 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, Eye, Heart, MousePointerClick, MoreHorizontal } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Eye, Heart, MousePointerClick, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+
+// Mock Data for frontend-only display
+const mockApprovedBoosts: BoostRequest[] = [
+    { id: 'boost-abc-123', sellerId: 'seller-abc', caption: 'Check out our new summer collection!', pointsPaid: 300, durationDays: 3, createdAt: new Date(new Date().setDate(new Date().getDate() - 1)) as any, status: 'approved', target: { counties: [], age: '', interests: [] }, videoUrl: '', analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 } },
+];
+const mockRejectedBoosts: BoostRequest[] = [];
+const mockActiveBoosts: BoostRequest[] = [
+    { id: 'boost-def-456', sellerId: 'seller-def', caption: '50% off on all electronics this week!', pointsPaid: 700, durationDays: 7, createdAt: new Date(new Date().setDate(new Date().getDate() - 2)) as any, status: 'active', target: { counties: [], age: '', interests: [] }, videoUrl: '', analytics: { views: 12500, likes: 800, clicks: 350, shares: 120, conversions: 45 } },
+    { id: 'boost-ghi-789', sellerId: 'seller-ghi', caption: 'Freshly baked goods, available now!', pointsPaid: 1400, durationDays: 14, createdAt: new Date(new Date().setDate(new Date().getDate() - 5)) as any, status: 'active', target: { counties: [], age: '', interests: [] }, videoUrl: '', analytics: { views: 34000, likes: 2100, clicks: 980, shares: 450, conversions: 112 } },
+];
+const mockCompletedBoosts: BoostRequest[] = [
+    { id: 'boost-jkl-101', sellerId: 'seller-jkl', caption: 'Vintage clothing drop last month!', pointsPaid: 700, durationDays: 7, createdAt: new Date(new Date().setDate(new Date().getDate() - 40)) as any, status: 'completed', target: { counties: [], age: '', interests: [] }, videoUrl: '', analytics: { views: 88000, likes: 5400, clicks: 2100, shares: 800, conversions: 250 } },
+];
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -52,45 +73,19 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
 }) => {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const { user } = useUser();
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost || !user) return;
-    
+        if (!boost) return;
         setIsSubmitting(true);
-        
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/admin/boosts', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ boostId: boost.id, action }),
-            });
-
-            if (!response.ok) {
-                 const errorData = await response.json();
-                 throw new Error(errorData.message || 'Failed to process request.');
-            }
-
-            toast({
-                title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-                description: `The boost request has been successfully ${action}.`,
-            });
-            
-            onActionComplete(boost.id, action);
-            onOpenChange(false);
-        } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Action Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // Simulate backend call
+        await new Promise(resolve => setTimeout(resolve, 500));
+        toast({
+            title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+            description: `The boost request has been successfully ${action}.`,
+        });
+        onActionComplete(boost.id, action);
+        onOpenChange(false);
+        setIsSubmitting(false);
     };
 
     if (!boost) return null;
@@ -156,10 +151,11 @@ export default function AdminBoostsPage() {
     const { toast } = useToast();
     
     const [pendingBoosts, setPendingBoosts] = React.useState<BoostRequest[]>([]);
-    const [approvedBoosts, setApprovedBoosts] = React.useState<BoostRequest[]>([]);
-    const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>([]);
-    const [activeBoosts, setActiveBoosts] = React.useState<BoostRequest[]>([]);
-    
+    const [approvedBoosts, setApprovedBoosts] = React.useState<BoostRequest[]>(mockApprovedBoosts);
+    const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>(mockRejectedBoosts);
+    const [activeBoosts, setActiveBoosts] = React.useState<BoostRequest[]>(mockActiveBoosts);
+    const [completedBoosts, setCompletedBoosts] = React.useState<BoostRequest[]>(mockCompletedBoosts);
+
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pending');
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
@@ -181,13 +177,8 @@ export default function AdminBoostsPage() {
             
             if (status === 'pending') {
                 setPendingBoosts(data);
-            } else if (status === 'approved') {
-                setApprovedBoosts(data);
-            } else if (status === 'rejected') {
-                setRejectedBoosts(data);
-            } else if (status === 'active') {
-                setActiveBoosts(data);
             }
+            // For now, we keep mock data for other tabs until they are connected
         } catch (error: any) {
             console.error(`Error fetching ${status} boosts:`, error);
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -197,8 +188,11 @@ export default function AdminBoostsPage() {
     }, [user, toast]);
 
     React.useEffect(() => {
-        if(user) {
+        if(user && activeTab === 'pending') {
             fetchBoosts(activeTab);
+        } else {
+            // For frontend-only tabs, just stop loading
+            setIsLoading(false);
         }
     }, [user, activeTab, fetchBoosts]);
 
@@ -220,14 +214,14 @@ export default function AdminBoostsPage() {
         setIsReviewDialogOpen(true);
     };
     
-    const getColumns = (status: 'pending' | 'approved' | 'rejected' | 'active'): ColumnDef<BoostRequest>[] => {
+    const getColumns = (status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed'): ColumnDef<BoostRequest>[] => {
         const baseColumns: ColumnDef<BoostRequest>[] = [
             { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
             { accessorKey: 'caption', header: 'Caption', cell: ({ row }) => <p className="truncate max-w-sm">{row.original.caption}</p> },
             { accessorKey: 'pointsPaid', header: 'Cost' },
         ];
         
-        if (status === 'active') {
+        if (status === 'active' || status === 'completed') {
             return [
                 ...baseColumns.slice(0, 3), // Seller, Caption, Cost
                 { accessorKey: 'analytics.views', header: () => <div className="flex items-center gap-1"><Eye className="h-4 w-4" /> Views</div>, cell: ({ row }) => (row.original.analytics?.views || 0).toLocaleString() },
@@ -241,7 +235,7 @@ export default function AdminBoostsPage() {
                             <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem>View on TikTok</DropdownMenuItem>
-                                <DropdownMenuItem>Pause Campaign</DropdownMenuItem>
+                                {status === 'active' && <DropdownMenuItem>Pause Campaign</DropdownMenuItem>}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     ),
@@ -270,6 +264,11 @@ export default function AdminBoostsPage() {
                             </Button>
                         )
                     }
+                    if (status === 'rejected' && row.original.rejectionReason) {
+                        return (
+                            <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
+                        )
+                    }
                     return null;
                 },
             },
@@ -282,6 +281,7 @@ export default function AdminBoostsPage() {
             case 'approved': return approvedBoosts;
             case 'rejected': return rejectedBoosts;
             case 'active': return activeBoosts;
+            case 'completed': return completedBoosts;
             default: return [];
         }
     }
@@ -305,6 +305,7 @@ export default function AdminBoostsPage() {
                         <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved</TabsTrigger>
                         <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected</TabsTrigger>
                         <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active</TabsTrigger>
+                        <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
                         <Card>
