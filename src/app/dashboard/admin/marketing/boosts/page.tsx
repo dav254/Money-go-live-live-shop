@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -23,21 +23,26 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
+  DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
     Card,
     CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 // --- Mock Data ---
 const mockRejectedBoosts: BoostRequest[] = [
@@ -287,7 +292,7 @@ export default function AdminBoostsPage() {
                                         {isLoading && activeTab === 'pending' ? (
                                             Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
-                                                    {getColumns('pending').map((c, j) => <TableCell key={`${i}-${c.id || j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
+                                                    {getColumns('pending').map((c, j) => <TableCell key={`${i}-${j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
                                                 </TableRow>
                                             ))
                                         ) : table.getRowModel().rows.length > 0 ? (
