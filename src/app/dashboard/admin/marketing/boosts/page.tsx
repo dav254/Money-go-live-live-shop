@@ -23,12 +23,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
     Card,
     CardContent,
 } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +39,53 @@ import { useUser } from '@/firebase';
 import { CheckCircle, XCircle, Clock, Loader2, Video } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// --- Mock Data for UI demonstration ---
+const mockBoosts: BoostRequest[] = [
+    {
+        id: 'mock-1',
+        sellerId: 'seller-xyz',
+        productId: 'prod-abc',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'This is a sample approved boost for our best-selling product!',
+        durationDays: 7,
+        pointsPaid: 700,
+        target: { counties: ['Nairobi'], age: '18-35', interests: ['fashion'] },
+        status: 'approved',
+        createdAt: new Date() as any,
+        updatedAt: new Date() as any,
+        analytics: { views: 12500, likes: 2300, clicks: 150, shares: 80, conversions: 25 },
+    },
+    {
+        id: 'mock-2',
+        sellerId: 'seller-abc',
+        productId: 'prod-def',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'This request was rejected for using copyrighted music.',
+        durationDays: 3,
+        pointsPaid: 300,
+        target: { counties: ['Mombasa'], age: '18-24', interests: ['tech'] },
+        status: 'rejected',
+        createdAt: new Date() as any,
+        updatedAt: new Date() as any,
+        rejectionReason: 'Copyrighted music detected.',
+        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+    },
+     {
+        id: 'mock-3',
+        sellerId: 'seller-123',
+        productId: 'prod-ghi',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'Our latest active campaign running on TikTok right now!',
+        durationDays: 14,
+        pointsPaid: 1400,
+        target: { counties: ['Nakuru'], age: '25-45', interests: ['foodie'] },
+        status: 'active',
+        createdAt: new Date() as any,
+        updatedAt: new Date() as any,
+        analytics: { views: 55000, likes: 8800, clicks: 620, shares: 300, conversions: 95 },
+    }
+];
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -47,14 +97,9 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
-    const [rejectionReason, setRejectionReason] = React.useState('');
 
     const handleAction = async (action: 'approved' | 'rejected') => {
         if (!boost || !user) return;
-        if (action === 'rejected' && !rejectionReason) {
-            toast({ variant: 'destructive', title: 'Rejection reason is required.' });
-            return;
-        }
 
         setIsSubmitting(true);
         try {
@@ -65,11 +110,7 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    boostId: boost.id, 
-                    action,
-                    ...(action === 'rejected' && { rejectionReason }),
-                }),
+                body: JSON.stringify({ boostId: boost.id, action }),
             });
 
             const result = await response.json();
@@ -92,7 +133,6 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
             });
         } finally {
             setIsSubmitting(false);
-            setRejectionReason('');
         }
     };
 
@@ -108,7 +148,10 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                     <div className="space-y-4">
                         <Card>
-                             <CardContent className="aspect-w-9 aspect-h-16 bg-muted rounded-lg">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Video Preview</CardTitle>
+                            </CardHeader>
+                             <CardContent className="aspect-w-9 aspect-h-16 bg-muted rounded-b-lg">
                                 <video
                                     src={boost.videoUrl}
                                     controls
@@ -130,31 +173,21 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                         <div>
                             <h4 className="font-semibold mb-2">Targeting</h4>
                             <div className="text-sm space-y-1">
-                                <p><strong>Age:</strong> {boost.target?.age || 'N/A'}</p>
-                                <p><strong>Counties:</strong> {boost.target?.counties?.join(', ') || 'N/A'}</p>
-                                <p><strong>Interests:</strong> {boost.target?.interests?.join(', ') || 'N/A'}</p>
+                                <p><strong>Age:</strong> {boost.target.age}</p>
+                                <p><strong>Counties:</strong> {boost.target.counties.join(', ')}</p>
+                                <p><strong>Interests:</strong> {boost.target.interests.join(', ')}</p>
                             </div>
-                        </div>
-                        <div>
-                            <h4 className="font-semibold mb-2">Rejection Reason (if rejecting)</h4>
-                            <textarea
-                                value={rejectionReason}
-                                onChange={(e) => setRejectionReason(e.target.value)}
-                                placeholder="Provide a reason for rejection..."
-                                className="w-full p-2 rounded-md bg-muted text-sm border border-border"
-                                rows={3}
-                            />
                         </div>
                     </div>
                 </div>
-                <div className="flex justify-end gap-2">
+                <DialogFooter>
                     <Button onClick={() => handleAction('rejected')} variant="destructive" disabled={isSubmitting}>
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                     </Button>
-                    <Button onClick={() => handleAction('approved')} disabled={isSubmitting}>
+                    <Button onClick={() => handleAction('approved')} variant="default" disabled={isSubmitting}>
                          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                     </Button>
-                </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -171,19 +204,27 @@ export default function AdminBoostsPage() {
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
 
-    const fetchBoosts = React.useCallback(async () => {
+    const fetchBoosts = React.useCallback(async (status: string) => {
         if (!user) return;
         setIsLoading(true);
+
+        if (status !== 'pending') {
+            // Use mock data for non-pending tabs
+            setBoosts(mockBoosts.filter(b => b.status === status));
+            setIsLoading(false);
+            return;
+        }
+
+        // Fetch live data only for the 'pending' tab
         try {
             const token = await user.getIdToken();
-            const response = await fetch(`/api/admin/boosts`, {
+            const response = await fetch(`/api/admin/boosts?status=${status}`, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
             if (!response.ok) throw new Error('Failed to fetch data');
             const data = await response.json();
             setBoosts(data);
         } catch (error) {
-            console.error("Failed to fetch boosts:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch boost requests.' });
         } finally {
             setIsLoading(false);
@@ -191,17 +232,13 @@ export default function AdminBoostsPage() {
     }, [user, toast]);
 
     React.useEffect(() => {
-        fetchBoosts();
-    }, [fetchBoosts]);
+        fetchBoosts(activeTab);
+    }, [fetchBoosts, activeTab]);
 
     const openReviewDialog = (boost: BoostRequest) => {
         setSelectedBoost(boost);
         setIsReviewDialogOpen(true);
     };
-    
-    const filteredBoosts = React.useMemo(() => {
-        return boosts.filter(b => b.status === activeTab);
-    }, [boosts, activeTab]);
 
     const columns: ColumnDef<BoostRequest>[] = [
         { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
@@ -212,7 +249,7 @@ export default function AdminBoostsPage() {
             header: 'Submitted',
             cell: ({ row }) => {
                 const date = row.original.createdAt?.toDate ? row.original.createdAt.toDate() : new Date(row.original.createdAt as any);
-                 return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
+                return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
             }
         },
         {
@@ -225,7 +262,7 @@ export default function AdminBoostsPage() {
         },
     ];
 
-    const table = useReactTable({ data: filteredBoosts, columns, getCoreRowModel: getCoreRowModel() });
+    const table = useReactTable({ data: boosts, columns, getCoreRowModel: getCoreRowModel() });
 
     return (
         <AdminLayout>
@@ -253,9 +290,9 @@ export default function AdminBoostsPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
-                                            Array.from({ length: 3 }).map((_, i) => (
+                                            Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
-                                                    {columns.map((c, j) => <TableCell key={c.id || j}><Skeleton className="h-6 w-full" /></TableCell>)}
+                                                    {columns.map((c, j) => <TableCell key={`${c.id || 'col'}-${j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
                                                 </TableRow>
                                             ))
                                         ) : table.getRowModel().rows.length > 0 ? (
@@ -278,7 +315,7 @@ export default function AdminBoostsPage() {
                 isOpen={isReviewDialogOpen}
                 onOpenChange={setIsReviewDialogOpen}
                 boost={selectedBoost}
-                onActionComplete={fetchBoosts}
+                onActionComplete={() => fetchBoosts(activeTab)}
             />
         </AdminLayout>
     );
