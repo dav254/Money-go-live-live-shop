@@ -199,8 +199,9 @@ export default function AdminBoostsPage() {
                 const newlyCompleted: BoostRequest[] = [];
 
                 data.forEach(campaign => {
-                    const createdAt = new Date(campaign.createdAt as any);
-                    const expiryDate = addDays(createdAt, campaign.durationDays);
+                    // Firestore timestamps become strings in JSON, so we convert them back to Date objects
+                    const approvalDate = new Date(campaign.updatedAt as any);
+                    const expiryDate = addDays(approvalDate, campaign.durationDays);
                     if (now > expiryDate) {
                         newlyCompleted.push({ ...campaign, status: 'completed' });
                     } else {
@@ -209,8 +210,12 @@ export default function AdminBoostsPage() {
                 });
                 
                 setActiveBoosts(stillActive);
-                setCompletedBoosts(prev => [...prev, ...newlyCompleted]);
+                // Also fetch and set completed boosts here if needed, or handle separately
+                fetchBoosts('completed');
+            } else if (status === 'completed') {
+                setCompletedBoosts(data);
             }
+
         } catch (error: any) {
             console.error(`Error fetching ${status} boosts:`, error);
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -220,7 +225,16 @@ export default function AdminBoostsPage() {
     }, [user, toast]);
 
     React.useEffect(() => {
-        fetchBoosts(activeTab);
+        if (user) {
+            if (activeTab === 'active') {
+                // When we view 'active', we also want to refresh the 'completed' list
+                // as some active items might have expired.
+                fetchBoosts('active');
+                fetchBoosts('completed');
+            } else {
+                 fetchBoosts(activeTab);
+            }
+        }
     }, [user, activeTab, fetchBoosts]);
 
     const handleActionComplete = (boostId: string, action: 'approved' | 'rejected') => {
