@@ -46,8 +46,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 
 // --- Mock Data ---
-const mockRejectedBoosts: BoostRequest[] = [];
-
 const mockActiveBoosts: BoostRequest[] = [
     {
         id: 'boost-active-1',
@@ -80,7 +78,6 @@ const mockActiveBoosts: BoostRequest[] = [
         analytics: { views: 78000, likes: 4200, clicks: 950, shares: 210, conversions: 45 },
     },
 ];
-
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -173,19 +170,19 @@ export default function AdminBoostsPage() {
     
     const [pendingBoosts, setPendingBoosts] = React.useState<BoostRequest[]>([]);
     const [approvedBoosts, setApprovedBoosts] = React.useState<BoostRequest[]>([]);
-    const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>(mockRejectedBoosts);
+    const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>([]);
     
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pending');
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
 
-    const fetchPendingBoosts = React.useCallback(async () => {
+    const fetchBoosts = React.useCallback(async (status: string) => {
         if (!user) return;
         setIsLoading(true);
         try {
             const token = await user.getIdToken();
-            const response = await fetch(`/api/admin/boosts?status=pending`, {
+            const response = await fetch(`/api/admin/boosts?status=${status}`, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
             if (!response.ok) {
@@ -193,9 +190,16 @@ export default function AdminBoostsPage() {
                  throw new Error(errorData.message || 'Failed to fetch boost requests.');
             }
             const data = await response.json();
-            setPendingBoosts(data);
+            
+            if (status === 'pending') {
+                setPendingBoosts(data);
+            } else if (status === 'approved') {
+                setApprovedBoosts(data);
+            } else if (status === 'rejected') {
+                setRejectedBoosts(data);
+            }
         } catch (error: any) {
-            console.error("Error fetching admin boosts:", error);
+            console.error(`Error fetching ${status} boosts:`, error);
             toast({ variant: 'destructive', title: 'Error', description: error.message });
         } finally {
             setIsLoading(false);
@@ -203,8 +207,10 @@ export default function AdminBoostsPage() {
     }, [user, toast]);
 
     React.useEffect(() => {
-        fetchPendingBoosts();
-    }, [fetchPendingBoosts]);
+        if(user) {
+            fetchBoosts(activeTab);
+        }
+    }, [user, activeTab, fetchBoosts]);
 
     const handleActionComplete = (boostId: string, action: 'approved' | 'rejected') => {
         const boostToMove = pendingBoosts.find(b => b.id === boostId);
@@ -266,11 +272,16 @@ export default function AdminBoostsPage() {
             {
                 id: 'actions',
                 header: "Actions",
-                cell: ({ row }) => (
-                    <Button variant="outline" size="sm" onClick={() => openReviewDialog(row.original)} disabled={row.original.status !== 'pending'}>
-                        Review
-                    </Button>
-                ),
+                cell: ({ row }) => {
+                    if (status === 'pending') {
+                         return (
+                            <Button variant="outline" size="sm" onClick={() => openReviewDialog(row.original)}>
+                                Review
+                            </Button>
+                        )
+                    }
+                    return null;
+                },
             },
         ];
     };
@@ -317,10 +328,10 @@ export default function AdminBoostsPage() {
                                         ))}
                                     </TableHeader>
                                     <TableBody>
-                                        {isLoading && activeTab === 'pending' ? (
+                                        {isLoading ? (
                                             Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
-                                                    {getColumns('pending').map((c, j) => <TableCell key={`${i}-${j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
+                                                    {getColumns(activeTab as any).map((c, j) => <TableCell key={`${i}-${j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
                                                 </TableRow>
                                             ))
                                         ) : table.getRowModel().rows.length > 0 ? (
@@ -330,7 +341,7 @@ export default function AdminBoostsPage() {
                                                 </TableRow>
                                             ))
                                         ) : (
-                                            <TableRow><TableCell colSpan={getColumns('pending').length} className="h-24 text-center">No requests found for this status.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={getColumns(activeTab as any).length} className="h-24 text-center">No requests found for this status.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -348,3 +359,4 @@ export default function AdminBoostsPage() {
         </AdminLayout>
     );
 }
+
