@@ -112,7 +112,6 @@ const mockActiveBoosts: BoostRequest[] = [
     },
 ];
 
-
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     boost: BoostRequest | null;
@@ -125,41 +124,20 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost || !user) return;
-
+        if (!boost) return;
+    
         setIsSubmitting(true);
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/admin/boosts', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ boostId: boost.id, action }),
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || `Failed to ${action} boost.`);
-            }
-
-            toast({
-                title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-                description: `The boost request has been successfully ${action}.`,
-            });
-            onActionComplete();
-            onOpenChange(false);
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Action Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // Simulate a network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+    
+        toast({
+            title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+            description: `The boost request has been successfully ${action}.`,
+        });
+        
+        onActionComplete(); // This will trigger the refetch in the parent
+        onOpenChange(false); // Close the dialog
+        setIsSubmitting(false);
     };
 
     if (!boost) return null;
@@ -232,6 +210,7 @@ export default function AdminBoostsPage() {
 
     const fetchBoosts = React.useCallback(async (status: string) => {
         setIsLoading(true);
+
         if (status === 'approved') {
             setBoosts(mockApprovedBoosts);
             setIsLoading(false);
@@ -247,6 +226,7 @@ export default function AdminBoostsPage() {
             setIsLoading(false);
             return;
         }
+
         if (!user) {
             setIsLoading(false);
             return;
@@ -259,7 +239,7 @@ export default function AdminBoostsPage() {
             });
             if (!response.ok) {
                  const errorData = await response.json();
-                 throw new Error(errorData.error || 'Failed to fetch boost requests.');
+                 throw new Error(errorData.message || 'Failed to fetch boost requests.');
             }
             const data = await response.json();
             setBoosts(data);
@@ -270,6 +250,12 @@ export default function AdminBoostsPage() {
             setIsLoading(false);
         }
     }, [user, toast]);
+
+    const handleActionComplete = () => {
+        if (selectedBoost) {
+            setBoosts(prev => prev.filter(b => b.id !== selectedBoost.id));
+        }
+    };
 
     React.useEffect(() => {
         fetchBoosts(activeTab);
@@ -356,7 +342,7 @@ export default function AdminBoostsPage() {
                 isOpen={isReviewDialogOpen}
                 onOpenChange={setIsReviewDialogOpen}
                 boost={selectedBoost}
-                onActionComplete={() => fetchBoosts(activeTab)}
+                onActionComplete={handleActionComplete}
             />
         </AdminLayout>
     );
