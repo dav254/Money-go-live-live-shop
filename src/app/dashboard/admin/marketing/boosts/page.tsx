@@ -38,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Eye, Heart, MousePointerClick, DotsHorizontalIcon } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Eye, Heart, MousePointerClick, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -259,7 +259,7 @@ export default function AdminBoostsPage() {
                     header: "Actions",
                     cell: ({ row }) => (
                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><DotsHorizontalIcon className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem>View on TikTok</DropdownMenuItem>
                                 <DropdownMenuItem>Pause Campaign</DropdownMenuItem>
