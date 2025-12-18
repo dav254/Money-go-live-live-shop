@@ -94,6 +94,24 @@ const mockRejectedBoosts: BoostRequest[] = [
     },
 ];
 
+const mockActiveBoosts: BoostRequest[] = [
+    {
+        id: 'boost-active-1',
+        sellerId: 'seller-jkl-101',
+        productId: 'prod-jkl',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: '🔥 Our top-selling gadget is now live on TikTok! Don\'t miss out on this viral sensation. #tech #gadgets',
+        durationDays: 7,
+        pointsPaid: 700,
+        status: 'active',
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() as any,
+        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() as any,
+        tiktokVideoId: 'simulated_12345',
+        target: { counties: ['Nairobi', 'Nakuru'], age: '18-45', interests: ['tech', 'gadgets'] },
+        analytics: { views: 125000, likes: 8300, clicks: 2100, shares: 540, conversions: 120 },
+    },
+];
+
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -235,10 +253,13 @@ export default function AdminBoostsPage() {
             return;
         }
         
-        // Handle other tabs if needed (currently not implemented for backend)
-        if (status !== 'pending') {
-            setBoosts([]);
-            setIsLoading(false);
+        // Use mock data for the 'active' tab
+        if (status === 'active') {
+            setIsLoading(true);
+            setTimeout(() => { // Simulate network delay
+                setBoosts(mockActiveBoosts);
+                setIsLoading(false);
+            }, 500);
             return;
         }
 
@@ -347,4 +368,3 @@ export default function AdminBoostsPage() {
         </AdminLayout>
     );
 }
-
