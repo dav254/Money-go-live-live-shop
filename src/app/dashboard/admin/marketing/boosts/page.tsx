@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -30,6 +30,7 @@ import {
 import {
     Card,
     CardContent,
+    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -43,100 +44,33 @@ import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
-// --- Mock Data for UI demonstration ---
-const mockBoosts: BoostRequest[] = [
-    {
-        id: 'mock-1',
-        sellerId: 'seller-xyz',
-        productId: 'prod-abc',
-        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
-        caption: 'This is a sample approved boost for our best-selling product!',
-        durationDays: 7,
-        pointsPaid: 700,
-        target: { counties: ['Nairobi'], age: '18-35', interests: ['fashion'] },
-        status: 'approved',
-        createdAt: new Date() as any,
-        updatedAt: new Date() as any,
-        analytics: { views: 12500, likes: 2300, clicks: 150, shares: 80, conversions: 25 },
-    },
-    {
-        id: 'mock-2',
-        sellerId: 'seller-abc',
-        productId: 'prod-def',
-        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
-        caption: 'This request was rejected for using copyrighted music.',
-        durationDays: 3,
-        pointsPaid: 300,
-        target: { counties: ['Mombasa'], age: '18-24', interests: ['tech'] },
-        status: 'rejected',
-        createdAt: new Date() as any,
-        updatedAt: new Date() as any,
-        rejectionReason: 'Copyrighted music detected.',
-        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-    },
-     {
-        id: 'mock-3',
-        sellerId: 'seller-123',
-        productId: 'prod-ghi',
-        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
-        caption: 'Our latest active campaign running on TikTok right now!',
-        durationDays: 14,
-        pointsPaid: 1400,
-        target: { counties: ['Nakuru'], age: '25-45', interests: ['foodie'] },
-        status: 'active',
-        createdAt: new Date() as any,
-        updatedAt: new Date() as any,
-        analytics: { views: 55000, likes: 8800, clicks: 620, shares: 300, conversions: 95 },
-    }
-];
-
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     boost: BoostRequest | null;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onActionComplete: () => void;
+    onActionComplete: (boostId: string, action: 'approved' | 'rejected') => void;
 }) => {
-    const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost || !user) return;
+        if (!boost) return;
 
         setIsSubmitting(true);
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/admin/boosts', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ boostId: boost.id, action }),
-            });
+        toast({
+            title: `Boost ${action}`,
+            description: `The boost request has been successfully ${action}.`,
+        });
 
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || `Failed to ${action} boost.`);
-            }
-
-            toast({
-                title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-                description: `The boost request has been successfully ${action}.`,
-            });
-            onActionComplete();
-            onOpenChange(false);
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Action Failed',
-                description: error.message,
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // Frontend-only action: Pass the action and ID up to the parent component
+        onActionComplete(boost.id, action);
+        
+        // Simulate a short delay
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        onOpenChange(false);
+        setIsSubmitting(false);
     };
 
     if (!boost) return null;
@@ -208,9 +142,12 @@ export default function AdminBoostsPage() {
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
 
     const fetchBoosts = React.useCallback(async (status: string) => {
-        if (!user) return;
+        if (!user || status !== 'pending') {
+            setBoosts([]); // Clear boosts for non-pending tabs
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
-
         try {
             const token = await user.getIdToken();
             const response = await fetch(`/api/admin/boosts?status=${status}`, {
@@ -235,6 +172,11 @@ export default function AdminBoostsPage() {
         setIsReviewDialogOpen(true);
     };
 
+    const handleActionComplete = (boostId: string, action: 'approved' | 'rejected') => {
+        // Frontend-only: remove the item from the list
+        setBoosts(currentBoosts => currentBoosts.filter(b => b.id !== boostId));
+    };
+
     const columns: ColumnDef<BoostRequest>[] = [
         { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
         { accessorKey: 'caption', header: 'Caption', cell: ({ row }) => <p className="truncate max-w-sm">{row.original.caption}</p> },
@@ -243,8 +185,8 @@ export default function AdminBoostsPage() {
             accessorKey: 'createdAt',
             header: 'Submitted',
             cell: ({ row }) => {
-                const date = row.original.createdAt?.toDate ? row.original.createdAt.toDate() : new Date(row.original.createdAt as any);
-                return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
+                const date = new Date(row.original.createdAt as any);
+                 return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
             }
         },
         {
@@ -310,8 +252,9 @@ export default function AdminBoostsPage() {
                 isOpen={isReviewDialogOpen}
                 onOpenChange={setIsReviewDialogOpen}
                 boost={selectedBoost}
-                onActionComplete={() => fetchBoosts(activeTab)}
+                onActionComplete={handleActionComplete}
             />
         </AdminLayout>
     );
 }
+
