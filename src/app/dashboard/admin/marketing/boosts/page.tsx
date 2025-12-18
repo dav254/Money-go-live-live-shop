@@ -46,23 +46,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 
 // --- Mock Data ---
-const mockRejectedBoosts: BoostRequest[] = [
-    {
-        id: 'boost-rejected-1',
-        sellerId: 'seller-ghi-789',
-        productId: 'prod-ghi',
-        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
-        caption: 'This is an example of a rejected caption because it contains forbidden words.',
-        durationDays: 5,
-        pointsPaid: 500,
-        status: 'rejected',
-        rejectionReason: 'Content guideline violation.',
-        createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() as any,
-        updatedAt: new Date().toISOString() as any,
-        target: { counties: ['Kisumu'], age: 'all', interests: ['tech'] },
-        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-    },
-];
+const mockRejectedBoosts: BoostRequest[] = [];
 
 const mockActiveBoosts: BoostRequest[] = [
     {
@@ -190,7 +174,6 @@ export default function AdminBoostsPage() {
     const [pendingBoosts, setPendingBoosts] = React.useState<BoostRequest[]>([]);
     const [approvedBoosts, setApprovedBoosts] = React.useState<BoostRequest[]>([]);
     const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>(mockRejectedBoosts);
-    const [activeBoosts, setActiveBoosts] = React.useState<BoostRequest[]>(mockActiveBoosts);
     
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pending');
@@ -297,7 +280,7 @@ export default function AdminBoostsPage() {
             case 'pending': return pendingBoosts;
             case 'approved': return approvedBoosts;
             case 'rejected': return rejectedBoosts;
-            case 'active': return activeBoosts;
+            case 'active': return mockActiveBoosts;
             default: return [];
         }
     }
@@ -365,5 +348,3 @@ export default function AdminBoostsPage() {
         </AdminLayout>
     );
 }
-
-    
