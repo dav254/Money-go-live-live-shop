@@ -44,33 +44,85 @@ import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
+// --- Mock Data ---
+const mockApprovedBoosts: BoostRequest[] = [
+    {
+        id: 'boost-approved-1',
+        sellerId: 'seller-abc-123',
+        productId: 'prod-abc',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'Check out these awesome waterproof boots! Perfect for any adventure. #hiking #outdoors',
+        durationDays: 7,
+        pointsPaid: 700,
+        status: 'approved',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() as any,
+        updatedAt: new Date().toISOString() as any,
+        target: { counties: ['Nairobi'], age: '18-35', interests: ['fashion'] },
+        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+    },
+    {
+        id: 'boost-approved-2',
+        sellerId: 'seller-def-456',
+        productId: 'prod-def',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'Limited edition graphic tees are here! Get yours before they sell out.',
+        durationDays: 3,
+        pointsPaid: 300,
+        status: 'approved',
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() as any,
+        updatedAt: new Date().toISOString() as any,
+        target: { counties: ['Mombasa'], age: '18-24', interests: ['streetwear'] },
+        analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
+    },
+];
+
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     boost: BoostRequest | null;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onActionComplete: (boostId: string, action: 'approved' | 'rejected') => void;
+    onActionComplete: () => void;
 }) => {
+    const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost) return;
+        if (!boost || !user) return;
 
         setIsSubmitting(true);
-        toast({
-            title: `Boost ${action}`,
-            description: `The boost request has been successfully ${action}.`,
-        });
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/boosts', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ boostId: boost.id, action }),
+            });
 
-        // Frontend-only action: Pass the action and ID up to the parent component
-        onActionComplete(boost.id, action);
-        
-        // Simulate a short delay
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        onOpenChange(false);
-        setIsSubmitting(false);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || `Failed to ${action} boost.`);
+            }
+
+            toast({
+                title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+                description: `The boost request has been successfully ${action}.`,
+            });
+            onActionComplete();
+            onOpenChange(false);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Action Failed',
+                description: error.message,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!boost) return null;
@@ -142,11 +194,25 @@ export default function AdminBoostsPage() {
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
 
     const fetchBoosts = React.useCallback(async (status: string) => {
-        if (!user || status !== 'pending') {
-            setBoosts([]); // Clear boosts for non-pending tabs
+        if (!user) return;
+        
+        // Use mock data for the 'approved' tab
+        if (status === 'approved') {
+            setIsLoading(true);
+            setTimeout(() => { // Simulate network delay
+                setBoosts(mockApprovedBoosts);
+                setIsLoading(false);
+            }, 500);
+            return;
+        }
+
+        // Handle other tabs if needed (currently not implemented for backend)
+        if (status !== 'pending') {
+            setBoosts([]);
             setIsLoading(false);
             return;
         }
+
         setIsLoading(true);
         try {
             const token = await user.getIdToken();
@@ -170,11 +236,6 @@ export default function AdminBoostsPage() {
     const openReviewDialog = (boost: BoostRequest) => {
         setSelectedBoost(boost);
         setIsReviewDialogOpen(true);
-    };
-
-    const handleActionComplete = (boostId: string, action: 'approved' | 'rejected') => {
-        // Frontend-only: remove the item from the list
-        setBoosts(currentBoosts => currentBoosts.filter(b => b.id !== boostId));
     };
 
     const columns: ColumnDef<BoostRequest>[] = [
@@ -252,7 +313,7 @@ export default function AdminBoostsPage() {
                 isOpen={isReviewDialogOpen}
                 onOpenChange={setIsReviewDialogOpen}
                 boost={selectedBoost}
-                onActionComplete={handleActionComplete}
+                onActionComplete={() => fetchBoosts(activeTab)}
             />
         </AdminLayout>
     );
