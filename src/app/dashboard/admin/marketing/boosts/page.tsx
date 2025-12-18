@@ -239,7 +239,7 @@ export default function AdminBoostsPage() {
                                         {isLoading ? (
                                             Array.from({ length: 5 }).map((_, i) => (
                                                 <TableRow key={i}>
-                                                    {columns.map(c => <TableCell key={c.id || i}><Skeleton className="h-6 w-full" /></TableCell>)}
+                                                    {columns.map((c, j) => <TableCell key={`${i}-${j}`}><Skeleton className="h-6 w-full" /></TableCell>)}
                                                 </TableRow>
                                             ))
                                         ) : table.getRowModel().rows.length > 0 ? (
