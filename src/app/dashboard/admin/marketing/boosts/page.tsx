@@ -30,7 +30,6 @@ import {
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
@@ -214,9 +213,9 @@ export default function AdminBoostsPage() {
 
         if (action === 'approved') {
             setApprovedBoosts(prev => [{ ...boostToMove, status: 'approved' }, ...prev]);
+        } else if (action === 'rejected') {
+            setRejectedBoosts(prev => [{ ...boostToMove, status: 'rejected' }, ...prev]);
         }
-        // The reject logic is frontend-only for now and doesn't add to the rejected list.
-        // To fully connect it, we would add to a `rejectedBoosts` state here.
     };
 
     const openReviewDialog = (boost: BoostRequest) => {
@@ -320,3 +319,4 @@ export default function AdminBoostsPage() {
         </AdminLayout>
     );
 }
+
