@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -24,11 +24,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
     Card,
     CardContent,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -55,21 +58,46 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     onOpenChange: (isOpen: boolean) => void;
     onActionComplete: (boostId: string, action: 'approved' | 'rejected') => void;
 }) => {
+    const { user } = useUser();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost) return;
+        if (!boost || !user) return;
+
         setIsSubmitting(true);
-        // Simulate backend call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        toast({
-            title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-            description: `The boost request has been successfully ${action}.`,
-        });
-        onActionComplete(boost.id, action);
-        onOpenChange(false);
-        setIsSubmitting(false);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/boosts', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ boostId: boost.id, action }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || `Failed to ${action} boost.`);
+            }
+
+            toast({
+                title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+                description: `The boost request has been successfully ${action}.`,
+            });
+            onActionComplete(boost.id, action);
+            onOpenChange(false);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Action Failed',
+                description: error.message,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!boost) return null;
@@ -155,7 +183,7 @@ export default function AdminBoostsPage() {
             });
             if (!response.ok) {
                  const errorData = await response.json();
-                 throw new Error(errorData.message || `Failed to fetch ${status} boost requests.`);
+                 throw new Error(errorData.message || 'Failed to fetch boost requests.');
             }
             const data: BoostRequest[] = await response.json();
             
@@ -171,7 +199,7 @@ export default function AdminBoostsPage() {
                 const newlyCompleted: BoostRequest[] = [];
 
                 data.forEach(campaign => {
-                    const createdAt = (campaign.createdAt as any).toDate();
+                    const createdAt = new Date(campaign.createdAt as any);
                     const expiryDate = addDays(createdAt, campaign.durationDays);
                     if (now > expiryDate) {
                         newlyCompleted.push({ ...campaign, status: 'completed' });
@@ -345,4 +373,3 @@ export default function AdminBoostsPage() {
         </AdminLayout>
     );
 }
-
