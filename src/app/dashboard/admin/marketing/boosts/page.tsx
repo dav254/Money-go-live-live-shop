@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -24,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
@@ -38,46 +37,11 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Eye, Heart, MousePointerClick, MoreHorizontal } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, Eye, Heart, MousePointerClick, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-
-
-// --- Mock Data ---
-const mockActiveBoosts: BoostRequest[] = [
-    {
-        id: 'boost-active-1',
-        sellerId: 'seller-jkl-101',
-        productId: 'prod-jkl',
-        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
-        caption: '🔥 Our top-selling gadget is now live on TikTok! Don\'t miss out on this viral sensation. #tech #gadgets',
-        durationDays: 7,
-        pointsPaid: 700,
-        status: 'active',
-        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() as any,
-        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() as any,
-        tiktokVideoId: 'simulated_12345',
-        target: { counties: ['Nairobi', 'Nakuru'], age: '18-45', interests: ['tech', 'gadgets'] },
-        analytics: { views: 125000, likes: 8300, clicks: 2100, shares: 540, conversions: 120 },
-    },
-     {
-        id: 'boost-active-2',
-        sellerId: 'seller-mno-202',
-        productId: 'prod-mno',
-        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
-        caption: 'Fashion finds! Get this look before it\'s gone. Limited stock available.',
-        durationDays: 3,
-        pointsPaid: 300,
-        status: 'active',
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() as any,
-        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() as any,
-        tiktokVideoId: 'simulated_67890',
-        target: { counties: ['Nairobi'], age: '18-24', interests: ['fashion', 'beauty'] },
-        analytics: { views: 78000, likes: 4200, clicks: 950, shares: 210, conversions: 45 },
-    },
-];
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -88,22 +52,45 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
 }) => {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const { user } = useUser();
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost) return;
+        if (!boost || !user) return;
     
         setIsSubmitting(true);
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-    
-        toast({
-            title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-            description: `The boost request has been successfully ${action}.`,
-        });
         
-        onActionComplete(boost.id, action);
-        onOpenChange(false);
-        setIsSubmitting(false);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/boosts', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ boostId: boost.id, action }),
+            });
+
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.message || 'Failed to process request.');
+            }
+
+            toast({
+                title: `Boost ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+                description: `The boost request has been successfully ${action}.`,
+            });
+            
+            onActionComplete(boost.id, action);
+            onOpenChange(false);
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Action Failed',
+                description: error.message,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!boost) return null;
@@ -171,6 +158,7 @@ export default function AdminBoostsPage() {
     const [pendingBoosts, setPendingBoosts] = React.useState<BoostRequest[]>([]);
     const [approvedBoosts, setApprovedBoosts] = React.useState<BoostRequest[]>([]);
     const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>([]);
+    const [activeBoosts, setActiveBoosts] = React.useState<BoostRequest[]>([]);
     
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pending');
@@ -197,6 +185,8 @@ export default function AdminBoostsPage() {
                 setApprovedBoosts(data);
             } else if (status === 'rejected') {
                 setRejectedBoosts(data);
+            } else if (status === 'active') {
+                setActiveBoosts(data);
             }
         } catch (error: any) {
             console.error(`Error fetching ${status} boosts:`, error);
@@ -291,7 +281,7 @@ export default function AdminBoostsPage() {
             case 'pending': return pendingBoosts;
             case 'approved': return approvedBoosts;
             case 'rejected': return rejectedBoosts;
-            case 'active': return mockActiveBoosts;
+            case 'active': return activeBoosts;
             default: return [];
         }
     }
