@@ -38,10 +38,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Eye, Heart, MousePointerClick, DotsHorizontalIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 
 // --- Mock Data ---
 const mockRejectedBoosts: BoostRequest[] = [
@@ -78,6 +80,21 @@ const mockActiveBoosts: BoostRequest[] = [
         target: { counties: ['Nairobi', 'Nakuru'], age: '18-45', interests: ['tech', 'gadgets'] },
         analytics: { views: 125000, likes: 8300, clicks: 2100, shares: 540, conversions: 120 },
     },
+     {
+        id: 'boost-active-2',
+        sellerId: 'seller-mno-202',
+        productId: 'prod-mno',
+        videoUrl: 'https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4',
+        caption: 'Fashion finds! Get this look before it\'s gone. Limited stock available.',
+        durationDays: 3,
+        pointsPaid: 300,
+        status: 'active',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() as any,
+        updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() as any,
+        tiktokVideoId: 'simulated_67890',
+        target: { counties: ['Nairobi'], age: '18-24', interests: ['fashion', 'beauty'] },
+        analytics: { views: 78000, likes: 4200, clicks: 950, shares: 210, conversions: 45 },
+    },
 ];
 
 
@@ -95,6 +112,7 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
         if (!boost) return;
     
         setIsSubmitting(true);
+        // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 500));
     
         toast({
@@ -223,28 +241,56 @@ export default function AdminBoostsPage() {
         setIsReviewDialogOpen(true);
     };
     
-    const getColumns = (status: 'pending' | 'approved' | 'rejected' | 'active'): ColumnDef<BoostRequest>[] => [
-        { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
-        { accessorKey: 'caption', header: 'Caption', cell: ({ row }) => <p className="truncate max-w-sm">{row.original.caption}</p> },
-        { accessorKey: 'pointsPaid', header: 'Cost' },
-        {
-            accessorKey: 'createdAt',
-            header: 'Submitted',
-            cell: ({ row }) => {
-                const date = new Date(row.original.createdAt as any);
-                 return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
-            }
-        },
-        {
-            id: 'actions',
-            header: "Actions",
-            cell: ({ row }) => (
-                <Button variant="outline" size="sm" onClick={() => openReviewDialog(row.original)} disabled={row.original.status !== 'pending'}>
-                    Review
-                </Button>
-            ),
-        },
-    ];
+    const getColumns = (status: 'pending' | 'approved' | 'rejected' | 'active'): ColumnDef<BoostRequest>[] => {
+        const baseColumns: ColumnDef<BoostRequest>[] = [
+            { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
+            { accessorKey: 'caption', header: 'Caption', cell: ({ row }) => <p className="truncate max-w-sm">{row.original.caption}</p> },
+            { accessorKey: 'pointsPaid', header: 'Cost' },
+        ];
+        
+        if (status === 'active') {
+            return [
+                ...baseColumns.slice(0, 3), // Seller, Caption, Cost
+                { accessorKey: 'analytics.views', header: () => <div className="flex items-center gap-1"><Eye className="h-4 w-4" /> Views</div>, cell: ({ row }) => (row.original.analytics?.views || 0).toLocaleString() },
+                { accessorKey: 'analytics.likes', header: () => <div className="flex items-center gap-1"><Heart className="h-4 w-4" /> Likes</div>, cell: ({ row }) => (row.original.analytics?.likes || 0).toLocaleString() },
+                { accessorKey: 'analytics.clicks', header: () => <div className="flex items-center gap-1"><MousePointerClick className="h-4 w-4" /> Clicks</div>, cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString() },
+                {
+                    id: 'actions',
+                    header: "Actions",
+                    cell: ({ row }) => (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><DotsHorizontalIcon className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem>View on TikTok</DropdownMenuItem>
+                                <DropdownMenuItem>Pause Campaign</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    ),
+                },
+            ];
+        }
+
+        return [
+            ...baseColumns,
+            {
+                accessorKey: 'createdAt',
+                header: 'Submitted',
+                cell: ({ row }) => {
+                    const date = new Date(row.original.createdAt as any);
+                    return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
+                }
+            },
+            {
+                id: 'actions',
+                header: "Actions",
+                cell: ({ row }) => (
+                    <Button variant="outline" size="sm" onClick={() => openReviewDialog(row.original)} disabled={row.original.status !== 'pending'}>
+                        Review
+                    </Button>
+                ),
+            },
+        ];
+    };
     
     const getDataForTab = (tab: string) => {
         switch(tab) {
@@ -320,3 +366,4 @@ export default function AdminBoostsPage() {
     );
 }
 
+    
