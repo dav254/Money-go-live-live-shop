@@ -1,7 +1,6 @@
 
 import { NextResponse } from 'next/server';
 import { healthCheck as paymentsHealthCheck } from '../create-payment-intent/route';
-import { healthCheck as followHealthCheck } from '../follow/route';
 import { healthCheck as uploadHealthCheck } from '../upload/route';
 import { checkFirestoreHealth } from '@/lib/server-health';
 
@@ -52,7 +51,6 @@ export async function GET(request: Request) {
     // Perform all health checks in parallel for speed
     const [
         payments,
-        follow,
         upload,
         firestore,
         live,
@@ -60,7 +58,6 @@ export async function GET(request: Request) {
         apiResponseTime,
     ] = await Promise.all([
         paymentsHealthCheck(),
-        followHealthCheck(),
         uploadHealthCheck(),
         checkFirestoreHealth(),
         checkLiveStreaming(),
@@ -70,7 +67,6 @@ export async function GET(request: Request) {
 
     const services: ServiceStatus[] = [
       { name: 'API: Payments', status: payments.status as Status },
-      { name: 'API: User Follows', status: follow.status as Status },
       { name: 'API: Image Uploads', status: upload.status as Status },
       { name: 'Database (Firestore)', status: firestore },
       { name: 'Live Streaming (Mux)', status: live },

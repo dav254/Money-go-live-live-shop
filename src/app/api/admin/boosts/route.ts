@@ -1,15 +1,12 @@
+
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
+import { db, auth } from '@/firebase/server';
+import { doc, updateDoc, getDoc, increment } from 'firebase-admin/firestore';
 import type { BoostRequest, UserProfile } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, where, orderBy, increment } from 'firebase-admin/firestore';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
 
 async function verifyAdmin(request: NextRequest) {
-    const adminApp = initializeAdminApp();
-    const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
-
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
         return { error: 'Unauthorized: No token provided.', status: 401 };
@@ -17,7 +14,7 @@ async function verifyAdmin(request: NextRequest) {
     const token = authHeader.split('Bearer ')[1];
     
     try {
-        const decodedToken = await auth.verifyIdToken(token);
+        const decodedToken = await getAuth().verifyIdToken(token);
         const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
 
         if (!userProfileSnap.exists || userProfileSnap.data()?.userRole !== 'admin') {
@@ -37,8 +34,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const db = getFirestore(initializeAdminApp());
-    // Fetch all campaigns regardless of status. Filtering will be done on the client for now.
     const campaignsSnapshot = await db.collection('boost_requests').orderBy('createdAt', 'desc').get();
     
     const campaigns = campaignsSnapshot.docs.map(doc => {
@@ -46,7 +41,6 @@ export async function GET(request: NextRequest) {
         return {
             ...data,
             id: doc.id,
-            // Convert Firestore Timestamps to ISO strings for JSON serialization
             createdAt: data.createdAt ? (data.createdAt as any).toDate().toISOString() : null,
             updatedAt: data.updatedAt ? (data.updatedAt as any).toDate().toISOString() : null,
         };
@@ -72,7 +66,6 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
         }
         
-        const db = getFirestore(initializeAdminApp());
         const boostRef = doc(db, 'boost_requests', boostId);
         const boostSnap = await getDoc(boostRef);
 
@@ -109,7 +102,6 @@ export async function PUT(request: NextRequest) {
                 return NextResponse.json({ message: 'Boost must be approved before posting.' }, { status: 400 });
             }
 
-            // Fetch seller profile to get TikTok access token
             const sellerProfileRef = doc(db, 'userProfiles', boostData.sellerId);
             const sellerProfileSnap = await getDoc(sellerProfileRef);
             if (!sellerProfileSnap.exists()) {

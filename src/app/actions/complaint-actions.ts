@@ -1,8 +1,9 @@
 
 'use server';
 
-import { initializeAdminApp } from '@/firebase/admin';
+import { db } from '@/firebase/server';
 import type { Complaint } from '@/lib/types';
+import { serverTimestamp } from 'firebase-admin/firestore';
 
 interface ComplaintPayload {
     complainantId: string;
@@ -16,10 +17,6 @@ interface ComplaintPayload {
 
 export async function createComplaint(payload: ComplaintPayload): Promise<{ success: boolean; error?: string }> {
     try {
-        initializeAdminApp();
-        const { getFirestore, serverTimestamp } = await import('firebase-admin/firestore');
-        const db = getFirestore();
-        
         const complaintRef = db.collection('complaints').doc();
         
         const newComplaint: Partial<Complaint> = {

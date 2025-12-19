@@ -252,9 +252,6 @@ export default function AdminBoostsPage() {
                 header: 'Submitted',
                 cell: ({ row }) => {
                     const date = new Date(row.original.createdAt);
-                    if (isNaN(date.getTime())) {
-                        return <span>Invalid date</span>;
-                    }
                     return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
                 }
             },
@@ -313,8 +310,8 @@ export default function AdminBoostsPage() {
                         <TabsTrigger value="pending"><Clock className="w-4 h-4 mr-2"/>Pending ({boosts.filter(b => b.status === 'pending').length})</TabsTrigger>
                         <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved ({boosts.filter(b => b.status === 'approved').length})</TabsTrigger>
                         <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active ({boosts.filter(b => b.status === 'active').length})</TabsTrigger>
-                        <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({boosts.filter(b => b.status === 'rejected').length})</TabsTrigger>
                         <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed ({boosts.filter(b => b.status === 'completed').length})</TabsTrigger>
+                        <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({boosts.filter(b => b.status === 'rejected').length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
                         <Card>

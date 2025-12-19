@@ -1,17 +1,12 @@
 
 import { NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
+import { db, auth } from '@/firebase/server';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
 export async function GET(request: Request) {
   try {
-    // Correctly initialize Firebase Admin and get services
-    const adminApp = initializeAdminApp();
-    const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
-    
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -39,8 +34,6 @@ export async function GET(request: Request) {
 
     const sevenDaysAgoTimestamp = Timestamp.fromDate(sevenDaysAgo);
 
-    // Simplified query to avoid complex indexing issues.
-    // The logic below will handle filtering by status.
     const ordersSnapshot = await db
       .collection('orders')
       .where('orderDate', '>=', sevenDaysAgoTimestamp)
@@ -49,7 +42,6 @@ export async function GET(request: Request) {
     const salesByDay: Record<string, number> = {};
     const ordersByDay: Record<string, number> = {};
     
-    // Initialize the last 7 days with 0 revenue and 0 orders
     for (let i = 0; i < 7; i++) {
         const date = new Date(sevenDaysAgo);
         date.setDate(sevenDaysAgo.getDate() + i);
@@ -60,7 +52,6 @@ export async function GET(request: Request) {
 
     ordersSnapshot.forEach(doc => {
       const order = doc.data() as Order;
-      // Filter for relevant statuses in the code
       if (!['delivered', 'shipped', 'processing'].includes(order.orderStatus)) {
           return;
       }

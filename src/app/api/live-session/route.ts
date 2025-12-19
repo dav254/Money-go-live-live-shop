@@ -1,14 +1,10 @@
 
 import { NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, FieldValue, Timestamp, doc, setDoc, updateDoc } from 'firebase-admin/firestore';
+import { db, auth } from '@/firebase/server';
+import { FieldValue, Timestamp, doc, setDoc, updateDoc } from 'firebase-admin/firestore';
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
-  const adminApp = initializeAdminApp();
-  const auth = getAuth(adminApp);
-  
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return { error: 'Unauthorized: Missing or malformed token.', status: 401 };
@@ -35,9 +31,6 @@ export async function POST(request: Request) {
   const sellerId = verification.uid;
 
   try {
-    const adminApp = initializeAdminApp();
-    const db = getFirestore(adminApp);
-
     const userProfileDoc = await db.collection('userProfiles').doc(sellerId).get();
     if (!userProfileDoc.exists) {
         return NextResponse.json({ error: 'User profile not found.' }, { status: 404 });
@@ -82,8 +75,6 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const adminApp = initializeAdminApp();
-    const db = getFirestore(adminApp);
     const sessionRef = doc(db, 'liveSessions', liveSessionId);
 
     const sessionDoc = await sessionRef.get();

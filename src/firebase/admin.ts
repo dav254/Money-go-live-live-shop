@@ -4,44 +4,6 @@ import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import * as path from 'path';
 import * as fs from 'fs';
 
-let serviceAccount: any;
-try {
-  // Use a more robust path resolution
-  const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccountFile = fs.readFileSync(serviceAccountPath, 'utf8');
-    serviceAccount = JSON.parse(serviceAccountFile);
-  } else {
-    // This is not an error in all environments (e.g., client-side), so a warning is better.
-    console.warn("service-account.json not found at project root. This is expected on the client side but will cause issues on the server.");
-  }
-} catch (e) {
-    console.error("Failed to load or parse service-account.json.", e);
-}
-
-
-// Use a unique name for the app to avoid conflicts.
-const appName = 'firebase-admin-app-e08e6c7c-473c-4a39-8692-7f2824e4f7b6'; // Unique name
-
-/**
- * A robust, idempotent function to initialize the Firebase Admin SDK.
- * It checks if the app is already initialized before attempting to create a new one.
- * This is the ONLY function that should be used for server-side initialization.
- */
-export function initializeAdminApp(): App {
-  const existingApp = getApps().find(app => app.name === appName);
-  if (existingApp) {
-    return existingApp;
-  }
-
-  if (!serviceAccount) {
-      throw new Error("Firebase Admin SDK could not be initialized because service-account.json is missing or invalid.");
-  }
-
-  // When initializing, we provide the unique app name.
-  const newApp = initializeApp({
-    credential: cert(serviceAccount),
-  }, appName);
-
-  return newApp;
-}
+// This is no longer used, as we now use the centralized `db` from `firebase/server.ts`
+// but we keep the file to avoid breaking imports that might still exist.
+// A future cleanup could remove this file entirely.

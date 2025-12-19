@@ -1,8 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTikTokAccessToken } from '@/lib/tiktok';
-import { initializeAdminApp } from '@/firebase/admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from '@/firebase/server';
 
 /**
  * This API route handles the callback from TikTok after a user authorizes our application.
@@ -34,15 +33,8 @@ export async function GET(request: NextRequest) {
         throw new Error("TikTok API did not return an open_id.");
     }
 
-    // Initialize Firebase Admin SDK to securely update Firestore
-    initializeAdminApp();
-    const db = getFirestore();
-    
-    // Get a reference to the user's profile document
     const userRef = db.collection('userProfiles').doc(goEarnUserId);
 
-    // IMPORTANT: In a real production app, you MUST encrypt these tokens before saving.
-    // For this example, we are storing them directly for simplicity.
     await userRef.update({
       'connections.tiktok': {
         openId: tokenData.open_id,

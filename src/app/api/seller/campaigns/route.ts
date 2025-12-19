@@ -2,19 +2,11 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
+import { db, auth } from '@/firebase/server';
 import type { AdCampaign, Product } from '@/lib/types';
 
 export async function GET(request: Request) {
   try {
-    // 1. Initialize Firebase Admin and get services
-    const adminApp = initializeAdminApp();
-    const { getAuth } = await import('firebase-admin/auth');
-    const { getFirestore } = await import('firebase-admin/firestore');
-    
-    const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
-
     // 2. Authenticate the user from the request header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

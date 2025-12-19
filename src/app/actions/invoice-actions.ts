@@ -1,9 +1,8 @@
 
 'use server';
 
-import { initializeAdminApp } from '@/firebase/admin';
-// Do not import from 'firebase-admin' at the top level
-import type { Order } from '@/lib/types';
+import { db } from '@/firebase/server';
+import { serverTimestamp } from 'firebase-admin/firestore';
 
 interface InvoiceNotificationPayload {
     sellerId: string;
@@ -13,10 +12,6 @@ interface InvoiceNotificationPayload {
 
 export async function sendInvoiceNotification(payload: InvoiceNotificationPayload): Promise<{ success: boolean; error?: string }> {
     try {
-        initializeAdminApp();
-        const { getFirestore, serverTimestamp } = await import('firebase-admin/firestore');
-        const db = getFirestore();
-
         await db.collection('notifications').add({
             userId: payload.sellerId,
             type: 'invoice',

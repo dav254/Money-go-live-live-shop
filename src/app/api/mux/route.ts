@@ -1,8 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase-admin/firestore';
+import { db, auth } from '@/firebase/server';
+import { doc, setDoc, serverTimestamp } from 'firebase-admin/firestore';
 import Mux from '@mux/mux-node';
 import type { LiveSession } from '@/lib/types';
 
@@ -16,10 +15,6 @@ const { Video } = new Mux();
 // This handler should only be callable by authenticated sellers.
 export async function POST(request: Request) {
   try {
-    const adminApp = initializeAdminApp();
-    const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
-
     // 1. Authenticate the user
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

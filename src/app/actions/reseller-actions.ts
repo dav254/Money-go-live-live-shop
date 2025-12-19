@@ -6,15 +6,12 @@
  * This creates a record in the `resellActivities` collection.
  */
 
-import { initializeAdminApp } from '@/firebase/admin';
-// Do not import from 'firebase-admin' at the top level
+import { db } from '@/firebase/server';
+import { serverTimestamp } from 'firebase-admin/firestore';
+
 
 export async function logResellerShare(resellerId: string, productId: string, sellerId: string) {
   try {
-    initializeAdminApp();
-    const { getFirestore, serverTimestamp } = await import('firebase-admin/firestore');
-    const db = getFirestore();
-    
     await db.collection('resellActivities').add({
       resellerId,
       productId,

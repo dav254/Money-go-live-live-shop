@@ -1,16 +1,12 @@
 
 import { NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
+import { db, auth } from '@/firebase/server';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { Payout } from '@/lib/types';
 
 export async function GET(request: Request) {
   try {
-    const adminApp = initializeAdminApp();
-    const auth = getAuth(adminApp);
-    const db = getFirestore(adminApp);
-    
     const authHeader = request.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

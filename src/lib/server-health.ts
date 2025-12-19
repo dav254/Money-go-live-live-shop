@@ -1,3 +1,4 @@
+
 // This file is designated for server-side health checks.
 // It is crucial that this file does not contain the 'use client';' directive.
 import { db } from '@/firebase/server';

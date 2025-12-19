@@ -1,32 +1,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeAdminApp } from '@/firebase/admin';
-// Do NOT import firebase-admin services at the top level.
-
-// Health check function for this API endpoint
-export async function healthCheck() {
-    try {
-        initializeAdminApp();
-        return { status: 'operational' };
-    } catch (e) {
-        console.error("Follow API Health Check Failed:", e);
-        return { status: 'outage', message: 'Firebase Admin SDK initialization failed.' };
-    }
-}
+import { db, auth } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(request: NextRequest) {
   try {
-    initializeAdminApp(); // Ensure app is initialized
-    const { getAuth } = await import('firebase-admin/auth');
-    const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
-
     const body = await request.json();
-
-    if (body.action === 'health_check') {
-        const health = await healthCheck();
-        return NextResponse.json(health);
-    }
-
     const { sellerId, action } = body;
     const authHeader = request.headers.get('Authorization');
     
@@ -35,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(token);
+    const decodedToken = await auth.verifyIdToken(token);
     const buyerId = decodedToken.uid;
 
     if (!sellerId || !action || (action !== 'follow' && action !== 'unfollow')) {
@@ -46,7 +25,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Users cannot follow themselves' }, { status: 400 });
     }
     
-    const db = getFirestore();
     const buyerProfileRef = db.collection('userProfiles').doc(buyerId);
     const sellerShopRef = db.collection('sellerShops').doc(sellerId);
     
