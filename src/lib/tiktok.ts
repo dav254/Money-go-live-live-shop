@@ -2,6 +2,7 @@
 
 import type { BoostRequest } from './types';
 import fetch from 'node-fetch';
+import { Readable } from 'stream';
 
 /**
  * Uploads a video to TikTok using the official API.
@@ -62,7 +63,7 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
                 'Content-Type': 'video/mp4',
                 'Content-Length': String(videoBuffer.length)
             },
-            body: videoBuffer,
+            body: Readable.from(videoBuffer),
         });
 
         if (uploadResponse.status !== 200) {
