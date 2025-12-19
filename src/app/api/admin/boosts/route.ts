@@ -1,9 +1,10 @@
 
+
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { BoostRequest, UserProfile } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, orderBy, increment } from 'firebase-admin/firestore';
+import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, where, orderBy, increment } from 'firebase-admin/firestore';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
 
 async function verifyAdmin(request: NextRequest) {
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = getFirestore(initializeAdminApp());
+    // Fetch all campaigns regardless of status. Filtering will be done on the client for now.
     const campaignsSnapshot = await db.collection('boost_requests').orderBy('createdAt', 'desc').get();
     
     const campaigns = campaignsSnapshot.docs.map(doc => {
@@ -95,6 +97,20 @@ export async function PUT(request: NextRequest) {
         }
         
         if (action === 'approved') {
+            await updateDoc(boostRef, {
+                status: 'approved',
+                updatedAt: new Date()
+            });
+            
+            return NextResponse.json({ success: true, message: 'Boost approved and is ready to be posted.' });
+        }
+        
+        // This part handles posting to TikTok, which will now be a separate action.
+        if (action === 'post_to_tiktok') {
+            if (boostData.status !== 'approved') {
+                return NextResponse.json({ message: 'Boost must be approved before posting.' }, { status: 400 });
+            }
+
             // Fetch seller profile to get TikTok access token
             const sellerProfileRef = doc(db, 'userProfiles', boostData.sellerId);
             const sellerProfileSnap = await getDoc(sellerProfileRef);
@@ -111,18 +127,15 @@ export async function PUT(request: NextRequest) {
                  return NextResponse.json({ message: 'Boost rejected: Seller TikTok account not connected.' }, { status: 400 });
             }
 
-            // --- THIS IS NOW LIVE ---
             const uploadResult = await uploadVideoToTikTok(boostData, tiktokConnection.accessToken);
 
             if (!uploadResult.success) {
-                // If upload fails, reject the boost and refund points
                  await updateDoc(boostRef, { status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
                  const sellerRef = doc(db, 'userProfiles', boostData.sellerId);
                  await updateDoc(sellerRef, { aiPoints: increment(boostData.pointsPaid) });
                 return NextResponse.json({ message: `Boost rejected due to TikTok API error: ${uploadResult.message}` }, { status: 500 });
             }
             
-            // If upload succeeds, update the boost status to 'active' with the real TikTok video ID
             await updateDoc(boostRef, {
                 status: 'active',
                 tiktokVideoId: uploadResult.videoId,
@@ -131,6 +144,7 @@ export async function PUT(request: NextRequest) {
 
             return NextResponse.json({ success: true, message: 'Boost approved and posted to TikTok.' });
         }
+
 
     } catch (error: any) {
         console.error('Error processing boost action:', error);

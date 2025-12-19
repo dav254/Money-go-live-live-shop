@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -30,8 +30,6 @@ import {
 import {
     Card,
     CardContent,
-    CardHeader,
-    CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -46,7 +44,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -60,12 +57,12 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
 }) => {
     const { user } = useUser();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [isSubmitting, setIsSubmitting] = React.useState< 'approved' | 'rejected' | null>(null);
 
     const handleAction = async (action: 'approved' | 'rejected') => {
         if (!boost || !user) return;
 
-        setIsSubmitting(true);
+        setIsSubmitting(action);
         try {
             const token = await user.getIdToken();
             const response = await fetch('/api/admin/boosts', {
@@ -96,7 +93,7 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                 description: error.message,
             });
         } finally {
-            setIsSubmitting(false);
+            setIsSubmitting(null);
         }
     };
 
@@ -145,11 +142,11 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={() => handleAction('rejected')} variant="destructive" disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                    <Button onClick={() => handleAction('rejected')} variant="destructive" disabled={!!isSubmitting}>
+                        {isSubmitting === 'rejected' ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                     </Button>
-                    <Button onClick={() => handleAction('approved')} variant="default" disabled={isSubmitting}>
-                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                    <Button onClick={() => handleAction('approved')} disabled={!!isSubmitting}>
+                         {isSubmitting === 'approved' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -162,23 +159,18 @@ export default function AdminBoostsPage() {
     const { user } = useUser();
     const { toast } = useToast();
     
-    const [pendingBoosts, setPendingBoosts] = React.useState<BoostRequest[]>([]);
-    const [approvedBoosts, setApprovedBoosts] = React.useState<BoostRequest[]>([]);
-    const [rejectedBoosts, setRejectedBoosts] = React.useState<BoostRequest[]>([]);
-    const [activeBoosts, setActiveBoosts] = React.useState<BoostRequest[]>([]);
-    const [completedBoosts, setCompletedBoosts] = React.useState<BoostRequest[]>([]);
-
+    const [boosts, setBoosts] = React.useState<BoostRequest[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pending');
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
 
-    const fetchBoosts = React.useCallback(async (status: string) => {
+    const fetchBoosts = React.useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
         try {
             const token = await user.getIdToken();
-            const response = await fetch(`/api/admin/boosts?status=${status}`, {
+            const response = await fetch('/api/admin/boosts', {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
             if (!response.ok) {
@@ -186,38 +178,9 @@ export default function AdminBoostsPage() {
                  throw new Error(errorData.message || 'Failed to fetch boost requests.');
             }
             const data: BoostRequest[] = await response.json();
-            
-            if (status === 'pending') {
-                setPendingBoosts(data);
-            } else if (status === 'approved') {
-                setApprovedBoosts(data);
-            } else if (status === 'rejected') {
-                setRejectedBoosts(data);
-            } else if (status === 'active') {
-                const now = new Date();
-                const stillActive: BoostRequest[] = [];
-                const newlyCompleted: BoostRequest[] = [];
-
-                data.forEach(campaign => {
-                    // Firestore timestamps become strings in JSON, so we convert them back to Date objects
-                    const approvalDate = new Date(campaign.updatedAt as any);
-                    const expiryDate = addDays(approvalDate, campaign.durationDays);
-                    if (now > expiryDate) {
-                        newlyCompleted.push({ ...campaign, status: 'completed' });
-                    } else {
-                        stillActive.push(campaign);
-                    }
-                });
-                
-                setActiveBoosts(stillActive);
-                // Also fetch and set completed boosts here if needed, or handle separately
-                fetchBoosts('completed');
-            } else if (status === 'completed') {
-                setCompletedBoosts(data);
-            }
-
+            setBoosts(data);
         } catch (error: any) {
-            console.error(`Error fetching ${status} boosts:`, error);
+            console.error(`Error fetching boosts:`, error);
             toast({ variant: 'destructive', title: 'Error', description: error.message });
         } finally {
             setIsLoading(false);
@@ -226,28 +189,16 @@ export default function AdminBoostsPage() {
 
     React.useEffect(() => {
         if (user) {
-            if (activeTab === 'active') {
-                // When we view 'active', we also want to refresh the 'completed' list
-                // as some active items might have expired.
-                fetchBoosts('active');
-                fetchBoosts('completed');
-            } else {
-                 fetchBoosts(activeTab);
-            }
+            fetchBoosts();
         }
-    }, [user, activeTab, fetchBoosts]);
+    }, [user, fetchBoosts]);
 
     const handleActionComplete = (boostId: string, action: 'approved' | 'rejected') => {
-        const boostToMove = pendingBoosts.find(b => b.id === boostId);
-        if (!boostToMove) return;
-
-        setPendingBoosts(prev => prev.filter(b => b.id !== boostId));
-
-        if (action === 'approved') {
-            setApprovedBoosts(prev => [{ ...boostToMove, status: 'approved' }, ...prev]);
-        } else if (action === 'rejected') {
-            setRejectedBoosts(prev => [{ ...boostToMove, status: 'rejected' }, ...prev]);
-        }
+        setBoosts(prevBoosts =>
+            prevBoosts.map(b => 
+                b.id === boostId ? { ...b, status: action } : b
+            )
+        );
     };
 
     const openReviewDialog = (boost: BoostRequest) => {
@@ -255,6 +206,10 @@ export default function AdminBoostsPage() {
         setIsReviewDialogOpen(true);
     };
     
+    const filteredBoosts = React.useMemo(() => {
+        return boosts.filter(b => b.status === activeTab);
+    }, [boosts, activeTab]);
+
     const getColumns = (status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed'): ColumnDef<BoostRequest>[] => {
         const baseColumns: ColumnDef<BoostRequest>[] = [
             { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
@@ -263,25 +218,7 @@ export default function AdminBoostsPage() {
         ];
         
         if (status === 'active' || status === 'completed') {
-            return [
-                ...baseColumns,
-                { accessorKey: 'analytics.views', header: () => <div className="flex items-center gap-1"><Eye className="h-4 w-4" /> Views</div>, cell: ({ row }) => (row.original.analytics?.views || 0).toLocaleString() },
-                { accessorKey: 'analytics.likes', header: () => <div className="flex items-center gap-1"><Heart className="h-4 w-4" /> Likes</div>, cell: ({ row }) => (row.original.analytics?.likes || 0).toLocaleString() },
-                { accessorKey: 'analytics.clicks', header: () => <div className="flex items-center gap-1"><MousePointerClick className="h-4 w-4" /> Clicks</div>, cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString() },
-                {
-                    id: 'actions',
-                    header: "Actions",
-                    cell: ({ row }) => (
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem>View on TikTok</DropdownMenuItem>
-                                {status === 'active' && <DropdownMenuItem>Pause Campaign</DropdownMenuItem>}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    ),
-                },
-            ];
+            // Future implementation for active/completed columns
         }
 
         return [
@@ -305,6 +242,11 @@ export default function AdminBoostsPage() {
                             </Button>
                         )
                     }
+                     if (status === 'approved') {
+                        return (
+                             <Button size="sm">Post to TikTok</Button>
+                        )
+                    }
                     if (status === 'rejected' && row.original.rejectionReason) {
                         return (
                             <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
@@ -316,23 +258,11 @@ export default function AdminBoostsPage() {
         ];
     };
     
-    const getDataForTab = (tab: string) => {
-        switch(tab) {
-            case 'pending': return pendingBoosts;
-            case 'approved': return approvedBoosts;
-            case 'rejected': return rejectedBoosts;
-            case 'active': return activeBoosts;
-            case 'completed': return completedBoosts;
-            default: return [];
-        }
-    }
-    
     const table = useReactTable({ 
-        data: getDataForTab(activeTab), 
+        data: filteredBoosts, 
         columns: getColumns(activeTab as any), 
         getCoreRowModel: getCoreRowModel() 
     });
-
 
     return (
         <AdminLayout>
@@ -342,11 +272,11 @@ export default function AdminBoostsPage() {
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList>
-                        <TabsTrigger value="pending"><Clock className="w-4 h-4 mr-2"/>Pending ({pendingBoosts.length})</TabsTrigger>
-                        <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved ({approvedBoosts.length})</TabsTrigger>
-                        <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active ({activeBoosts.length})</TabsTrigger>
-                        <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed ({completedBoosts.length})</TabsTrigger>
-                        <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({rejectedBoosts.length})</TabsTrigger>
+                        <TabsTrigger value="pending"><Clock className="w-4 h-4 mr-2"/>Pending</TabsTrigger>
+                        <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved</TabsTrigger>
+                        <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active</TabsTrigger>
+                        <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed</TabsTrigger>
+                        <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
                         <Card>
