@@ -1,5 +1,6 @@
 
 import type { BoostRequest } from './types';
+import fetch from 'node-fetch';
 
 const TIKTOK_CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY;
 const TIKTOK_CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;

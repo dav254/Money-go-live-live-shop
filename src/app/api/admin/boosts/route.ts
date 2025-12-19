@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
         return {
             ...data,
             id: doc.id,
-            createdAt: data.createdAt ? (data.createdAt as any).toDate().toISOString() : null,
-            updatedAt: data.updatedAt ? (data.updatedAt as any).toDate().toISOString() : null,
+            createdAt: (data.createdAt as any)?.toDate()?.toISOString(),
+            updatedAt: (data.updatedAt as any)?.toDate()?.toISOString(),
         };
     });
 
@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
 
     try {
         const { boostId, action, rejectionReason } = await request.json();
-        if (!boostId || !action || (action !== 'approved' && action !== 'rejected' && action !== 'post_to_tiktok')) {
+        if (!boostId || !action || !['approved', 'rejected', 'post_to_tiktok'].includes(action)) {
             return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
         }
         

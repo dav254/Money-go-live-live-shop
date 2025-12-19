@@ -57,6 +57,7 @@
     "lucide-react": "^0.475.0",
     "next": "15.3.8",
     "next-themes": "^0.3.0",
+    "node-fetch": "^2.6.7",
     "paystack": "^2.0.1",
     "peerjs": "^1.5.4",
     "react": "^18.3.1",
@@ -72,6 +73,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/node-fetch": "^2.6.11",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^9.0.8",
