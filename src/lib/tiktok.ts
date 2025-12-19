@@ -103,14 +103,19 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
 
         // Step 2: Download our video from Cloudinary and upload it to TikTok's URL
         const videoResponse = await fetch(boost.videoUrl);
-        const videoBlob = await videoResponse.blob();
+        if (!videoResponse.ok) {
+            throw new Error(`Failed to download video from Cloudinary. Status: ${videoResponse.status}`);
+        }
+        const videoBuffer = await videoResponse.buffer();
+
 
         const uploadResponse = await fetch(uploadUrl, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'video/mp4',
+                'Content-Length': String(videoBuffer.length)
             },
-            body: videoBlob,
+            body: videoBuffer,
         });
 
         if (uploadResponse.status !== 200) {
