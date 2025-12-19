@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Seller, Product, Comment } from '@/lib/types';
 import { VideoInfo } from '@/components/feed/video-info';
 import { VideoActions } from '@/components/feed/video-actions';
@@ -140,7 +140,7 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
           <div className="absolute inset-0 z-0 w-full h-full bg-black flex items-center justify-center overflow-hidden">
               {currentMedia ? (
               currentMedia.type === 'video' ? (
-                  <video className="w-full h-full object-cover" src={currentMedia.url} poster="" autoPlay muted loop playsInline key={currentMedia.url}></video>
+                  <video key={currentMedia.url} className="w-full h-full object-cover" src={currentMedia.url} poster="" autoPlay muted loop playsInline></video>
               ) : (
                   <Image src={currentMedia.url} alt="Product" fill className="object-cover" key={currentMedia.url} unoptimized />
               )
@@ -162,8 +162,6 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
           {currentProduct && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 pointer-events-auto">
                   <VideoActions 
-                      initialLikes={currentProduct.likes || 0}
-                      commentCount={comments?.length || 0}
                       productId={currentProduct.id}
                       onLike={spawnHeart}
                       onProductClick={() => setIsDrawerOpen(true)}

@@ -17,7 +17,8 @@ export const logError = async (firestore: Firestore, error: Error, options: LogE
   try {
     await addDoc(collection(firestore, 'errorLogs'), {
       errorMessage: error.message,
-      errorStack: error.stack,
+      // Ensure error.stack is not undefined before sending to Firestore
+      errorStack: error.stack || null,
       timestamp: serverTimestamp(),
       status: 'new',
       userId: options.userId || null,
