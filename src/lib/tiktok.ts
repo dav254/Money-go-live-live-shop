@@ -23,15 +23,30 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json; charset=UTF-8',
             },
+            // Add the required source_info object
+            body: JSON.stringify({
+                "source_info": {
+                    "source": "FILE_UPLOAD",
+                }
+            })
         });
 
+        // The response might not be JSON on failure, so we handle it carefully.
         if (!initResponse.ok) {
-            const errorData = await initResponse.json();
-            throw new Error(`TikTok API Error (Init): ${errorData.error.message}`);
+            try {
+                const errorData = await initResponse.json();
+                throw new Error(`TikTok API Error (Init): ${errorData.error.message}`);
+            } catch (jsonError) {
+                // If parsing as JSON fails, it's likely an HTML error page.
+                const errorText = await initResponse.text();
+                throw new Error(`TikTok API Error (Init): Received non-JSON response. Status: ${initResponse.status}. Body: ${errorText.substring(0, 100)}...`);
+            }
         }
         
         const initData = await initResponse.json();
         const uploadUrl = initData.data.upload_url;
+        const videoId = initData.data.video_id;
+
 
         // Step 2: Download our video from Cloudinary and upload it to TikTok's URL
         const videoResponse = await fetch(boost.videoUrl);
@@ -51,7 +66,8 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
         });
 
         if (uploadResponse.status !== 200) {
-             throw new Error(`TikTok API Error (Upload): Failed to upload video file. Status: ${uploadResponse.status}`);
+             const errorText = await uploadResponse.text();
+             throw new Error(`TikTok API Error (Upload): Failed to upload video file. Status: ${uploadResponse.status}. Details: ${errorText}`);
         }
 
         // Step 3: Create the post on TikTok using the uploaded video
@@ -62,7 +78,7 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
                 'Content-Type': 'application/json; charset=UTF-8',
             },
             body: JSON.stringify({
-                video_id: initData.data.video_id,
+                video_id: videoId,
                 post_info: {
                     title: boost.caption,
                     privacy_level: 'PUBLIC_TO_EVERYONE',
@@ -77,11 +93,12 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
         }
 
         const createData = await createResponse.json();
-        const videoId = createData.data.video_id;
+        // The final video ID to be stored is returned in the post creation step
+        const finalVideoId = createData.data.video_id;
 
         return {
             success: true,
-            videoId: videoId,
+            videoId: finalVideoId,
             message: "Video successfully uploaded and posted to TikTok.",
         };
 
