@@ -8,7 +8,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { AdminLayout } from '@/components/layout/admin-layout';
+import { AdminLayout } from '@/components/layout/seller-layout';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
@@ -38,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket, Eye, Heart, MousePointerClick } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -171,6 +171,86 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     );
 };
 
+const ActiveCampaignsTable = ({ data, onRefresh }: { data: BoostRequest[], onRefresh: () => void }) => {
+
+    const activeColumns: ColumnDef<BoostRequest>[] = [
+        {
+            accessorKey: 'sellerId',
+            header: 'Seller ID',
+            cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span>
+        },
+        {
+            accessorKey: 'caption',
+            header: 'Caption',
+            cell: ({ row }) => <p className="truncate max-w-xs">{row.original.caption}</p>
+        },
+        {
+            accessorKey: 'pointsPaid',
+            header: 'Cost',
+            cell: ({ row }) => <div className="text-center">{row.original.pointsPaid} pts</div>
+        },
+        {
+            accessorKey: 'analytics.views',
+            header: () => <div className="flex items-center gap-1"><Eye className="h-4 w-4"/> Views</div>,
+            cell: ({ row }) => (row.original.analytics?.views || 0).toLocaleString(),
+        },
+         {
+            accessorKey: 'analytics.likes',
+            header: () => <div className="flex items-center gap-1"><Heart className="h-4 w-4"/> Likes</div>,
+            cell: ({ row }) => (row.original.analytics?.likes || 0).toLocaleString(),
+        },
+        {
+            accessorKey: 'analytics.clicks',
+            header: () => <div className="flex items-center gap-1"><MousePointerClick className="h-4 w-4"/> Clicks</div>,
+            cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString(),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <Button variant="outline" size="sm" asChild>
+                    <a href={`https://www.tiktok.com/@placeholder/video/${row.original.tiktokVideoId}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4"/>
+                        View on TikTok
+                    </a>
+                </Button>
+            ),
+        }
+    ];
+
+    const table = useReactTable({
+        data,
+        columns: activeColumns,
+        getCoreRowModel: getCoreRowModel()
+    });
+
+    return (
+        <Card>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map(hg => (
+                            <TableRow key={hg.id}>
+                                {hg.headers.map(h => <TableHead key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</TableHead>)}
+                            </TableRow>
+                        ))}
+                    </TableHeader>
+                    <TableBody>
+                        {table.getRowModel().rows.length > 0 ? (
+                            table.getRowModel().rows.map(row => (
+                                <TableRow key={row.id}>
+                                    {row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow><TableCell colSpan={activeColumns.length} className="h-24 text-center">No active campaigns found.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
+}
 
 // Main Component
 export default function AdminBoostsPage() {
@@ -251,7 +331,7 @@ export default function AdminBoostsPage() {
                 accessorKey: 'createdAt',
                 header: 'Submitted',
                 cell: ({ row }) => {
-                    const date = new Date(row.original.createdAt);
+                    const date = new Date(row.original.createdAt as any);
                     return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
                 }
             },
@@ -284,8 +364,8 @@ export default function AdminBoostsPage() {
                             <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
                         )
                     }
-                    if (status === 'completed' || status === 'active') {
-                        return <Badge variant={status === 'active' ? 'default' : 'secondary'} className={cn(status === 'active' && 'bg-green-600/80')}>{status === 'active' ? 'Live on TikTok' : 'Campaign Ended'}</Badge>
+                     if (status === 'completed') {
+                        return <Badge variant={'secondary'} className={cn(status === 'active' && 'bg-green-600/80')}>Campaign Ended</Badge>
                     }
                     return null;
                 },
@@ -314,32 +394,49 @@ export default function AdminBoostsPage() {
                         <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({boosts.filter(b => b.status === 'rejected').length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <Table>
-                                    <TableHeader>
-                                        {table.getHeaderGroups().map(hg => (
-                                            <TableRow key={hg.id}>
-                                                {hg.headers.map(h => <TableHead key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</TableHead>)}
+                        {isLoading ? (
+                             <Card>
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                {getColumns(activeTab).map(c => <TableHead key={c.id || c.accessorKey}><Skeleton className="h-6 w-full" /></TableHead>)}
                                             </TableRow>
-                                        ))}
-                                    </TableHeader>
-                                    <TableBody>
-                                        {isLoading ? (
+                                        </TableHeader>
+                                        <TableBody>
                                             <TableRow><TableCell colSpan={getColumns(activeTab).length} className="h-24 text-center">Loading...</TableCell></TableRow>
-                                        ) : table.getRowModel().rows.length > 0 ? (
-                                            table.getRowModel().rows.map(row => (
-                                                <TableRow key={row.id}>
-                                                    {row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        ) : activeTab === 'active' ? (
+                            <ActiveCampaignsTable data={filteredBoosts} onRefresh={fetchBoosts} />
+                        ) : (
+                            <Card>
+                                <CardContent className="p-0">
+                                    <Table>
+                                        <TableHeader>
+                                            {table.getHeaderGroups().map(hg => (
+                                                <TableRow key={hg.id}>
+                                                    {hg.headers.map(h => <TableHead key={h.id}>{flexRender(h.column.columnDef.header, h.getContext())}</TableHead>)}
                                                 </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow><TableCell colSpan={getColumns(activeTab).length} className="h-24 text-center">No requests found for this status.</TableCell></TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
+                                            ))}
+                                        </TableHeader>
+                                        <TableBody>
+                                            {table.getRowModel().rows.length > 0 ? (
+                                                table.getRowModel().rows.map(row => (
+                                                    <TableRow key={row.id}>
+                                                        {row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow><TableCell colSpan={getColumns(activeTab).length} className="h-24 text-center">No requests found for this status.</TableCell></TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
                 </Tabs>
             </div>
