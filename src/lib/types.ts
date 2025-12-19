@@ -24,6 +24,16 @@ export interface UserProfile {
     following?: string[];
     shopName?: string; // For sellers
     walletBalance?: number;
+    connections?: {
+      tiktok?: {
+        openId: string;
+        accessToken: string;
+        refreshToken: string;
+        expiresAt: Date;
+        scopes: string[];
+        connectedAt: Date;
+      }
+    }
 }
 
 // Targeting options for a boost campaign
@@ -412,4 +422,3 @@ export interface Transaction {
   status: 'Completed' | 'Pending';
   amount: number;
 }
-

@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
-import type { BoostRequest } from '@/lib/types';
+import type { BoostRequest, UserProfile } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, doc, updateDoc, getDoc, collection, getDocs, query, orderBy, increment } from 'firebase-admin/firestore';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
@@ -95,18 +95,41 @@ export async function PUT(request: NextRequest) {
         }
         
         if (action === 'approved') {
-            // Placeholder for real upload logic
-            // In a real scenario, you'd fetch the user's TikTok token and call the upload function
-            // For now, we'll just simulate success.
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Fetch seller profile to get TikTok access token
+            const sellerProfileRef = doc(db, 'userProfiles', boostData.sellerId);
+            const sellerProfileSnap = await getDoc(sellerProfileRef);
+            if (!sellerProfileSnap.exists()) {
+                throw new Error("Seller profile not found for this boost request.");
+            }
+            const sellerProfile = sellerProfileSnap.data() as UserProfile;
+            const tiktokConnection = sellerProfile.connections?.tiktok;
 
+            if (!tiktokConnection || !tiktokConnection.accessToken) {
+                 await updateDoc(boostRef, { status: 'rejected', rejectionReason: 'Seller has not connected their TikTok account.' });
+                 const sellerRef = doc(db, 'userProfiles', boostData.sellerId);
+                 await updateDoc(sellerRef, { aiPoints: increment(boostData.pointsPaid) });
+                 return NextResponse.json({ message: 'Boost rejected: Seller TikTok account not connected.' }, { status: 400 });
+            }
+
+            // --- THIS IS NOW LIVE ---
+            const uploadResult = await uploadVideoToTikTok(boostData, tiktokConnection.accessToken);
+
+            if (!uploadResult.success) {
+                // If upload fails, reject the boost and refund points
+                 await updateDoc(boostRef, { status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
+                 const sellerRef = doc(db, 'userProfiles', boostData.sellerId);
+                 await updateDoc(sellerRef, { aiPoints: increment(boostData.pointsPaid) });
+                return NextResponse.json({ message: `Boost rejected due to TikTok API error: ${uploadResult.message}` }, { status: 500 });
+            }
+            
+            // If upload succeeds, update the boost status to 'active' with the real TikTok video ID
             await updateDoc(boostRef, {
                 status: 'active',
-                tiktokVideoId: `simulated_${Date.now()}`,
+                tiktokVideoId: uploadResult.videoId,
                 updatedAt: new Date()
             });
 
-            return NextResponse.json({ success: true, message: 'Boost approved and marked as active.' });
+            return NextResponse.json({ success: true, message: 'Boost approved and posted to TikTok.' });
         }
 
     } catch (error: any) {
