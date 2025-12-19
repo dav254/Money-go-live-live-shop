@@ -73,16 +73,13 @@ export function SellerHeader() {
         <div className="hidden md:flex items-center gap-3">
           {isLoading ? (
             <>
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-32" />
             </>
           ) : (
             <>
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={sellerAvatar} />
-                <AvatarFallback>{sellerName.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-semibold">{sellerName}</span>
+              <span className="text-sm font-semibold">
+                Welcome, {sellerName}
+              </span>
             </>
           )}
         </div>
