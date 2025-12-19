@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest) {
 
     try {
         const { boostId, action, rejectionReason } = await request.json();
-        if (!boostId || !action || !['approved', 'rejected', 'post_to_tiktok'].includes(action)) {
+        if (!boostId || !action || !['approved', 'rejected', 'post_to_tiktok', 're-queue'].includes(action)) {
             return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
         }
         
@@ -94,6 +94,15 @@ export async function PUT(request: NextRequest) {
             });
             
             return NextResponse.json({ success: true, message: 'Boost approved and is ready to be posted.' });
+        }
+
+        if (action === 're-queue') {
+            await boostRef.update({
+                status: 'pending',
+                rejectionReason: null, // Clear rejection reason
+                updatedAt: new Date()
+            });
+            return NextResponse.json({ success: true, message: 'Boost has been moved back to the pending queue.' });
         }
         
         if (action === 'post_to_tiktok') {

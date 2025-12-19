@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -38,7 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket, Eye, Heart, MousePointerClick, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket, Eye, Heart, MousePointerClick, RefreshCw, ArchiveRestore } from 'lucide-react';
 import { formatDistanceToNow, addDays, isPast } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -336,8 +335,8 @@ export default function AdminBoostsPage() {
         setIsReviewDialogOpen(true);
     };
 
-    const handlePostToTikTok = async (boostId: string) => {
-        toast({ title: 'Posting to TikTok...', description: 'This may take a moment.' });
+    const handleGenericAction = async (boostId: string, action: 'post_to_tiktok' | 're-queue') => {
+        const optimisticToast = toast({ title: 'Processing your request...', description: 'This may take a moment.' });
         try {
             if (!user) throw new Error("Authentication error.");
             const token = await user.getIdToken();
@@ -347,15 +346,15 @@ export default function AdminBoostsPage() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ boostId: boostId, action: 'post_to_tiktok' }),
+                body: JSON.stringify({ boostId: boostId, action: action }),
             });
             const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Failed to post to TikTok.');
+            if (!response.ok) throw new Error(result.message || `Failed to perform action: ${action}`);
             
-            toast({ title: 'Success!', description: 'Boost has been posted to TikTok and is now active.' });
+            toast({ title: 'Success!', description: result.message });
             fetchBoosts(); // Refresh the list
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'TikTok Post Failed', description: error.message });
+            toast({ variant: 'destructive', title: 'Action Failed', description: error.message });
         }
     };
     
@@ -436,15 +435,27 @@ export default function AdminBoostsPage() {
                     }
                      if (status === 'approved') {
                         return (
-                             <Button size="sm" onClick={() => handlePostToTikTok(row.original.id)}>
-                                 <Rocket className="mr-2 h-4 w-4" />
-                                 Post to TikTok
-                            </Button>
+                             <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleGenericAction(row.original.id, 'post_to_tiktok')}>
+                                    <Rocket className="mr-2 h-4 w-4" />
+                                    Post to TikTok
+                                </Button>
+                                <Button size="sm" variant="secondary" onClick={() => handleGenericAction(row.original.id, 're-queue')}>
+                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                    Move to Pending
+                                </Button>
+                            </div>
                         )
                     }
-                    if (status === 'rejected' && row.original.rejectionReason) {
+                    if (status === 'rejected') {
                         return (
-                            <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
+                            <div className="flex gap-2 items-center">
+                                <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
+                                 <Button size="sm" variant="secondary" onClick={() => handleGenericAction(row.original.id, 're-queue')}>
+                                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                                    Move to Pending
+                                </Button>
+                            </div>
                         )
                     }
                     if (status === 'completed') {
