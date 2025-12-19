@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -56,7 +55,6 @@ import {
   CheckCircle,
   XCircle,
   BadgeCent,
-  RefreshCw,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -250,11 +248,8 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     );
 };
 
-const ViewDetailsDialog = ({ boost, isOpen, onOpenChange, onRefresh }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; onRefresh: (boostId: string) => void; }) => {
+const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; }) => {
     if (!boost) return null;
-    const [isRefreshing, setIsRefreshing] = React.useState(false);
-    const { toast } = useToast();
-
 
     const statusConfig = {
         pending: { icon: Clock, color: 'text-yellow-500', label: 'Pending Review' },
@@ -267,20 +262,6 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange, onRefresh }: { boost: 
 
     const currentStatus = statusConfig[boost.status] || statusConfig.pending;
     const StatusIcon = currentStatus.icon;
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        toast({ title: 'Refreshing stats from TikTok...' });
-        try {
-            await onRefresh(boost.id);
-            toast({ title: 'Success!', description: 'Analytics have been updated.' });
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Refresh Failed', description: error.message });
-        } finally {
-            setIsRefreshing(false);
-        }
-    };
-
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -299,17 +280,9 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange, onRefresh }: { boost: 
 
                     <Card>
                         <CardHeader className="pb-2">
-                             <CardTitle className="text-lg flex items-center justify-between">
-                                <span className="flex items-center gap-2">
-                                    <StatusIcon className={`h-5 w-5 ${currentStatus.color}`} />
-                                    {currentStatus.label}
-                                </span>
-                                {boost.status === 'active' && (
-                                    <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-                                        <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
-                                        Refresh Stats
-                                    </Button>
-                                )}
+                             <CardTitle className="text-lg flex items-center gap-2">
+                                <StatusIcon className={`h-5 w-5 ${currentStatus.color}`} />
+                                {currentStatus.label}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -407,33 +380,6 @@ export default function SellerAdsPage() {
             fetchCampaigns();
         }
     }, [user, fetchCampaigns]);
-
-     const handleRefreshStats = async (boostId: string) => {
-        if (!user) throw new Error("User not authenticated.");
-
-        const token = await user.getIdToken();
-        const response = await fetch(`/api/admin/boosts/${boostId}/refresh`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to refresh stats.');
-        }
-
-        const updatedBoost = await response.json();
-
-        // Update local state to reflect the changes immediately
-        setCampaigns(prev => prev.map(c => c.id === boostId ? updatedBoost : c));
-        if (selectedBoost?.id === boostId) {
-            setSelectedBoost(updatedBoost);
-        }
-    };
-
 
     const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
@@ -589,7 +535,6 @@ export default function SellerAdsPage() {
             boost={selectedBoost} 
             isOpen={isDetailsOpen} 
             onOpenChange={setIsDetailsOpen} 
-            onRefresh={handleRefreshStats}
         />
       </div>
     </SellerLayout>
