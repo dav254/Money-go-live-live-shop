@@ -104,7 +104,7 @@ export async function PUT(request: NextRequest) {
 
             const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
             const sellerProfileSnap = await sellerProfileRef.get();
-            if (!sellerProfileSnap.exists()) {
+            if (!sellerProfileSnap.exists) {
                 throw new Error("Seller profile not found for this boost request.");
             }
             const sellerProfile = sellerProfileSnap.data() as UserProfile;
