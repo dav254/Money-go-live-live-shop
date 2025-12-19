@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, XCircle, Clock, Loader2, Video } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, Rocket } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -90,6 +90,22 @@ const mockBoostsData: BoostRequest[] = [
     updatedAt: Timestamp.fromMillis(Date.now() - 2 * 24 * 60 * 60 * 1000),
     analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
     target: { counties: ['Nakuru'], age: '18-24', interests: ['music'] }
+  },
+   // Completed
+  {
+    id: 'boost-completed-1',
+    sellerId: 'seller-101',
+    productId: 'prod-jkl',
+    videoUrl: 'https://storage.googleapis.com/web-dev-assets/video-and-source-tags/chrome.mp4',
+    caption: 'Our weekend sale just ended! Thanks for all the support.',
+    durationDays: 2,
+    pointsPaid: 200,
+    status: 'completed',
+    tiktokVideoId: '1234567890987654321',
+    createdAt: Timestamp.fromMillis(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    updatedAt: Timestamp.fromMillis(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    analytics: { views: 150234, likes: 12000, clicks: 856, shares: 432, conversions: 56 },
+    target: { counties: ['Kisumu'], age: 'all', interests: ['food', 'lifestyle'] }
   },
 ];
 
@@ -240,13 +256,19 @@ export default function AdminBoostsPage() {
                     }
                      if (status === 'approved') {
                         return (
-                             <Button size="sm" onClick={() => toast({title: "This will post to TikTok"})}>Post to TikTok</Button>
+                             <Button size="sm" onClick={() => toast({title: "This will post to TikTok"})}>
+                                 <Rocket className="mr-2 h-4 w-4" />
+                                 Post to TikTok
+                            </Button>
                         )
                     }
                     if (status === 'rejected' && row.original.rejectionReason) {
                         return (
                             <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
                         )
+                    }
+                    if (status === 'completed') {
+                        return <Badge variant="secondary">Campaign Ended</Badge>
                     }
                     return null;
                 },
@@ -272,6 +294,7 @@ export default function AdminBoostsPage() {
                         <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved ({boosts.filter(b => b.status === 'approved').length})</TabsTrigger>
                         <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active ({boosts.filter(b => b.status === 'active').length})</TabsTrigger>
                         <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({boosts.filter(b => b.status === 'rejected').length})</TabsTrigger>
+                        <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed ({boosts.filter(b => b.status === 'completed').length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
                         <Card>
