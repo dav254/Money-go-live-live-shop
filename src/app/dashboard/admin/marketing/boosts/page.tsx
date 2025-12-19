@@ -24,29 +24,23 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
     Card,
     CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, Eye, Heart, MousePointerClick, MoreHorizontal } from 'lucide-react';
-import { formatDistanceToNow, addDays } from 'date-fns';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -153,6 +147,7 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
         </Dialog>
     );
 };
+
 
 // Main Component
 export default function AdminBoostsPage() {
