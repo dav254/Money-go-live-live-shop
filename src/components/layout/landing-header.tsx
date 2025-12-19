@@ -14,7 +14,7 @@ export function LandingHeader() {
     { label: "Features", href: "/features" },
     { label: "How It Works", href: "/how-it-works" },
     { label: "Pricing", href: "/pricing" },
-    { label: "For Sellers", href: "#" }
+    { label: "For Sellers", href: "/dashboard/seller/about" }
   ];
 
   return (
@@ -41,7 +41,7 @@ export function LandingHeader() {
               <Link href="/login">Log In</Link>
             </Button>
             <Button className="font-bold gradient-hero text-dark-bg" asChild>
-              <Link href="/signup">Start Selling</Link>
+              <Link href="/signup?role=seller">Start Selling</Link>
             </Button>
           </div>
 
@@ -62,8 +62,8 @@ export function LandingHeader() {
               </Link>
             ))}
             <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
-              <Button variant="ghost" className="w-full">Log In</Button>
-              <Button className="w-full font-bold gradient-hero text-dark-bg">Start Selling</Button>
+              <Button variant="ghost" className="w-full" asChild><Link href="/login">Log In</Link></Button>
+              <Button className="w-full font-bold gradient-hero text-dark-bg" asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
             </div>
           </div>
         </div>
