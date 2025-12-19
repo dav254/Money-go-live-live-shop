@@ -343,6 +343,11 @@ export default function SellerAdsPage() {
         cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
     },
     {
+        accessorKey: 'durationDays',
+        header: 'Duration',
+        cell: ({ row }) => `${row.original.durationDays} days`,
+    },
+    {
         accessorKey: 'analytics.clicks',
         header: 'Clicks',
         cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString(),
