@@ -8,7 +8,6 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,22 +28,12 @@ import {
   Eye,
   Loader2,
   ShieldCheck,
-  UploadCloud,
-  Video,
-  BadgeCent,
+  Rocket,
+  Clock,
   CheckCircle,
   XCircle,
-  Clock,
-  Rocket,
+  BadgeCent,
 } from 'lucide-react';
-import { DotsHorizontalIcon } from '@radix-ui/react-icons';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Dialog,
@@ -64,10 +53,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
@@ -133,7 +121,18 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 }
             };
             
-            await addDoc(collection(firestore, 'boost_requests'), boostRequestData);
+            const boostRequestsRef = collection(firestore, 'boost_requests');
+            await addDoc(boostRequestsRef, boostRequestData)
+             .catch(error => {
+                const permissionError = new FirestorePermissionError({
+                  path: boostRequestsRef.path,
+                  operation: 'create',
+                  requestResourceData: boostRequestData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw permissionError; // Rethrow to be caught by the outer catch block
+            });
+
 
             toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
             if (typeof onBoostCreated === 'function') {
@@ -247,7 +246,7 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostReques
 
     const statusConfig = {
         pending: { icon: Clock, color: 'text-yellow-500', label: 'Pending Review' },
-        approved: { icon: CheckCircle, color: 'text-blue-500', label: 'Approved, Ready to Post' },
+        approved: { icon: CheckCircle, color: 'text-blue-500', label: 'Approved, Awaiting Post' },
         active: { icon: Rocket, color: 'text-green-500', label: 'Live on TikTok' },
         rejected: { icon: XCircle, color: 'text-destructive', label: 'Rejected' },
         completed: { icon: CheckCircle, color: 'text-muted-foreground', label: 'Completed' },
@@ -288,7 +287,7 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostReques
                             )}
                              {boost.status === 'approved' && (
                                 <Alert className="bg-blue-500/10 border-blue-500/50">
-                                    <AlertDescription>This campaign has been approved by our team and is ready to be posted to TikTok.</AlertDescription>
+                                    <AlertDescription>This campaign has been approved by the admin team and is awaiting posting.</AlertDescription>
                                 </Alert>
                             )}
                              {boost.status === 'active' && (
@@ -337,43 +336,56 @@ const DataTableSkeleton = () => (
 
 export default function SellerAdsPage() {
     const { user } = useUser();
-    const firestore = useFirestore();
-    const router = useRouter();
+    const [campaigns, setCampaigns] = React.useState<BoostRequest[]>([]);
+    const [products, setProducts] = React.useState<Product[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
 
+    const fetchCampaigns = React.useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/seller/campaigns', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-    const boostsQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(
-          collection(firestore, 'boost_requests'), 
-          where('sellerId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-    }, [user, firestore]);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch campaigns');
+            }
+            
+            const { campaigns, products } = await response.json();
+            setCampaigns(campaigns);
+            setProducts(products);
 
-    const productsQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-    }, [user, firestore]);
+        } catch (error: any) {
+            console.error("Fetch campaigns error:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user]);
 
-    const { data: boosts, isLoading: isLoadingBoosts, refetch: refetchBoosts } = useCollection<BoostRequest>(boostsQuery);
-    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+    React.useEffect(() => {
+        if (user) {
+            fetchCampaigns();
+        }
+    }, [user, fetchCampaigns]);
 
-    const isLoading = isLoadingBoosts || isLoadingProducts || isProfileLoading;
 
     const stats = React.useMemo(() => {
       const initialStats = { totalViews: 0, totalLikes: 0, totalClicks: 0, totalSpent: 0 };
-      if (!boosts) return initialStats;
-      return boosts.reduce((acc, c) => {
+      if (!campaigns) return initialStats;
+      return campaigns.reduce((acc, c) => {
           acc.totalViews += c.analytics?.views || 0;
           acc.totalLikes += c.analytics?.likes || 0;
           acc.totalClicks += c.analytics?.clicks || 0;
           if(c.status === 'active' || c.status === 'approved' || c.status === 'completed') acc.totalSpent += c.pointsPaid || 0;
           return acc;
       }, initialStats);
-    }, [boosts]);
+    }, [campaigns]);
   
     const handleViewDetails = (boost: BoostRequest) => {
         setSelectedBoost(boost);
@@ -435,7 +447,7 @@ export default function SellerAdsPage() {
     ];
 
   const table = useReactTable({
-    data: boosts || [],
+    data: campaigns || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -464,10 +476,9 @@ export default function SellerAdsPage() {
                                 <p className="text-lg font-bold">{(userProfile?.aiPoints || 0).toLocaleString()}</p>
                             )}
                         </div>
-                         <Button size="sm" variant="outline" onClick={() => router.push('/dashboard/seller/ai-tools')}>Buy Points</Button>
                     </CardContent>
                 </Card>
-                 <CreateBoostDialog products={products || []} onBoostCreated={refetchBoosts} userProfile={userProfile} />
+                 <CreateBoostDialog products={products || []} onBoostCreated={fetchCampaigns} userProfile={userProfile} />
             </div>
         </div>
 

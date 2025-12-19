@@ -3,7 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
-import type { AdCampaign, Product } from '@/lib/types';
+import type { BoostRequest, Product } from '@/lib/types';
 
 export async function GET(request: Request) {
   try {
@@ -18,18 +18,25 @@ export async function GET(request: Request) {
     const uid = decodedToken.uid;
 
     // 3. Fetch campaigns and products for the authenticated seller in parallel
-    const campaignsRef = db.collection('adCampaigns');
-    const campaignsQuery = campaignsRef.where('sellerId', '==', uid).orderBy('startDate', 'desc');
-    
-    const productsRef = db.collection('products');
-    const productsQuery = productsRef.where('sellerId', '==', uid);
+    const campaignsQuery = db.collection('boost_requests').where('sellerId', '==', uid).orderBy('createdAt', 'desc');
+    const productsQuery = db.collection('products').where('sellerId', '==', uid);
 
     const [campaignsSnapshot, productsSnapshot] = await Promise.all([
         campaignsQuery.get(),
         productsQuery.get()
     ]);
 
-    const campaigns: AdCampaign[] = campaignsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdCampaign));
+    const campaigns = campaignsSnapshot.docs.map(doc => {
+        const data = doc.data() as BoostRequest;
+        return {
+            ...data,
+            id: doc.id,
+            // Convert Firestore Timestamps to serializable ISO strings
+            createdAt: data.createdAt ? (data.createdAt as any).toDate().toISOString() : null,
+            updatedAt: data.updatedAt ? (data.updatedAt as any).toDate().toISOString() : null,
+        }
+    });
+
     const products: Product[] = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
     // 4. Return the fetched data
