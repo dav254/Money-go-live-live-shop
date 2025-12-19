@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from 'firebase/firestore';
 
 // Represents the user's public profile
@@ -195,6 +196,7 @@ export interface Order {
   resellerId?: string;
   platformFee?: number;
   resellerCommission?: number;
+  commissionEarned?: number;
   disputeReason?: string;
   // Deprecated fields, kept for backward compatibility if needed.
   productId?: string;
@@ -352,7 +354,7 @@ export interface Payment {
 export interface ErrorLog {
   id: string;
   errorMessage: string;
-  errorStack?: string;
+  errorStack?: string | null;
   timestamp: any;
   userId?: string;
   context?: any;

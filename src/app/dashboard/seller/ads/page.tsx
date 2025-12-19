@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -9,7 +10,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -18,7 +19,29 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import type { BoostRequest, Product } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useUser, useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   PlusCircle,
@@ -33,29 +56,14 @@ import {
   CheckCircle,
   XCircle,
   BadgeCent,
+  RefreshCw,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { BoostRequest, Product } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
@@ -241,8 +249,11 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     );
 };
 
-const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; }) => {
+const ViewDetailsDialog = ({ boost, isOpen, onOpenChange, onRefresh }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; onRefresh: (boostId: string) => void; }) => {
     if (!boost) return null;
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
+    const { toast } = useToast();
+
 
     const statusConfig = {
         pending: { icon: Clock, color: 'text-yellow-500', label: 'Pending Review' },
@@ -255,6 +266,20 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostReques
 
     const currentStatus = statusConfig[boost.status] || statusConfig.pending;
     const StatusIcon = currentStatus.icon;
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        toast({ title: 'Refreshing stats from TikTok...' });
+        try {
+            await onRefresh(boost.id);
+            toast({ title: 'Success!', description: 'Analytics have been updated.' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Refresh Failed', description: error.message });
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -273,9 +298,17 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostReques
 
                     <Card>
                         <CardHeader className="pb-2">
-                             <CardTitle className="text-lg flex items-center gap-2">
-                                <StatusIcon className={`h-5 w-5 ${currentStatus.color}`} />
-                                {currentStatus.label}
+                             <CardTitle className="text-lg flex items-center justify-between">
+                                <span className="flex items-center gap-2">
+                                    <StatusIcon className={`h-5 w-5 ${currentStatus.color}`} />
+                                    {currentStatus.label}
+                                </span>
+                                {boost.status === 'active' && (
+                                    <Button size="sm" variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
+                                        <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
+                                        Refresh Stats
+                                    </Button>
+                                )}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -373,6 +406,32 @@ export default function SellerAdsPage() {
             fetchCampaigns();
         }
     }, [user, fetchCampaigns]);
+
+     const handleRefreshStats = async (boostId: string) => {
+        if (!user) throw new Error("User not authenticated.");
+
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/admin/boosts/${boostId}/refresh`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to refresh stats.');
+        }
+
+        const updatedBoost = await response.json();
+
+        // Update local state to reflect the changes immediately
+        setCampaigns(prev => prev.map(c => c.id === boostId ? updatedBoost : c));
+        if (selectedBoost?.id === boostId) {
+            setSelectedBoost(updatedBoost);
+        }
+    };
 
 
     const stats = React.useMemo(() => {
@@ -525,7 +584,12 @@ export default function SellerAdsPage() {
                 </Table>
             </div>
         )}
-        <ViewDetailsDialog boost={selectedBoost} isOpen={isDetailsOpen} onOpenChange={setIsDetailsOpen} />
+        <ViewDetailsDialog 
+            boost={selectedBoost} 
+            isOpen={isDetailsOpen} 
+            onOpenChange={setIsDetailsOpen} 
+            onRefresh={handleRefreshStats}
+        />
       </div>
     </SellerLayout>
   );

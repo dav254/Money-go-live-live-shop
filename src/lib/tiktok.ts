@@ -1,4 +1,5 @@
 
+
 import type { BoostRequest } from './types';
 import fetch from 'node-fetch';
 
@@ -22,7 +23,7 @@ export function getTikTokAuthUrl(goEarnUserId: string): string {
     const url = new URL('https://www.tiktok.com/v2/auth/authorize/');
     url.searchParams.append('client_key', TIKTOK_CLIENT_KEY);
     // Request the necessary scopes for uploading video and getting user info
-    url.searchParams.append('scope', 'video.upload,user.info.basic');
+    url.searchParams.append('scope', 'video.upload,user.info.basic,video.list');
     url.searchParams.append('response_type', 'code');
     url.searchParams.append('redirect_uri', REDIRECT_URI);
     // Pass the user's Go Earn ID in the state parameter to identify them in the callback
@@ -151,4 +152,40 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
         console.error('Full TikTok upload process failed:', error);
         return { success: false, message: error.message || 'An unknown error occurred during TikTok upload.' };
     }
+}
+
+
+/**
+ * Fetches video analytics from TikTok API.
+ * @param accessToken The user's TikTok access token.
+ * @param videoIds An array of video IDs to fetch analytics for.
+ * @returns An array of video analytics objects.
+ */
+export async function getTikTokVideoAnalytics(accessToken: string, videoIds: string[]): Promise<any[]> {
+    if (!videoIds || videoIds.length === 0) {
+        return [];
+    }
+    
+    const url = new URL('https://open.tiktokapis.com/v2/video/query/');
+    url.searchParams.append('fields', 'id,view_count,like_count,comment_count,share_count');
+
+    const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify({
+            video_ids: videoIds,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("TikTok Analytics Error:", errorData);
+        throw new Error(errorData.error.message || 'Failed to fetch video analytics from TikTok.');
+    }
+
+    const data = await response.json();
+    return data.data.videos || [];
 }
