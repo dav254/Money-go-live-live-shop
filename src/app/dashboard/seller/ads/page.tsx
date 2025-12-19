@@ -32,6 +32,10 @@ import {
   UploadCloud,
   Video,
   BadgeCent,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Rocket,
 } from 'lucide-react';
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import {
@@ -41,7 +45,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -61,7 +65,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 
@@ -86,6 +90,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const [durationDays, setDurationDays] = React.useState(3);
     const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
     const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+    const firestore = useFirestore();
     
     const selectedProduct = products.find(p => p.id === selectedProductId);
 
@@ -93,12 +98,11 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const hasEnoughPoints = (userProfile?.aiPoints || 0) >= pointsCost;
 
     React.useEffect(() => {
-        // Reset video URL when product selection changes
         setVideoUrl(null);
     }, [selectedProductId]);
     
     const handleSubmit = async () => {
-        if (!videoUrl || !user || !selectedProductId) {
+        if (!videoUrl || !user || !selectedProductId || !firestore) {
             toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select a product and a video.' });
             return;
         }
@@ -111,33 +115,25 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         toast({ title: 'Submitting Boost Request...', description: 'Please wait.' });
         
         try {
-            const payload = {
+            const boostRequestData = {
+                sellerId: user.uid,
                 productId: selectedProductId,
                 videoUrl: videoUrl,
                 caption: caption,
                 durationDays: durationDays,
-                pointsCost: pointsCost,
+                pointsPaid: pointsCost,
                 target: {
                     counties: ['Nairobi', 'Mombasa'],
                     age: '18-35',
                     interests: ['fashion', 'music'],
                 },
+                status: 'pending',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 }
             };
             
-            const token = await user.getIdToken();
-            const result = await fetch('/api/admin/boosts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!result.ok) {
-                const errorData = await result.json();
-                throw new Error(errorData.error || 'Failed to create boost request.');
-            }
+            await addDoc(collection(firestore, 'boost_requests'), boostRequestData);
 
             toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
             if (typeof onBoostCreated === 'function') {
@@ -246,6 +242,80 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     );
 };
 
+const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; }) => {
+    if (!boost) return null;
+
+    const statusConfig = {
+        pending: { icon: Clock, color: 'text-yellow-500', label: 'Pending Review' },
+        approved: { icon: CheckCircle, color: 'text-blue-500', label: 'Approved, Ready to Post' },
+        active: { icon: Rocket, color: 'text-green-500', label: 'Live on TikTok' },
+        rejected: { icon: XCircle, color: 'text-destructive', label: 'Rejected' },
+        completed: { icon: CheckCircle, color: 'text-muted-foreground', label: 'Completed' },
+        draft: { icon: Clock, color: 'text-muted-foreground', label: 'Draft' },
+    };
+
+    const currentStatus = statusConfig[boost.status] || statusConfig.pending;
+    const StatusIcon = currentStatus.icon;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Boost Campaign Details</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="aspect-w-9 aspect-h-16 bg-muted rounded-md overflow-hidden">
+                                <video src={boost.videoUrl} controls className="w-full h-full" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-2">
+                             <CardTitle className="text-lg flex items-center gap-2">
+                                <StatusIcon className={`h-5 w-5 ${currentStatus.color}`} />
+                                {currentStatus.label}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                           {boost.status === 'rejected' && (
+                                <Alert variant="destructive">
+                                    <AlertTitle>Reason for Rejection</AlertTitle>
+                                    <AlertDescription>{boost.rejectionReason || 'No reason was provided.'}</AlertDescription>
+                                </Alert>
+                            )}
+                             {boost.status === 'approved' && (
+                                <Alert className="bg-blue-500/10 border-blue-500/50">
+                                    <AlertDescription>This campaign has been approved by our team and is ready to be posted to TikTok.</AlertDescription>
+                                </Alert>
+                            )}
+                             {boost.status === 'active' && (
+                                <Alert className="bg-green-500/10 border-green-500/50">
+                                    <AlertDescription>This campaign is currently live on TikTok!</AlertDescription>
+                                </Alert>
+                            )}
+                        </CardContent>
+                    </Card>
+                   
+                     <Card>
+                        <CardHeader className="pb-2"><CardTitle className="text-lg">Performance</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground"/> <span>Views: <strong>{boost.analytics?.views || 0}</strong></span></div>
+                            <div className="flex items-center gap-2"><Heart className="h-4 w-4 text-muted-foreground"/> <span>Likes: <strong>{boost.analytics?.likes || 0}</strong></span></div>
+                            <div className="flex items-center gap-2"><MousePointerClick className="h-4 w-4 text-muted-foreground"/> <span>Clicks: <strong>{boost.analytics?.clicks || 0}</strong></span></div>
+                        </CardContent>
+                    </Card>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline">Close</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 const DataTableSkeleton = () => (
     <div className="rounded-md border">
         <Table>
@@ -270,12 +340,16 @@ export default function SellerAdsPage() {
     const firestore = useFirestore();
     const router = useRouter();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+    const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
+    const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
+
 
     const boostsQuery = useMemoFirebase(() => {
         if (!user) return null;
         return query(
           collection(firestore, 'boost_requests'), 
           where('sellerId', '==', user.uid),
+          orderBy('createdAt', 'desc')
         );
     }, [user, firestore]);
 
@@ -301,6 +375,11 @@ export default function SellerAdsPage() {
       }, initialStats);
     }, [boosts]);
   
+    const handleViewDetails = (boost: BoostRequest) => {
+        setSelectedBoost(boost);
+        setIsDetailsOpen(true);
+    };
+
     const columns: ColumnDef<BoostRequest>[] = [
     {
         accessorKey: 'videoUrl',
@@ -343,11 +422,6 @@ export default function SellerAdsPage() {
         cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
     },
     {
-        accessorKey: 'durationDays',
-        header: 'Duration',
-        cell: ({ row }) => `${row.original.durationDays} days`,
-    },
-    {
         accessorKey: 'analytics.clicks',
         header: 'Clicks',
         cell: ({ row }) => (row.original.analytics?.clicks || 0).toLocaleString(),
@@ -355,18 +429,7 @@ export default function SellerAdsPage() {
     {
         id: 'actions',
         cell: ({ row }) => (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-                <DotsHorizontalIcon className="h-4 w-4" />
-            </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem disabled>View on TikTok</DropdownMenuItem>
-            <DropdownMenuItem>View Details</DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+            <Button variant="outline" size="sm" onClick={() => handleViewDetails(row.original)}>View Details</Button>
         ),
     },
     ];
@@ -451,6 +514,7 @@ export default function SellerAdsPage() {
                 </Table>
             </div>
         )}
+        <ViewDetailsDialog boost={selectedBoost} isOpen={isDetailsOpen} onOpenChange={setIsDetailsOpen} />
       </div>
     </SellerLayout>
   );
