@@ -8,7 +8,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { AdminLayout } from '@/components/layout/seller-layout';
+import { AdminLayout } from '@/components/layout/admin-layout';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
