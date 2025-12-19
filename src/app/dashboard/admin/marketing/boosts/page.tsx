@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -37,11 +38,12 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, Rocket } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -249,7 +251,10 @@ export default function AdminBoostsPage() {
                 accessorKey: 'createdAt',
                 header: 'Submitted',
                 cell: ({ row }) => {
-                    const date = new Date((row.original.createdAt as any).seconds * 1000);
+                    const date = new Date(row.original.createdAt);
+                    if (isNaN(date.getTime())) {
+                        return <span>Invalid date</span>;
+                    }
                     return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
                 }
             },
