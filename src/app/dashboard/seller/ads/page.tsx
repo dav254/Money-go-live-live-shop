@@ -60,7 +60,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, addDays, isPast } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 
@@ -85,6 +85,9 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const [durationDays, setDurationDays] = React.useState(3);
     const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
     const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+    const [age, setAge] = React.useState('18-35');
+    const [counties, setCounties] = React.useState('');
+    const [interests, setInterests] = React.useState('');
     const firestore = useFirestore();
     
     const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -118,9 +121,9 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 durationDays: durationDays,
                 pointsPaid: pointsCost,
                 target: {
-                    counties: ['Nairobi', 'Mombasa'],
-                    age: '18-35',
-                    interests: ['fashion', 'music'],
+                    counties: counties.split(',').map(c => c.trim()).filter(Boolean),
+                    age: age,
+                    interests: interests.split(',').map(i => i.trim()).filter(Boolean),
                 },
                 status: 'pending',
                 createdAt: serverTimestamp(),
@@ -202,8 +205,28 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                         <Label htmlFor="caption">3. Ad Caption</Label>
                         <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
                     </div>
+                    
                     <div className="space-y-2">
-                        <Label>4. Campaign Duration</Label>
+                        <Label>4. Targeting Options</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Select value={age} onValueChange={setAge}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Age Range" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="18-35">18-35</SelectItem>
+                                    <SelectItem value="36-55">36-55</SelectItem>
+                                    <SelectItem value="55+">55+</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input placeholder="Counties (e.g., Nairobi, Mombasa)" value={counties} onChange={e => setCounties(e.target.value)} />
+                        </div>
+                        <Input placeholder="Interests (e.g., fashion, music, tech)" value={interests} onChange={e => setInterests(e.target.value)} />
+                        <p className="text-xs text-muted-foreground">Separate counties and interests with commas.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>5. Campaign Duration</Label>
                         <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
