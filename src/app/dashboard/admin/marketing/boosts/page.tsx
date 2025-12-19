@@ -38,12 +38,13 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
-import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket, Eye, Heart, MousePointerClick } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket, Eye, Heart, MousePointerClick, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
@@ -171,7 +172,17 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     );
 };
 
-const ActiveCampaignsTable = ({ data, onRefresh }: { data: BoostRequest[], onRefresh: () => void }) => {
+const ActiveCampaignsTable = ({ data, onRefresh }: { data: BoostRequest[], onRefresh: (boostId: string) => Promise<void> }) => {
+    const [refreshingId, setRefreshingId] = React.useState<string | null>(null);
+
+    const handleRefresh = async (boostId: string) => {
+        setRefreshingId(boostId);
+        try {
+            await onRefresh(boostId);
+        } finally {
+            setRefreshingId(null);
+        }
+    };
 
     const activeColumns: ColumnDef<BoostRequest>[] = [
         {
@@ -207,14 +218,23 @@ const ActiveCampaignsTable = ({ data, onRefresh }: { data: BoostRequest[], onRef
         {
             id: 'actions',
             header: 'Actions',
-            cell: ({ row }) => (
-                <Button variant="outline" size="sm" asChild>
-                    <a href={`https://www.tiktok.com/@placeholder/video/${row.original.tiktokVideoId}`} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4"/>
-                        View on TikTok
-                    </a>
-                </Button>
-            ),
+            cell: ({ row }) => {
+                const isRefreshing = refreshingId === row.original.id;
+                return (
+                     <div className="flex gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                            <a href={`https://www.tiktok.com/@placeholder/video/${row.original.tiktokVideoId}`} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4"/>
+                                View
+                            </a>
+                        </Button>
+                         <Button variant="secondary" size="sm" onClick={() => handleRefresh(row.original.id)} disabled={isRefreshing}>
+                            <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+                            Refresh
+                        </Button>
+                    </div>
+                )
+            },
         }
     ];
 
@@ -285,6 +305,32 @@ export default function AdminBoostsPage() {
             fetchBoosts();
         }
     }, [user, fetchBoosts]);
+
+    const handleRefreshStats = async (boostId: string) => {
+        if (!user) throw new Error("User not authenticated.");
+        
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/admin/boosts/${boostId}/refresh`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to refresh stats.');
+        }
+
+        const updatedBoost = await response.json();
+
+        setBoosts(prev => prev.map(c => c.id === boostId ? updatedBoost : c));
+        if (selectedBoost?.id === boostId) {
+            setSelectedBoost(updatedBoost);
+        }
+    };
+
 
     const openReviewDialog = (boost: BoostRequest) => {
         setSelectedBoost(boost);
@@ -410,7 +456,7 @@ export default function AdminBoostsPage() {
                                 </CardContent>
                             </Card>
                         ) : activeTab === 'active' ? (
-                            <ActiveCampaignsTable data={filteredBoosts} onRefresh={fetchBoosts} />
+                            <ActiveCampaignsTable data={filteredBoosts} onRefresh={handleRefreshStats} />
                         ) : (
                             <Card>
                                 <CardContent className="p-0">
