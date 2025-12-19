@@ -39,7 +39,7 @@ import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser } from '@/firebase';
 import { CheckCircle, XCircle, Clock, Loader2, Video, ExternalLink, Rocket, Eye, Heart, MousePointerClick, RefreshCw } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, addDays, isPast } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -217,7 +217,7 @@ const ActiveCampaignsTable = ({ data, onRefresh }: { data: BoostRequest[], onRef
         },
         {
             id: 'actions',
-            header: 'Actions',
+            header: "Actions",
             cell: ({ row }) => {
                 const isRefreshing = refreshingId === row.original.id;
                 return (
@@ -331,7 +331,6 @@ export default function AdminBoostsPage() {
         }
     };
 
-
     const openReviewDialog = (boost: BoostRequest) => {
         setSelectedBoost(boost);
         setIsReviewDialogOpen(true);
@@ -359,10 +358,48 @@ export default function AdminBoostsPage() {
             toast({ variant: 'destructive', title: 'TikTok Post Failed', description: error.message });
         }
     };
+    
+    const { pendingBoosts, approvedBoosts, activeBoosts, completedBoosts, rejectedBoosts } = React.useMemo(() => {
+        const now = new Date();
+        const pending: BoostRequest[] = [];
+        const approved: BoostRequest[] = [];
+        const active: BoostRequest[] = [];
+        const completed: BoostRequest[] = [];
+        const rejected: BoostRequest[] = [];
+
+        boosts.forEach(b => {
+            if (b.status === 'active') {
+                const updatedAt = new Date(b.updatedAt as any);
+                const endDate = addDays(updatedAt, b.durationDays);
+                if (isPast(endDate)) {
+                    completed.push(b);
+                } else {
+                    active.push(b);
+                }
+            } else if (b.status === 'pending') {
+                pending.push(b);
+            } else if (b.status === 'approved') {
+                approved.push(b);
+            } else if (b.status === 'rejected') {
+                rejected.push(b);
+            } else if (b.status === 'completed') {
+                completed.push(b);
+            }
+        });
+
+        return { pendingBoosts: pending, approvedBoosts: approved, activeBoosts: active, completedBoosts: completed, rejectedBoosts: rejected };
+    }, [boosts]);
+
 
     const filteredBoosts = React.useMemo(() => {
-        return boosts.filter(b => b.status === activeTab);
-    }, [boosts, activeTab]);
+        if (activeTab === 'pending') return pendingBoosts;
+        if (activeTab === 'approved') return approvedBoosts;
+        if (activeTab === 'active') return activeBoosts;
+        if (activeTab === 'completed') return completedBoosts;
+        if (activeTab === 'rejected') return rejectedBoosts;
+        return [];
+    }, [activeTab, pendingBoosts, approvedBoosts, activeBoosts, completedBoosts, rejectedBoosts]);
+
 
     const getColumns = (status: string): ColumnDef<BoostRequest>[] => {
         const baseColumns: ColumnDef<BoostRequest>[] = [
@@ -410,8 +447,8 @@ export default function AdminBoostsPage() {
                             <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
                         )
                     }
-                     if (status === 'completed') {
-                        return <Badge variant={'secondary'} className={cn(status === 'active' && 'bg-green-600/80')}>Campaign Ended</Badge>
+                    if (status === 'completed') {
+                         return <Badge variant={'secondary'} className={cn(status === 'active' && 'bg-green-600/80')}>Campaign Ended</Badge>
                     }
                     return null;
                 },
@@ -433,11 +470,11 @@ export default function AdminBoostsPage() {
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList>
-                        <TabsTrigger value="pending"><Clock className="w-4 h-4 mr-2"/>Pending ({boosts.filter(b => b.status === 'pending').length})</TabsTrigger>
-                        <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved ({boosts.filter(b => b.status === 'approved').length})</TabsTrigger>
-                        <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active ({boosts.filter(b => b.status === 'active').length})</TabsTrigger>
-                        <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed ({boosts.filter(b => b.status === 'completed').length})</TabsTrigger>
-                        <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({boosts.filter(b => b.status === 'rejected').length})</TabsTrigger>
+                        <TabsTrigger value="pending"><Clock className="w-4 h-4 mr-2"/>Pending ({pendingBoosts.length})</TabsTrigger>
+                        <TabsTrigger value="approved"><CheckCircle className="w-4 h-4 mr-2"/>Approved ({approvedBoosts.length})</TabsTrigger>
+                        <TabsTrigger value="active"><Video className="w-4 h-4 mr-2"/>Active ({activeBoosts.length})</TabsTrigger>
+                        <TabsTrigger value="completed"><CheckCircle className="w-4 h-4 mr-2"/>Completed ({completedBoosts.length})</TabsTrigger>
+                        <TabsTrigger value="rejected"><XCircle className="w-4 h-4 mr-2"/>Rejected ({rejectedBoosts.length})</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
                         {isLoading ? (
@@ -446,7 +483,7 @@ export default function AdminBoostsPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                {getColumns(activeTab).map(c => <TableHead key={c.id || c.accessorKey}><Skeleton className="h-6 w-full" /></TableHead>)}
+                                                {getColumns(activeTab).map(c => <TableHead key={c.id || (c as any).accessorKey}><Skeleton className="h-6 w-full" /></TableHead>)}
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -455,7 +492,7 @@ export default function AdminBoostsPage() {
                                     </Table>
                                 </CardContent>
                             </Card>
-                        ) : activeTab === 'active' ? (
+                        ) : (activeTab === 'active' || activeTab === 'completed') ? (
                             <ActiveCampaignsTable data={filteredBoosts} onRefresh={handleRefreshStats} />
                         ) : (
                             <Card>
