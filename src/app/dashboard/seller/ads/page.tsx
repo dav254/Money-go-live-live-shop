@@ -8,8 +8,8 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-
-import { Button, buttonVariants } from '@/components/ui/button';
+import { SellerLayout } from '@/components/layout/seller-layout';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -41,7 +41,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useUser, useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   PlusCircle,
   BarChart2,
@@ -55,6 +54,7 @@ import {
   CheckCircle,
   XCircle,
   BadgeCent,
+  RefreshCw,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -248,8 +248,19 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     );
 };
 
-const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; }) => {
+const ViewDetailsDialog = ({ boost, isOpen, onOpenChange, onRefresh }: { boost: BoostRequest | null; isOpen: boolean; onOpenChange: (open: boolean) => void; onRefresh: (boostId: string) => void; }) => {
+    const [isRefreshing, setIsRefreshing] = React.useState(false);
+
     if (!boost) return null;
+
+    const handleRefreshClick = async () => {
+        setIsRefreshing(true);
+        try {
+            await onRefresh(boost.id);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const statusConfig = {
         pending: { icon: Clock, color: 'text-yellow-500', label: 'Pending Review' },
@@ -306,7 +317,13 @@ const ViewDetailsDialog = ({ boost, isOpen, onOpenChange }: { boost: BoostReques
                     </Card>
                    
                      <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-lg">Performance</CardTitle></CardHeader>
+                        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                            <CardTitle className="text-lg">Performance</CardTitle>
+                            <Button onClick={handleRefreshClick} size="sm" variant="outline" disabled={isRefreshing || boost.status !== 'active'}>
+                                <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+                                Refresh Stats
+                            </Button>
+                        </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground"/> <span>Views: <strong>{boost.analytics?.views || 0}</strong></span></div>
                             <div className="flex items-center gap-2"><Heart className="h-4 w-4 text-muted-foreground"/> <span>Likes: <strong>{boost.analytics?.likes || 0}</strong></span></div>
@@ -349,6 +366,7 @@ export default function SellerAdsPage() {
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
+    const { toast } = useToast();
 
     const fetchCampaigns = React.useCallback(async () => {
         if (!user) return;
@@ -364,16 +382,47 @@ export default function SellerAdsPage() {
                 throw new Error(errorData.error || 'Failed to fetch campaigns');
             }
             
-            const { campaigns, products } = await response.json();
-            setCampaigns(campaigns);
-            setProducts(products);
+            const { campaigns: fetchedCampaigns, products: fetchedProducts } = await response.json();
+            setCampaigns(fetchedCampaigns);
+            setProducts(fetchedProducts);
 
         } catch (error: any) {
             console.error("Fetch campaigns error:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not fetch your campaigns.',
+            });
         } finally {
             setIsLoading(false);
         }
-    }, [user]);
+    }, [user, toast]);
+
+    const handleRefreshStats = React.useCallback(async (boostId: string) => {
+        if (!user) return;
+        toast({ title: "Refreshing stats from TikTok..." });
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch(`/api/admin/boosts/${boostId}/refresh`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                 const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to refresh stats.');
+            }
+            const updatedBoost = await response.json();
+            
+            // Update local state
+            setCampaigns(prev => prev.map(c => c.id === boostId ? updatedBoost : c));
+            setSelectedBoost(updatedBoost); // Also update the selected boost if it's being viewed
+            toast({ title: "Stats Updated!", description: "Latest analytics have been fetched." });
+
+        } catch (error: any) {
+             toast({ variant: "destructive", title: "Refresh Failed", description: error.message });
+        }
+    }, [user, toast]);
 
     React.useEffect(() => {
         if (user) {
@@ -535,8 +584,11 @@ export default function SellerAdsPage() {
             boost={selectedBoost} 
             isOpen={isDetailsOpen} 
             onOpenChange={setIsDetailsOpen} 
+            onRefresh={handleRefreshStats}
         />
       </div>
     </SellerLayout>
   );
 }
+
+    
