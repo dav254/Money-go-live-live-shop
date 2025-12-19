@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db, auth } from '@/firebase/server';
-import { doc, updateDoc, getDoc, increment } from 'firebase-admin/firestore';
+import { db } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { BoostRequest, UserProfile } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
@@ -25,7 +25,6 @@ async function verifyAdmin(request: NextRequest) {
         return { error: 'Unauthorized: Invalid token.', status: 401, details: error.message };
     }
 }
-
 
 export async function GET(request: NextRequest) {
   const adminVerification = await verifyAdmin(request);
@@ -54,6 +53,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+
 export async function PUT(request: NextRequest) {
     const adminVerification = await verifyAdmin(request);
     if (adminVerification.error) {
@@ -66,30 +66,30 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
         }
         
-        const boostRef = doc(db, 'boost_requests', boostId);
-        const boostSnap = await getDoc(boostRef);
+        const boostRef = db.collection('boost_requests').doc(boostId);
+        const boostSnap = await boostRef.get();
 
-        if (!boostSnap.exists()) {
+        if (!boostSnap.exists) {
             return NextResponse.json({ message: 'Boost request not found' }, { status: 404 });
         }
 
         const boostData = boostSnap.data() as BoostRequest;
 
         if (action === 'rejected') {
-            await updateDoc(boostRef, { 
+            await boostRef.update({ 
                 status: 'rejected', 
                 rejectionReason: rejectionReason || 'Content did not meet guidelines.',
                 updatedAt: new Date()
             });
             // Refund points to the seller
-            const sellerRef = doc(db, 'userProfiles', boostData.sellerId);
-            await updateDoc(sellerRef, { aiPoints: increment(boostData.pointsPaid) });
+            const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
+            await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
 
             return NextResponse.json({ success: true, message: 'Boost rejected and points refunded.' });
         }
         
         if (action === 'approved') {
-            await updateDoc(boostRef, {
+            await boostRef.update({
                 status: 'approved',
                 updatedAt: new Date()
             });
@@ -102,8 +102,8 @@ export async function PUT(request: NextRequest) {
                 return NextResponse.json({ message: 'Boost must be approved before posting.' }, { status: 400 });
             }
 
-            const sellerProfileRef = doc(db, 'userProfiles', boostData.sellerId);
-            const sellerProfileSnap = await getDoc(sellerProfileRef);
+            const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
+            const sellerProfileSnap = await sellerProfileRef.get();
             if (!sellerProfileSnap.exists()) {
                 throw new Error("Seller profile not found for this boost request.");
             }
@@ -111,22 +111,22 @@ export async function PUT(request: NextRequest) {
             const tiktokConnection = sellerProfile.connections?.tiktok;
 
             if (!tiktokConnection || !tiktokConnection.accessToken) {
-                 await updateDoc(boostRef, { status: 'rejected', rejectionReason: 'Seller has not connected their TikTok account.' });
-                 const sellerRef = doc(db, 'userProfiles', boostData.sellerId);
-                 await updateDoc(sellerRef, { aiPoints: increment(boostData.pointsPaid) });
+                 await boostRef.update({ status: 'rejected', rejectionReason: 'Seller has not connected their TikTok account.' });
+                 const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
+                 await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
                  return NextResponse.json({ message: 'Boost rejected: Seller TikTok account not connected.' }, { status: 400 });
             }
 
             const uploadResult = await uploadVideoToTikTok(boostData, tiktokConnection.accessToken);
 
             if (!uploadResult.success) {
-                 await updateDoc(boostRef, { status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
-                 const sellerRef = doc(db, 'userProfiles', boostData.sellerId);
-                 await updateDoc(sellerRef, { aiPoints: increment(boostData.pointsPaid) });
+                 await boostRef.update({ status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
+                 const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
+                 await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
                 return NextResponse.json({ message: `Boost rejected due to TikTok API error: ${uploadResult.message}` }, { status: 500 });
             }
             
-            await updateDoc(boostRef, {
+            await boostRef.update({
                 status: 'active',
                 tiktokVideoId: uploadResult.videoId,
                 updatedAt: new Date()
@@ -135,9 +135,11 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ success: true, message: 'Boost approved and posted to TikTok.' });
         }
 
-
     } catch (error: any) {
         console.error('Error processing boost action:', error);
         return NextResponse.json({ message: 'Internal Server Error', details: error.message }, { status: 500 });
     }
 }
+
+// DELETE the POST handler since we are using PUT for updates.
+// export async function POST(request: NextRequest) { ... }
