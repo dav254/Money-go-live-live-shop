@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -9,7 +10,12 @@ import { Logo } from '../logo';
 export function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const navItems = ["Features", "How It Works", "Pricing", "For Sellers"];
+  const navItems = [
+    { label: "Features", href: "/features" },
+    { label: "How It Works", href: "/how-it-works" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "For Sellers", href: "#" }
+  ];
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-xl border-b border-white/5">
@@ -24,8 +30,8 @@ export function LandingHeader() {
 
           <nav className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
-              <Link key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                {item}
+              <Link key={item.label} href={item.href} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                {item.label}
               </Link>
             ))}
           </nav>
@@ -51,8 +57,8 @@ export function LandingHeader() {
         <div className="md:hidden animate-fade-in border-t border-white/5">
           <div className="container mx-auto px-4 py-6 flex flex-col gap-4">
             {navItems.map((item) => (
-              <Link key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} className="text-muted-foreground hover:text-foreground transition-colors py-2">
-                {item}
+              <Link key={item.label} href={item.href} className="text-muted-foreground hover:text-foreground transition-colors py-2">
+                {item.label}
               </Link>
             ))}
             <div className="pt-4 border-t border-white/5 flex flex-col gap-3">

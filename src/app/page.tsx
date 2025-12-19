@@ -1,6 +1,8 @@
 
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
+import { useUser, useUserProfile } from '@/firebase';
 import { 
   Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Image as ImageIcon, Zap, 
   TrendingUp, Radio, Users, MessageCircle, Share2, CheckCircle, Send, 
@@ -125,6 +127,30 @@ const AnimatedOrb = ({ color, size, top, left, right, bottom, delay = 0 }: { col
 // ===== MAIN INDEX COMPONENT =====
 const Index = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const isLoading = isUserLoading || isProfileLoading;
+
+  useEffect(() => {
+    if (!isLoading && user && userProfile) {
+      switch (userProfile.userRole) {
+        case 'seller':
+          router.replace('/dashboard/seller');
+          break;
+        case 'reseller':
+          router.replace('/dashboard/reseller');
+          break;
+        case 'admin':
+          router.replace('/dashboard/admin');
+          break;
+        case 'buyer':
+        default:
+          router.replace('/buyer/dashboard');
+          break;
+      }
+    }
+  }, [user, userProfile, isLoading, router]);
 
   // Inject keyframes into document
   if (typeof document !== "undefined" && !document.getElementById("goearn-styles")) {
@@ -210,6 +236,14 @@ const Index = () => {
     fontWeight: 700,
     lineHeight: 1.1,
   };
+
+  if (isLoading || (user && userProfile)) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: colors.dark, color: colors.foreground }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <main style={{ minHeight: "100vh", overflowX: "hidden", background: colors.dark }}>
