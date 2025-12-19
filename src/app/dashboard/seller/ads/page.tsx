@@ -27,13 +27,13 @@ import {
   DialogFooter,
   DialogClose,
   DialogDescription,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
-    CardDescription,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
