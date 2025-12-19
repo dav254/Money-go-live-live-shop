@@ -10,13 +10,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   crossOrigin: 'anonymous',
-  devIndicators: {
-    allowedDevOrigins: [
-      'https://*.cloudworkstations.dev',
-      'https://*.firebaseapp.com',
-      'https://*.web.app',
-    ],
-  },
   images: {
     dangerouslyAllowSVG: true,
     remotePatterns: [
@@ -33,7 +26,7 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https://',
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
