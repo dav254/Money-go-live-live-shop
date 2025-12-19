@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -149,23 +148,6 @@ export default function SellerSettingsPage() {
     }
   };
   
-  const handleConnectTikTok = () => {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to connect your account.' });
-        return;
-    }
-    try {
-      const authUrl = getTikTokAuthUrl(user.uid);
-      window.location.href = authUrl;
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Configuration Error',
-        description: error.message || 'Could not initiate TikTok connection.',
-      });
-    }
-  };
-
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -181,9 +163,6 @@ export default function SellerSettingsPage() {
           <TabsList>
             <TabsTrigger value="profile">
               <Store className="mr-2 h-4 w-4" /> Shop Profile
-            </TabsTrigger>
-            <TabsTrigger value="connections">
-              <LinkIcon className="mr-2 h-4 w-4" /> Connections
             </TabsTrigger>
             <TabsTrigger value="location">
               <MapPin className="mr-2 h-4 w-4" /> Location
@@ -250,51 +229,7 @@ export default function SellerSettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
-          {/* Connections Tab */}
-            <TabsContent value="connections">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>App Connections</CardTitle>
-                        <CardDescription>
-                            Connect your social media accounts to enable powerful features like automated posting and ad management.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Card className="flex items-center justify-between p-4">
-                            <div className="flex items-center gap-4">
-                                <Bot className="h-8 w-8 text-primary" />
-                                <div>
-                                    <h3 className="font-semibold">TikTok for Business</h3>
-                                    <p className="text-sm text-muted-foreground">Connect your account to allow Go Earn to post your boosted videos automatically.</p>
-                                </div>
-                            </div>
-                            <Button onClick={handleConnectTikTok}>Connect</Button>
-                        </Card>
-                        <Card className="flex items-center justify-between p-4 bg-muted/50 border-dashed">
-                             <div className="flex items-center gap-4">
-                                <Bot className="h-8 w-8 text-muted-foreground" />
-                                <div>
-                                    <h3 className="font-semibold text-muted-foreground">Instagram (Coming Soon)</h3>
-                                    <p className="text-sm text-muted-foreground">Automated posting for Reels and Stories.</p>
-                                </div>
-                            </div>
-                            <Button disabled>Connect</Button>
-                        </Card>
-                         <Card className="flex items-center justify-between p-4 bg-muted/50 border-dashed">
-                             <div className="flex items-center gap-4">
-                                <Bot className="h-8 w-8 text-muted-foreground" />
-                                <div>
-                                    <h3 className="font-semibold text-muted-foreground">Facebook (Coming Soon)</h3>
-                                    <p className="text-sm text-muted-foreground">Sync your products with a Facebook Shop.</p>
-                                </div>
-                            </div>
-                            <Button disabled>Connect</Button>
-                        </Card>
-                    </CardContent>
-                </Card>
-            </TabsContent>
-
+          
           {/* Location Tab */}
           <TabsContent value="location" className="space-y-4">
             <Card>

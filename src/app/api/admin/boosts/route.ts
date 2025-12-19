@@ -1,8 +1,7 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { BoostRequest, UserProfile } from '@/lib/types';
+import type { BoostRequest } from '@/lib/types';
 import { getAuth } from 'firebase-admin/auth';
 import { uploadVideoToTikTok } from '@/lib/tiktok';
 
@@ -101,23 +100,19 @@ export async function PUT(request: NextRequest) {
             if (boostData.status !== 'approved') {
                 return NextResponse.json({ message: 'Boost must be approved before posting.' }, { status: 400 });
             }
+            
+            // Use a global access token from environment variables instead of a seller-specific one
+            const goEarnTikTokToken = process.env.GOEARN_TIKTOK_ACCESS_TOKEN;
 
-            const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
-            const sellerProfileSnap = await sellerProfileRef.get();
-            if (!sellerProfileSnap.exists) {
-                throw new Error("Seller profile not found for this boost request.");
-            }
-            const sellerProfile = sellerProfileSnap.data() as UserProfile;
-            const tiktokConnection = sellerProfile.connections?.tiktok;
-
-            if (!tiktokConnection || !tiktokConnection.accessToken) {
-                 await boostRef.update({ status: 'rejected', rejectionReason: 'Seller has not connected their TikTok account.' });
+            if (!goEarnTikTokToken) {
+                 await boostRef.update({ status: 'rejected', rejectionReason: 'Platform TikTok account not configured.' });
                  const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
                  await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
-                 return NextResponse.json({ message: 'Boost rejected: Seller TikTok account not connected.' }, { status: 400 });
+                 console.error('CRITICAL: GOEARN_TIKTOK_ACCESS_TOKEN is not set in environment variables.');
+                 return NextResponse.json({ message: 'Boost rejected: Platform TikTok account not configured.' }, { status: 500 });
             }
 
-            const uploadResult = await uploadVideoToTikTok(boostData, tiktokConnection.accessToken);
+            const uploadResult = await uploadVideoToTikTok(boostData, goEarnTikTokToken);
 
             if (!uploadResult.success) {
                  await boostRef.update({ status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
@@ -132,7 +127,7 @@ export async function PUT(request: NextRequest) {
                 updatedAt: new Date()
             });
 
-            return NextResponse.json({ success: true, message: 'Boost approved and posted to TikTok.' });
+            return NextResponse.json({ success: true, message: 'Boost approved and posted to the official Go Earn TikTok account.' });
         }
 
     } catch (error: any) {

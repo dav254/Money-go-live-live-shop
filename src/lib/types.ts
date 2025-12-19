@@ -24,16 +24,17 @@ export interface UserProfile {
     following?: string[];
     shopName?: string; // For sellers
     walletBalance?: number;
-    connections?: {
-      tiktok?: {
-        openId: string;
-        accessToken: string;
-        refreshToken: string;
-        expiresAt: Date;
-        scopes: string[];
-        connectedAt: Date;
-      }
-    }
+    // The connections object is no longer needed as we are using a central account for boosts
+    // connections?: {
+    //   tiktok?: {
+    //     openId: string;
+    //     accessToken: string;
+    //     refreshToken: string;
+    //     expiresAt: Date;
+    //     scopes: string[];
+    //     connectedAt: Date;
+    //   }
+    // }
 }
 
 // Targeting options for a boost campaign
