@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -437,7 +437,9 @@ export default function SellerAdsPage() {
           acc.totalViews += c.analytics?.views || 0;
           acc.totalLikes += c.analytics?.likes || 0;
           acc.totalClicks += c.analytics?.clicks || 0;
-          if(c.status === 'active' || c.status === 'approved' || c.status === 'completed') acc.totalSpent += c.pointsPaid || 0;
+          if(c.status !== 'draft' && c.status !== 'rejected') {
+            acc.totalSpent += c.pointsPaid || 0;
+          }
           return acc;
       }, initialStats);
     }, [campaigns]);
@@ -590,5 +592,3 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
-
-    
