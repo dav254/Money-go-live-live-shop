@@ -1,5 +1,3 @@
-
-
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { BoostRequest, UserProfile } from '@/lib/types';
@@ -48,8 +46,9 @@ export async function GET(request: NextRequest) {
         return {
             ...data,
             id: doc.id,
-            createdAt: data.createdAt.toDate().toISOString(),
-            updatedAt: data.updatedAt.toDate().toISOString(),
+            // Convert Firestore Timestamps to ISO strings for JSON serialization
+            createdAt: data.createdAt ? (data.createdAt as any).toDate().toISOString() : null,
+            updatedAt: data.updatedAt ? (data.updatedAt as any).toDate().toISOString() : null,
         };
     });
 
@@ -69,7 +68,7 @@ export async function PUT(request: NextRequest) {
 
     try {
         const { boostId, action, rejectionReason } = await request.json();
-        if (!boostId || !action || (action !== 'approved' && action !== 'rejected')) {
+        if (!boostId || !action || (action !== 'approved' && action !== 'rejected' && action !== 'post_to_tiktok')) {
             return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
         }
         
@@ -105,7 +104,6 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ success: true, message: 'Boost approved and is ready to be posted.' });
         }
         
-        // This part handles posting to TikTok, which will now be a separate action.
         if (action === 'post_to_tiktok') {
             if (boostData.status !== 'approved') {
                 return NextResponse.json({ message: 'Boost must be approved before posting.' }, { status: 400 });

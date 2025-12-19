@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { initializeAdminApp } from '@/firebase/admin';
 import type { BoostRequest } from '@/lib/types';
@@ -29,13 +28,17 @@ export async function GET(request: Request) {
     
     const campaigns = campaignsSnapshot.docs.map(doc => {
         const data = doc.data() as BoostRequest;
-        const createdAt = data.createdAt;
+        const createdAt = data.createdAt as any; // Cast to any to access toDate()
+        const updatedAt = data.updatedAt as any; // Cast to any to access toDate()
         return {
             ...data,
             id: doc.id,
             // Safely convert Timestamp to ISO string
-            createdAt: (createdAt && typeof (createdAt as any).toDate === 'function')
-                ? (createdAt as any).toDate().toISOString()
+            createdAt: (createdAt && typeof createdAt.toDate === 'function')
+                ? createdAt.toDate().toISOString()
+                : new Date().toISOString(),
+             updatedAt: (updatedAt && typeof updatedAt.toDate === 'function')
+                ? updatedAt.toDate().toISOString()
                 : new Date().toISOString(),
         };
     });

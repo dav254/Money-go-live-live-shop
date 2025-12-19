@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -37,103 +36,71 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUser } from '@/firebase';
 import { CheckCircle, XCircle, Clock, Loader2, Video, Rocket } from 'lucide-react';
-import { Timestamp } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-
-// --- MOCK DATA ---
-const mockBoostsData: BoostRequest[] = [
-  // Pending
-  {
-    id: 'boost-pending-1',
-    sellerId: 'seller-123',
-    productId: 'prod-abc',
-    videoUrl: 'https://storage.googleapis.com/web-dev-assets/video-and-source-tags/chrome.mp4',
-    caption: 'Check out this amazing new product! You will love it. #new #cool',
-    durationDays: 3,
-    pointsPaid: 300,
-    status: 'pending',
-    createdAt: Timestamp.fromMillis(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-    updatedAt: Timestamp.fromMillis(Date.now() - 1 * 60 * 60 * 1000),
-    analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-    target: { counties: ['Nairobi'], age: '18-35', interests: ['fashion'] }
-  },
-  // Approved
-  {
-    id: 'boost-approved-1',
-    sellerId: 'seller-456',
-    productId: 'prod-def',
-    videoUrl: 'https://storage.googleapis.com/web-dev-assets/video-and-source-tags/chrome.mp4',
-    caption: 'Limited time offer on our best-selling gadget!',
-    durationDays: 7,
-    pointsPaid: 700,
-    status: 'approved',
-    createdAt: Timestamp.fromMillis(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    updatedAt: Timestamp.fromMillis(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-    target: { counties: ['Mombasa'], age: '25-45', interests: ['tech', 'gadgets'] }
-  },
-  // Rejected
-  {
-    id: 'boost-rejected-1',
-    sellerId: 'seller-789',
-    productId: 'prod-ghi',
-    videoUrl: 'https://storage.googleapis.com/web-dev-assets/video-and-source-tags/chrome.mp4',
-    caption: 'Music is too loud in this one.',
-    durationDays: 5,
-    pointsPaid: 500,
-    status: 'rejected',
-    rejectionReason: 'Copyrighted music detected.',
-    createdAt: Timestamp.fromMillis(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-    updatedAt: Timestamp.fromMillis(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    analytics: { views: 0, likes: 0, clicks: 0, shares: 0, conversions: 0 },
-    target: { counties: ['Nakuru'], age: '18-24', interests: ['music'] }
-  },
-   // Completed
-  {
-    id: 'boost-completed-1',
-    sellerId: 'seller-101',
-    productId: 'prod-jkl',
-    videoUrl: 'https://storage.googleapis.com/web-dev-assets/video-and-source-tags/chrome.mp4',
-    caption: 'Our weekend sale just ended! Thanks for all the support.',
-    durationDays: 2,
-    pointsPaid: 200,
-    status: 'completed',
-    tiktokVideoId: '1234567890987654321',
-    createdAt: Timestamp.fromMillis(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    updatedAt: Timestamp.fromMillis(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    analytics: { views: 150234, likes: 12000, clicks: 856, shares: 432, conversions: 56 },
-    target: { counties: ['Kisumu'], age: 'all', interests: ['food', 'lifestyle'] }
-  },
-];
-
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 // Review Dialog Component
 const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
     boost: BoostRequest | null;
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onActionComplete: (boostId: string, action: 'approved' | 'rejected') => void;
+    onActionComplete: () => void;
 }) => {
+    const { user } = useUser();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [isSubmitting, setIsSubmitting] = React.useState<false | 'approved' | 'rejected'>(false);
+    const [rejectionReason, setRejectionReason] = React.useState('');
+
 
     const handleAction = async (action: 'approved' | 'rejected') => {
-        if (!boost) return;
-        setIsSubmitting(true);
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        onActionComplete(boost.id, action);
-        
-        toast({
-            title: `Boost ${action}`,
-            description: `The boost request has been moved to the '${action}' tab.`,
-        });
-        setIsSubmitting(false);
-        onOpenChange(false);
+        if (!boost || !user) return;
+
+        if (action === 'rejected' && !rejectionReason.trim()) {
+            toast({
+                variant: 'destructive',
+                title: 'Rejection reason is required.',
+            });
+            return;
+        }
+
+        setIsSubmitting(action);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/boosts', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ boostId: boost.id, action, rejectionReason }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || `Failed to ${action} boost.`);
+            }
+
+            toast({
+                title: `Boost ${action}`,
+                description: `The boost request has been successfully ${action}.`,
+            });
+            onActionComplete();
+            onOpenChange(false);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Action Failed',
+                description: error.message,
+            });
+        } finally {
+            setIsSubmitting(false);
+            setRejectionReason('');
+        }
     };
 
     if (!boost) return null;
@@ -178,14 +145,23 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
                                 <p><strong>Interests:</strong> {boost.target?.interests?.join(', ') || 'N/A'}</p>
                             </div>
                         </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="rejectionReason">Rejection Reason (if rejecting)</Label>
+                            <Input
+                                id="rejectionReason"
+                                placeholder="e.g., Copyrighted music"
+                                value={rejectionReason}
+                                onChange={(e) => setRejectionReason(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>
-                    <Button onClick={() => handleAction('rejected')} variant="destructive" disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
+                    <Button onClick={() => handleAction('rejected')} variant="destructive" disabled={!!isSubmitting}>
+                        {isSubmitting === 'rejected' ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />} Reject
                     </Button>
-                    <Button onClick={() => handleAction('approved')} disabled={isSubmitting}>
-                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
+                    <Button onClick={() => handleAction('approved')} variant="default" disabled={!!isSubmitting}>
+                         {isSubmitting === 'approved' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />} Approve
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -196,37 +172,71 @@ const ReviewDialog = ({ boost, isOpen, onOpenChange, onActionComplete }: {
 
 // Main Component
 export default function AdminBoostsPage() {
+    const { user } = useUser();
     const { toast } = useToast();
-    const [boosts, setBoosts] = React.useState<BoostRequest[]>(mockBoostsData);
+    const [boosts, setBoosts] = React.useState<BoostRequest[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [activeTab, setActiveTab] = React.useState('pending');
     const [selectedBoost, setSelectedBoost] = React.useState<BoostRequest | null>(null);
     const [isReviewDialogOpen, setIsReviewDialogOpen] = React.useState(false);
-    
-    // Simulate initial loading
+
+    const fetchBoosts = React.useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/boosts', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!response.ok) throw new Error('Failed to fetch data');
+            const data = await response.json();
+            setBoosts(data);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch boost requests.' });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
+
     React.useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 700);
-        return () => clearTimeout(timer);
-    }, []);
+        if (user) {
+            fetchBoosts();
+        }
+    }, [user, fetchBoosts]);
 
     const openReviewDialog = (boost: BoostRequest) => {
         setSelectedBoost(boost);
         setIsReviewDialogOpen(true);
     };
 
-    const handleActionComplete = (boostId: string, action: 'approved' | 'rejected') => {
-        setBoosts(prevBoosts =>
-            prevBoosts.map(b => 
-                b.id === boostId ? { ...b, status: action } : b
-            )
-        );
+    const handlePostToTikTok = async (boostId: string) => {
+        toast({ title: 'Posting to TikTok...', description: 'This may take a moment.' });
+        try {
+            if (!user) throw new Error("Authentication error.");
+            const token = await user.getIdToken();
+            const response = await fetch('/api/admin/boosts', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ boostId: boostId, action: 'post_to_tiktok' }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Failed to post to TikTok.');
+            
+            toast({ title: 'Success!', description: 'Boost has been posted to TikTok and is now active.' });
+            fetchBoosts(); // Refresh the list
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'TikTok Post Failed', description: error.message });
+        }
     };
-    
+
     const filteredBoosts = React.useMemo(() => {
         return boosts.filter(b => b.status === activeTab);
     }, [boosts, activeTab]);
 
-    const getColumns = (status: 'pending' | 'approved' | 'rejected' | 'active' | 'completed'): ColumnDef<BoostRequest>[] => {
+    const getColumns = (status: string): ColumnDef<BoostRequest>[] => {
         const baseColumns: ColumnDef<BoostRequest>[] = [
             { accessorKey: 'sellerId', header: 'Seller ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.sellerId}</span> },
             { accessorKey: 'caption', header: 'Caption', cell: ({ row }) => <p className="truncate max-w-sm">{row.original.caption}</p> },
@@ -239,9 +249,14 @@ export default function AdminBoostsPage() {
                 accessorKey: 'createdAt',
                 header: 'Submitted',
                 cell: ({ row }) => {
-                    const date = row.original.createdAt.toDate();
+                    const date = new Date((row.original.createdAt as any).seconds * 1000);
                     return <span>{formatDistanceToNow(date, { addSuffix: true })}</span>
                 }
+            },
+            {
+                accessorKey: 'durationDays',
+                header: 'Duration',
+                cell: ({row}) => `${row.original.durationDays} days`
             },
             {
                 id: 'actions',
@@ -256,7 +271,7 @@ export default function AdminBoostsPage() {
                     }
                      if (status === 'approved') {
                         return (
-                             <Button size="sm" onClick={() => toast({title: "This will post to TikTok"})}>
+                             <Button size="sm" onClick={() => handlePostToTikTok(row.original.id)}>
                                  <Rocket className="mr-2 h-4 w-4" />
                                  Post to TikTok
                             </Button>
@@ -267,8 +282,8 @@ export default function AdminBoostsPage() {
                             <p className="text-xs text-destructive">{row.original.rejectionReason}</p>
                         )
                     }
-                    if (status === 'completed') {
-                        return <Badge variant="secondary">Campaign Ended</Badge>
+                    if (status === 'completed' || status === 'active') {
+                        return <Badge variant={status === 'active' ? 'default' : 'secondary'} className={cn(status === 'active' && 'bg-green-600/80')}>{status === 'active' ? 'Live on TikTok' : 'Campaign Ended'}</Badge>
                     }
                     return null;
                 },
@@ -278,7 +293,7 @@ export default function AdminBoostsPage() {
     
     const table = useReactTable({ 
         data: filteredBoosts, 
-        columns: getColumns(activeTab as any), 
+        columns: getColumns(activeTab), 
         getCoreRowModel: getCoreRowModel() 
     });
 
@@ -309,7 +324,7 @@ export default function AdminBoostsPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
-                                            <TableRow><TableCell colSpan={getColumns(activeTab as any).length} className="h-24 text-center">Loading...</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={getColumns(activeTab).length} className="h-24 text-center">Loading...</TableCell></TableRow>
                                         ) : table.getRowModel().rows.length > 0 ? (
                                             table.getRowModel().rows.map(row => (
                                                 <TableRow key={row.id}>
@@ -317,7 +332,7 @@ export default function AdminBoostsPage() {
                                                 </TableRow>
                                             ))
                                         ) : (
-                                            <TableRow><TableCell colSpan={getColumns(activeTab as any).length} className="h-24 text-center">No requests found for this status.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={getColumns(activeTab).length} className="h-24 text-center">No requests found for this status.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -330,7 +345,7 @@ export default function AdminBoostsPage() {
                 isOpen={isReviewDialogOpen}
                 onOpenChange={setIsReviewDialogOpen}
                 boost={selectedBoost}
-                onActionComplete={handleActionComplete}
+                onActionComplete={() => fetchBoosts()}
             />
         </AdminLayout>
     );
