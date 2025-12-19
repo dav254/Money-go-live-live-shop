@@ -140,6 +140,3 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ message: 'Internal Server Error', details: error.message }, { status: 500 });
     }
 }
-
-// DELETE the POST handler since we are using PUT for updates.
-// export async function POST(request: NextRequest) { ... }
