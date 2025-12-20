@@ -8,18 +8,21 @@ import axios from 'axios';
  * This is a multi-step process.
  * @param boost The boost request containing video details.
  * @param accessToken The TikTok access token for the user.
+ * @param openId The Open ID for the TikTok user.
  * @returns An object indicating success, the new video ID, and a message.
  */
-export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: string): Promise<{ success: boolean; videoId?: string; message: string }> {
-    if (!accessToken) {
-        return { success: false, message: "Missing TikTok access token." };
+export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: string, openId: string): Promise<{ success: boolean; videoId?: string; message: string }> {
+    if (!accessToken || !openId) {
+        return { success: false, message: "Missing TikTok access token or Open ID." };
     }
 
     try {
         // Step 1: Initiate video upload to get an upload URL
-        const initResponse = await axios.post('https://open.tiktokapis.com/v2/video/upload/', {
-            source_info: {
-                source: "FILE_UPLOAD",
+        const initResponse = await axios.post(`https://open.tiktokapis.com/v2/post/publish/video/init/`, {
+            post_info: {
+                title: boost.caption,
+                privacy_level: 'PUBLIC_TO_EVERYONE',
+                // Add other post parameters as needed
             }
         }, {
             headers: {
@@ -28,14 +31,12 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
             },
         });
 
-        if (initResponse.data?.error?.code !== 0) {
+        if (initResponse.data?.error?.code !== 'ok') {
              throw new Error(`TikTok API Error (Init): ${initResponse.data.error.message}`);
         }
         
         const uploadUrl = initResponse.data.data.upload_url;
-        const videoId = initResponse.data.data.video_id;
-
-
+        
         // Step 2: Download our video from Cloudinary using Axios
         const videoResponse = await axios.get(boost.videoUrl, {
             responseType: 'arraybuffer' 
@@ -60,29 +61,11 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
              throw new Error(`TikTok API Error (Upload): Failed to upload video file. Status: ${uploadResponse.status}. Details: ${errorText}`);
         }
 
-        // Step 4: Create the post on TikTok using the uploaded video
-        const createResponse = await axios.post('https://open.tiktokapis.com/v2/video/post/', {
-            video_id: videoId,
-            post_info: {
-                title: boost.caption,
-                privacy_level: 'PUBLIC_TO_EVERYONE',
-            }
-        }, {
-             headers: {
-                 'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json; charset=UTF-8',
-            },
-        });
-
-        if (createResponse.data?.error?.code !== 0) {
-            throw new Error(`TikTok API Error (Post): ${createResponse.data.error.message}`);
-        }
-
-        const finalVideoId = createResponse.data.data.video_id;
+        const publishId = initResponse.data.data.publish_id;
 
         return {
             success: true,
-            videoId: finalVideoId,
+            videoId: publishId,
             message: "Video successfully uploaded and posted to TikTok.",
         };
 
@@ -114,7 +97,7 @@ export async function getTikTokVideoAnalytics(accessToken: string, videoIds: str
             },
         });
 
-        if (response.data?.error?.code !== 0) {
+        if (response.data?.error?.code !== 'ok') {
             console.error("TikTok Analytics Error:", response.data.error);
             throw new Error(response.data.error.message || 'Failed to fetch video analytics from TikTok.');
         }

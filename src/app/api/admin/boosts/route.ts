@@ -110,18 +110,18 @@ export async function PUT(request: NextRequest) {
                 return NextResponse.json({ message: 'Boost must be approved before posting.' }, { status: 400 });
             }
             
-            // Use a global access token from environment variables instead of a seller-specific one
             const goEarnTikTokToken = process.env.GOEARN_TIKTOK_ACCESS_TOKEN;
+            const goEarnTikTokOpenId = process.env.GOEARN_TIKTOK_OPEN_ID;
 
-            if (!goEarnTikTokToken) {
+            if (!goEarnTikTokToken || !goEarnTikTokOpenId) {
                  await boostRef.update({ status: 'rejected', rejectionReason: 'Platform TikTok account not configured.' });
                  const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
                  await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
-                 console.error('CRITICAL: GOEARN_TIKTOK_ACCESS_TOKEN is not set in environment variables.');
+                 console.error('CRITICAL: GOEARN_TIKTOK_ACCESS_TOKEN or GOEARN_TIKTOK_OPEN_ID is not set in environment variables.');
                  return NextResponse.json({ message: 'Boost rejected: Platform TikTok account not configured.' }, { status: 500 });
             }
 
-            const uploadResult = await uploadVideoToTikTok(boostData, goEarnTikTokToken);
+            const uploadResult = await uploadVideoToTikTok(boostData, goEarnTikTokToken, goEarnTikTokOpenId);
 
             if (!uploadResult.success) {
                  await boostRef.update({ status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
