@@ -15,27 +15,14 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
-import type { Product, SellerShop, UserProfile } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile } from '@/firebase';
-import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, writeBatch } from 'firebase/firestore';
+import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile, useCollection } from '@/firebase';
+import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, writeBatch, query, where, limit } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { formatDistanceToNow } from 'date-fns';
 
-
-const mockReviews = [
-    { id: 1, author: 'Jane D.', rating: 5, comment: 'Best sneakers I have ever owned! Super comfortable and they look amazing at night.', date: '2 days ago', photos: ['https://picsum.photos/seed/review1/200'] },
-    { id: 2, author: 'Mike K.', rating: 4, comment: 'Great shoes, very stylish. A bit tight at first but they get comfortable.', date: '1 week ago', photos: [] },
-];
-
-const recommendedProducts: Product[] = [
-    { id: 'rec-1', name: 'Cyberpunk Jacket', price: 2500, imageUrl: 'https://picsum.photos/seed/rec1/400', stock: 10, sellerId: 'seller-2', shippingCost: 10, uploadDate: new Date() },
-    { id: 'rec-2', name: 'LED Visor', price: 800, imageUrl: 'https://picsum.photos/seed/rec2/400', stock: 25, sellerId: 'seller-3', shippingCost: 5, uploadDate: new Date() },
-    { id: 'rec-3', name: 'Holographic Backpack', price: 1800, imageUrl: 'https://picsum.photos/seed/rec3/400', stock: 5, sellerId: 'seller-4', shippingCost: 10, uploadDate: new Date() },
-    { id: 'rec-4', name: 'Gamer Hoodie', price: 1200, imageUrl: 'https://picsum.photos/seed/rec4/400', stock: 30, sellerId: 'seller-5', shippingCost: 15, uploadDate: new Date() },
-];
-
-// --- END MOCKED DATA ---
 
 const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
     <div className="flex items-center gap-2">
@@ -72,6 +59,31 @@ const ProductPageSkeleton = () => (
         </div>
     </div>
 );
+
+const ReviewCard = ({ review }: { review: Review }) => {
+    const firestore = useFirestore();
+    const userProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', review.buyerId), [firestore, review.buyerId]);
+    const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+    return (
+        <div className="flex gap-4 border-b border-neutral-800 py-4 last:border-b-0">
+             <Avatar className="h-8 w-8 border">
+                <AvatarImage src={userProfile?.profilePictureUrl} />
+                <AvatarFallback>{userProfile?.fullName?.charAt(0) || 'A'}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+                <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">{userProfile?.fullName || 'Anonymous'}</p>
+                    <p className="text-xs text-neutral-400">{formatDistanceToNow(review.createdAt.toDate(), { addSuffix: true })}</p>
+                </div>
+                <div className="my-1">
+                    <StarRating rating={review.rating} />
+                </div>
+                <p className="text-sm text-neutral-300">{review.comment}</p>
+            </div>
+        </div>
+    );
+};
 
 
 export default function BuyerProductPage() {
@@ -118,6 +130,18 @@ export default function BuyerProductPage() {
 
     const { data: sellerShop, isLoading: isSellerShopLoading } = useDoc<SellerShop>(sellerShopRef);
     const { data: sellerProfile, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
+
+    const reviewsQuery = useMemoFirebase(() => {
+        if (!productId) return null;
+        return query(collection(firestore, 'products', productId, 'reviews'), orderBy('createdAt', 'desc'));
+    }, [firestore, productId]);
+    const { data: reviews, isLoading: areReviewsLoading } = useCollection<Review>(reviewsQuery);
+    
+    const recommendedProductsQuery = useMemoFirebase(() => {
+        if (!product) return null;
+        return query(collection(firestore, 'products'), where('category', '==', product.category), limit(5));
+    }, [firestore, product]);
+    const { data: recommendedProducts, isLoading: areRecsLoading } = useCollection<Product>(recommendedProductsQuery);
 
     const [isFollowing, setIsFollowing] = useState(false);
 
@@ -220,9 +244,6 @@ export default function BuyerProductPage() {
         try {
           await setDoc(newOrderRef, newOrderData);
           
-          // You might want to clear the ref ID after using it, depending on your desired logic
-          // localStorage.removeItem('resellerRefId');
-
           toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
           router.push(`/checkout/${newOrderRef.id}`);
         } catch (error) {
@@ -253,7 +274,7 @@ export default function BuyerProductPage() {
             toast({ variant: 'destructive', title: 'Something went wrong' });
         }
     };
-
+    
     const handleShare = () => {
         const productUrl = `https://goearnvid.shop/products/${productId}`;
         navigator.clipboard.writeText(productUrl).then(() => {
@@ -285,8 +306,9 @@ export default function BuyerProductPage() {
         });
     };
 
+    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading;
 
-    if (isProductLoading || isSellerShopLoading || isSellerProfileLoading) {
+    if (isLoading) {
         return <MainLayout><ProductPageSkeleton /></MainLayout>;
     }
 
@@ -305,6 +327,7 @@ export default function BuyerProductPage() {
     const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || 'https://picsum.photos/seed/shoplogo/200';
     const sellerFollowers = sellerShop?.followers || 0;
 
+    const filteredRecommendedProducts = recommendedProducts?.filter(p => p.id !== product.id) || [];
 
     return (
         <MainLayout>
@@ -349,8 +372,8 @@ export default function BuyerProductPage() {
                         <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
                         <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
                         <div className="flex items-center gap-4 mt-1 text-sm">
-                            <StarRating rating={4.8} count={532} />
-                            <span className="text-neutral-400">Sold 3.2K</span>
+                            <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
+                             {reviews && reviews.length > 0 && <span className="text-neutral-400">Sold {product.salesCount || 0}</span>}
                         </div>
                     </div>
 
@@ -402,9 +425,15 @@ export default function BuyerProductPage() {
                         </AccordionItem>
                         {/* 8. Reviews & Ratings */}
                         <AccordionItem value="reviews">
-                            <AccordionTrigger>Reviews & Ratings ({mockReviews.length})</AccordionTrigger>
+                            <AccordionTrigger>Reviews & Ratings ({reviews?.length || 0})</AccordionTrigger>
                             <AccordionContent>
-                                <p className="text-neutral-400 text-center py-4">Detailed reviews section coming soon.</p>
+                                {areReviewsLoading ? (
+                                    <p>Loading reviews...</p>
+                                ) : reviews && reviews.length > 0 ? (
+                                    reviews.map(review => <ReviewCard key={review.id} review={review} />)
+                                ) : (
+                                    <p className="text-neutral-400 text-center py-4">No reviews yet.</p>
+                                )}
                             </AccordionContent>
                         </AccordionItem>
                         {/* 9. Q&A */}
@@ -418,8 +447,19 @@ export default function BuyerProductPage() {
                     
                     {/* 10. Recommended From This Seller */}
                     <div>
-                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from {sellerName}</h2>
-                         <p className="text-neutral-400 text-sm">Recommended products will appear here.</p>
+                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">You Might Also Like</h2>
+                         {areRecsLoading ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <Skeleton className="h-64 w-full" />
+                                <Skeleton className="h-64 w-full" />
+                            </div>
+                         ) : filteredRecommendedProducts.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                            </div>
+                         ) : (
+                             <p className="text-neutral-400 text-sm">No recommendations available.</p>
+                         )}
                     </div>
                 </div>
             </div>
