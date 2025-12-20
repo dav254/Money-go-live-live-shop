@@ -36,12 +36,14 @@ export function VideoActions({
   const router = useRouter();
   const { userProfile } = useUserProfile(user?.uid);
   const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(product.likes || 0);
 
   useEffect(() => {
-      // In a future implementation, this could check if the user has liked this specific item.
-      // For now, it's just a local state for visual feedback.
+      // This is a placeholder for checking if the user has liked this item.
+      // For now, it resets on product change.
       setIsLiked(false);
-  }, [product.id]);
+      setLikeCount(product.likes || 0);
+  }, [product.id, product.likes]);
 
 
   const handleShare = () => {
@@ -72,21 +74,16 @@ export function VideoActions({
     // Optimistically update the UI
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
+    setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
 
     try {
-        // Update the like count in Firestore.
-        // If the user un-likes, we could decrement, but for simplicity, we'll just increment.
-        // A more robust system would track which users have liked which products.
-        if (newLikedState) {
-            await updateDoc(productRef, { likes: increment(1) });
-            toast({ title: 'Liked!' });
-        } else {
-            // Optional: Decrement if you want to allow un-liking to reduce the count.
-            await updateDoc(productRef, { likes: increment(-1) });
-            toast({ title: 'Unliked' });
-        }
+        await updateDoc(productRef, {
+            likes: increment(newLikedState ? 1 : -1)
+        });
     } catch (e) {
-        setIsLiked(!newLikedState); // Revert UI on error
+        // Revert UI on error
+        setIsLiked(!newLikedState);
+        setLikeCount(prev => newLikedState ? prev - 1 : prev + 1);
         console.error("Error updating likes:", e);
         toast({ variant: 'destructive', title: 'Something went wrong'});
     }
@@ -112,6 +109,7 @@ export function VideoActions({
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLikeToggle}>
           <Heart className={`h-6 w-6 text-white transition-colors ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
         </Button>
+        <span className="text-sm font-semibold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
       </div>
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>
