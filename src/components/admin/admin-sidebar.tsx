@@ -155,8 +155,7 @@ export function AdminSidebar() {
             { href: 'payments', label: 'All Payments' },
             { href: 'invoices', label: 'Invoice Generator' },
             { href: 'commissions', label: 'Commissions' },
-            { href: 'seller-payouts', label: 'Seller Payouts' },
-            { href: 'reseller-payouts', label: 'Reseller Payouts' },
+            { href: 'payouts', label: 'Payout Requests' },
             { href: 'tax', label: 'Tax Center' },
           ]}
         />

@@ -31,25 +31,28 @@ import {
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, doc, updateDoc, orderBy, where, getDocs } from 'firebase/firestore';
+import { collection, query, doc, updateDoc, orderBy } from 'firebase/firestore';
 import type { Payout, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { DotsHorizontalIcon, CaretSortIcon } from '@radix-ui/react-icons';
 
-const ResellerCell = ({ resellerId }: { resellerId: string }) => {
+const UserCell = ({ userId }: { userId: string }) => {
   const firestore = useFirestore();
-  const resellerRef = useMemoFirebase(() => doc(firestore, 'userProfiles', resellerId), [firestore, resellerId]);
-  const { data: reseller, isLoading } = useDoc<UserProfile>(resellerRef);
+  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
 
   if (isLoading) return <Skeleton className="h-8 w-24" />;
   return (
     <div className="flex items-center gap-2">
       <Avatar className="h-6 w-6">
-        <AvatarImage src={reseller?.profilePictureUrl} />
-        <AvatarFallback>{reseller?.fullName?.charAt(0)}</AvatarFallback>
+        <AvatarImage src={user?.profilePictureUrl} />
+        <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
       </Avatar>
-      <span className="text-xs">{reseller?.fullName}</span>
+      <div className="flex flex-col">
+        <span className="text-xs font-medium">{user?.fullName}</span>
+        <Badge variant="outline" className="w-fit capitalize text-xs">{user?.userRole}</Badge>
+      </div>
     </div>
   );
 };
@@ -77,52 +80,16 @@ const DataTableSkeleton = () => (
   </div>
 );
 
-export default function AdminResellerPayoutsPage() {
+export default function AdminPayoutsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'requestedAt', desc: true }]);
-  const [payouts, setPayouts] = React.useState<Payout[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
 
-  // Fetch all payouts and then filter by user role on the client
-  React.useEffect(() => {
-    const fetchAndFilterPayouts = async () => {
-        if (!firestore) return;
-        setIsLoading(true);
-
-        // 1. Fetch all payouts
-        const allPayoutsQuery = query(collection(firestore, 'payouts'), orderBy('requestedAt', 'desc'));
-        const payoutsSnapshot = await getDocs(allPayoutsQuery);
-        const allPayoutsData = payoutsSnapshot.docs.map(d => ({id: d.id, ...d.data()}) as Payout);
-
-        if (allPayoutsData.length === 0) {
-            setPayouts([]);
-            setIsLoading(false);
-            return;
-        }
-
-        // 2. Get unique user IDs from payouts
-        const userIds = [...new Set(allPayoutsData.map(p => p.sellerId))];
-
-        // 3. Fetch profiles for those users to check their role
-        const usersQuery = query(collection(firestore, 'userProfiles'), where('__name__', 'in', userIds));
-        const usersSnapshot = await getDocs(usersQuery);
-        const userRoles = new Map<string, string>();
-        usersSnapshot.forEach(doc => {
-            const data = doc.data() as UserProfile;
-            userRoles.set(doc.id, data.userRole);
-        });
-
-        // 4. Filter payouts to only include those from resellers
-        const resellerPayoutsData = allPayoutsData.filter(payout => userRoles.get(payout.sellerId) === 'reseller');
-        
-        setPayouts(resellerPayoutsData);
-        setIsLoading(false);
-    };
-
-    fetchAndFilterPayouts();
+  const payoutsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'payouts'), orderBy('requestedAt', 'desc'));
   }, [firestore]);
 
+  const { data: payouts, isLoading } = useCollection<Payout>(payoutsQuery);
 
   const handleStatusUpdate = async (payoutId: string, status: 'processing' | 'completed' | 'failed') => {
     const payoutRef = doc(firestore, 'payouts', payoutId);
@@ -132,8 +99,6 @@ export default function AdminResellerPayoutsPage() {
         updateData.processedAt = new Date();
       }
       await updateDoc(payoutRef, updateData);
-      // Optimistically update local state for instant UI feedback
-      setPayouts(prev => prev.map(p => p.id === payoutId ? { ...p, status } : p));
       toast({ title: 'Success', description: `Payout status updated to ${status}.` });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update payout status.' });
@@ -143,8 +108,8 @@ export default function AdminResellerPayoutsPage() {
   const columns: ColumnDef<Payout>[] = React.useMemo(() => [
     {
       accessorKey: 'sellerId',
-      header: 'Reseller',
-      cell: ({ row }) => <ResellerCell resellerId={row.original.sellerId} />,
+      header: 'User',
+      cell: ({ row }) => <UserCell userId={row.original.sellerId} />,
     },
     {
       accessorKey: 'amount',
@@ -203,10 +168,10 @@ export default function AdminResellerPayoutsPage() {
         );
       },
     },
-  ], []);
+  ], [handleStatusUpdate]);
 
   const table = useReactTable({
-    data: payouts,
+    data: payouts || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
@@ -218,7 +183,7 @@ export default function AdminResellerPayoutsPage() {
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Finance: Reseller Payouts
+          Finance: Payout Requests
         </h1>
         {isLoading ? <DataTableSkeleton /> : (
           <div className="rounded-md border">
@@ -246,7 +211,7 @@ export default function AdminResellerPayoutsPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No pending reseller payout requests.
+                      No pending payout requests.
                     </TableCell>
                   </TableRow>
                 )}
