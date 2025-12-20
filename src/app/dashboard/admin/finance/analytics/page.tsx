@@ -22,12 +22,13 @@ import {
   DollarSign,
   TrendingUp,
   Landmark,
+  FileText,
 } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import { DatePicker } from '@/components/dashboard/date-picker';
 
 const StatCard = ({
   title,
@@ -75,13 +76,15 @@ export default function AdminFinanceAnalyticsPage() {
 
   const revenueStats = React.useMemo(() => {
     if (!orders) {
-      return { grossValue: 0, platformCommission: 0, netToSellers: 0 };
+      return { grossValue: 0, platformCommission: 0, netToSellers: 0, taxCollected: 0 };
     }
     const completedOrders = orders.filter(o => o.orderStatus === 'delivered');
     const grossValue = completedOrders.reduce((acc, o) => acc + o.totalAmount, 0);
     const platformCommission = completedOrders.reduce((acc, o) => acc + (o.platformFee || 0), 0);
-    const netToSellers = grossValue - platformCommission;
-    return { grossValue, platformCommission, netToSellers };
+    // Assuming tax is 16% of the product price for this calculation
+    const taxCollected = completedOrders.reduce((acc, o) => acc + ((o.productPrice || 0) * 0.16), 0);
+    const netToSellers = grossValue - platformCommission - taxCollected;
+    return { grossValue, platformCommission, netToSellers, taxCollected };
   }, [orders]);
 
   const recentTransactions = React.useMemo(() => {
@@ -96,9 +99,9 @@ export default function AdminFinanceAnalyticsPage() {
           <h1 className="font-headline text-3xl font-bold tracking-tight">
             Financial Analytics
           </h1>
-           <DateRangePicker />
+           <DatePicker date={new Date()} setDate={() => {}} />
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Gross Transaction Value"
             value={`$${revenueStats.grossValue.toLocaleString(undefined, {
@@ -124,6 +127,15 @@ export default function AdminFinanceAnalyticsPage() {
             })}`}
             icon={Landmark}
             description="Total amount due after platform fees."
+            isLoading={isLoading}
+          />
+           <StatCard
+            title="Total Tax Collected"
+            value={`$${revenueStats.taxCollected.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+            })}`}
+            icon={FileText}
+            description="VAT collected for remittance."
             isLoading={isLoading}
           />
         </div>
