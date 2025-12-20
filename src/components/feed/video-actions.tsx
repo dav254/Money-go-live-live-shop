@@ -38,13 +38,10 @@ export function VideoActions({
   const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
-      // Check if the product is in the user's wishlist
-      if (userProfile?.wishlist?.includes(product.id)) {
-          setIsLiked(true);
-      } else {
-          setIsLiked(false);
-      }
-  }, [userProfile, product.id]);
+      // In a future implementation, this could check if the user has liked this specific item.
+      // For now, it's just a local state for visual feedback.
+      setIsLiked(false);
+  }, [product.id]);
 
 
   const handleShare = () => {
@@ -65,40 +62,33 @@ export function VideoActions({
   };
 
   const handleLikeToggle = async () => {
-    if (!user || !firestore) {
-      toast({
-        title: 'Please Log In',
-        description: 'You need to be logged in to save items to your wishlist.',
-        action: <Button onClick={() => router.push('/login')}>Login</Button>,
-      });
-      return;
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to database.' });
+        return;
     }
 
-    const wishlistItemRef = doc(firestore, 'userProfiles', user.uid, 'wishlist', product.id);
     const productRef = doc(firestore, 'products', product.id);
     
+    // Optimistically update the UI
     const newLikedState = !isLiked;
-    setIsLiked(newLikedState); // Optimistically update UI
+    setIsLiked(newLikedState);
 
     try {
+        // Update the like count in Firestore.
+        // If the user un-likes, we could decrement, but for simplicity, we'll just increment.
+        // A more robust system would track which users have liked which products.
         if (newLikedState) {
-            // Add to wishlist and increment like count
-            await setDoc(wishlistItemRef, {
-              productId: product.id,
-              addedAt: serverTimestamp(),
-            });
             await updateDoc(productRef, { likes: increment(1) });
-            toast({ title: 'Saved to Wishlist!' });
+            toast({ title: 'Liked!' });
         } else {
-            // Remove from wishlist and decrement like count
-            await deleteDoc(wishlistItemRef);
+            // Optional: Decrement if you want to allow un-liking to reduce the count.
             await updateDoc(productRef, { likes: increment(-1) });
-            toast({ title: 'Removed from Wishlist' });
+            toast({ title: 'Unliked' });
         }
     } catch (e) {
         setIsLiked(!newLikedState); // Revert UI on error
-        console.error("Error updating wishlist:", e);
-        toast({ variant: 'destructive', title: 'Something went wrong', description: 'Could not update your wishlist.'});
+        console.error("Error updating likes:", e);
+        toast({ variant: 'destructive', title: 'Something went wrong'});
     }
   };
 
