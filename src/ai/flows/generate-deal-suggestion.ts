@@ -11,12 +11,15 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { db } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const GenerateDealSuggestionInputSchema = z.object({
   productName: z.string().describe('The name of the product.'),
   productCategory: z.string().describe('The category of the product.'),
   currentPrice: z.number().describe('The current price of the product in USD.'),
   productDescription: z.string().describe('The detailed description of the product.'),
+  userId: z.string().describe('The ID of the user requesting the suggestion.'),
 });
 export type GenerateDealSuggestionInput = z.infer<typeof GenerateDealSuggestionInputSchema>;
 
@@ -38,8 +41,39 @@ const GenerateDealSuggestionOutputSchema = z.object({
 });
 export type GenerateDealSuggestionOutput = z.infer<typeof GenerateDealSuggestionOutputSchema>;
 
+const DEAL_MAKER_COST = 100;
+
 export async function generateDealSuggestion(input: GenerateDealSuggestionInput): Promise<GenerateDealSuggestionOutput> {
-  return generateDealSuggestionFlow(input);
+  const userRef = db.collection('userProfiles').doc(input.userId);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    throw new Error('User not found.');
+  }
+
+  const userData = userSnap.data();
+  const currentPoints = userData?.aiPoints || 0;
+
+  if (currentPoints < DEAL_MAKER_COST) {
+    throw new Error(`Insufficient points. You need ${DEAL_MAKER_COST} points, but you have ${currentPoints}.`);
+  }
+
+  // Deduct points before generating
+  await userRef.update({
+    aiPoints: FieldValue.increment(-DEAL_MAKER_COST),
+  });
+
+  try {
+    const result = await generateDealSuggestionFlow(input);
+    return result;
+  } catch (error) {
+    // Refund points on failure
+    await userRef.update({
+      aiPoints: FieldValue.increment(DEAL_MAKER_COST),
+    });
+    console.error("AI deal generation failed, points refunded.", error);
+    throw new Error('Failed to generate deal suggestions from the AI model.');
+  }
 }
 
 const prompt = ai.definePrompt({

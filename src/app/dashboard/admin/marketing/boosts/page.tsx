@@ -337,7 +337,7 @@ export default function AdminBoostsPage() {
     };
 
     const handleGenericAction = async (boostId: string, action: 'post_to_tiktok' | 're-queue') => {
-        const optimisticToast = toast({ title: 'Processing your request...', description: 'This may take a moment.' });
+        toast({ title: 'Processing your request...', description: 'This may take a moment.' });
         try {
             if (!user) throw new Error("Authentication error.");
             const token = await user.getIdToken();

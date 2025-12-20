@@ -6,7 +6,7 @@ import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, Chevro
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useUserProfile } from '@/firebase';
-import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
 
@@ -38,7 +38,7 @@ export function VideoActions({
   const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
-      // This is a simplified check. A real app might have a dedicated 'wishlist' subcollection.
+      // Check if the product is in the user's wishlist
       if (userProfile?.wishlist?.includes(product.id)) {
           setIsLiked(true);
       } else {
@@ -75,32 +75,30 @@ export function VideoActions({
     }
 
     const wishlistItemRef = doc(firestore, 'userProfiles', user.uid, 'wishlist', product.id);
+    const productRef = doc(firestore, 'products', product.id);
     
-    if (isLiked) {
-        // Remove from wishlist
-        try {
-            await deleteDoc(wishlistItemRef);
-            toast({ title: 'Removed from Wishlist' });
-            setIsLiked(false);
-        } catch(e) {
-            console.error("Error removing from wishlist:", e);
-        }
-    } else {
-        // Add to wishlist
-        const wishlistItemData = {
-          productId: product.id,
-          addedAt: serverTimestamp(),
-          productName: product.name,
-          productImage: product.imageUrl,
-          productPrice: product.price,
-        };
-        try {
-            await setDoc(wishlistItemRef, wishlistItemData);
+    const newLikedState = !isLiked;
+    setIsLiked(newLikedState); // Optimistically update UI
+
+    try {
+        if (newLikedState) {
+            // Add to wishlist and increment like count
+            await setDoc(wishlistItemRef, {
+              productId: product.id,
+              addedAt: serverTimestamp(),
+            });
+            await updateDoc(productRef, { likes: increment(1) });
             toast({ title: 'Saved to Wishlist!' });
-            setIsLiked(true);
-        } catch(e) {
-            console.error("Error adding to wishlist:", e);
+        } else {
+            // Remove from wishlist and decrement like count
+            await deleteDoc(wishlistItemRef);
+            await updateDoc(productRef, { likes: increment(-1) });
+            toast({ title: 'Removed from Wishlist' });
         }
+    } catch (e) {
+        setIsLiked(!newLikedState); // Revert UI on error
+        console.error("Error updating wishlist:", e);
+        toast({ variant: 'destructive', title: 'Something went wrong', description: 'Could not update your wishlist.'});
     }
   };
 

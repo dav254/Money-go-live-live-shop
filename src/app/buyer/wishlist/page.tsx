@@ -2,12 +2,13 @@
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { ProductCard } from '@/components/products/product-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useState } from 'react';
 
 const ProductGridSkeleton = () => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -18,20 +19,46 @@ const ProductGridSkeleton = () => (
 export default function BuyerWishlistPage() {
     const { user } = useUser();
     const firestore = useFirestore();
+    const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     
-    // We need to fetch the wishlist items, which are just simplified Product-like objects
-    const wishlistQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'userProfiles', user.uid, 'wishlist'), orderBy('addedAt', 'desc'));
-    }, [user, firestore]);
+    useEffect(() => {
+        const fetchWishlistProducts = async () => {
+            if (!user || !firestore) {
+                setIsLoading(false);
+                return;
+            };
 
-    // Then we fetch the full product details for each item in the wishlist
-    const { data: wishlistItems, isLoading } = useCollection<{ productId: string }>(wishlistQuery);
+            setIsLoading(true);
+            try {
+                const wishlistRef = collection(firestore, 'userProfiles', user.uid, 'wishlist');
+                const wishlistSnapshot = await getDocs(wishlistRef);
+                const productIds = wishlistSnapshot.docs.map(doc => doc.id);
+
+                if (productIds.length === 0) {
+                    setWishlistProducts([]);
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // Firestore 'in' query is limited to 30 items.
+                // For a larger wishlist, pagination would be needed.
+                const productsQuery = query(collection(firestore, 'products'), where('__name__', 'in', productIds));
+                const productsSnapshot = await getDocs(productsQuery);
+                const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+                
+                setWishlistProducts(products);
+
+            } catch (error) {
+                console.error("Error fetching wishlist products:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchWishlistProducts();
+    }, [user, firestore]);
     
-    // This is a simplified approach. A more optimized approach for large wishlists would be
-    // to use a `where('id', 'in', [...productIds])` query, but that has a limit of 10 items.
-    // For this app, fetching individual docs is acceptable.
-    // For now, we will render a placeholder since fetching each product individually is complex for this step.
     
     return (
         <BuyerLayout>
@@ -39,15 +66,12 @@ export default function BuyerWishlistPage() {
                 <h1 className="font-headline text-3xl font-bold mb-8">My Wishlist</h1>
                 {isLoading ? (
                     <ProductGridSkeleton />
-                ) : wishlistItems && wishlistItems.length > 0 ? (
-                    <p className="text-muted-foreground">
-                        Displaying {wishlistItems.length} items from your wishlist. (Full display coming soon)
-                    </p>
-                    // <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    //     {wishlistItems.map(item => (
-                    //         <ProductCard key={item.productId} product={{ id: item.productId, ... }} />
-                    //     ))}
-                    // </div>
+                ) : wishlistProducts && wishlistProducts.length > 0 ? (
+                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {wishlistProducts.map(product => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
                         <Heart className="h-12 w-12 text-muted-foreground" />
