@@ -10,7 +10,7 @@ service cloud.firestore {
       // Allow user to update their own profile, OR an admin to update specific fields.
       allow update: if request.auth.uid == userId ||
                       (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole']));
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole', 'connections']));
       allow create: if request.auth.uid != null;
       
       // A user can only read and write to their own cart.
@@ -33,7 +33,7 @@ service cloud.firestore {
       allow create: if request.auth.uid == request.resource.data.sellerId;
       // Allow a user to list requests ONLY if they are filtering by their own sellerId.
       allow list: if request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid;
-      allow read: if (request.auth.uid == resource.data.sellerId) || 
+      allow read, update: if (request.auth.uid == resource.data.sellerId) || 
                          get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     
@@ -144,11 +144,20 @@ service cloud.firestore {
     }
 
     match /walletTransactions/{transactionId} {
-        // Only backend functions can create transactions.
+        // Nobody can create transactions from the client-side. Only the backend function can.
         allow create: if false; 
-        // Users can read their own transactions. Admins can read any.
+        
+        // Users can read their own transactions. Admins can read any transaction.
         allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-        allow list: if request.auth != null && (request.query.where[0][2] == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        
+        // Users can only list transactions if they are querying by their own userId. Admins can list all.
+        allow list: if request.auth != null && (
+            (request.query.where.size() > 0 && request.query.where[0][2] == request.auth.uid) || 
+            get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin'
+        );
+        
+        // No client-side updates or deletes are allowed for financial records.
+        allow update, delete: if false;
     }
 
     // Categories are publicly readable
@@ -285,5 +294,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

@@ -415,11 +415,12 @@ export interface AIFraudAlert {
     status: 'open' | 'investigating' | 'resolved' | 'dismissed';
 }
 
-export interface Transaction {
-  id: string;
-  date: Date;
-  type: 'purchase' | 'withdrawal' | 'refund';
-  description: string;
-  status: 'Completed' | 'Pending';
-  amount: number;
+export interface WalletTransaction {
+    id: string;
+    userId: string;
+    orderId: string;
+    type: 'SALE_EARNING' | 'SHIPPING_FEE' | 'COMMISSION' | 'PLATFORM_FEE' | 'TAX' | 'PAYOUT_REQUEST' | 'PAYOUT_COMPLETED' | 'REFUND';
+    amount: number;
+    description: string;
+    timestamp: any;
 }
