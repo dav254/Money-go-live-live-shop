@@ -385,13 +385,6 @@ export default function SellerSettingsPage() {
                     <Label htmlFor="email">Public Email</Label>
                     <Input id="email" type="email" placeholder="support@aishabags.co.ke" />
                 </div>
-                <Separator />
-                <div className="space-y-2">
-                    <Label>Social Media Links</Label>
-                    <Input placeholder="TikTok Profile URL" />
-                    <Input placeholder="Instagram Profile URL" />
-                    <Input placeholder="Facebook Page URL" />
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
