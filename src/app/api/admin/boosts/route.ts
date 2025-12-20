@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -78,7 +79,7 @@ export async function PUT(request: NextRequest) {
             await boostRef.update({ 
                 status: 'rejected', 
                 rejectionReason: rejectionReason || 'Content did not meet guidelines.',
-                updatedAt: new Date()
+                updatedAt: FieldValue.serverTimestamp()
             });
             // Refund points to the seller
             const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
@@ -90,7 +91,7 @@ export async function PUT(request: NextRequest) {
         if (action === 'approved') {
             await boostRef.update({
                 status: 'approved',
-                updatedAt: new Date()
+                updatedAt: FieldValue.serverTimestamp()
             });
             
             return NextResponse.json({ success: true, message: 'Boost approved and is ready to be posted.' });
@@ -100,7 +101,7 @@ export async function PUT(request: NextRequest) {
             await boostRef.update({
                 status: 'pending',
                 rejectionReason: null, // Clear rejection reason
-                updatedAt: new Date()
+                updatedAt: FieldValue.serverTimestamp()
             });
             return NextResponse.json({ success: true, message: 'Boost has been moved back to the pending queue.' });
         }
@@ -114,7 +115,7 @@ export async function PUT(request: NextRequest) {
             const goEarnTikTokOpenId = process.env.GOEARN_TIKTOK_OPEN_ID;
 
             if (!goEarnTikTokToken || !goEarnTikTokOpenId) {
-                 await boostRef.update({ status: 'rejected', rejectionReason: 'Platform TikTok account not configured.' });
+                 await boostRef.update({ status: 'rejected', rejectionReason: 'Platform TikTok account not configured.', updatedAt: FieldValue.serverTimestamp() });
                  const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
                  await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
                  console.error('CRITICAL: GOEARN_TIKTOK_ACCESS_TOKEN or GOEARN_TIKTOK_OPEN_ID is not set in environment variables.');
@@ -124,7 +125,7 @@ export async function PUT(request: NextRequest) {
             const uploadResult = await uploadVideoToTikTok(boostData, goEarnTikTokToken, goEarnTikTokOpenId);
 
             if (!uploadResult.success) {
-                 await boostRef.update({ status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}` });
+                 await boostRef.update({ status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}`, updatedAt: FieldValue.serverTimestamp() });
                  const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
                  await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
                 return NextResponse.json({ message: `Boost rejected due to TikTok API error: ${uploadResult.message}` }, { status: 500 });
@@ -133,7 +134,7 @@ export async function PUT(request: NextRequest) {
             await boostRef.update({
                 status: 'active',
                 tiktokVideoId: uploadResult.videoId,
-                updatedAt: new Date()
+                updatedAt: FieldValue.serverTimestamp()
             });
 
             return NextResponse.json({ success: true, message: 'Boost approved and posted to the official Go Earn TikTok account.' });
