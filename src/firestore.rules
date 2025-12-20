@@ -96,8 +96,12 @@ service cloud.firestore {
     // Admins can list all orders.
     // Buyers and Resellers can only list orders where their ID is present.
     match /orders/{orderId} {
+       function isAdmin() {
+        return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      }
+
       allow list: if request.auth != null && (
-          get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
+          isAdmin() ||
           (request.query.where.size() > 0 && 
             (
               (request.query.where[0][0] == 'buyerId' && request.query.where[0][2] == request.auth.uid) ||
@@ -110,7 +114,7 @@ service cloud.firestore {
                      (resource.data.buyerId == request.auth.uid || 
                       resource.data.sellerId == request.auth.uid ||
                       resource.data.resellerId == request.auth.uid ||
-                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+                      isAdmin());
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
       // Allow seller to update status from pending->processing or processing->shipped
@@ -128,11 +132,11 @@ service cloud.firestore {
                        ( // Buyer's permissions
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
-                         request.resource.data.orderStatus == 'delivered'
+                         resource.data.orderStatus == 'delivered'
                        )
                      );
 
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow delete: if request.auth != null && isAdmin();
     }
     
     // Payout requests can only be created by the seller themselves.
@@ -294,3 +298,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
