@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/chart';
 import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
 import { Badge } from '@/components/ui/badge';
-import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import { DatePicker } from '@/components/dashboard/date-range-picker';
 import { Button } from '@/components/ui/button';
 
 const chartConfig = {
@@ -138,7 +138,7 @@ export default function AdminRevenueChartsPage() {
           <h1 className="font-headline text-3xl font-bold tracking-tight">
             Sales Analytics
           </h1>
-          <DateRangePicker />
+          <DatePicker date={new Date()} setDate={() => {}} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard

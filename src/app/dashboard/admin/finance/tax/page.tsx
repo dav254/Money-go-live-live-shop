@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, FileText, Percent } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import { DatePicker } from '@/components/dashboard/date-range-picker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function AdminTaxPage() {
@@ -56,7 +56,7 @@ export default function AdminTaxPage() {
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label>Select Date Range</Label>
-                        <DateRangePicker />
+                        <DatePicker date={new Date()} setDate={() => {}} />
                     </div>
                      <div className="rounded-lg border bg-background p-4 space-y-1">
                         <p className="text-sm text-muted-foreground">Total Tax Collected for Period</p>
