@@ -118,8 +118,6 @@ export function AdminSidebar() {
             items={[
                 { href: 'all', label: 'All Products' },
                 { href: 'reported', label: 'Reported' },
-                { href: 'categories', label: 'Categories' },
-                { href: 'tags', label: 'Tags' },
             ]}
         />
 
