@@ -63,7 +63,7 @@ export async function uploadVideoToTikTok(boost: BoostRequest, accessToken: stri
                 'Content-Type': 'video/mp4',
                 'Content-Length': String(videoBuffer.length)
             },
-            body: Readable.from(videoBuffer),
+            body: videoBuffer,
         });
 
         if (uploadResponse.status !== 200) {
