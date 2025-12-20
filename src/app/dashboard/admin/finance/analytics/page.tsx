@@ -25,10 +25,11 @@ import {
   FileText,
 } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/dashboard/date-picker';
+import { Button } from '@/components/ui/button';
 
 const StatCard = ({
   title,
@@ -66,6 +67,7 @@ const StatCard = ({
 
 export default function AdminFinanceAnalyticsPage() {
   const firestore = useFirestore();
+  const [date, setDate] = React.useState<Date | undefined>();
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -74,23 +76,39 @@ export default function AdminFinanceAnalyticsPage() {
 
   const { data: orders, isLoading } = useCollection<Order>(ordersQuery);
 
+  const filteredOrders = React.useMemo(() => {
+    if (!orders) return [];
+    if (!date) return orders;
+
+    // Filter orders to match the selected date (day, month, year)
+    return orders.filter(order => {
+      if (!order.orderDate) return false;
+      const orderDate = (order.orderDate as Timestamp).toDate();
+      return (
+        orderDate.getDate() === date.getDate() &&
+        orderDate.getMonth() === date.getMonth() &&
+        orderDate.getFullYear() === date.getFullYear()
+      );
+    });
+  }, [orders, date]);
+
+
   const revenueStats = React.useMemo(() => {
-    if (!orders) {
+    if (!filteredOrders) {
       return { grossValue: 0, platformCommission: 0, netToSellers: 0, taxCollected: 0 };
     }
-    const completedOrders = orders.filter(o => o.orderStatus === 'delivered');
+    const completedOrders = filteredOrders.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped' || o.orderStatus === 'processing');
     const grossValue = completedOrders.reduce((acc, o) => acc + o.totalAmount, 0);
     const platformCommission = completedOrders.reduce((acc, o) => acc + (o.platformFee || 0), 0);
-    // Assuming tax is 16% of the product price for this calculation
     const taxCollected = completedOrders.reduce((acc, o) => acc + ((o.productPrice || 0) * 0.16), 0);
     const netToSellers = grossValue - platformCommission - taxCollected;
     return { grossValue, platformCommission, netToSellers, taxCollected };
-  }, [orders]);
+  }, [filteredOrders]);
 
   const recentTransactions = React.useMemo(() => {
-     if (!orders) return [];
-    return orders.filter(o => o.orderStatus === 'delivered').slice(0, 10);
-  }, [orders]);
+     if (!filteredOrders) return [];
+    return filteredOrders.filter(o => o.orderStatus === 'delivered').slice(0, 10);
+  }, [filteredOrders]);
 
   return (
     <AdminLayout>
@@ -99,7 +117,10 @@ export default function AdminFinanceAnalyticsPage() {
           <h1 className="font-headline text-3xl font-bold tracking-tight">
             Financial Analytics
           </h1>
-           <DatePicker date={new Date()} setDate={() => {}} />
+           <div className="flex items-center gap-2">
+            <DatePicker date={date} setDate={setDate} />
+            {date && <Button variant="ghost" onClick={() => setDate(undefined)}>Clear</Button>}
+           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -108,7 +129,7 @@ export default function AdminFinanceAnalyticsPage() {
               minimumFractionDigits: 2,
             })}`}
             icon={TrendingUp}
-            description="Total value of all completed sales."
+            description={date ? `For ${date.toLocaleDateString()}`: "Total value of all completed sales."}
             isLoading={isLoading}
           />
           <StatCard
@@ -143,7 +164,9 @@ export default function AdminFinanceAnalyticsPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Detailed Revenue Breakdown</CardTitle>
-                <CardDescription>A list of recent transactions showing revenue splits.</CardDescription>
+                <CardDescription>
+                  {date ? `Transactions for ${date.toLocaleDateString()}` : 'A list of recent transactions showing revenue splits.'}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                  <Table>
@@ -170,7 +193,8 @@ export default function AdminFinanceAnalyticsPage() {
                         ) : recentTransactions.length > 0 ? (
                              recentTransactions.map(order => {
                                  const platformFee = order.platformFee || 0;
-                                 const netAmount = order.totalAmount - platformFee - (order.resellerCommission || 0);
+                                 const resellerCommission = order.resellerCommission || 0;
+                                 const netAmount = order.totalAmount - platformFee - resellerCommission;
                                  return (
                                     <TableRow key={order.id}>
                                         <TableCell className="font-mono text-xs text-muted-foreground">#{order.id}</TableCell>
