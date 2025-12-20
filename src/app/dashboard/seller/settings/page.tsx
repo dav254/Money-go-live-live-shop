@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -26,18 +25,33 @@ import {
   Store,
   UploadCloud,
   Link as LinkIcon,
-  Bot
+  Bot,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useMemoFirebase, useUserProfile, errorEmitter } from '@/firebase';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import type { SellerShop } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { getTikTokAuthUrl } from '@/lib/tiktok';
+import { FirestorePermissionError } from '@/firebase/errors';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 export default function SellerSettingsPage() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -45,6 +59,8 @@ export default function SellerSettingsPage() {
   const { toast } = useToast();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
   const sellerShopRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -149,6 +165,23 @@ export default function SellerSettingsPage() {
     }
   };
   
+    const handleDisconnectTikTok = async () => {
+        if (!user || !firestore) return;
+
+        const userRef = doc(firestore, 'userProfiles', user.uid);
+        try {
+            await updateDoc(userRef, { 'connections.tiktok': null });
+            toast({ title: 'TikTok Disconnected', description: 'Your account has been unlinked.' });
+        } catch (error) {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: { 'connections.tiktok': null },
+            }));
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not disconnect your account.' });
+        }
+    };
+    
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -235,27 +268,64 @@ export default function SellerSettingsPage() {
           </TabsContent>
 
           {/* Connections Tab */}
-          <TabsContent value="connections" className="space-y-4">
+            <TabsContent value="connections" className="space-y-4">
             <Card>
                 <CardHeader>
                     <CardTitle>App Connections</CardTitle>
                     <CardDescription>Connect your social media accounts to enable powerful cross-platform features.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="flex items-center gap-4">
-                             <div className="p-3 bg-black rounded-lg border border-neutral-700">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 0 .15.02.22.04.53.15 1.02.44 1.43.82.38.35.66.78.85 1.25.08.2.13.4.14.61.01 1.3.02 2.6.02 3.91s-.01 2.61-.02 3.91c0 .08-.02.15-.04.22-.15.53-.44 1.02-.82 1.43-.35.38-.78.66-1.25.85-.2.08-.4.13-.61.14-1.3.01-2.6.02-3.91.02s-2.61-.01-3.91-.02c-.08 0-.15-.02-.22-.04-.53-.15-1.02-.44-1.43-.82-.38-.35-.66-.78-.85-1.25-.08-.2-.13-.4-.14-.61-.01-1.3-.02-2.6-.02-3.91s.01-2.61.02-3.91c0-.08.02-.15.04-.22.15-.53.44-1.02.82-1.43.35-.38.78-.66 1.25-.85.2-.08.4-.13.61-.14 1.3-.01 2.6-.02 3.91-.02zM12 15.35c-1.85 0-3.35-1.5-3.35-3.35s1.5-3.35 3.35-3.35 3.35 1.5 3.35 3.35-1.5 3.35-3.35 3.35zM12 10.1c-1.05 0-1.9.85-1.9 1.9s.85 1.9 1.9 1.9 1.9-.85 1.9-1.9-.85-1.9-1.9-1.9z" fill="white" /><path d="M16.95 3.05a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" fill="white" /></svg>
+                     {isProfileLoading ? (
+                        <p>Loading connection status...</p>
+                    ) : userProfile?.connections?.tiktok?.accessToken ? (
+                        <div className="flex items-center justify-between rounded-lg border border-green-500/50 bg-green-500/10 p-4">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-green-500/20 rounded-lg">
+                                    <CheckCircle className="h-5 w-5 text-green-400" />
+                                </div>
+                                <div>
+                                    <Label className="text-lg font-bold text-green-300">TikTok Connected</Label>
+                                    <p className="text-sm text-green-300/80">
+                                        Your account is ready to post videos directly to TikTok.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <Label className="text-lg font-bold">TikTok</Label>
-                                <p className="text-sm text-muted-foreground">Allow Go Earn to post boosted videos directly to your TikTok account.</p>
-                            </div>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="sm">Disconnect</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Disconnecting your TikTok account will prevent Go Earn from posting on your behalf. You can reconnect at any time.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDisconnectTikTok}>
+                                            Disconnect
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
-                        <Button asChild>
-                            <a href={getTikTokAuthUrl(user?.uid || '')}>Connect with TikTok</a>
-                        </Button>
-                    </div>
+                    ) : (
+                        <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-black rounded-lg border border-neutral-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 0 .15.02.22.04.53.15 1.02.44 1.43.82.38.35.66.78.85 1.25.08.2.13.4.14.61.01 1.3.02 2.6.02 3.91s-.01 2.61-.02 3.91c0 .08-.02.15-.04.22-.15.53-.44 1.02-.82 1.43-.35.38-.78.66-1.25.85-.2.08-.4.13-.61.14-1.3.01-2.6.02-3.91.02s-2.61-.01-3.91-.02c-.08 0-.15-.02-.22-.04-.53-.15-1.02-.44-1.43-.82-.38-.35-.66-.78-.85-1.25-.08-.2-.13-.4-.14-.61-.01-1.3-.02-2.6-.02-3.91s.01-2.61.02-3.91c0-.08.02-.15.04-.22.15-.53.44 1.02.82-1.43.35-.38.78-.66 1.25-.85.2-.08.4-.13.61-.14 1.3-.01 2.6-.02 3.91-.02zM12 15.35c-1.85 0-3.35-1.5-3.35-3.35s1.5-3.35 3.35-3.35 3.35 1.5 3.35 3.35-1.5 3.35-3.35 3.35zM12 10.1c-1.05 0-1.9.85-1.9 1.9s.85 1.9 1.9 1.9 1.9-.85 1.9-1.9-.85-1.9-1.9-1.9z" fill="white" /><path d="M16.95 3.05a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" fill="white" /></svg>
+                                </div>
+                                <div>
+                                    <Label className="text-lg font-bold">TikTok</Label>
+                                    <p className="text-sm text-muted-foreground">Allow Go Earn to post boosted videos directly to your TikTok account.</p>
+                                </div>
+                            </div>
+                             <Button asChild>
+                                <a href={getTikTokAuthUrl(user?.uid || '')}>Connect with TikTok</a>
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
           </TabsContent>
