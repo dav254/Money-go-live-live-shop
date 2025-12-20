@@ -28,6 +28,7 @@ import {
   Bot,
   CheckCircle,
   XCircle,
+  Loader2,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -51,6 +52,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+
+const passwordFormSchema = z.object({
+  oldPassword: z.string().min(1, { message: "Old password is required." }),
+  newPassword: z.string().min(6, { message: "New password must be at least 6 characters." }),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 
 export default function SellerSettingsPage() {
@@ -59,6 +74,7 @@ export default function SellerSettingsPage() {
   const { toast } = useToast();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+  const auth = getAuth();
   
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
@@ -76,6 +92,7 @@ export default function SellerSettingsPage() {
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<'logo' | 'banner' | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   
   useEffect(() => {
     if (shopData) {
@@ -85,6 +102,37 @@ export default function SellerSettingsPage() {
         setBannerUrl(shopData.bannerUrl || null);
     }
   }, [shopData]);
+  
+  const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+      resolver: zodResolver(passwordFormSchema),
+      defaultValues: { oldPassword: '', newPassword: '', confirmPassword: '' },
+    });
+
+  async function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
+    if (!user || !user.email) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Not logged in or email not found.' });
+      return;
+    }
+    setIsPasswordSaving(true);
+    
+    const credential = EmailAuthProvider.credential(user.email, values.oldPassword);
+    
+    try {
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, values.newPassword);
+      toast({ title: 'Success', description: 'Your password has been updated.' });
+      passwordForm.reset();
+    } catch (error: any) {
+      console.error("Password update error:", error);
+      let description = "An error occurred. Please try again.";
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = "The old password you entered is incorrect.";
+      }
+      toast({ variant: 'destructive', title: 'Password Update Failed', description });
+    } finally {
+      setIsPasswordSaving(false);
+    }
+  }
 
 
   const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
@@ -395,17 +443,62 @@ export default function SellerSettingsPage() {
               <CardHeader>
                 <CardTitle>Security</CardTitle>
                 <CardDescription>
-                  Manage your account security settings.
+                  Manage your password and account security settings.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                        <Label>Password</Label>
-                        <p className="text-sm text-muted-foreground">Manage your account password.</p>
-                    </div>
-                    <Button variant="outline">Change Password</Button>
-                </div>
+                <Form {...passwordForm}>
+                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                        <h3 className="text-lg font-medium">Change Password</h3>
+                        <div className="space-y-4 mt-4">
+                            <FormField
+                                control={passwordForm.control}
+                                name="oldPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Old Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Confirm New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <Button type="submit" disabled={isPasswordSaving}>
+                                {isPasswordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Update Password
+                            </Button>
+                        </div>
+                    </form>
+                 </Form>
               </CardContent>
             </Card>
           </TabsContent>
