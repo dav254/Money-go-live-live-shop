@@ -13,6 +13,7 @@ export interface UserProfile {
   email: string;
   joinDate: string;
   userRole: 'buyer' | 'seller' | 'reseller' | 'admin';
+  wishlist?: string[]; // Array of product IDs
 }
 
 // Define the return type for the hook

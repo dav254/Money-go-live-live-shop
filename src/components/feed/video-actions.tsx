@@ -2,12 +2,11 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown, Heart } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, errorEmitter } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useUserProfile } from '@/firebase';
+import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
 
@@ -35,6 +34,17 @@ export function VideoActions({
   const { user } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { userProfile } = useUserProfile(user?.uid);
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+      // This is a simplified check. A real app might have a dedicated 'wishlist' subcollection.
+      if (userProfile?.wishlist?.includes(product.id)) {
+          setIsLiked(true);
+      } else {
+          setIsLiked(false);
+      }
+  }, [userProfile, product.id]);
 
 
   const handleShare = () => {
@@ -54,7 +64,7 @@ export function VideoActions({
     });
   };
 
-  const handleSaveToWishlist = () => {
+  const handleLikeToggle = async () => {
     if (!user || !firestore) {
       toast({
         title: 'Please Log In',
@@ -66,36 +76,32 @@ export function VideoActions({
 
     const wishlistItemRef = doc(firestore, 'userProfiles', user.uid, 'wishlist', product.id);
     
-    // Create a simple object with just the necessary info.
-    const wishlistItemData = {
-      productId: product.id,
-      addedAt: serverTimestamp(),
-    };
-
-    setDoc(wishlistItemRef, wishlistItemData)
-      .then(() => {
-        toast({
-          title: 'Saved to Wishlist!',
-          description: `${product.name} has been added to your wishlist.`,
-        });
-      })
-      .catch(error => {
-        // Emit a detailed error for debugging.
-        errorEmitter.emit(
-          'permission-error',
-          new FirestorePermissionError({
-            path: wishlistItemRef.path,
-            operation: 'write',
-            requestResourceData: wishlistItemData,
-          })
-        );
-        // Show a generic message to the user.
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Could not save to wishlist. Please try again.'
-        });
-      });
+    if (isLiked) {
+        // Remove from wishlist
+        try {
+            await deleteDoc(wishlistItemRef);
+            toast({ title: 'Removed from Wishlist' });
+            setIsLiked(false);
+        } catch(e) {
+            console.error("Error removing from wishlist:", e);
+        }
+    } else {
+        // Add to wishlist
+        const wishlistItemData = {
+          productId: product.id,
+          addedAt: serverTimestamp(),
+          productName: product.name,
+          productImage: product.imageUrl,
+          productPrice: product.price,
+        };
+        try {
+            await setDoc(wishlistItemRef, wishlistItemData);
+            toast({ title: 'Saved to Wishlist!' });
+            setIsLiked(true);
+        } catch(e) {
+            console.error("Error adding to wishlist:", e);
+        }
+    }
   };
 
 
@@ -112,6 +118,11 @@ export function VideoActions({
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('up')}>
           <ChevronUp className="h-6 w-6 text-white" />
+        </Button>
+      </div>
+      <div className="flex flex-col items-center">
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLikeToggle}>
+          <Heart className={`h-6 w-6 text-white transition-colors ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
         </Button>
       </div>
       <div className="flex flex-col items-center">

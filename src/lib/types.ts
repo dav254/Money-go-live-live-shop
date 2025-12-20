@@ -24,6 +24,7 @@ export interface UserProfile {
     following?: string[];
     shopName?: string; // For sellers
     walletBalance?: number;
+    wishlist?: string[]; // Array of product IDs
     connections?: {
       tiktok?: {
         openId: string;
@@ -94,6 +95,7 @@ export interface Product {
     uploadDate: any; // Can be Timestamp or string
     rating?: number;
     shippingCost?: number;
+    salesCount?: number;
 }
 
 export type Seller = {
@@ -162,11 +164,13 @@ export type Category = {
 
 export type Review = {
     id: string;
+    buyerId: string;
     author: string;
     avatar: string;
     rating: number;
     comment: string;
     date: string;
+    createdAt: any;
 };
 
 export type StoryHighlight = {
