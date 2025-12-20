@@ -2,6 +2,33 @@
 
 import type { BoostRequest } from './types';
 import axios from 'axios';
+import { Readable } from 'stream';
+
+const TIKTOK_AUTH_BASE_URL = 'https://www.tiktok.com/v2/auth/authorize';
+
+/**
+ * Generates the authorization URL for TikTok's OAuth 2.0 flow.
+ * @param state A unique string to prevent CSRF attacks. Should be stored in user's session.
+ * @returns The full URL to redirect the user to for authorization.
+ */
+export function getTikTokAuthUrl(state: string): string {
+    const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
+    if (!clientKey) {
+        throw new Error("TikTok client key is not configured in environment variables.");
+    }
+    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/tiktok/callback`;
+    
+    const params = new URLSearchParams({
+        client_key: clientKey,
+        scope: 'video.publish',
+        response_type: 'code',
+        redirect_uri: redirectUri,
+        state: state,
+    });
+
+    return `${TIKTOK_AUTH_BASE_URL}?${params.toString()}`;
+}
+
 
 /**
  * Uploads a video to TikTok using the official API.
