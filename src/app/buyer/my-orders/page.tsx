@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -293,7 +294,7 @@ export default function MyOrdersPage() {
           </TabsList>
           
           <TabsContent value="active" className="space-y-4">
-             {filteredOrders(['pending']).length > 0 ? filteredOrders(['pending']).map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
+             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
           </TabsContent>
           <TabsContent value="processing" className="space-y-4">
              {filteredOrders('processing').length > 0 ? filteredOrders('processing').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No orders are currently processing.</p>}
