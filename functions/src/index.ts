@@ -7,48 +7,49 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Processes a new order to distribute earnings and taxes automatically.
- * Triggered when a new document is created in the 'orders' collection.
+ * Processes a delivered order to distribute earnings and taxes automatically.
+ * Triggered when an order's status is updated, specifically to 'delivered'.
  */
 export const processOrderAndDistributeEarnings = functions.firestore
     .document("orders/{orderId}")
-    .onCreate(async (snap, context) => {
-      const orderData = snap.data();
+    .onUpdate(async (change, context) => {
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
       const { orderId } = context.params;
 
-      // 1. --- Basic Validation ---
-      if (!orderData || !orderData.sellerId || !orderData.productPrice) {
+      // --- Trigger Condition ---
+      // Only run if the status changes TO 'delivered' from something else.
+      if (beforeData.orderStatus === 'delivered' || afterData.orderStatus !== 'delivered') {
+        functions.logger.log(`Order ${orderId} status not changed to 'delivered'. Exiting function.`);
+        return null;
+      }
+
+      // --- Basic Validation ---
+      if (!afterData || !afterData.sellerId || !afterData.productPrice) {
         functions.logger.error("Order missing critical data (sellerId, productPrice)", { orderId });
         return null;
       }
 
-      const { sellerId, resellerId, productPrice, shippingCost, commissionRate } = orderData;
+      const { sellerId, resellerId, productPrice, shippingCost, commissionRate } = afterData;
       
       try {
-        // 2. --- Define Rates (can be moved to Firestore config later) ---
+        // --- Define Rates (can be moved to Firestore config later) ---
         const VAT_RATE = 0.16; // 16%
         const PLATFORM_FEE_RATE = 0.10; // 10%
 
-        // 3. --- Calculate All Financial Splits ---
-        // Tax is calculated on the product price, not including shipping.
+        // --- Calculate All Financial Splits ---
         const taxAmount = productPrice * VAT_RATE;
-
-        // Platform fee is calculated on the pre-tax product price.
         const platformFee = productPrice * PLATFORM_FEE_RATE;
-
-        // Reseller commission is also based on the pre-tax product price.
         let resellerCommission = 0;
         if (resellerId && commissionRate) {
             resellerCommission = productPrice * (commissionRate / 100);
         }
-
-        // Seller's net earning is the product price minus all deductions. They keep the full shipping fee.
         const sellerNetEarnings = productPrice - platformFee - resellerCommission;
 
         const batch = db.batch();
         const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
-        // 4. --- Create Transaction Records for Each Party ---
+        // --- Create Transaction Records for Each Party ---
 
         // A. Seller's Earning Transaction
         const sellerEarningRef = db.collection("walletTransactions").doc();
@@ -107,14 +108,13 @@ export const processOrderAndDistributeEarnings = functions.firestore
           timestamp: timestamp,
         });
 
-        // 5. --- Commit all transactions atomically ---
+        // --- Commit all transactions atomically ---
         await batch.commit();
 
-        functions.logger.info(`Successfully processed all financial splits for order ${orderId}`);
+        functions.logger.info(`Successfully processed all financial splits for delivered order ${orderId}`);
         return null;
       } catch (error) {
-        functions.logger.error(`Error processing order ${orderId}:`, error);
-        // Optionally, add error handling like sending a notification
+        functions.logger.error(`Error processing delivered order ${orderId}:`, error);
         return null;
       }
     });
