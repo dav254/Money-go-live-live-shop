@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, FileText, Percent } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DatePicker } from '@/components/dashboard/date-range-picker';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function AdminTaxPage() {
@@ -22,11 +22,11 @@ export default function AdminTaxPage() {
           Finance: Tax Center
         </h1>
         
-        <Alert variant="default" className="bg-yellow-600/10 border-yellow-500/50 text-yellow-200">
-          <AlertCircle className="h-4 w-4 !text-yellow-400" />
-          <AlertTitle className="font-bold !text-yellow-300">Important Legal Information</AlertTitle>
+        <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-200">
+          <AlertCircle className="h-4 w-4 !text-blue-400" />
+          <AlertTitle className="font-bold !text-blue-300">How Tax Works on Go Earn</AlertTitle>
           <AlertDescription>
-            This module is for reporting purposes only. You are responsible for ensuring tax compliance, including setting the correct rates and remitting all collected taxes to the relevant government authorities (e.g., KRA). Consult a tax professional for guidance.
+            Taxes (like VAT) are **paid by the buyer**, not deducted from the seller. The tax rate you set here is automatically added to the buyer's total at checkout. The collected tax is then reported here for you to remit to the authorities. This ensures sellers receive their expected earnings without seeing tax as a deduction from their revenue.
           </AlertDescription>
         </Alert>
 
@@ -35,7 +35,7 @@ export default function AdminTaxPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Percent /> Tax Rate Configuration</CardTitle>
-                    <CardDescription>Set the Value Added Tax (VAT) rate for sales on the platform.</CardDescription>
+                    <CardDescription>Set the Value Added Tax (VAT) rate that will be applied to all sales at checkout.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -43,7 +43,6 @@ export default function AdminTaxPage() {
                         <Input id="tax-rate" type="number" defaultValue={taxRate} />
                     </div>
                     <Button>Save Tax Rate</Button>
-                    <p className="text-xs text-muted-foreground">This rate will be automatically applied to all sales at checkout.</p>
                 </CardContent>
             </Card>
 
@@ -51,11 +50,11 @@ export default function AdminTaxPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><FileText /> Tax Reporting</CardTitle>
-                    <CardDescription>Generate reports of collected taxes for remittance.</CardDescription>
+                    <CardDescription>Generate reports of collected taxes for remittance to the government (e.g., KRA).</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Select Date Range</Label>
+                        <Label>Select Reporting Period</Label>
                         <DatePicker date={new Date()} setDate={() => {}} />
                     </div>
                      <div className="rounded-lg border bg-background p-4 space-y-1">
@@ -66,6 +65,14 @@ export default function AdminTaxPage() {
                 </CardContent>
             </Card>
         </div>
+        
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle className="font-bold">Legal Disclaimer</AlertTitle>
+          <AlertDescription>
+            This module is for reporting purposes only. You are responsible for ensuring tax compliance, including setting the correct rates and remitting all collected taxes to the relevant government authorities. Consult a tax professional for guidance.
+          </AlertDescription>
+        </Alert>
 
       </div>
     </AdminLayout>
