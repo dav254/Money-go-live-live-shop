@@ -8,7 +8,6 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -32,70 +31,54 @@ import {
 import { DotsHorizontalIcon } from '@radix-ui/react-icons';
 import { formatDistanceToNow } from 'date-fns';
 import { ShieldAlert, Video } from 'lucide-react';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import type { Complaint, UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type FlaggedStream = {
-  id: string;
-  sellerId: string;
-  sellerName: string;
-  sellerAvatar: string;
-  reason: 'Inappropriate Content' | 'Scam/Fraud' | 'Hate Speech';
-  flaggedAt: Date;
-  liveSessionId: string;
-};
+const SellerCell = ({ sellerId }: { sellerId: string }) => {
+    const firestore = useFirestore();
+    const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
+    const { data: seller, isLoading } = useDoc<UserProfile>(sellerProfileRef);
 
-const mockData: FlaggedStream[] = [
-  {
-    id: 'flag-1',
-    sellerId: 'seller-xyz',
-    sellerName: 'Flashy Gadgets',
-    sellerAvatar: 'https://picsum.photos/seed/seller1/40',
-    reason: 'Scam/Fraud',
-    flaggedAt: new Date(new Date().setHours(new Date().getHours() - 1)),
-    liveSessionId: 'live-abc',
-  },
-  {
-    id: 'flag-2',
-    sellerId: 'seller-abc',
-    sellerName: 'Trendy Threads',
-    sellerAvatar: 'https://picsum.photos/seed/seller2/40',
-    reason: 'Inappropriate Content',
-    flaggedAt: new Date(new Date().setMinutes(new Date().getMinutes() - 15)),
-    liveSessionId: 'live-def',
-  },
-];
+    if (isLoading) return <Skeleton className="h-6 w-24" />;
 
-const reasonVariant: { [key in FlaggedStream['reason']]: 'destructive' | 'secondary' | 'default' } = {
-    'Inappropriate Content': 'destructive',
-    'Scam/Fraud': 'destructive',
-    'Hate Speech': 'destructive',
-};
-
-const columns: ColumnDef<FlaggedStream>[] = [
-  {
-    accessorKey: 'sellerName',
-    header: 'Seller',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
+    return (
+        <div className="flex items-center gap-3">
         <Avatar className="h-9 w-9">
-          <AvatarImage src={row.original.sellerAvatar} />
-          <AvatarFallback>{row.original.sellerName.charAt(0)}</AvatarFallback>
+          <AvatarImage src={seller?.profilePictureUrl} />
+          <AvatarFallback>{seller?.fullName?.charAt(0)}</AvatarFallback>
         </Avatar>
-        <div className="font-medium">{row.original.sellerName}</div>
+        <div className="font-medium">{seller?.fullName}</div>
       </div>
-    ),
+    );
+};
+
+
+const reasonVariant: { [key: string]: 'destructive' | 'secondary' | 'default' } = {
+  'Inappropriate Content': 'destructive',
+  'Scam/Fraud': 'destructive',
+  'Hate Speech': 'destructive',
+};
+
+const columns: ColumnDef<Complaint>[] = [
+  {
+    accessorKey: 'targetId',
+    header: 'Seller',
+    cell: ({ row }) => <SellerCell sellerId={row.original.targetId} />,
   },
   {
     accessorKey: 'reason',
     header: 'Reason for Flag',
     cell: ({ row }) => {
         const reason = row.original.reason;
-        return <Badge variant={reasonVariant[reason]}>{reason}</Badge>
+        return <Badge variant={reasonVariant[reason as keyof typeof reasonVariant] || 'default'}>{reason}</Badge>
     }
   },
   {
-    accessorKey: 'flaggedAt',
+    accessorKey: 'createdAt',
     header: 'Time',
-    cell: ({ row }) => formatDistanceToNow(row.original.flaggedAt, { addSuffix: true }),
+    cell: ({ row }) => formatDistanceToNow(row.original.createdAt.toDate(), { addSuffix: true }),
   },
   {
     id: 'actions',
@@ -130,13 +113,22 @@ const columns: ColumnDef<FlaggedStream>[] = [
 ];
 
 export default function AdminFlaggedStreamsPage() {
-    const [data] = React.useState(() => [...mockData]);
+  const firestore = useFirestore();
 
-    const table = useReactTable({
-        data,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-    });
+  // Querying complaints collection for reports against users, which we'll treat as flagged streams for now.
+  // A more robust system would have a dedicated 'flags' collection for streams.
+  const flaggedQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'complaints'), where('targetType', '==', 'user'));
+  }, [firestore]);
+
+  const { data: flaggedItems, isLoading } = useCollection<Complaint>(flaggedQuery);
+
+
+  const table = useReactTable({
+      data: flaggedItems || [],
+      columns,
+      getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <AdminLayout>
@@ -164,7 +156,15 @@ export default function AdminFlaggedStreamsPage() {
                 ))}
                 </TableHeader>
                 <TableBody>
-                {table.getRowModel().rows?.length ? (
+                {isLoading ? (
+                  [...Array(2)].map((_, i) => (
+                    <TableRow key={i}>
+                      {columns.map((col, j) => (
+                        <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
                         {row.getVisibleCells().map((cell) => (

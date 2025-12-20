@@ -8,7 +8,6 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -20,86 +19,65 @@ import {
 } from '@/components/ui/table';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Eye, BarChart2 } from 'lucide-react';
+import { CheckCircle, BarChart2 } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import type { LiveSession, UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type ApprovedStream = {
-  id: string;
-  sellerId: string;
-  sellerName: string;
-  sellerAvatar: string;
-  streamTitle: string;
-  approvedAt: Date;
-  peakViewers: number;
-  totalSales: number;
+const SellerCell = ({ sellerId }: { sellerId: string }) => {
+  const firestore = useFirestore();
+  const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
+  const { data: seller, isLoading } = useDoc<UserProfile>(sellerProfileRef);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-9 w-9 rounded-full" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="h-9 w-9">
+        <AvatarImage src={seller?.profilePictureUrl} />
+        <AvatarFallback>{seller?.fullName?.charAt(0)}</AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-medium">{seller?.fullName}</p>
+        <p className="text-xs text-muted-foreground">{seller?.username}</p>
+      </div>
+    </div>
+  );
 };
 
-const mockData: ApprovedStream[] = [
-  {
-    id: 'stream-1',
-    sellerId: 'seller-abc',
-    sellerName: 'Trendy Threads',
-    sellerAvatar: 'https://picsum.photos/seed/seller2/40',
-    streamTitle: '🔥 Summer Collection Launch!',
-    approvedAt: new Date(new Date().setDate(new Date().getDate() - 1)),
-    peakViewers: 1245,
-    totalSales: 2350.75,
-  },
-  {
-    id: 'stream-2',
-    sellerId: 'seller-xyz',
-    sellerName: 'Flashy Gadgets',
-    sellerAvatar: 'https://picsum.photos/seed/seller1/40',
-    streamTitle: 'Unboxing the new TechPhone X',
-    approvedAt: new Date(new Date().setDate(new Date().getDate() - 2)),
-    peakViewers: 876,
-    totalSales: 1890.50,
-  },
-   {
-    id: 'stream-3',
-    sellerId: 'seller-ghi',
-    sellerName: 'Gourmet Kitchen',
-    sellerAvatar: 'https://picsum.photos/seed/seller3/40',
-    streamTitle: 'Live Cooking: Pasta from Scratch',
-    approvedAt: new Date(new Date().setDate(new Date().getDate() - 3)),
-    peakViewers: 450,
-    totalSales: 850.00,
-  },
-];
 
-const columns: ColumnDef<ApprovedStream>[] = [
+const columns: ColumnDef<LiveSession>[] = [
   {
-    accessorKey: 'streamTitle',
+    accessorKey: 'title',
     header: 'Stream',
     cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <Avatar className="h-9 w-9">
-          <AvatarImage src={row.original.sellerAvatar} />
-          <AvatarFallback>{row.original.sellerName.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <div>
-            <p className="font-medium">{row.original.streamTitle}</p>
-            <p className="text-xs text-muted-foreground">{row.original.sellerName}</p>
-        </div>
-      </div>
+      <SellerCell sellerId={row.original.sellerId} />
     ),
   },
    {
-    accessorKey: 'approvedAt',
-    header: 'Date Approved',
-    cell: ({ row }) => format(row.original.approvedAt, 'PPP'),
+    accessorKey: 'endTime',
+    header: 'Date Ended',
+    cell: ({ row }) => format(row.original.endTime.toDate(), 'PPP'),
   },
   {
-    accessorKey: 'peakViewers',
+    accessorKey: 'viewerCount',
     header: 'Peak Viewers',
-    cell: ({ row }) => row.original.peakViewers.toLocaleString(),
+    cell: ({ row }) => (row.original.viewerCount || 0).toLocaleString(),
   },
   {
-    accessorKey: 'totalSales',
+    id: 'totalSales', // Placeholder
     header: 'Total Sales (USD)',
-    cell: ({ row }) => `$${row.original.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2})}`,
+    cell: () => `$${(Math.random() * 2000).toLocaleString(undefined, {minimumFractionDigits: 2})}`,
   },
   {
     id: 'actions',
@@ -119,20 +97,27 @@ const columns: ColumnDef<ApprovedStream>[] = [
 ];
 
 export default function AdminApprovedStreamsPage() {
-    const [data] = React.useState(() => [...mockData]);
+  const firestore = useFirestore();
 
-    const table = useReactTable({
-        data,
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-    });
+  // Query for sessions that have ended, which are considered "approved" and completed.
+  const endedSessionsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'ended'));
+  }, [firestore]);
+
+  const { data: sessions, isLoading } = useCollection<LiveSession>(endedSessionsQuery);
+
+  const table = useReactTable({
+      data: sessions || [],
+      columns,
+      getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
           <CheckCircle className="h-8 w-8 text-green-500" />
-          Approved Live Streams
+          Completed Live Streams
         </h1>
         <div className="rounded-md border">
             <Table>
@@ -153,7 +138,15 @@ export default function AdminApprovedStreamsPage() {
                 ))}
                 </TableHeader>
                 <TableBody>
-                {table.getRowModel().rows?.length ? (
+                {isLoading ? (
+                  [...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                      {columns.map((col, j) => (
+                        <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : table.getRowModel().rows?.length ? (
                     table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
                         {row.getVisibleCells().map((cell) => (
@@ -169,7 +162,7 @@ export default function AdminApprovedStreamsPage() {
                 ) : (
                     <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
-                        No approved streams found.
+                        No completed streams found.
                     </TableCell>
                     </TableRow>
                 )}
