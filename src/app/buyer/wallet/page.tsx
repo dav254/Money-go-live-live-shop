@@ -161,13 +161,6 @@ export default function BuyerPaymentsPage() {
     
     const transactionsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        // This query finds all payments where the buyer is involved, either directly
-        // via `userId` (for point purchases) or indirectly via an order they created.
-        // This might need optimization later with a dedicated `buyerId` field on payments.
-        // For now, we'll fetch payments linked to the user's orders. This is less direct.
-        // A better approach would be to ensure payments have a `buyerId` field.
-        // Let's assume for now that we query orders first, then payments.
-        // To simplify, let's query payments directly by userId (assuming it's there for all relevant tx)
         return query(collection(firestore, 'payments'), where('userId', '==', user.uid));
     }, [firestore, user]);
 
@@ -290,7 +283,9 @@ export default function BuyerPaymentsPage() {
                                 <TableRow key={tx.id}>
                                     <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate().toLocaleDateString()}</TableCell>
                                     <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
-                                    <TableCell className="font-medium">Order #{tx.orderId?.substring(0, 8)}...</TableCell>
+                                    <TableCell className="font-medium">
+                                        {tx.orderId ? `Order #${tx.orderId.substring(0, 8)}...` : 'AI Points Purchase'}
+                                    </TableCell>
                                     <TableCell><Badge variant={tx.paymentStatus === 'completed' ? 'default' : 'secondary'} className={tx.paymentStatus === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.paymentStatus}</Badge></TableCell>
                                     <TableCell className="text-right font-semibold">${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                 </TableRow>

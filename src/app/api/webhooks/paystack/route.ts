@@ -87,10 +87,11 @@ export async function POST(request: Request) {
             resellerCommission: resellerCommission > 0 ? resellerCommission : null,
           });
           
-          // Create a payment log for this transaction
+          // Create a payment log for this transaction, now including buyerId
           const paymentRef = collection(db, 'payments');
           await addDoc(paymentRef, {
               orderId: orderId,
+              userId: orderData.buyerId, // Add the buyer's ID
               amount: orderData.totalAmount,
               paymentMethod: `paystack_${event.data.channel}`,
               paymentStatus: 'completed',
