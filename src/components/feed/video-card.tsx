@@ -23,35 +23,47 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [isIntersecting, setIsIntersecting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
 
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (videoElement && item.video.mediaType === 'video') {
-      const handleCanPlay = () => {
+    if (!videoElement) return;
+
+    if (isIntersecting) {
         videoElement.play().catch(error => {
-          // Autoplay was prevented, which is common. User interaction will be needed.
-          console.error("Autoplay was prevented:", error);
+            console.error("Autoplay was prevented:", error);
         });
-      };
-
-      // Set the source
-      if (videoElement.src !== item.video.imageUrl) {
-        videoElement.src = item.video.imageUrl;
-        videoElement.load();
-      }
-
-      // Add event listener to play when ready
-      videoElement.addEventListener('canplay', handleCanPlay);
-
-      // Clean up the event listener when the component unmounts or the video source changes
-      return () => {
-        videoElement.removeEventListener('canplay', handleCanPlay);
-      };
+    } else {
+        videoElement.pause();
+        videoElement.currentTime = 0; // Reset video on scroll away
+        setIsMuted(true); // Mute when out of view
+        videoElement.muted = true;
     }
-  }, [item.video.imageUrl, item.video.mediaType]);
+  }, [isIntersecting, item.video.imageUrl]);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.isIntersecting);
+      },
+      { threshold: 0.5 } // Trigger when 50% of the video is visible
+    );
+
+    const currentCardRef = cardRef.current;
+    if (currentCardRef) {
+      observer.observe(currentCardRef);
+    }
+
+    return () => {
+      if (currentCardRef) {
+        observer.unobserve(currentCardRef);
+      }
+    };
+  }, []);
 
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !item.product.id) return null;
@@ -79,26 +91,22 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
     if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      // Set volume to 50% when unmuting for the first time
-      if(isMuted && videoRef.current.volume === 1) {
-          videoRef.current.volume = 0.5;
-      }
+      videoRef.current.muted = newMutedState;
     }
   };
 
 
   return (
-    <div className="relative h-full w-full bg-black">
+    <div ref={cardRef} className="relative h-full w-full bg-black">
       {item.video.mediaType === 'video' ? (
         <video 
           ref={videoRef}
           src={item.video.imageUrl} // imageUrl now holds the media URL
           className="h-full w-full object-contain" 
-          autoPlay 
-          muted={isMuted} 
+          muted={isMuted}
           loop 
           playsInline
           key={item.video.imageUrl}
