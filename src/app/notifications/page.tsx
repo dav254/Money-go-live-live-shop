@@ -17,6 +17,9 @@ import { ResellerSidebar } from '@/components/reseller/reseller-sidebar';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import Link from 'next/link';
 
+// NOTE: This page is now deprecated in favor of role-specific notification pages
+// like /buyer/notifications. It can be removed in a future cleanup.
+
 const notificationIcons: { [key: string]: React.ReactNode } = {
   order: <Package className="h-5 w-5 text-blue-500" />,
   commission: <CircleDollarSign className="h-5 w-5 text-green-500" />,
@@ -134,5 +137,3 @@ export default function NotificationsPage() {
     </MainLayout>
   );
 }
-
-    
