@@ -18,6 +18,11 @@ service cloud.firestore {
         allow read, write: if request.auth.uid == userId;
       }
       
+      // A user can read and write to their own wishlist.
+      match /wishlist/{productId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+
       // A user can only read and write to their own payment methods.
       match /paymentMethods/{paymentMethodId} {
         allow read, write: if request.auth.uid == userId;
@@ -298,5 +303,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
