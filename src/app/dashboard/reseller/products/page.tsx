@@ -104,7 +104,7 @@ export default function ResellerProductsPage() {
     if (!searchQuery) return products;
 
     return products.filter(product =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase())
+      product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [products, searchQuery]);
 
