@@ -11,21 +11,18 @@ import { UserNav } from '@/components/layout/user-nav';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { BuyerSidebar } from './buyer-sidebar';
 import { SidebarTrigger } from '../ui/sidebar';
-import { useUser, useUserProfile } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 export function BuyerHeader() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
-  const isLoading = isUserLoading || isProfileLoading;
-  const buyerName = userProfile?.fullName || 'Buyer';
+  const isLoading = false; // Mock loading state
+  const buyerName = 'Valued Buyer'; // Mock buyer name
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
