@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -248,16 +249,14 @@ export default function ResellerCenterPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Product</TableHead>
-                                    <TableHead className="text-center">Total Shares</TableHead>
-                                    <TableHead className="text-right">Conversion Rate</TableHead>
+                                    <TableHead className="text-right">Total Shares</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {mockTopSharedProducts.map(p => (
                                     <TableRow key={p.id}>
                                         <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell className="text-center font-bold">{p.shares}</TableCell>
-                                        <TableCell className="text-right font-semibold">{p.conversion}%</TableCell>
+                                        <TableCell className="text-right font-bold">{p.shares}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -289,3 +288,4 @@ export default function ResellerCenterPage() {
     </SellerLayout>
   );
 }
+    
