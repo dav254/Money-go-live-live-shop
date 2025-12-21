@@ -21,6 +21,7 @@ import {
   BrainCircuit,
   BarChart,
   User,
+  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -93,6 +94,14 @@ export function AdminSidebar() {
             <Link href="/dashboard/admin">
               <LayoutGrid />
               <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/notifications')}>
+            <Link href="/dashboard/admin/notifications">
+              <Bell />
+              <span>Notifications</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

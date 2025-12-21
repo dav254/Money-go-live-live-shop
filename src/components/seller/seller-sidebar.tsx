@@ -28,6 +28,7 @@ import {
   AreaChart,
   FolderKanban,
   Megaphone,
+  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -56,6 +57,14 @@ export function SellerSidebar() {
               <Link href="/dashboard/seller">
                 <Home />
                 <span>Home</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+           <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/notifications')}>
+              <Link href="/dashboard/seller/notifications">
+                <Bell />
+                <span>Notifications</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

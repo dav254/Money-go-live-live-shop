@@ -48,7 +48,7 @@ export function AdminHeader() {
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/notifications">
+          <Link href="/dashboard/admin/notifications">
             <Bell />
             <span className="sr-only">Notifications</span>
           </Link>

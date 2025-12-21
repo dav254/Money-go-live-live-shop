@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
@@ -63,9 +63,15 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
       <div className="flex items-center gap-2">
         <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/notifications">
+          <Link href="/dashboard/reseller/notifications">
             <Bell />
             <span className="sr-only">Notifications</span>
+          </Link>
+        </Button>
+         <Button variant="ghost" size="icon" asChild>
+          <Link href="/messages">
+            <MessageSquare />
+            <span className="sr-only">Messages</span>
           </Link>
         </Button>
         <UserNav />

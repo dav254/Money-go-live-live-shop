@@ -18,6 +18,7 @@ import {
   HelpCircle,
   User,
   Search,
+  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -36,6 +37,14 @@ export function ResellerSidebar() {
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/notifications')}>
+            <Link href="/dashboard/reseller/notifications">
+              <Bell />
+              <span>Notifications</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
