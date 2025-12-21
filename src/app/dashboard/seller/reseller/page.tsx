@@ -15,15 +15,107 @@ import { CommissionSettingsTable } from '@/components/seller/commission-settings
 import { ManageResellersTable } from '@/components/seller/manage-resellers-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, getDocs } from 'firebase/firestore';
+import type { Order, UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const mockTopResellers = [
-    { id: 'reseller-1', name: 'Digital Hustler', avatar: 'https://picsum.photos/seed/reseller1/40', sales: 25, commission: 350.75 },
-    { id: 'reseller-2', name: 'Campus Deals', avatar: 'https://picsum.photos/seed/reseller2/40', sales: 18, commission: 210.50 },
-    { id: 'reseller-3', name: 'Nairobi Finds', avatar: 'https://picsum.photos/seed/reseller3/40', sales: 12, commission: 155.00 },
-];
+interface ResellerStat {
+  id: string;
+  name: string;
+  avatar: string;
+  sales: number;
+  commission: number;
+}
 
 const TopResellersTable = () => {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const [topResellers, setTopResellers] = React.useState<ResellerStat[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(
+            collection(firestore, 'orders'),
+            where('sellerId', '==', user.uid),
+            where('resellerId', '!=', null)
+        );
+    }, [user, firestore]);
+
+    const { data: orders, isLoading: isLoadingOrders } = useCollection<Order>(ordersQuery);
+
+    React.useEffect(() => {
+        if (isLoadingOrders) return;
+        if (!orders || orders.length === 0) {
+            setIsLoading(false);
+            return;
+        }
+
+        const processResellerData = async () => {
+            const resellerStats: Record<string, { sales: number; commission: number }> = {};
+            
+            orders.forEach(order => {
+                if (order.resellerId) {
+                    if (!resellerStats[order.resellerId]) {
+                        resellerStats[order.resellerId] = { sales: 0, commission: 0 };
+                    }
+                    resellerStats[order.resellerId].sales += 1;
+                    resellerStats[order.resellerId].commission += order.resellerCommission || 0;
+                }
+            });
+
+            const resellerIds = Object.keys(resellerStats);
+            if (resellerIds.length === 0) {
+                setIsLoading(false);
+                return;
+            }
+            
+            const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
+            const usersSnapshot = await getDocs(usersQuery);
+            const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as UserProfile]));
+
+            const populatedStats: ResellerStat[] = resellerIds.map(id => ({
+                id: id,
+                name: usersMap.get(id)?.fullName || 'Unknown Reseller',
+                avatar: usersMap.get(id)?.profilePictureUrl || 'https://picsum.photos/seed/avatar/40',
+                sales: resellerStats[id].sales,
+                commission: resellerStats[id].commission,
+            })).sort((a, b) => b.commission - a.commission);
+
+            setTopResellers(populatedStats);
+            setIsLoading(false);
+        };
+
+        processResellerData();
+
+    }, [orders, isLoadingOrders, firestore]);
+
+
+    if (isLoading) {
+        return (
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Reseller</TableHead>
+                        <TableHead className="text-center">Sales Made</TableHead>
+                        <TableHead className="text-right">Commission Earned (USD)</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {[...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-10 w-40" /></TableCell>
+                            <TableCell className="text-center"><Skeleton className="h-5 w-8 mx-auto" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        );
+    }
+
     return (
         <Table>
             <TableHeader>
@@ -34,22 +126,30 @@ const TopResellersTable = () => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {mockTopResellers.map((reseller, index) => (
-                    <TableRow key={reseller.id}>
-                        <TableCell>
-                            <div className="flex items-center gap-3">
-                                <span className="font-bold text-lg w-6 text-center">{index + 1}</span>
-                                <Avatar className="h-9 w-9">
-                                    <AvatarImage src={reseller.avatar} />
-                                    <AvatarFallback>{reseller.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span className="font-medium">{reseller.name}</span>
-                            </div>
+                 {topResellers.length > 0 ? (
+                    topResellers.map((reseller, index) => (
+                        <TableRow key={reseller.id}>
+                            <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <span className="font-bold text-lg w-6 text-center">{index + 1}</span>
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarImage src={reseller.avatar} />
+                                        <AvatarFallback>{reseller.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{reseller.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-center font-medium">{reseller.sales}</TableCell>
+                            <TableCell className="text-right font-semibold text-primary">${reseller.commission.toFixed(2)}</TableCell>
+                        </TableRow>
+                    ))
+                 ) : (
+                    <TableRow>
+                        <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                            No sales from resellers yet.
                         </TableCell>
-                        <TableCell className="text-center font-medium">{reseller.sales}</TableCell>
-                        <TableCell className="text-right font-semibold text-primary">${reseller.commission.toFixed(2)}</TableCell>
                     </TableRow>
-                ))}
+                 )}
             </TableBody>
         </Table>
     );
