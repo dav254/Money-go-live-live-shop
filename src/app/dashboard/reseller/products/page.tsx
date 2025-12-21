@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
+import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, MousePointerClick } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +19,7 @@ import { logResellerShare } from '@/app/actions/reseller-actions';
 import Link from 'next/link';
 
 
-const ResellerProductCard = ({ product }: { product: Product }) => {
+const ResellerProductCard = ({ product, clicks, onShareClick }: { product: Product; clicks: number; onShareClick: () => void; }) => {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
@@ -34,6 +34,9 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
         }
 
         setIsSharing(true);
+
+        // Frontend-only click tracking
+        onShareClick();
 
         const baseUrl = 'https://goearnvid.shop';
         const shareUrl = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
@@ -75,11 +78,15 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                 <CardContent className="p-3 space-y-2 flex flex-col flex-1">
                     <div className="flex-1">
                         <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
-                        <p className="text-primary font-bold">${product.price.toLocaleString()}</p>
+                         <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                           <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {product.shares || 0} Shares</span>
+                           <span className="flex items-center gap-1"><MousePointerClick className="h-3 w-3" /> {clicks || 0} Clicks</span>
+                        </div>
+                        <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
                     </div>
                     <Button size="sm" className="w-full mt-2" onClick={handleShare} disabled={isSharing}>
                         {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
-                        Share
+                        Share & Track
                     </Button>
                 </CardContent>
             </Card>
@@ -89,13 +96,14 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
 
 const ProductGridSkeleton = () => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-64 w-full" />)}
+        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-72 w-full" />)}
     </div>
 )
 
 export default function ResellerProductsPage() {
   const firestore = useFirestore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
 
   const productsQuery = useMemoFirebase(() => {
       if (!firestore) return null;
@@ -116,6 +124,13 @@ export default function ResellerProductsPage() {
       product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [products, searchQuery]);
+  
+  const handleShareClick = (productId: string) => {
+    setClickCounts(prev => ({
+        ...prev,
+        [productId]: (prev[productId] || 0) + 1
+    }));
+  };
 
   return (
     <ResellerLayout>
@@ -148,7 +163,14 @@ export default function ResellerProductsPage() {
                     <ProductGridSkeleton />
                 ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {filteredProducts.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                        {filteredProducts.map(p => (
+                            <ResellerProductCard 
+                                key={p.id} 
+                                product={p} 
+                                clicks={clickCounts[p.id] || 0}
+                                onShareClick={() => handleShareClick(p.id)}
+                            />
+                        ))}
                     </div>
                 ) : (
                     <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
@@ -161,7 +183,14 @@ export default function ResellerProductsPage() {
                     <ProductGridSkeleton />
                 ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {filteredProducts.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                         {filteredProducts.map(p => (
+                            <ResellerProductCard 
+                                key={p.id} 
+                                product={p} 
+                                clicks={clickCounts[p.id] || 0}
+                                onShareClick={() => handleShareClick(p.id)}
+                            />
+                        ))}
                     </div>
                 ) : (
                     <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
@@ -175,3 +204,4 @@ export default function ResellerProductsPage() {
     </ResellerLayout>
   );
 }
+
