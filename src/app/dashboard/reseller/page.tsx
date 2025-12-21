@@ -11,20 +11,24 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link as LinkIcon, TrendingUp } from 'lucide-react';
+import { Link as LinkIcon, TrendingUp, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { addDays, format } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 const chartConfig = {
   earnings: {
@@ -32,6 +36,58 @@ const chartConfig = {
     color: 'hsl(var(--primary))',
   },
 };
+
+// Mock data for the new leaderboard
+const mockTopResellers = [
+    { id: 'reseller-1', name: 'John Doe', avatar: 'https://picsum.photos/seed/john/40', sales: 152, commission: 450.75 },
+    { id: 'reseller-2', name: 'Jane Smith', avatar: 'https://picsum.photos/seed/jane/40', sales: 121, commission: 380.50 },
+    { id: 'reseller-3', name: 'Mike Williams', avatar: 'https://picsum.photos/seed/mike/40', sales: 98, commission: 290.00 },
+    { id: 'reseller-4', name: 'Sarah B.', avatar: 'https://picsum.photos/seed/sarah/40', sales: 85, commission: 250.00 },
+    { id: 'reseller-5', name: 'Chris G.', avatar: 'https://picsum.photos/seed/chris/40', sales: 72, commission: 210.20 },
+];
+
+
+const TopResellersTable = () => {
+    return (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Rank</TableHead>
+                    <TableHead>Reseller</TableHead>
+                    <TableHead className="text-center">Sales Made</TableHead>
+                    <TableHead className="text-right">Commission Earned (USD)</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                 {mockTopResellers.length > 0 ? (
+                    mockTopResellers.map((reseller, index) => (
+                        <TableRow key={reseller.id}>
+                            <TableCell className="font-bold text-lg">{index + 1}</TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarImage src={reseller.avatar} />
+                                        <AvatarFallback>{reseller.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{reseller.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-center font-medium">{reseller.sales}</TableCell>
+                            <TableCell className="text-right font-semibold text-primary">${reseller.commission.toFixed(2)}</TableCell>
+                        </TableRow>
+                    ))
+                 ) : (
+                    <TableRow>
+                        <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                            No sales from resellers yet. Be the first!
+                        </TableCell>
+                    </TableRow>
+                 )}
+            </TableBody>
+        </Table>
+    );
+};
+
 
 function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLoading }: { user: any, userProfile: UserProfile, isLoading: boolean }) {
     const firestore = useFirestore();
@@ -84,9 +140,12 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
             </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-8">
-            <div>
-                {/* Performance Graphs */}
+         <Tabs defaultValue="analytics">
+            <TabsList>
+                <TabsTrigger value="analytics">My Performance</TabsTrigger>
+                <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            </TabsList>
+            <TabsContent value="analytics" className="space-y-8 mt-6">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -113,11 +172,11 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${"$"}{value}`}
+                                        tickFormatter={(value) => `$${value}`}
                                     />
-                                     <ChartTooltip
-                                        cursor={false}
-                                        content={<ChartTooltipContent indicator="dot" />}
+                                     <RechartsTooltip
+                                        cursor={{ fill: 'hsla(var(--muted))' }}
+                                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                                     />
                                     <Bar dataKey="earnings" fill="var(--color-earnings)" radius={4} />
                                 </BarChart>
@@ -125,18 +184,32 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
                          )}
                     </CardContent>
                 </Card>
-            </div>
-        </div>
 
-        {/* Top Performing Products */}
-        <Card>
-            <CardHeader>
-                <CardTitle>Top Performing Products</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <TopPerformingProducts />
-            </CardContent>
-        </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Top Performing Products</CardTitle>
+                        <CardDescription>These are the products generating the most commission for you.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TopPerformingProducts />
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="leaderboard" className="mt-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Trophy />
+                            Top Resellers
+                        </CardTitle>
+                        <CardDescription>See how you rank against other resellers on the platform.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TopResellersTable />
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
         
       </div>
   );
