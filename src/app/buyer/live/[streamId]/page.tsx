@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioTower, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
@@ -25,7 +26,7 @@ export default function BuyerLiveViewPage() {
     const [pinnedProduct, setPinnedProduct] = React.useState<any>(null);
 
     const liveSessionRef = useMemoFirebase(() => {
-        if (!sellerId) return null;
+        if (!sellerId || !firestore) return null;
         return doc(firestore, 'liveSessions', sellerId);
     }, [firestore, sellerId]);
 
