@@ -65,7 +65,11 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                 />
                 <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
             </div>
-            <CardContent className="p-3">
+            <CardContent className="p-3 space-y-2">
+                 <div>
+                    <p className="text-sm font-semibold truncate">{product.name || 'Unnamed Product'}</p>
+                    <p className="text-primary font-bold">${product.price.toLocaleString()}</p>
+                 </div>
                  <div className="flex gap-2">
                     <Button size="sm" className="flex-1" onClick={handleShare} disabled={isSharing}>
                         {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
