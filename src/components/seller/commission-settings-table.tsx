@@ -146,7 +146,7 @@ export function CommissionSettingsTable() {
             cell: ({ row }) => (
                 <div className="flex items-center gap-4">
                     <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                        <Image src={row.original.imageUrl || ''} alt={row.original.name || ''} fill className="object-cover" />
+                        <Image src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'} alt={row.original.name || ''} fill className="object-cover" />
                     </div>
                     <div className="font-medium">{row.getValue('name')}</div>
                 </div>
