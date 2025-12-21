@@ -216,7 +216,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   }, [messages, currentUser?.uid]);
 
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
-      if (!chat || !currentUser) return;
+      if (!chat || !currentUser || !firestore) return;
       
       const messagesCollectionRef = collection(firestore, 'chats', chat.id, 'messages');
       const fullMessageData = {
@@ -232,6 +232,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
               requestResourceData: fullMessageData
           });
           errorEmitter.emit('permission-error', permissionError);
+          throw error; // Re-throw to be caught by the caller
       });
       
       const chatRef = doc(firestore, 'chats', chat.id);
@@ -243,23 +244,48 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
         lastMessage: lastMessageText,
         lastMessageTimestamp: serverTimestamp(),
       });
+      
+      // Create a notification for the recipient
+      const recipientId = chat.participantIds.find(id => id !== currentUser.uid);
+      if (recipientId) {
+          const notificationsRef = collection(firestore, 'notifications');
+          const senderName = userProfile?.fullName || 'Someone';
+          await addDoc(notificationsRef, {
+              userId: recipientId,
+              type: 'message',
+              title: `New message from ${senderName}`,
+              message: lastMessageText,
+              link: `/messages?chatWith=${currentUser.uid}`,
+              status: 'unread',
+              timestamp: serverTimestamp(),
+          });
+      }
   };
 
   const handleSendTextMessage = async () => {
     if (!newMessage.trim()) return;
-    await sendMessage({ 
-        messageText: newMessage.trim(),
-        messageType: 'text',
-    });
-    setNewMessage('');
+    try {
+      await sendMessage({ 
+          messageText: newMessage.trim(),
+          messageType: 'text',
+      });
+      setNewMessage('');
+    } catch (e) {
+      // Error is already emitted, just show a toast.
+      toast({ variant: 'destructive', title: 'Could not send message.' });
+    }
   };
   
   const handleShareProduct = async (productId: string) => {
-      await sendMessage({
-          messageText: '',
-          messageType: 'product',
-          productId: productId,
-      });
+      try {
+        await sendMessage({
+            messageText: '',
+            messageType: 'product',
+            productId: productId,
+        });
+      } catch (e) {
+        toast({ variant: 'destructive', title: 'Could not share product.' });
+      }
   };
 
   const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
@@ -481,6 +507,3 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
     </div>
   );
 }
-
-
-    
