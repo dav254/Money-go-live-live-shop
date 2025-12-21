@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
 import Image from 'next/image';
@@ -23,6 +23,7 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
     const { user } = useUser();
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
+    const firestore = useFirestore();
 
     const handleShare = async (e: React.MouseEvent) => {
         e.preventDefault(); // Stop the link navigation when only the button is clicked
@@ -34,9 +35,6 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
         }
 
         setIsSharing(true);
-
-        // Frontend-only share tracking
-        onShareClick();
 
         const baseUrl = 'https://goearnvid.shop';
         const shareUrl = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
@@ -50,6 +48,15 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
 
             // Log the share event in the background (fire-and-forget)
             logResellerShare(user.uid, product.id, product.sellerId);
+
+            // Increment the click count in the database
+            const productRef = doc(firestore, "products", product.id);
+            await updateDoc(productRef, {
+                clickCount: increment(1)
+            });
+
+            // Frontend-only share tracking for immediate UI feedback
+            onShareClick();
 
         } catch (err) {
              toast({
@@ -203,3 +210,5 @@ export default function ResellerProductsPage() {
     </ResellerLayout>
   );
 }
+
+    

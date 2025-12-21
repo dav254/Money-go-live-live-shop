@@ -70,7 +70,7 @@ service cloud.firestore {
 
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount', 'clickCount']);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
@@ -325,3 +325,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
