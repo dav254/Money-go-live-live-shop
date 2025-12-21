@@ -83,6 +83,15 @@ function formatDistanceToNow(date: Date) {
 
 export default function BuyerNotificationsPage() {
     const [notifications, setNotifications] = React.useState(mockNotifications);
+    const [isLoading, setIsLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        // Simulate fetching data
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleMarkAllAsRead = () => {
         setNotifications(notifications.map(n => ({ ...n, status: 'read' })));
@@ -95,6 +104,9 @@ export default function BuyerNotificationsPage() {
     }
   
     const renderNotifications = (items: MockNotification[]) => {
+      if (isLoading) {
+          return <div className="p-4 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>
+      }
       if (items.length === 0) {
            return <div className="p-12 text-center text-muted-foreground">No notifications in this category.</div>
       }
