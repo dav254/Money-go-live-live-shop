@@ -1,20 +1,13 @@
 
 'use client';
 
-import { MainLayout } from '@/components/layout/main-layout';
 import { ChatSystem } from '@/components/messages/chat-system';
 import { useUser, useUserProfile } from '@/firebase';
-import { AdminSidebar } from '@/components/admin/admin-sidebar';
-import { SellerSidebar } from '@/components/seller/seller-sidebar';
-import { ResellerSidebar } from '@/components/reseller/reseller-sidebar';
-import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
-
-function SidebarNav({ role }: { role: string | undefined }) {
-  if (role === 'admin') return <AdminSidebar />;
-  if (role === 'seller') return <SellerSidebar />;
-  if (role === 'reseller') return <ResellerSidebar />;
-  return <BuyerSidebar />;
-}
+import { AdminLayout } from '@/components/layout/admin-layout';
+import { SellerLayout } from '@/components/layout/seller-layout';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
+import { MainLayout } from '@/components/layout/main-layout';
 
 export default function MessagesPage() {
     const { user, isLoading: isUserLoading } = useUser();
@@ -22,9 +15,40 @@ export default function MessagesPage() {
 
     const isLoading = isUserLoading || isProfileLoading;
 
-  return (
-    <MainLayout sidebar={isLoading ? <p>Loading...</p> : <SidebarNav role={userProfile?.userRole} />}>
-      <ChatSystem />
-    </MainLayout>
-  );
+    if (isLoading) {
+        return (
+            <MainLayout>
+                <div className="flex h-screen w-full items-center justify-center">
+                    <p>Loading Messages...</p>
+                </div>
+            </MainLayout>
+        );
+    }
+    
+    if (!user) {
+         return (
+            <MainLayout>
+                <div className="flex h-screen w-full items-center justify-center">
+                    <p>Please log in to view your messages.</p>
+                </div>
+            </MainLayout>
+        );
+    }
+
+    switch (userProfile?.userRole) {
+        case 'admin':
+            return <AdminLayout><ChatSystem /></AdminLayout>;
+        case 'seller':
+            return <SellerLayout><ChatSystem /></SellerLayout>;
+        case 'reseller':
+             return (
+                <ResellerLayout>
+                    <ChatSystem />
+                </ResellerLayout>
+            );
+        case 'buyer':
+            return <BuyerLayout><ChatSystem /></BuyerLayout>;
+        default:
+             return <BuyerLayout><ChatSystem /></BuyerLayout>;
+    }
 }
