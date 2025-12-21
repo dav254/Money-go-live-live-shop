@@ -15,14 +15,17 @@ import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { useUser, useUserProfile } from '@/firebase';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
-  const isLoading = false; // Mock loading state
-  const buyerName = 'Valued Buyer'; // Mock buyer name
+  const isLoading = isUserLoading || isProfileLoading;
+  const buyerName = userProfile?.fullName || 'Valued Buyer';
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
