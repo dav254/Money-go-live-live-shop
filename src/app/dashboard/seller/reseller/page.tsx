@@ -192,61 +192,45 @@ export default function ResellerCenterPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Reseller Center
         </h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-                    <Target className="h-4 w-4 text-muted-foreground"/>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">5.8%</div>
-                    <p className="text-xs text-muted-foreground">Average from all reseller links</p>
-                    <Progress value={5.8} className="mt-2 h-2" />
-                </CardContent>
-            </Card>
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><BarChart2 /> Commission Payouts</CardTitle>
-                    <CardDescription>Total commission paid to all resellers in the last 4 weeks.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-40">
-                   <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={mockCommissionPayoutData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                            <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
-                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`}/>
-                            <RechartsTooltip cursor={{ fill: 'hsla(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                            <Bar dataKey="Commission Paid" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </CardContent>
-            </Card>
-        </div>
-        <Tabs defaultValue="commissions" className="space-y-4">
+        
+        <Tabs defaultValue="analytics" className="space-y-4">
             <TabsList>
+                <TabsTrigger value="analytics"><BarChart2 className="mr-2 h-4 w-4"/>Analytics</TabsTrigger>
                 <TabsTrigger value="commissions"><BadgePercent className="mr-2 h-4 w-4"/>Commission Rules</TabsTrigger>
                 <TabsTrigger value="tiers"><Trophy className="mr-2 h-4 w-4" />Commission Tiers</TabsTrigger>
-                <TabsTrigger value="top-performers"><Trophy className="mr-2 h-4 w-4"/>Top Performers</TabsTrigger>
-                <TabsTrigger value="top-shared"><Share2 className="mr-2 h-4 w-4"/>Top Shared Products</TabsTrigger>
             </TabsList>
-            <TabsContent value="commissions" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BadgePercent />
-                      Set Product Commission Rates
-                    </CardTitle>
-                    <CardDescription>Set the percentage a reseller will earn for selling each product. A rate of 0% means the product is not available for reselling.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <CommissionSettingsTable />
-                  </CardContent>
-                </Card>
-            </TabsContent>
-            <TabsContent value="tiers">
-                <CommissionTiers />
-            </TabsContent>
-            <TabsContent value="top-performers" className="space-y-4">
-                <Card>
+
+            <TabsContent value="analytics" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                            <Target className="h-4 w-4 text-muted-foreground"/>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">5.8%</div>
+                            <p className="text-xs text-muted-foreground">Average from all reseller links</p>
+                            <Progress value={5.8} className="mt-2 h-2" />
+                        </CardContent>
+                    </Card>
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><BarChart2 /> Commission Payouts</CardTitle>
+                            <CardDescription>Total commission paid to all resellers in the last 4 weeks.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-40">
+                        <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={mockCommissionPayoutData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                    <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${"$"}{value}`}/>
+                                    <RechartsTooltip cursor={{ fill: 'hsla(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
+                                    <Bar dataKey="Commission Paid" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                </div>
+                 <Card>
                     <CardHeader>
                         <CardTitle>Top Performing Resellers</CardTitle>
                         <CardDescription>This leaderboard shows which of your resellers are driving the most sales.</CardDescription>
@@ -255,8 +239,6 @@ export default function ResellerCenterPage() {
                         <TopResellersTable />
                     </CardContent>
                 </Card>
-            </TabsContent>
-            <TabsContent value="top-shared" className="space-y-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Top Shared Products</CardTitle>
@@ -283,6 +265,25 @@ export default function ResellerCenterPage() {
                         </Table>
                     </CardContent>
                 </Card>
+            </TabsContent>
+
+            <TabsContent value="commissions" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BadgePercent />
+                      Set Product Commission Rates
+                    </CardTitle>
+                    <CardDescription>Set the percentage a reseller will earn for selling each product. A rate of 0% means the product is not available for reselling.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CommissionSettingsTable />
+                  </CardContent>
+                </Card>
+            </TabsContent>
+
+            <TabsContent value="tiers">
+                <CommissionTiers />
             </TabsContent>
         </Tabs>
       </div>
