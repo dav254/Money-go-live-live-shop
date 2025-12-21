@@ -50,7 +50,7 @@ const HomepageCarousel = () => {
     const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
 
     if (isLoading) {
-        return <Skeleton className="w-full aspect-[16/7] rounded-lg" />;
+        return <Skeleton className="w-full aspect-video md:aspect-[16/7] rounded-lg" />;
     }
 
     if (!slides || slides.length === 0) {
@@ -65,7 +65,7 @@ const HomepageCarousel = () => {
             <CarouselContent>
                 {slides.map(slide => (
                     <CarouselItem key={slide.id}>
-                        <div className="relative aspect-[16/7] w-full overflow-hidden rounded-lg">
+                        <div className="relative aspect-video md:aspect-[16/7] w-full overflow-hidden rounded-lg">
                             <Image
                                 src={slide.imageUrl}
                                 alt={slide.title}
@@ -76,10 +76,10 @@ const HomepageCarousel = () => {
                                 data-ai-hint={slide.imageHint}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                            <div className="absolute bottom-0 left-0 p-8 text-white">
-                                <h2 className="font-headline text-4xl font-bold">{slide.title}</h2>
-                                <p className="mt-2 max-w-md">{slide.description}</p>
-                                <Button asChild className="mt-4">
+                            <div className="absolute bottom-0 left-0 p-4 md:p-8 text-white">
+                                <h2 className="font-headline text-2xl md:text-4xl font-bold">{slide.title}</h2>
+                                <p className="mt-2 max-w-md text-sm md:text-base">{slide.description}</p>
+                                <Button asChild className="mt-4" size="sm" md-size="default">
                                     <Link href={slide.href}>Shop Now</Link>
                                 </Button>
                             </div>
@@ -87,8 +87,8 @@ const HomepageCarousel = () => {
                     </CarouselItem>
                 ))}
             </CarouselContent>
-            <CarouselPrevious className="left-4" />
-            <CarouselNext className="right-4" />
+            <CarouselPrevious className="left-4 hidden md:flex" />
+            <CarouselNext className="right-4 hidden md:flex" />
         </Carousel>
     );
 };
@@ -97,7 +97,7 @@ const ProductCarouselSkeleton = () => (
     <Carousel className="w-full">
         <CarouselContent>
             {Array.from({ length: 5 }).map((_, i) => (
-                <CarouselItem key={i} className="md:basis-1/2 lg:basis-1/4 xl:basis-1/5">
+                <CarouselItem key={i} className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
                     <div className="p-1">
                         <Skeleton className="h-64 w-full" />
                     </div>
@@ -108,9 +108,9 @@ const ProductCarouselSkeleton = () => (
 );
 
 const SellerCarouselSkeleton = () => (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-52 w-full" />
+            <Skeleton key={i} className="h-40 w-full" />
         ))}
     </div>
 );
@@ -141,20 +141,20 @@ export default function BuyerDashboardPage() {
         <HomepageCarousel />
 
         {/* Quick Shortcuts */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
           {shortcuts.map((shortcut) => (
             <Card
               key={shortcut.title}
               className="group transition-all hover:shadow-lg hover:-translate-y-1"
             >
               <Link href={shortcut.href}>
-                <CardContent className="flex items-center justify-start gap-4 p-6">
+                <CardContent className="flex items-center justify-start gap-4 p-4 md:p-6">
                   <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-lg ${shortcut.color} transition-colors group-hover:bg-primary group-hover:text-primary-foreground`}
+                    className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg ${shortcut.color} transition-colors group-hover:bg-primary group-hover:text-primary-foreground`}
                   >
-                    <shortcut.icon className="h-6 w-6" />
+                    <shortcut.icon className="h-5 w-5 md:h-6 md:w-6" />
                   </div>
-                  <h3 className="font-headline text-lg font-semibold">
+                  <h3 className="font-headline text-base md:text-lg font-semibold">
                     {shortcut.title}
                   </h3>
                 </CardContent>
@@ -178,7 +178,7 @@ export default function BuyerDashboardPage() {
                 {dealsProducts.map((product) => (
                     <CarouselItem
                     key={product.id}
-                    className="md:basis-1/2 lg:basis-1/4 xl:basis-1/5"
+                    className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
                     >
                     <div className="p-1">
                         <ProductCard product={product} />
@@ -198,15 +198,15 @@ export default function BuyerDashboardPage() {
             Trending Live Shows
           </h2>
           {isLoadingSellers ? <SellerCarouselSkeleton /> : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {sellers?.map((seller) => (
                 <Link href={`/sellers/${seller.id}`} key={seller.id}>
-                    <Card className="group relative h-52 overflow-hidden">
+                    <Card className="group relative h-40 overflow-hidden">
                     <Image
                         src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
                         alt={seller.shopName}
                         fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        sizes="(max-width: 768px) 50vw, 25vw"
                         className="object-cover transition-transform group-hover:scale-105"
                         data-ai-hint="store banner"
                     />
@@ -240,7 +240,7 @@ export default function BuyerDashboardPage() {
                 {recommendedProducts.map((product) => (
                     <CarouselItem
                     key={product.id}
-                    className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5"
+                    className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
                     >
                     <div className="p-1">
                         <ProductCard product={product} />
