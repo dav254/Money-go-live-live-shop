@@ -99,7 +99,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                         </div>
                         <Button size="sm" className="w-full mt-2" onClick={handleShare} disabled={isSharing}>
                             {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
-                            Share & Track
+                            Share
                         </Button>
                     </CardContent>
                 </Card>
