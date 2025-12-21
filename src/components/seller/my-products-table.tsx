@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -136,11 +137,22 @@ export function MyProductsTable() {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
-          const stock = row.original.stock;
-          const status = stock > 0 ? 'active' : 'out-of-stock';
-          const variant = status === 'active' ? 'default' : 'destructive';
+          const stock = row.original.stock || 0;
+          let status: 'active' | 'low stock' | 'out-of-stock' = 'active';
+          let variant: 'default' | 'destructive' | 'secondary' = 'default';
+          let className = 'bg-green-600/80';
+
+          if (stock === 0) {
+              status = 'out-of-stock';
+              variant = 'destructive';
+              className = '';
+          } else if (stock <= 5) {
+              status = 'low stock';
+              variant = 'secondary';
+              className = 'bg-yellow-500/80';
+          }
           
-          return <Badge variant={variant} className={cn(`capitalize`, status === 'active' ? 'bg-green-600/80' : '')}>{status.replace('-', ' ')}</Badge>
+          return <Badge variant={variant} className={cn('capitalize', className)}>{status}</Badge>
       }
     },
     {
