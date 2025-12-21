@@ -263,10 +263,16 @@ service cloud.firestore {
       allow list, read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
-    // Other collections, keeping them restricted.
+    // Payments collection rules
     match /payments/{paymentId} {
-      allow read, write: if request.auth != null;
+      // Allow a user to list payments ONLY if they are filtering by their own userId.
+      allow list: if request.auth != null && request.query.where[0][2] == request.auth.uid;
+      // Allow a user to read their own payment document.
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Client-side writes are handled by webhooks, so this can be false.
+      allow write: if false;
     }
+    
     match /aiProductDescriptions/{descId} {
       allow read, write: if request.auth != null;
     }
