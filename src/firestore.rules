@@ -279,7 +279,8 @@ service cloud.firestore {
     
     match /notifications/{notificationId} {
       allow read, update: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null;
+      // Only backend can create notifications
+      allow create: if false;
     }
     
     match /admins/{adminId} {
