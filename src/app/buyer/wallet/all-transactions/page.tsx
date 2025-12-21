@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateRange } from 'react-day-picker';
@@ -16,53 +17,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { Payment } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
-// More extensive mock data for the dedicated page
-const mockTransactions = [
-    {
-        id: 'tx_1',
-        paymentDate: new Date(),
-        transactionType: 'product-purchase',
-        orderId: 'ORD12345',
-        paymentStatus: 'completed',
-        amount: 55.00
-    },
-    {
-        id: 'tx_2',
-        paymentDate: new Date(new Date().setDate(new Date().getDate() - 2)),
-        transactionType: 'points-purchase',
-        orderId: null,
-        paymentStatus: 'completed',
-        amount: 10.00
-    },
-    {
-        id: 'tx_3',
-        paymentDate: new Date(new Date().setDate(new Date().getDate() - 5)),
-        transactionType: 'product-purchase',
-        orderId: 'ORD12340',
-        paymentStatus: 'completed',
-        amount: 120.50
-    },
-    {
-        id: 'tx_4',
-        paymentDate: new Date(new Date().setDate(new Date().getDate() - 10)),
-        transactionType: 'product-purchase',
-        orderId: 'ORD12333',
-        paymentStatus: 'refunded',
-        amount: -30.00
-    },
-     {
-        id: 'tx_5',
-        paymentDate: new Date(new Date().setDate(new Date().getDate() - 15)),
-        transactionType: 'product-purchase',
-        orderId: 'ORD12321',
-        paymentStatus: 'completed',
-        amount: 78.00
-    },
-];
-
-const DownloadReportDialog = () => {
+const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
     const [date, setDate] = React.useState<DateRange | undefined>({
       from: addDays(new Date(), -30),
       to: new Date(),
@@ -78,17 +39,30 @@ const DownloadReportDialog = () => {
             description: `Your ${formatType.toUpperCase()} report is being prepared.`,
         });
 
-        // Simulate a short delay for generation
         setTimeout(() => {
             const fromDate = date?.from ? format(date.from, 'yyyy-MM-dd') : 'start';
             const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
+            
+            const filteredPayments = payments.filter(tx => {
+                const txDate = tx.paymentDate.toDate();
+                const from = date?.from ? new Date(date.from.setHours(0,0,0,0)) : new Date(0);
+                const to = date?.to ? new Date(date.to.setHours(23,59,59,999)) : new Date();
+                return txDate >= from && txDate <= to;
+            });
+
+            if (filteredPayments.length === 0) {
+                 toast({ variant: 'destructive', title: 'No Data', description: 'No transactions found in the selected date range.' });
+                 setIsGenerating(false);
+                 return;
+            }
+
             const fileName = `transaction_report_${fromDate}_to_${toDate}`;
 
             if (formatType === 'csv') {
                 const headers = "Date,Type,Description,Status,Amount (USD)";
-                const rows = mockTransactions.map(tx => {
-                    const description = tx.orderId ? `Order #${tx.orderId}` : 'AI Points Purchase';
-                    return `${format(tx.paymentDate, 'yyyy-MM-dd')},${tx.transactionType},"${description}",${tx.paymentStatus},${tx.amount}`;
+                const rows = filteredPayments.map(tx => {
+                    const description = tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase';
+                    return `${format(tx.paymentDate.toDate(), 'yyyy-MM-dd')},${tx.transactionType},"${description}",${tx.paymentStatus},${tx.amount}`;
                 });
                 const csvContent = [headers, ...rows].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -107,10 +81,10 @@ const DownloadReportDialog = () => {
                 autoTable(doc, {
                     startY: 30,
                     head: [['Date', 'Type', 'Description', 'Status', 'Amount (USD)']],
-                    body: mockTransactions.map(tx => [
-                        format(tx.paymentDate, 'yyyy-MM-dd'),
+                    body: filteredPayments.map(tx => [
+                        format(tx.paymentDate.toDate(), 'yyyy-MM-dd'),
                         tx.transactionType.replace('-', ' '),
-                        tx.orderId ? `Order #${tx.orderId}` : 'AI Points Purchase',
+                        tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase',
                         tx.paymentStatus,
                         `$${tx.amount.toFixed(2)}`
                     ]),
@@ -171,7 +145,43 @@ const DownloadReportDialog = () => {
     )
 }
 
+const TableSkeleton = () => (
+    <Card>
+        <CardHeader>
+            <Skeleton className="h-6 w-1/2" />
+            <Skeleton className="h-4 w-3/4" />
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        {[...Array(5)].map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {[...Array(10)].map((_, i) => (
+                        <TableRow key={i}>
+                             {[...Array(5)].map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </CardContent>
+    </Card>
+);
+
 export default function AllTransactionsPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const transactionsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(collection(firestore, 'payments'), where('userId', '==', user.uid), orderBy('paymentDate', 'desc'));
+    }, [firestore, user]);
+
+    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
+
+    const isLoading = isUserLoading || isLoadingTransactions;
 
     return (
         <BuyerLayout>
@@ -180,45 +190,53 @@ export default function AllTransactionsPage() {
                     <h1 className="font-headline text-3xl font-bold">All Transactions</h1>
                     <Dialog>
                         <DialogTrigger asChild>
-                             <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
+                             <Button variant="outline" size="sm" disabled={!transactions || transactions.length === 0}><Download className="mr-2 h-4 w-4" /> Download Report</Button>
                         </DialogTrigger>
-                        <DownloadReportDialog />
+                        <DownloadReportDialog payments={transactions || []} />
                     </Dialog>
                 </div>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Transaction History</CardTitle>
-                        <CardDescription>A complete record of all your payments and wallet activities.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Amount (USD)</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {mockTransactions.map((tx) => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell className="text-muted-foreground">{format(tx.paymentDate, 'PPP')}</TableCell>
-                                        <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType.replace('-', ' ')}</Badge></TableCell>
-                                        <TableCell className="font-medium">
-                                            {tx.orderId ? `Order #${tx.orderId}` : 'AI Points Purchase'}
-                                        </TableCell>
-                                        <TableCell><Badge variant={tx.paymentStatus === 'completed' ? 'default' : 'secondary'} className={tx.paymentStatus === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.paymentStatus}</Badge></TableCell>
-                                        <TableCell className={`text-right font-semibold ${tx.amount >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-                                            {tx.amount < 0 ? `-$${Math.abs(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}` : `$${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
-                                        </TableCell>
+                {isLoading ? <TableSkeleton /> : (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Transaction History</CardTitle>
+                            <CardDescription>A complete record of all your payments and wallet activities.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Amount (USD)</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {transactions && transactions.length > 0 ? (
+                                        transactions.map((tx) => (
+                                            <TableRow key={tx.id}>
+                                                <TableCell className="text-muted-foreground">{format(tx.paymentDate.toDate(), 'PPP')}</TableCell>
+                                                <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType.replace('-', ' ')}</Badge></TableCell>
+                                                <TableCell className="font-medium">
+                                                    {tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase'}
+                                                </TableCell>
+                                                <TableCell><Badge variant={tx.paymentStatus === 'completed' ? 'default' : 'secondary'} className={tx.paymentStatus === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.paymentStatus}</Badge></TableCell>
+                                                <TableCell className={`text-right font-semibold ${tx.amount >= 0 ? 'text-foreground' : 'text-destructive'}`}>
+                                                    {tx.amount < 0 ? `-$${Math.abs(tx.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}` : `$${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-24 text-center">No transactions found.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </BuyerLayout>
     )

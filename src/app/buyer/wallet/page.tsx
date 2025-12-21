@@ -299,8 +299,13 @@ export default function BuyerPaymentsPage() {
                     </TableBody>
                 </Table>
             </CardContent>
-            <CardFooter>
-                 <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
+            <CardFooter className="flex-wrap gap-2">
+                 <Dialog>
+                    <DialogTrigger asChild>
+                         <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
+                    </DialogTrigger>
+                    {/* Add DownloadReportDialog component here later */}
+                </Dialog>
                  <Button variant="link" className="ml-auto" asChild>
                     <Link href="/buyer/wallet/all-transactions">View all transactions</Link>
                  </Button>
