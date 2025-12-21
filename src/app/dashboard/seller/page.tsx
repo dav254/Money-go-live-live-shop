@@ -13,7 +13,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet } from 'lucide-react';
+import { Users, Heart, Eye, Wallet, Clock, Package, Truck } from 'lucide-react';
 import type { SellerShop, Product, Order, Payout } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -172,7 +172,6 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{totalViews.toLocaleString()}</div>}
-                <p className="text-xs text-muted-foreground">In the last 30 days</p>
               </CardContent>
             </Card>
             <Card>
@@ -182,7 +181,43 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">${availableBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>}
-                <p className="text-xs text-muted-foreground">After platform fees</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        
+        {/* Order Summary Section */}
+        <div className="mb-6">
+          <h3 className="font-headline text-xl font-bold mb-4">Order Summary</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-yellow-400">Pending Orders</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">5</div>
+                <p className="text-xs text-muted-foreground">Awaiting processing</p>
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-blue-400">Processing</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">2</div>
+                <p className="text-xs text-muted-foreground">Being prepared for shipment</p>
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-indigo-400">Shipped</CardTitle>
+                <Truck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">8</div>
+                <p className="text-xs text-muted-foreground">On their way to the customer</p>
               </CardContent>
             </Card>
           </div>
