@@ -42,9 +42,10 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDistanceToNow, subDays } from 'date-fns';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import type { Product, UserProfile, ResellActivity } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import Image from 'next/image';
 
 
 interface ResellerStat {
@@ -85,11 +86,39 @@ const mockAlerts = [
     }
 ]
 
+interface AggregatedProductStats {
+    id: string;
+    name: string;
+    imageUrl: string;
+    shares: number;
+}
+
+const TopSharedProductsTable = () => {
+    return (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Total Shares</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                <TableRow>
+                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                        Data is being connected.
+                    </TableCell>
+                </TableRow>
+            </TableBody>
+        </Table>
+    )
+}
+
 const TopResellersTable = () => {
     return (
         <Table>
             <TableHeader>
                 <TableRow>
+                    <TableHead>Rank</TableHead>
                     <TableHead>Reseller</TableHead>
                     <TableHead className="text-center">Sales Made</TableHead>
                     <TableHead className="text-right">Commission Earned (USD)</TableHead>
@@ -99,9 +128,10 @@ const TopResellersTable = () => {
                  {mockTopResellers.length > 0 ? (
                     mockTopResellers.map((reseller, index) => (
                         <TableRow key={reseller.id}>
+                            <TableCell className="font-bold text-lg">{index + 1}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <span className="font-bold text-lg w-6 text-center">{index + 1}</span>
+                                    <span className="font-bold text-lg w-6 text-center">{/* Rank can go here if needed */}</span>
                                     <Avatar className="h-9 w-9">
                                         <AvatarImage src={reseller.avatar} />
                                         <AvatarFallback>{reseller.name.charAt(0)}</AvatarFallback>
@@ -115,8 +145,8 @@ const TopResellersTable = () => {
                     ))
                  ) : (
                     <TableRow>
-                        <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
-                            No sales from resellers yet.
+                        <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                            No sales from resellers yet. Be the first!
                         </TableCell>
                     </TableRow>
                  )}
@@ -224,6 +254,7 @@ export default function ResellerCenterPage() {
                 <TabsTrigger value="analytics"><BarChart2 className="mr-2 h-4 w-4"/>Analytics</TabsTrigger>
                 <TabsTrigger value="commissions"><BadgePercent className="mr-2 h-4 w-4"/>Commission Rules</TabsTrigger>
                 <TabsTrigger value="tiers"><Trophy className="mr-2 h-4 w-4" />Commission Tiers</TabsTrigger>
+                <TabsTrigger value="leaderboard"><Users className="mr-2 h-4 w-4" />Leaderboard</TabsTrigger>
             </TabsList>
 
             <TabsContent value="analytics" className="space-y-6">
@@ -247,44 +278,6 @@ export default function ResellerCenterPage() {
                     </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-                            <Target className="h-4 w-4 text-muted-foreground"/>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">5.8%</div>
-                            <p className="text-xs text-muted-foreground">Average from all reseller links</p>
-                            <Progress value={5.8} className="mt-2 h-2" />
-                        </CardContent>
-                    </Card>
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><BarChart2 /> Commission Payouts</CardTitle>
-                            <CardDescription>Total commission paid to all resellers in the last 4 weeks.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="h-40">
-                        <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockCommissionPayoutData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                                    <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
-                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`}/>
-                                    <RechartsTooltip cursor={{ fill: 'hsla(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                                    <Bar dataKey="Commission Paid" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                </div>
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Top Performing Resellers</CardTitle>
-                        <CardDescription>This leaderboard shows which of your resellers are driving the most sales.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <TopResellersTable />
-                    </CardContent>
-                </Card>
             </TabsContent>
 
             <TabsContent value="commissions" className="space-y-4">
@@ -305,6 +298,19 @@ export default function ResellerCenterPage() {
             <TabsContent value="tiers">
                 <CommissionTiers />
             </TabsContent>
+
+            <TabsContent value="leaderboard" className="mt-6 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Share2 /> Top Shared Products</CardTitle>
+                        <CardDescription>Products most frequently shared by your reseller network.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TopSharedProductsTable />
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
         </Tabs>
       </div>
     </SellerLayout>
