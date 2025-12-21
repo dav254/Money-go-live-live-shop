@@ -132,7 +132,7 @@ export default function BuyerDashboardPage() {
   const recommendedProducts = products?.slice(5, 10) || [];
 
   return (
-    <BuyerLayout fullWidth>
+    <BuyerLayout fullWidth={true}>
         <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
             <HomepageCarousel />
 
