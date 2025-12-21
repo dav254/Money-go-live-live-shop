@@ -1,7 +1,7 @@
 
 'use client';
 
-import { ResellerLayout } from '@/components/layout/seller-layout';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,8 +50,8 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
 
         } catch (err) {
              toast({
-                variant: 'destructive',
-                title: 'Failed to copy link.',
+                variant: "destructive",
+                title: "Failed to copy link.",
             });
         } finally {
             setIsSharing(false);
