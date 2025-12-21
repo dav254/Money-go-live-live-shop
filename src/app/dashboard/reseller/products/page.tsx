@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -10,13 +9,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
+import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Copy } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useMemo } from 'react';
 import { logResellerShare } from '@/app/actions/reseller-actions';
 import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 const ResellerProductCard = ({ product, shares, onShareClick }: { product: Product; shares: number; onShareClick: () => void; }) => {
@@ -24,9 +34,12 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
     const firestore = useFirestore();
+    const [showCopyFallback, setShowCopyFallback] = useState(false);
+    const [shareUrl, setShareUrl] = useState('');
+
 
     const handleShare = async (e: React.MouseEvent) => {
-        e.preventDefault(); // Stop the link navigation when only the button is clicked
+        e.preventDefault(); 
         e.stopPropagation();
 
         if (!user) {
@@ -37,66 +50,90 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
         setIsSharing(true);
 
         const baseUrl = 'https://goearnvid.shop';
-        const shareUrl = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
+        const urlToCopy = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
+        setShareUrl(urlToCopy);
         
         try {
-            await navigator.clipboard.writeText(shareUrl);
+            await navigator.clipboard.writeText(urlToCopy);
             toast({
                 title: 'Link Copied!',
                 description: 'Your unique reseller link is ready to be shared.',
             });
 
-            // Log the share event in the background (fire-and-forget)
             logResellerShare(user.uid, product.id, product.sellerId);
 
-            // Increment the click count in the database
             const productRef = doc(firestore, "products", product.id);
             await updateDoc(productRef, {
                 clickCount: increment(1)
             });
 
-            // Frontend-only share tracking for immediate UI feedback
             onShareClick();
 
         } catch (err) {
-             toast({
-                variant: "destructive",
-                title: "Failed to copy link.",
-            });
+            setShowCopyFallback(true);
         } finally {
             setIsSharing(false);
         }
     };
 
     return (
-        <Link href={`/products/${product.id}`} className="block group">
-            <Card className="overflow-hidden h-full flex flex-col">
-                <div className="relative aspect-video">
-                    <Image
-                        src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
-                        alt={product.name || 'product'}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {product.commissionRate && (
-                        <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
-                    )}
-                </div>
-                <CardContent className="p-3 space-y-2 flex flex-col flex-1">
-                    <div className="flex-1">
-                        <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
-                         <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                           <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shares || 0} Shares</span>
-                        </div>
-                        <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
+        <>
+            <Link href={`/products/${product.id}`} className="block group">
+                <Card className="overflow-hidden h-full flex flex-col">
+                    <div className="relative aspect-video">
+                        <Image
+                            src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
+                            alt={product.name || 'product'}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {product.commissionRate && (
+                            <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
+                        )}
                     </div>
-                    <Button size="sm" className="w-full mt-2" onClick={handleShare} disabled={isSharing}>
-                        {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
-                        Share & Track
-                    </Button>
-                </CardContent>
-            </Card>
-        </Link>
+                    <CardContent className="p-3 space-y-2 flex flex-col flex-1">
+                        <div className="flex-1">
+                            <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                            <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shares || 0} Shares</span>
+                            </div>
+                            <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
+                        </div>
+                        <Button size="sm" className="w-full mt-2" onClick={handleShare} disabled={isSharing}>
+                            {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
+                            Share & Track
+                        </Button>
+                    </CardContent>
+                </Card>
+            </Link>
+             <AlertDialog open={showCopyFallback} onOpenChange={setShowCopyFallback}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Copy Your Link</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Your browser prevented automatic copying. Please copy your unique reseller link manually.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="relative">
+                        <Input value={shareUrl} readOnly className="pr-12" />
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="absolute top-1/2 right-1 -translate-y-1/2"
+                            onClick={() => {
+                                navigator.clipboard.writeText(shareUrl);
+                                toast({ title: 'Link Copied!' });
+                            }}
+                        >
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={() => setShowCopyFallback(false)}>Done</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 };
 
@@ -210,5 +247,7 @@ export default function ResellerProductsPage() {
     </ResellerLayout>
   );
 }
+
+    
 
     
