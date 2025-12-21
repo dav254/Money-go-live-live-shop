@@ -174,9 +174,13 @@ service cloud.firestore {
       allow create: if request.auth != null;
       // Sellers can read activities related to their products.
       // Resellers can read their own share activities.
-      allow list, read: if request.auth != null && (
+      allow list: if request.auth != null && (
           (request.query.where.size() > 0 && request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
           (request.query.where.size() > 0 && request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid)
+      );
+      allow read: if request.auth != null && (
+        resource.data.resellerId == request.auth.uid || 
+        resource.data.sellerId == request.auth.uid
       );
     }
 
