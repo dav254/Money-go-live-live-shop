@@ -119,3 +119,63 @@ export const processOrderAndDistributeEarnings = functions.firestore
       }
     });
 
+/**
+ * Sends a notification to a buyer when their order status changes.
+ */
+export const sendOrderUpdateNotification = functions.firestore
+    .document("orders/{orderId}")
+    .onUpdate(async (change, context) => {
+        const beforeData = change.before.data();
+        const afterData = change.after.data();
+        const orderId = context.params.orderId;
+
+        // Exit if status has not changed
+        if (beforeData.orderStatus === afterData.orderStatus) {
+            return null;
+        }
+
+        const userId = afterData.buyerId;
+        const productName = afterData.productName || 'your order';
+        const newStatus = afterData.orderStatus;
+
+        let title = '';
+        let message = '';
+
+        switch (newStatus) {
+            case 'processing':
+                title = 'Order is Processing';
+                message = `Your order for "${productName}" is now being processed by the seller.`;
+                break;
+            case 'shipped':
+                title = 'Your Order Has Shipped!';
+                message = `Great news! Your order for "${productName}" is on its way.`;
+                break;
+            case 'delivered':
+                title = 'Order Delivered';
+                message = `Your order for "${productName}" has been delivered. Please confirm receipt in your order history.`;
+                break;
+            default:
+                // For other statuses like 'cancelled' or 'pending', we don't send a notification for now.
+                return null;
+        }
+
+        const notification = {
+            userId,
+            type: 'order',
+            title,
+            message,
+            link: `/buyer/my-orders`,
+            status: 'unread',
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        try {
+            await db.collection('notifications').add(notification);
+            functions.logger.info(`Notification sent to user ${userId} for order ${orderId}`);
+        } catch (error) {
+            functions.logger.error(`Failed to send notification for order ${orderId}:`, error);
+        }
+
+        return null;
+    });
+
