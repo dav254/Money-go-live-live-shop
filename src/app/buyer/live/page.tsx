@@ -2,23 +2,21 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RadioTower, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
+import { User as UserIcon } from 'lucide-react';
 
 const LiveSellerCard = ({ session }: { session: LiveSession }) => {
     const firestore = useFirestore();
 
     const sellerProfileRef = useMemoFirebase(() => {
+        if (!firestore || !session.sellerId) return null;
         return doc(firestore, 'userProfiles', session.sellerId);
     }, [firestore, session.sellerId]);
     
@@ -51,12 +49,12 @@ const LiveSellerCard = ({ session }: { session: LiveSession }) => {
                     </Avatar>
                 </div>
                 <div>
-                    <h2 className="font-bold">{seller?.fullName || 'Live Seller'}</h2>
+                    <h2 className="font-bold">{seller?.shopName || seller?.fullName || 'Live Seller'}</h2>
                     <p className="text-sm text-neutral-400">{session.title}</p>
                 </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-neutral-400">
-                <User className="h-4 w-4" />
+                <UserIcon className="h-4 w-4" />
                 <span>{session.viewerCount || 0}</span>
             </div>
           </Card>
@@ -69,6 +67,7 @@ const JoinLivePage = () => {
     const firestore = useFirestore();
 
     const liveSessionsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
         return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
     }, [firestore]);
 
