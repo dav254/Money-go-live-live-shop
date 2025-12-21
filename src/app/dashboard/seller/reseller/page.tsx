@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -10,11 +9,11 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Users, Trophy, BarChart2, Share2, Target, Percent, PlusCircle, Trash2 } from 'lucide-react';
+import { BadgePercent, Users, Trophy, BarChart2, Share2, Target, Percent, PlusCircle, Trash2, AlertTriangle, TrendingUp, Lightbulb } from 'lucide-react';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -30,6 +29,21 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getSortedRowModel,
+  SortingState,
+} from '@tanstack/react-table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { formatDistanceToNow, subDays } from 'date-fns';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Product } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 interface ResellerStat {
@@ -46,18 +60,29 @@ const mockTopResellers: ResellerStat[] = [
     { id: 'reseller-3', name: 'Mike Williams', avatar: 'https://picsum.photos/seed/mike/40', sales: 98, commission: 290.00 },
 ];
 
-const mockTopSharedProducts = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', shares: 543, conversion: 5.2 },
-    { id: 'prod-5', name: 'Chronograph Watch', shares: 412, conversion: 7.1 },
-    { id: 'prod-6', name: 'Noise-Cancelling Headphones', shares: 388, conversion: 4.5 },
-];
-
 const mockCommissionPayoutData = [
     { date: 'Week 1', 'Commission Paid': 250 },
     { date: 'Week 2', 'Commission Paid': 450 },
     { date: 'Week 3', 'Commission Paid': 380 },
     { date: 'This Week', 'Commission Paid': 610 },
 ];
+
+const mockAlerts = [
+    {
+        type: 'boost',
+        title: "Top Performer: 'Classic Handbag'",
+        description: "This item is being shared a lot but has a low commission rate (5%). Consider increasing it to 10-15% to motivate resellers even more.",
+        icon: TrendingUp,
+        color: 'text-green-400'
+    },
+    {
+        type: 'stale',
+        title: "Stale Product: 'Winter Scarf'",
+        description: "This product hasn't been shared by any resellers in over 30 days. Consider pausing it or creating new video content to promote it.",
+        icon: AlertTriangle,
+        color: 'text-yellow-400'
+    }
+]
 
 const TopResellersTable = () => {
     return (
@@ -200,7 +225,27 @@ export default function ResellerCenterPage() {
                 <TabsTrigger value="tiers"><Trophy className="mr-2 h-4 w-4" />Commission Tiers</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="analytics" className="space-y-4">
+            <TabsContent value="analytics" className="space-y-6">
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Lightbulb /> Performance Alerts</CardTitle>
+                        <CardDescription>AI-powered suggestions to optimize your reseller program.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                         {mockAlerts.map(alert => (
+                             <Alert key={alert.title} variant={alert.type === 'stale' ? 'destructive' : 'default'} className="bg-primary/5">
+                                 <alert.icon className={`h-4 w-4 ${alert.color}`} />
+                                 <AlertTitle className="font-semibold">{alert.title}</AlertTitle>
+                                 <AlertDescription>
+                                     {alert.description}
+                                     <Button variant="link" className="p-0 h-auto ml-2">Take Action</Button>
+                                 </AlertDescription>
+                             </Alert>
+                         ))}
+                    </CardContent>
+                </Card>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -222,7 +267,7 @@ export default function ResellerCenterPage() {
                         <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={mockCommissionPayoutData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                                     <XAxis dataKey="date" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
-                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${"$"}{value}`}/>
+                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`}/>
                                     <RechartsTooltip cursor={{ fill: 'hsla(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
                                     <Bar dataKey="Commission Paid" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -237,30 +282,6 @@ export default function ResellerCenterPage() {
                     </CardHeader>
                     <CardContent>
                         <TopResellersTable />
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Top Shared Products</CardTitle>
-                        <CardDescription>Products most frequently shared by your reseller network.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead className="text-right">Total Shares</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {mockTopSharedProducts.map(p => (
-                                    <TableRow key={p.id}>
-                                        <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell className="text-right font-bold">{p.shares}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
