@@ -89,7 +89,8 @@ const TopResellersTable = () => {
 };
 
 
-function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLoading }: { user: any, userProfile: UserProfile, isLoading: boolean }) {
+function ResellerDashboardPageContent() {
+    const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
@@ -99,7 +100,7 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
     
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
-    const isLoading = layoutIsLoading || areOrdersLoading;
+    const isLoading = isUserLoading || areOrdersLoading;
     
     const chartData = useMemo(() => {
         const data: { date: string; earnings: number }[] = [];
@@ -125,6 +126,7 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
 
 
   return (
+    <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
             <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -178,7 +180,7 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
                                         cursor={{ fill: 'hsla(var(--muted))' }}
                                         contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                                     />
-                                    <Bar dataKey="earnings" fill="var(--color-earnings)" radius={4} />
+                                    <Bar dataKey="earnings" fill="var(--color-earnings)" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ChartContainer>
                          )}
@@ -212,13 +214,10 @@ function ResellerDashboardPageContent({ user, userProfile, isLoading: layoutIsLo
         </Tabs>
         
       </div>
+    </ResellerLayout>
   );
 }
 
 export default function ResellerDashboardPage() {
-    return (
-        <ResellerLayout>
-            <ResellerDashboardPageContent user={null} userProfile={null} isLoading={false} />
-        </ResellerLayout>
-    )
+    return <ResellerDashboardPageContent />
 }

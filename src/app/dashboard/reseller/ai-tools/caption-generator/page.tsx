@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Bot, Copy } from 'lucide-react';
 import { generateCaption } from '@/ai/flows/generate-caption';
+import { useUser } from '@/firebase';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name is required.' }),
@@ -24,6 +25,7 @@ const formSchema = z.object({
 
 export default function CaptionGeneratorPage() {
   const { toast } = useToast();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [generatedCaption, setGeneratedCaption] = useState('');
 
@@ -37,15 +39,20 @@ export default function CaptionGeneratorPage() {
   });
 
   const handleGenerateCaption = async (values: z.infer<typeof formSchema>) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to use this feature.' });
+        return;
+    }
+    
     setIsLoading(true);
     setGeneratedCaption('');
     try {
-      const result = await generateCaption(values);
+      const result = await generateCaption({ ...values, userId: user.uid });
       setGeneratedCaption(result.caption);
       toast({ title: 'Caption Generated!', description: 'Your new social media caption is ready.' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating caption:', error);
-      toast({ variant: 'destructive', title: 'Generation Failed', description: 'Could not generate caption. Please try again.' });
+      toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'Could not generate caption. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -58,6 +65,7 @@ export default function CaptionGeneratorPage() {
   };
 
   return (
+    <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <Card>
@@ -66,7 +74,7 @@ export default function CaptionGeneratorPage() {
                 <Bot className="text-primary" /> AI Caption Generator
               </CardTitle>
               <CardDescription>
-                Describe your product and let the AI create a viral caption for social media.
+                Describe your product and let the AI create a viral caption for social media. This costs 50 AI Points.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -157,5 +165,6 @@ export default function CaptionGeneratorPage() {
           </Card>
         </div>
       </div>
+    </ResellerLayout>
   );
 }

@@ -188,7 +188,7 @@ const DownloadReportDialog = ({ orders, resellerName }: { orders: Order[], resel
     )
 }
 
-export default function ResellerCommissionsPage({ user: authUser, userProfile }: { user: any, userProfile: UserProfile }) {
+export default function ResellerCommissionsPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
@@ -246,6 +246,7 @@ export default function ResellerCommissionsPage({ user: authUser, userProfile }:
 
 
   return (
+    <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -330,5 +331,6 @@ export default function ResellerCommissionsPage({ user: authUser, userProfile }:
           </CardContent>
         </Card>
       </div>
+    </ResellerLayout>
   );
 }

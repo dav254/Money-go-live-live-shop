@@ -47,13 +47,6 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
   
-  const childrenWithProps = React.Children.map(children, child => {
-    if (React.isValidElement(child)) {
-      return cloneElement(child as React.ReactElement<any>, { user, userProfile, isLoading });
-    }
-    return child;
-  });
-
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
@@ -68,7 +61,7 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
         <ResellerHeader userProfile={userProfile} isLoading={isLoading} />
         <main>
           <FirebaseErrorListener />
-          {childrenWithProps}
+          {children}
         </main>
       </SidebarInset>
     </SidebarProvider>
