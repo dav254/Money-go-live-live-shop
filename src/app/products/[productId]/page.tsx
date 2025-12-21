@@ -18,7 +18,7 @@ import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile, useCollection } from '@/firebase';
-import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, writeBatch, query, where, limit, orderBy } from 'firebase/firestore';
+import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, writeBatch, query, where, orderBy } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -327,6 +327,7 @@ export default function BuyerProductPage() {
     const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Anonymous Seller';
     const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || 'https://picsum.photos/seed/shoplogo/200';
     const sellerFollowers = sellerShop?.followers || 0;
+    const isReseller = userProfile?.userRole === 'reseller';
 
     const filteredRecommendedProducts = recommendedProducts?.filter(p => p.id !== product.id) || [];
 
@@ -404,19 +405,21 @@ export default function BuyerProductPage() {
                     {product.stock <= 5 && <p className="text-red-500 text-sm font-semibold">Only {product.stock} left in stock!</p>}
 
                     {/* 6. Seller Shop Info Block */}
-                    <Card className="bg-[#2a2a2a] border-neutral-800">
-                        <CardContent className="p-4 flex items-center gap-4">
-                            <Avatar className="h-12 w-12 border"><AvatarImage src={sellerLogo} /><AvatarFallback>{sellerName?.charAt(0)}</AvatarFallback></Avatar>
-                            <div className="flex-1">
-                                <p className="font-bold">{sellerName}</p>
-                                <p className="text-xs text-neutral-400">{sellerFollowers.toLocaleString()} followers</p>
-                            </div>
-                            <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow'}</Button>
-                            <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" asChild>
-                                <Link href={`/sellers/${sellerId}`}>Visit Shop</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    {!isReseller && (
+                        <Card className="bg-[#2a2a2a] border-neutral-800">
+                            <CardContent className="p-4 flex items-center gap-4">
+                                <Avatar className="h-12 w-12 border"><AvatarImage src={sellerLogo} /><AvatarFallback>{sellerName?.charAt(0)}</AvatarFallback></Avatar>
+                                <div className="flex-1">
+                                    <p className="font-bold">{sellerName}</p>
+                                    <p className="text-xs text-neutral-400">{sellerFollowers.toLocaleString()} followers</p>
+                                </div>
+                                <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow'}</Button>
+                                <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" asChild>
+                                    <Link href={`/sellers/${sellerId}`}>Visit Shop</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Accordion type="single" collapsible className="w-full" defaultValue="description">
                         {/* 7. Product Description */}
@@ -466,20 +469,24 @@ export default function BuyerProductPage() {
             </div>
 
             {/* 12. Bottom Sticky Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-sm border-t border-neutral-800 p-2 flex items-center gap-2">
-                <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center p-2">
-                    <Store className="h-5 w-5 text-neutral-300"/>
-                    <span className="text-xs text-neutral-400">Shop</span>
-                </Link>
-                <Link href={`/messages?chatWith=${sellerId}`} className="flex flex-col items-center p-2">
-                    <MessageSquare className="h-5 w-5 text-neutral-300" />
-                     <span className="text-xs text-neutral-400">Chat</span>
-                </Link>
-                <Button variant="secondary" className="flex-1 bg-[#2a2a2a] text-white" onClick={handleAddToCart}>Add to Cart</Button>
-                <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleBuyNow}>Buy Now</Button>
-            </div>
+            {!isReseller && (
+                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-sm border-t border-neutral-800 p-2 flex items-center gap-2">
+                    <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center p-2">
+                        <Store className="h-5 w-5 text-neutral-300"/>
+                        <span className="text-xs text-neutral-400">Shop</span>
+                    </Link>
+                    <Link href={`/messages?chatWith=${sellerId}`} className="flex flex-col items-center p-2">
+                        <MessageSquare className="h-5 w-5 text-neutral-300" />
+                        <span className="text-xs text-neutral-400">Chat</span>
+                    </Link>
+                    <Button variant="secondary" className="flex-1 bg-[#2a2a2a] text-white" onClick={handleAddToCart}>Add to Cart</Button>
+                    <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleBuyNow}>Buy Now</Button>
+                </div>
+            )}
         </MainLayout>
     );
 }
+
+    
 
     
