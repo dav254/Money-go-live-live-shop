@@ -10,13 +10,26 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Users, Trophy, BarChart2, Share2, Target, Percent } from 'lucide-react';
+import { BadgePercent, Users, Trophy, BarChart2, Share2, Target, Percent, PlusCircle, Trash2 } from 'lucide-react';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import React from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 
 interface ResellerStat {
@@ -87,6 +100,91 @@ const TopResellersTable = () => {
 };
 
 
+const mockCommissionTiers = [
+    { id: 'tier-1', salesTarget: 20, commissionBoost: 5, description: "Sell 20 items in a month to get a +5% commission boost." },
+    { id: 'tier-2', salesTarget: 50, commissionBoost: 10, description: "Sell 50 items in a month to get a +10% commission boost and a 'Top Reseller' badge." },
+];
+
+const CommissionTiers = () => {
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Trophy />
+                            Commission Tiers
+                        </CardTitle>
+                        <CardDescription>
+                            Create performance-based tiers to incentivize your top resellers.
+                        </CardDescription>
+                    </div>
+                     <Dialog>
+                        <DialogTrigger asChild>
+                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Tier</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                             <DialogHeader>
+                                <DialogTitle>Create New Commission Tier</DialogTitle>
+                                <DialogDescription>Set a sales goal to unlock a higher commission rate.</DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="sales-target" className="text-right">Sales Target</Label>
+                                    <Input id="sales-target" type="number" defaultValue="20" className="col-span-3" />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="commission-boost" className="text-right">Commission Boost (%)</Label>
+                                    <Input id="commission-boost" type="number" defaultValue="5" className="col-span-3" />
+                                </div>
+                            </div>
+                             <DialogFooter>
+                                <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                                <Button type="submit">Create Tier</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Sales Target (monthly)</TableHead>
+                            <TableHead>Commission Boost</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mockCommissionTiers.map(tier => (
+                            <TableRow key={tier.id}>
+                                <TableCell>
+                                    <p className="font-medium">{tier.salesTarget} items</p>
+                                    <p className="text-xs text-muted-foreground">{tier.description}</p>
+                                </TableCell>
+                                <TableCell className="font-semibold text-green-500">+{tier.commissionBoost}%</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon">
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                         {mockCommissionTiers.length === 0 && (
+                             <TableRow>
+                                <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                                    No commission tiers created yet.
+                                </TableCell>
+                            </TableRow>
+                         )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+};
+
+
 export default function ResellerCenterPage() {
   return (
     <SellerLayout>
@@ -126,6 +224,7 @@ export default function ResellerCenterPage() {
         <Tabs defaultValue="commissions" className="space-y-4">
             <TabsList>
                 <TabsTrigger value="commissions"><BadgePercent className="mr-2 h-4 w-4"/>Commission Rules</TabsTrigger>
+                <TabsTrigger value="tiers"><Trophy className="mr-2 h-4 w-4" />Commission Tiers</TabsTrigger>
                 <TabsTrigger value="top-performers"><Trophy className="mr-2 h-4 w-4"/>Top Performers</TabsTrigger>
                 <TabsTrigger value="top-shared"><Share2 className="mr-2 h-4 w-4"/>Top Shared Products</TabsTrigger>
             </TabsList>
@@ -142,6 +241,9 @@ export default function ResellerCenterPage() {
                     <CommissionSettingsTable />
                   </CardContent>
                 </Card>
+            </TabsContent>
+            <TabsContent value="tiers">
+                <CommissionTiers />
             </TabsContent>
             <TabsContent value="top-performers" className="space-y-4">
                 <Card>
