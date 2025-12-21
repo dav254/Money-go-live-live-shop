@@ -129,7 +129,16 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
       
       <VideoInfo seller={item.seller} viewers={item.viewers} />
 
-       {/* Product Info (Bottom Center) */}
+       {/* Comments Feed (Bottom Left) */}
+       <div className="absolute bottom-24 left-4 z-20 pointer-events-auto flex flex-col gap-2 max-h-48 overflow-y-auto">
+           {comments?.slice(-5).map(c => (
+               <div key={c.id} className="bg-black/50 text-white px-3 py-2 rounded-xl text-sm shadow-lg backdrop-blur-sm max-w-xs">
+                   <span className="font-bold mr-2">{c.userName}:</span>{c.text}
+               </div>
+           ))}
+       </div>
+
+      {/* Product Info (Bottom Center) */}
        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
             {item.product && <ProductInfo product={item.product} />}
        </div>
