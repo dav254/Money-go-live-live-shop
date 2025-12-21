@@ -14,58 +14,30 @@ function getPayPalClient() {
     return new paypal.core.PayPalHttpClient(environment);
 }
 
-// Health check function for this API endpoint
-export async function healthCheck() {
-    // In a real scenario, you might check connectivity to PayPal/Paystack here.
-    // For now, we confirm the environment variables are present.
-    const paystackReady = !!process.env.PAYSTACK_SECRET_KEY;
-    const paypalReady = !!process.env.PAYPAL_CLIENT_ID && !!process.env.PAYPAL_CLIENT_SECRET;
-    
-    if (paystackReady && paypalReady) {
-        return { status: 'operational' };
-    } else {
-        return { status: 'degraded', message: 'Payment gateway configuration is missing.' };
-    }
-}
-
-
 export async function POST(request: Request) {
     // Dynamically import paystack here to ensure it's only loaded on the server
     const Paystack = (await import('paystack')).default;
     const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 
     try {
-        const body = await request.json();
-        
-        // Handle health check requests
-        if (body.action === 'health_check') {
-            const health = await healthCheck();
-            return NextResponse.json(health);
-        }
+        const { orderId, amount, email, gateway } = await request.json();
 
-        const { orderId, amount, email, gateway, transactionType = 'product-purchase', metadata } = body;
-
-        if (!amount || !email || !gateway) {
+        if (!orderId || !amount || !email || !gateway) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
         
-        const reference = orderId || `${transactionType}-${randomBytes(8).toString('hex')}`;
-
+        const reference = `${orderId}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
-        
-        const finalMetadata = {
-            ...metadata,
-            transactionType: transactionType,
-            orderId: orderId,
-        };
 
         if (gateway === 'paystack') {
             const response = await paystack.transaction.initialize({
                 email: email,
-                amount: amount * 100,
+                amount: amount * 100, // Paystack expects amount in kobo/cents
                 currency: 'USD',
                 reference: reference,
-                metadata: finalMetadata,
+                metadata: {
+                    orderId: orderId,
+                }
             });
             
             if (!response.status || !response.data.authorization_url) {
@@ -85,7 +57,7 @@ export async function POST(request: Request) {
                         currency_code: 'USD',
                         value: amount.toString(),
                     },
-                     custom_id: JSON.stringify(finalMetadata),
+                    custom_id: orderId,
                 }],
                 application_context: {
                     return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId}?status=success`,
@@ -94,7 +66,7 @@ export async function POST(request: Request) {
             });
             
             const response = await paypalClient.execute(paypalRequest);
-            const approveLink = response.result.links.find(link => link.rel === 'approve');
+            const approveLink = response.result.links.find((link: { rel: string; }) => link.rel === 'approve');
             if (!approveLink) {
                  throw new Error('Could not find PayPal approval link');
             }
