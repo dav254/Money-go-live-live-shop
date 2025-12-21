@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -60,8 +61,10 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
                 description: 'Your unique reseller link is ready to be shared.',
             });
 
+            // Log the share event to the backend
             logResellerShare(user.uid, product.id, product.sellerId);
 
+            // Increment the click count on the product
             const productRef = doc(firestore, "products", product.id);
             await updateDoc(productRef, {
                 clickCount: increment(1)
@@ -70,6 +73,7 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
             onShareClick();
 
         } catch (err) {
+            // If clipboard fails, show the manual copy dialog
             setShowCopyFallback(true);
         } finally {
             setIsSharing(false);
@@ -95,7 +99,8 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
                         <div className="flex-1">
                             <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
                             <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                            <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shares || 0} Shares</span>
+                                <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shares || 0} Shares</span>
+                                <span className="flex items-center gap-1">Clicks: {product.clickCount || 0}</span>
                             </div>
                             <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
                         </div>
