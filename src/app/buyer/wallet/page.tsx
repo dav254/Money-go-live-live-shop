@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, ReactNode } from 'react';
@@ -32,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, query, where, orderBy, limit } from 'firebase/firestore';
 import type { PaymentMethod, Payment } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -161,7 +162,7 @@ export default function BuyerPaymentsPage() {
     
     const transactionsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        return query(collection(firestore, 'payments'), where('userId', '==', user.uid));
+        return query(collection(firestore, 'payments'), where('userId', '==', user.uid), orderBy('paymentDate', 'desc'), limit(5));
     }, [firestore, user]);
 
 
@@ -258,7 +259,7 @@ export default function BuyerPaymentsPage() {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><History /> Transaction History</CardTitle>
-                <CardDescription>A record of all your wallet activities.</CardDescription>
+                <CardDescription>A record of your wallet activities.</CardDescription>
             </CardHeader>
             <CardContent>
                  <Table>
@@ -279,7 +280,7 @@ export default function BuyerPaymentsPage() {
                                 </TableRow>
                             ))
                         ) : transactions && transactions.length > 0 ? (
-                            transactions.slice(0, 5).map((tx) => (
+                            transactions.map((tx) => (
                                 <TableRow key={tx.id}>
                                     <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate().toLocaleDateString()}</TableCell>
                                     <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
