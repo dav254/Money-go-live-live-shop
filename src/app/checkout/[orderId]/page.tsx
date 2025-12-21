@@ -6,7 +6,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
-import { MainLayout } from '@/components/layout/main-layout';
+import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
@@ -168,28 +168,28 @@ export default function CheckoutPage() {
 
     if (isLoading) {
         return (
-            <MainLayout>
+            <BuyerLayout>
                 <div className="container py-12">
                    <CheckoutSkeleton />
                 </div>
-            </MainLayout>
+            </BuyerLayout>
         )
     }
 
     if (error || !order) {
         return (
-            <MainLayout>
+            <BuyerLayout>
                 <div className="container py-12 text-center">
                     <h1 className="text-2xl font-bold">Order Not Found</h1>
                     <p className="text-muted-foreground">The order you are trying to pay for does not exist or you do not have permission to view it.</p>
                 </div>
-            </MainLayout>
+            </BuyerLayout>
         )
     }
     
     if (order.orderStatus !== 'pending') {
          return (
-            <MainLayout>
+            <BuyerLayout>
                 <div className="container py-12 text-center">
                     <h1 className="text-2xl font-bold">Order Not Payable</h1>
                     <p className="text-muted-foreground">This order has already been processed or is no longer pending payment.</p>
@@ -197,12 +197,12 @@ export default function CheckoutPage() {
                         <a href="/buyer/my-orders">View My Orders</a>
                     </Button>
                 </div>
-            </MainLayout>
+            </BuyerLayout>
         )
     }
 
     return (
-        <MainLayout>
+        <BuyerLayout>
             <div className="container py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     <Card>
@@ -265,6 +265,6 @@ export default function CheckoutPage() {
                     </div>
                 </div>
             </div>
-        </MainLayout>
+        </BuyerLayout>
     )
 }
