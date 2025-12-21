@@ -2,7 +2,7 @@
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { ProductCard } from '@/components/seller/product-card';
+import { ProductCard } from '@/components/products/product-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -12,12 +12,12 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Heart, Package, Video, CreditCard } from 'lucide-react';
+import { Package, Video, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, limit, orderBy } from 'firebase/firestore';
-import type { Product, SellerShop, UserProfile, HomepageSlide } from '@/lib/types';
+import type { Product, SellerShop, HomepageSlide } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const shortcuts = [
@@ -79,7 +79,7 @@ const HomepageCarousel = () => {
                             <div className="absolute bottom-0 left-0 p-4 md:p-8 text-white">
                                 <h2 className="font-headline text-2xl md:text-4xl font-bold">{slide.title}</h2>
                                 <p className="mt-2 max-w-md text-sm md:text-base">{slide.description}</p>
-                                <Button asChild className="mt-4" size="sm" md-size="default">
+                                <Button asChild className="mt-4" size={"sm"}>
                                     <Link href={slide.href}>Shop Now</Link>
                                 </Button>
                             </div>
@@ -94,17 +94,13 @@ const HomepageCarousel = () => {
 };
 
 const ProductCarouselSkeleton = () => (
-    <Carousel className="w-full">
-        <CarouselContent>
-            {Array.from({ length: 5 }).map((_, i) => (
-                <CarouselItem key={i} className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5">
-                    <div className="p-1">
-                        <Skeleton className="h-64 w-full" />
-                    </div>
-                </CarouselItem>
-            ))}
-        </CarouselContent>
-    </Carousel>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="p-1">
+                <Skeleton className="h-64 w-full" />
+            </div>
+        ))}
+    </div>
 );
 
 const SellerCarouselSkeleton = () => (
@@ -136,124 +132,122 @@ export default function BuyerDashboardPage() {
   const recommendedProducts = products?.slice(5, 10) || [];
 
   return (
-    <BuyerLayout>
-      <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
-        <HomepageCarousel />
+    <BuyerLayout fullWidth>
+        <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
+            <HomepageCarousel />
 
-        {/* Quick Shortcuts */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-          {shortcuts.map((shortcut) => (
-            <Card
-              key={shortcut.title}
-              className="group transition-all hover:shadow-lg hover:-translate-y-1"
-            >
-              <Link href={shortcut.href}>
-                <CardContent className="flex items-center justify-start gap-4 p-4 md:p-6">
-                  <div
-                    className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg ${shortcut.color} transition-colors group-hover:bg-primary group-hover:text-primary-foreground`}
-                  >
-                    <shortcut.icon className="h-5 w-5 md:h-6 md:w-6" />
-                  </div>
-                  <h3 className="font-headline text-base md:text-lg font-semibold">
-                    {shortcut.title}
-                  </h3>
-                </CardContent>
-              </Link>
-            </Card>
-          ))}
-        </div>
-
-        {/* Today's Deals Carousel */}
-        <div className="space-y-4">
-          <h2 className="font-headline text-2xl font-bold">Today's Deals</h2>
-           {isLoadingProducts ? <ProductCarouselSkeleton /> : (
-            <Carousel
-                opts={{
-                align: 'start',
-                loop: dealsProducts.length > 4,
-                }}
-                className="w-full"
-            >
-                <CarouselContent>
-                {dealsProducts.map((product) => (
-                    <CarouselItem
-                    key={product.id}
-                    className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
+            {/* Quick Shortcuts */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+            {shortcuts.map((shortcut) => (
+                <Card
+                key={shortcut.title}
+                className="group transition-all hover:shadow-lg hover:-translate-y-1"
+                >
+                <Link href={shortcut.href}>
+                    <CardContent className="flex items-center justify-start gap-4 p-4 md:p-6">
+                    <div
+                        className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg ${shortcut.color} transition-colors group-hover:bg-primary group-hover:text-primary-foreground`}
                     >
-                    <div className="p-1">
-                        <ProductCard product={product} />
+                        <shortcut.icon className="h-5 w-5 md:h-6 md:w-6" />
                     </div>
-                    </CarouselItem>
-                ))}
-                </CarouselContent>
-                <CarouselPrevious className="hidden md:flex" />
-                <CarouselNext className="hidden md:flex" />
-            </Carousel>
-           )}
-        </div>
-
-        {/* Trending Live Shows */}
-        <div className="space-y-4">
-          <h2 className="font-headline text-2xl font-bold">
-            Trending Live Shows
-          </h2>
-          {isLoadingSellers ? <SellerCarouselSkeleton /> : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {sellers?.map((seller) => (
-                <Link href={`/sellers/${seller.id}`} key={seller.id}>
-                    <Card className="group relative h-40 overflow-hidden">
-                    <Image
-                        src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
-                        alt={seller.shopName}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 25vw"
-                        className="object-cover transition-transform group-hover:scale-105"
-                        data-ai-hint="store banner"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                    <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
-                        <CardTitle className="font-headline text-lg text-white">
-                        {seller.shopName}
-                        </CardTitle>
-                    </CardHeader>
-                    </Card>
+                    <h3 className="font-headline text-base md:text-lg font-semibold">
+                        {shortcut.title}
+                    </h3>
+                    </CardContent>
                 </Link>
-                ))}
+                </Card>
+            ))}
             </div>
-          )}
-        </div>
 
-        {/* Recommended For You */}
-        <div className="space-y-4">
-          <h2 className="font-headline text-2xl font-bold">
-            Recommended For You
-          </h2>
-           {isLoadingProducts ? <ProductCarouselSkeleton /> : (
-            <Carousel
-                opts={{
-                align: 'start',
-                loop: recommendedProducts.length > 4,
-                }}
-                className="w-full"
-            >
-                <CarouselContent>
-                {recommendedProducts.map((product) => (
-                    <CarouselItem
-                    key={product.id}
-                    className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5"
-                    >
-                    <div className="p-1">
-                        <ProductCard product={product} />
-                    </div>
-                    </CarouselItem>
-                ))}
-                </CarouselContent>
-                <CarouselPrevious className="hidden md:flex" />
-                <CarouselNext className="hidden md:flex" />
-            </Carousel>
-           )}
+            {/* Today's Deals Carousel */}
+            <div className="space-y-4">
+            <h2 className="font-headline text-2xl font-bold">Today's Deals</h2>
+            {isLoadingProducts ? <ProductCarouselSkeleton /> : (
+                <Carousel
+                    opts={{
+                    align: 'start',
+                    }}
+                    className="w-full"
+                >
+                    <CarouselContent>
+                    {dealsProducts.map((product) => (
+                        <CarouselItem
+                        key={product.id}
+                        className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5"
+                        >
+                        <div className="p-1">
+                            <ProductCard product={product} />
+                        </div>
+                        </CarouselItem>
+                    ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="hidden md:flex" />
+                    <CarouselNext className="hidden md:flex" />
+                </Carousel>
+            )}
+            </div>
+
+            {/* Trending Live Shows */}
+            <div className="space-y-4">
+            <h2 className="font-headline text-2xl font-bold">
+                Trending Live Shows
+            </h2>
+            {isLoadingSellers ? <SellerCarouselSkeleton /> : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {sellers?.map((seller) => (
+                    <Link href={`/sellers/${seller.id}`} key={seller.id}>
+                        <Card className="group relative h-40 overflow-hidden">
+                        <Image
+                            src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
+                            alt={seller.shopName}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="object-cover transition-transform group-hover:scale-105"
+                            data-ai-hint="store banner"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
+                            <CardTitle className="font-headline text-lg text-white">
+                            {seller.shopName}
+                            </CardTitle>
+                        </CardHeader>
+                        </Card>
+                    </Link>
+                    ))}
+                </div>
+            )}
+            </div>
+
+            {/* Recommended For You */}
+            <div className="space-y-4">
+            <h2 className="font-headline text-2xl font-bold">
+                Recommended For You
+            </h2>
+            {isLoadingProducts ? <ProductCarouselSkeleton /> : (
+                <Carousel
+                    opts={{
+                    align: 'start',
+                    }}
+                    className="w-full"
+                >
+                    <CarouselContent>
+                    {recommendedProducts.map((product) => (
+                        <CarouselItem
+                        key={product.id}
+                        className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5"
+                        >
+                        <div className="p-1">
+                            <ProductCard product={product} />
+                        </div>
+                        </CarouselItem>
+                    ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="hidden md:flex" />
+                    <CarouselNext className="hidden md:flex" />
+                </Carousel>
+            )}
+            </div>
         </div>
-      </div>
     </BuyerLayout>
   );
 }
