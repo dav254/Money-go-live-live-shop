@@ -1,7 +1,7 @@
 
 'use client';
 
-import { ResellerLayout } from '@/components/layout/reseller-layout';
+import { ResellerLayout } from '@/components/layout/seller-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useMemo } from 'react';
 import { logResellerShare } from '@/app/actions/reseller-actions';
+import Link from 'next/link';
 
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
@@ -23,7 +24,10 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
 
-    const handleShare = async () => {
+    const handleShare = async (e: React.MouseEvent) => {
+        e.preventDefault(); // Stop the link navigation when only the button is clicked
+        e.stopPropagation();
+
         if (!user) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not identify reseller.' });
             return;
@@ -55,30 +59,29 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
     };
 
     return (
-        <Card className="overflow-hidden">
-            <div className="relative aspect-video">
-                <Image
-                    src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
-                    alt={product.name || 'product'}
-                    fill
-                    className="object-cover"
-                />
-                <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
-            </div>
-            <CardContent className="p-3 space-y-2">
-                 <div>
-                    <p className="text-sm font-semibold truncate">{product.name || 'Unnamed Product'}</p>
-                    <p className="text-primary font-bold">${product.price.toLocaleString()}</p>
-                 </div>
-                 <div className="flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={handleShare} disabled={isSharing}>
+        <Link href={`/products/${product.id}`} className="block group">
+            <Card className="overflow-hidden h-full flex flex-col">
+                <div className="relative aspect-video">
+                    <Image
+                        src={product.imageUrl || 'https://picsum.photos/seed/product/300'}
+                        alt={product.name || 'product'}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
+                </div>
+                <CardContent className="p-3 space-y-2 flex flex-col flex-1">
+                    <div className="flex-1">
+                        <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
+                        <p className="text-primary font-bold">${product.price.toLocaleString()}</p>
+                    </div>
+                    <Button size="sm" className="w-full mt-2" onClick={handleShare} disabled={isSharing}>
                         {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
                         Share
                     </Button>
-                    <Button size="sm" variant="secondary" className="flex-1"><Sparkles className="mr-2 h-4 w-4" /> Get Media</Button>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+        </Link>
     );
 };
 
