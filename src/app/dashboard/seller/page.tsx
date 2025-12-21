@@ -153,7 +153,6 @@ export default function SellerDashboardPage() {
               </CardHeader>
               <CardContent>
                 {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{shopData?.followers?.toLocaleString() || 0}</div>}
-                <p className="text-xs text-muted-foreground">+2 since last week</p>
               </CardContent>
             </Card>
             <Card>
