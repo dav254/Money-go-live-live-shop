@@ -11,14 +11,14 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link as LinkIcon, TrendingUp, Trophy } from 'lucide-react';
+import { Link as LinkIcon, TrendingUp, Trophy, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Order, UserProfile } from '@/lib/types';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import type { Order, UserProfile, Product } from '@/lib/types';
+import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
@@ -28,7 +28,7 @@ import { addDays, format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
+import Image from 'next/image';
 
 const chartConfig = {
   earnings: {
@@ -37,7 +37,6 @@ const chartConfig = {
   },
 };
 
-// Mock data for the new leaderboard
 const mockTopResellers = [
     { id: 'reseller-1', name: 'John Doe', avatar: 'https://picsum.photos/seed/john/40', sales: 152, commission: 450.75 },
     { id: 'reseller-2', name: 'Jane Smith', avatar: 'https://picsum.photos/seed/jane/40', sales: 121, commission: 380.50 },
@@ -87,6 +86,107 @@ const TopResellersTable = () => {
         </Table>
     );
 };
+
+interface ResellActivity {
+    id: string;
+    productId: string;
+    // other fields if they exist
+}
+interface AggregatedProductStats {
+    id: string;
+    name: string;
+    imageUrl: string;
+    shares: number;
+}
+const TopSharedProductsTable = () => {
+    const firestore = useFirestore();
+
+    const resellActivitiesQuery = useMemoFirebase(() => {
+        return query(collection(firestore, 'resellActivities'), limit(100));
+    }, [firestore]);
+    
+    const { data: activities, isLoading: isLoadingActivities } = useCollection<ResellActivity>(resellActivitiesQuery);
+
+    const productIds = useMemo(() => {
+        if (!activities) return [];
+        return [...new Set(activities.map(a => a.productId))];
+    }, [activities]);
+
+    const productsQuery = useMemoFirebase(() => {
+        if (productIds.length === 0) return null;
+        return query(collection(firestore, 'products'), where('__name__', 'in', productIds));
+    }, [firestore, productIds]);
+    
+    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+
+    const topSharedProducts: AggregatedProductStats[] = useMemo(() => {
+        if (!activities || !products) return [];
+
+        const shareCounts = activities.reduce((acc, activity) => {
+            acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        
+        const productMap = new Map(products.map(p => [p.id, p]));
+
+        return Object.entries(shareCounts)
+            .map(([productId, shares]) => {
+                const product = productMap.get(productId);
+                return {
+                    id: productId,
+                    name: product?.name || 'Unknown Product',
+                    imageUrl: product?.imageUrl || '',
+                    shares: shares
+                };
+            })
+            .sort((a, b) => b.shares - a.shares)
+            .slice(0, 5); // Get top 5
+
+    }, [activities, products]);
+    
+    const isLoading = isLoadingActivities || isLoadingProducts;
+
+    return (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Total Shares</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isLoading ? (
+                    [...Array(3)].map((_, i) => (
+                         <TableRow key={i}>
+                            <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                            <TableCell className="text-right"><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
+                        </TableRow>
+                    ))
+                ) : topSharedProducts.length > 0 ? (
+                    topSharedProducts.map(p => (
+                        <TableRow key={p.id}>
+                            <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted">
+                                         {p.imageUrl && <Image src={p.imageUrl} alt={p.name} fill className="object-cover" />}
+                                    </div>
+                                    <span className="font-medium">{p.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right font-bold">{p.shares}</TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                            No products have been shared yet.
+                        </TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+        </Table>
+    )
+}
 
 
 function ResellerDashboardPageContent() {
@@ -174,7 +274,7 @@ function ResellerDashboardPageContent() {
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${value}`}
+                                        tickFormatter={(value) => `$${"$"}{value}`}
                                     />
                                      <RechartsTooltip
                                         cursor={{ fill: 'hsla(var(--muted))' }}
@@ -189,11 +289,20 @@ function ResellerDashboardPageContent() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Top Performing Products</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><TrendingUp /> Top Performing Products</CardTitle>
                         <CardDescription>These are the products generating the most commission for you.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <TopPerformingProducts />
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Share2 /> Top Shared Products</CardTitle>
+                        <CardDescription>Products most frequently shared by the entire reseller network.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TopSharedProductsTable />
                     </CardContent>
                 </Card>
             </TabsContent>
