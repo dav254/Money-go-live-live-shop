@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -17,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/lib/types';
 import { Loader2, Pencil, Percent } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { Checkbox } from '../ui/checkbox';
 import {
   ColumnDef,
@@ -28,7 +29,7 @@ import {
   SortingState,
   getFilteredRowModel,
 } from '@tanstack/react-table';
-import { formatDistanceToNow, subDays } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge';
 import {
   DropdownMenu,
@@ -36,19 +37,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-
-
-type ProductWithStatus = Product & {
-    lastShare?: Date;
-    status: 'active' | 'stale';
-};
-
-const mockProductData: ProductWithStatus[] = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', price: 85, stock: 15, imageUrl: 'https://picsum.photos/seed/p1/100', sellerId: '', uploadDate: new Date(), lastShare: new Date(), status: 'active', commissionRate: 10 },
-    { id: 'prod-2', name: 'Urban Explorer Sneakers', price: 120, stock: 8, imageUrl: 'https://picsum.photos/seed/p2/100', sellerId: '', uploadDate: new Date(), lastShare: subDays(new Date(), 45), status: 'stale', commissionRate: 15 },
-    { id: 'prod-3', name: 'Chronograph Watch', price: 350, stock: 2, imageUrl: 'https://picsum.photos/seed/p3/100', sellerId: '', uploadDate: new Date(), lastShare: subDays(new Date(), 5), status: 'active', commissionRate: 12 },
-    { id: 'prod-4', name: 'Wireless Headphones', price: 250, stock: 20, imageUrl: 'https://picsum.photos/seed/p4/100', sellerId: '', uploadDate: new Date(), lastShare: subDays(new Date(), 90), status: 'stale', commissionRate: 0 },
-];
 
 function CommissionInput({ product, onSave }: { product: Product, onSave: () => void }) {
     const firestore = useFirestore();
@@ -80,6 +68,7 @@ function CommissionInput({ product, onSave }: { product: Product, onSave: () => 
                     onChange={(e) => setCommissionRate(Number(e.target.value))}
                     className="w-24 text-right pr-7"
                     autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
                 />
                 <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
@@ -90,13 +79,52 @@ function CommissionInput({ product, onSave }: { product: Product, onSave: () => 
     );
 }
 
+const TableSkeleton = () => {
+    return (
+        <div className="rounded-md border">
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead><Skeleton className="h-5 w-5"/></TableHead>
+                        <TableHead><Skeleton className="h-5 w-48"/></TableHead>
+                        <TableHead><Skeleton className="h-5 w-24"/></TableHead>
+                        <TableHead><Skeleton className="h-5 w-32"/></TableHead>
+                        <TableHead className="text-right"><Skeleton className="h-5 w-24 ml-auto"/></TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                {[...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-5"/></TableCell>
+                        <TableCell><div className="flex items-center gap-4"><Skeleton className="h-12 w-12 rounded-md" /><Skeleton className="h-6 w-32" /></div></TableCell>
+                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-28" /></TableCell>
+                        <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+        </div>
+    )
+}
+
 export function CommissionSettingsTable() {
-    const [data, setData] = React.useState(mockProductData);
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [rowSelection, setRowSelection] = React.useState({});
     const [isEditing, setIsEditing] = React.useState<string | null>(null);
 
-    const columns: ColumnDef<ProductWithStatus>[] = [
+    const productsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+
+    const isLoading = isUserLoading || areProductsLoading;
+
+    const columns: ColumnDef<Product>[] = [
         {
             id: 'select',
             header: ({ table }) => (
@@ -125,18 +153,9 @@ export function CommissionSettingsTable() {
             )
         },
         {
-            accessorKey: 'status',
-            header: 'Status',
-            cell: ({ row }) => (
-                <Badge variant={row.original.status === 'stale' ? 'destructive' : 'default'} className={row.original.status === 'active' ? 'bg-green-600/80' : ''}>
-                    {row.original.status}
-                </Badge>
-            )
-        },
-        {
-            accessorKey: 'lastShare',
-            header: 'Last Shared',
-            cell: ({ row }) => row.original.lastShare ? formatDistanceToNow(row.original.lastShare, { addSuffix: true }) : 'Never'
+            accessorKey: 'price',
+            header: () => <div className="text-right">Price</div>,
+            cell: ({ row }) => <div className="text-right">${(row.original.price || 0).toLocaleString()}</div>
         },
         {
             accessorKey: 'commissionRate',
@@ -146,7 +165,7 @@ export function CommissionSettingsTable() {
                     <CommissionInput product={row.original} onSave={() => setIsEditing(null)} />
                 ) : (
                     <div className="text-right flex items-center justify-end gap-2 group min-h-[40px]">
-                        <span>{row.original.commissionRate || 0}%</span>
+                        <span className="font-semibold text-primary">{row.original.commissionRate || 0}%</span>
                         <Button size="icon" variant="ghost" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => setIsEditing(row.original.id)}>
                             <Pencil className="h-4 w-4" />
                         </Button>
@@ -157,7 +176,7 @@ export function CommissionSettingsTable() {
     ];
 
     const table = useReactTable({
-        data,
+        data: products || [],
         columns,
         getCoreRowModel: getCoreRowModel(),
         onSortingChange: setSorting,
@@ -165,6 +184,10 @@ export function CommissionSettingsTable() {
         onRowSelectionChange: setRowSelection,
         state: { sorting, rowSelection },
     });
+
+    if (isLoading) {
+        return <TableSkeleton />;
+    }
 
     return (
         <div className="w-full">
@@ -176,7 +199,6 @@ export function CommissionSettingsTable() {
                             <Button variant="outline">Bulk Actions ({Object.keys(rowSelection).length})</Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                            <DropdownMenuItem>Pause from Reselling</DropdownMenuItem>
                             <DropdownMenuItem>Set Commission...</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive">Remove from Reselling</DropdownMenuItem>
                         </DropdownMenuContent>
@@ -208,7 +230,7 @@ export function CommissionSettingsTable() {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No products available for reselling.
+                                    You have no products. Add products to set commission rates.
                                 </TableCell>
                             </TableRow>
                         )}
