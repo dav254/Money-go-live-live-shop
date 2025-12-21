@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import type { Order, UserProfile, Product } from '@/lib/types';
 import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import {
@@ -274,7 +274,7 @@ function ResellerDashboardPageContent() {
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${"$"}{value}`}
+                                        tickFormatter={(value) => `$${value}`}
                                     />
                                      <RechartsTooltip
                                         cursor={{ fill: 'hsla(var(--muted))' }}

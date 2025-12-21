@@ -68,7 +68,9 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
+                    {product.commissionRate && (
+                        <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
+                    )}
                 </div>
                 <CardContent className="p-3 space-y-2 flex flex-col flex-1">
                     <div className="flex-1">
