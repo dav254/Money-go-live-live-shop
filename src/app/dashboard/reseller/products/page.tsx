@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, MousePointerClick } from 'lucide-react';
+import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +19,7 @@ import { logResellerShare } from '@/app/actions/reseller-actions';
 import Link from 'next/link';
 
 
-const ResellerProductCard = ({ product, clicks, onShareClick }: { product: Product; clicks: number; onShareClick: () => void; }) => {
+const ResellerProductCard = ({ product, shares, onShareClick }: { product: Product; shares: number; onShareClick: () => void; }) => {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
@@ -35,7 +35,7 @@ const ResellerProductCard = ({ product, clicks, onShareClick }: { product: Produ
 
         setIsSharing(true);
 
-        // Frontend-only click tracking
+        // Frontend-only share tracking
         onShareClick();
 
         const baseUrl = 'https://goearnvid.shop';
@@ -79,8 +79,7 @@ const ResellerProductCard = ({ product, clicks, onShareClick }: { product: Produ
                     <div className="flex-1">
                         <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
                          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                           <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {product.shares || 0} Shares</span>
-                           <span className="flex items-center gap-1"><MousePointerClick className="h-3 w-3" /> {clicks || 0} Clicks</span>
+                           <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shares || 0} Shares</span>
                         </div>
                         <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
                     </div>
@@ -103,7 +102,7 @@ const ProductGridSkeleton = () => (
 export default function ResellerProductsPage() {
   const firestore = useFirestore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [clickCounts, setClickCounts] = useState<Record<string, number>>({});
+  const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
 
   const productsQuery = useMemoFirebase(() => {
       if (!firestore) return null;
@@ -126,7 +125,7 @@ export default function ResellerProductsPage() {
   }, [products, searchQuery]);
   
   const handleShareClick = (productId: string) => {
-    setClickCounts(prev => ({
+    setShareCounts(prev => ({
         ...prev,
         [productId]: (prev[productId] || 0) + 1
     }));
@@ -167,7 +166,7 @@ export default function ResellerProductsPage() {
                             <ResellerProductCard 
                                 key={p.id} 
                                 product={p} 
-                                clicks={clickCounts[p.id] || 0}
+                                shares={shareCounts[p.id] || 0}
                                 onShareClick={() => handleShareClick(p.id)}
                             />
                         ))}
@@ -187,7 +186,7 @@ export default function ResellerProductsPage() {
                             <ResellerProductCard 
                                 key={p.id} 
                                 product={p} 
-                                clicks={clickCounts[p.id] || 0}
+                                shares={shareCounts[p.id] || 0}
                                 onShareClick={() => handleShareClick(p.id)}
                             />
                         ))}
