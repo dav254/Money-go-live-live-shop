@@ -106,6 +106,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
           ref={videoRef}
           src={item.video.imageUrl} // imageUrl now holds the media URL
           className="h-full w-full object-contain" 
+          poster={item.product.imageUrl}
           muted={isMuted}
           loop 
           playsInline
