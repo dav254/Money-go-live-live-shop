@@ -102,19 +102,22 @@ const TopSharedProductsTable = () => {
     const firestore = useFirestore();
 
     const resellActivitiesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
         return query(collection(firestore, 'resellActivities'), limit(100));
     }, [firestore]);
     
     const { data: activities, isLoading: isLoadingActivities } = useCollection<ResellActivity>(resellActivitiesQuery);
 
     const productIds = useMemo(() => {
-        if (!activities) return [];
+        if (!activities || activities.length === 0) return [];
         return [...new Set(activities.map(a => a.productId))];
     }, [activities]);
 
     const productsQuery = useMemoFirebase(() => {
-        if (productIds.length === 0) return null;
-        return query(collection(firestore, 'products'), where('__name__', 'in', productIds));
+        if (productIds.length === 0 || !firestore) return null;
+        // Firestore 'in' query is limited to 30 items per query.
+        // For a real-world app with more products, you might need to batch these queries.
+        return query(collection(firestore, 'products'), where('__name__', 'in', productIds.slice(0, 30)));
     }, [firestore, productIds]);
     
     const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);

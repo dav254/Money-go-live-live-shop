@@ -7,7 +7,7 @@
  */
 
 import { db } from '@/firebase/server';
-import { serverTimestamp } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 
 
 export async function logResellerShare(resellerId: string, productId: string, sellerId: string) {
@@ -16,7 +16,7 @@ export async function logResellerShare(resellerId: string, productId: string, se
       resellerId,
       productId,
       sellerId,
-      sharedAt: serverTimestamp(),
+      sharedAt: FieldValue.serverTimestamp(),
     });
   } catch (error) {
     console.error("Failed to log reseller share:", error);
