@@ -101,7 +101,7 @@ export function BuyerHeader() {
         </Button>
         <ThemeToggle />
         <Button variant="ghost" size="icon" className="hidden md:inline-flex relative" asChild>
-          <Link href="/notifications">
+          <Link href="/buyer/notifications">
             <Bell className="h-5 w-5" />
             <span className="sr-only">Notifications</span>
             <span className="absolute top-1 right-1 flex h-2 w-2">
