@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
