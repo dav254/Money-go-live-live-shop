@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -11,12 +12,14 @@ import { FirebaseErrorListener } from '../FirebaseErrorListener';
 export function MainLayout({ children, sidebar }: { children: React.ReactNode, sidebar?: React.ReactNode }) {
   
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <main className="flex-1">
-        <FirebaseErrorListener />
-        {children}
-      </main>
-      <Toaster />
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full flex-col bg-background">
+        <main className="flex-1">
+          <FirebaseErrorListener />
+          {children}
+        </main>
+        <Toaster />
+      </div>
+    </SidebarProvider>
   );
 }
