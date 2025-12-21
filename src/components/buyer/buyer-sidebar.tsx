@@ -42,14 +42,6 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/notifications')} tooltip="Notifications">
-            <Link href="/buyer/notifications">
-              <Bell />
-              <span>Notifications</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/live')} tooltip="Live Buying">
             <Link href="/live">
