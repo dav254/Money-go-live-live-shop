@@ -79,7 +79,7 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
           mediaType: mediaType,
         },
         likes: product.likes || 0,
-        viewers: Math.floor(Math.random() * 50) + 1, // Placeholder for preview
+        viewers: product.viewCount || 0,
         comments: [], // Placeholder
     };
 
@@ -186,4 +186,3 @@ export default function LivePage() {
         </BuyerLayout>
     );
 }
-
