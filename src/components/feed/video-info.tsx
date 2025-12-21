@@ -56,7 +56,7 @@ export function VideoInfo({ seller, viewers }: VideoInfoProps) {
         </div>
         <div className="flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-sm text-white backdrop-blur-sm">
             <Users className="h-4 w-4 text-red-500" />
-            <span className="font-semibold">{viewers.toLocaleString()}</span>
+            <span className="font-semibold">{(viewers || 0).toLocaleString()}</span>
         </div>
       </div>
     </div>
