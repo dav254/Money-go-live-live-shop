@@ -1,12 +1,15 @@
 
 'use client';
 
-import type { Product } from '@/lib/types';
+import type { Product, Review } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart, Star, Store } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import React from 'react';
 
 interface ProductInfoProps {
   product: Product;
@@ -16,6 +19,19 @@ export function ProductInfo({ product }: ProductInfoProps) {
   if (!product) {
     return null;
   }
+
+  const firestore = useFirestore();
+  const reviewsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, 'products', product.id, 'reviews'));
+  }, [firestore, product.id]);
+
+  const { data: reviews } = useCollection<Review>(reviewsQuery);
+
+  const averageRating = React.useMemo(() => {
+    if (!reviews || reviews.length === 0) return 0;
+    const total = reviews.reduce((acc, r) => acc + r.rating, 0);
+    return total / reviews.length;
+  }, [reviews]);
 
   const imageUrl = product.imageUrl || getPlaceholderImage();
 
@@ -35,8 +51,12 @@ export function ProductInfo({ product }: ProductInfoProps) {
             <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-white truncate">{product.name}</h3>
                 <div className="flex items-center gap-2 text-xs text-neutral-300 mt-1">
-                    <span>{product.rating?.toFixed(1) || 'N/A'} <Star className="h-3 w-3 inline-block -mt-1 text-yellow-400 fill-current"/></span>
-                    <span className='text-neutral-500'>|</span>
+                    {reviews && reviews.length > 0 && (
+                      <>
+                        <span>{averageRating.toFixed(1)} <Star className="h-3 w-3 inline-block -mt-1 text-yellow-400 fill-current"/></span>
+                        <span className='text-neutral-500'>|</span>
+                      </>
+                    )}
                     <span className="font-semibold text-green-400">${product.price?.toFixed(2)}</span>
                     {product.wasPrice && (
                         <span className="text-neutral-400 line-through">${product.wasPrice.toFixed(2)}</span>
