@@ -8,7 +8,7 @@ import { Bell, MessageSquare, Video, Search, Menu, X } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '../ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { BuyerSidebar } from './buyer-sidebar';
 import { SidebarTrigger } from '../ui/sidebar';
 import { useUser, useUserProfile } from '@/firebase';
@@ -49,6 +49,9 @@ export function BuyerHeader() {
           </SheetContent>
         </Sheet>
         
+        {/* Desktop Sidebar Trigger */}
+        <SidebarTrigger className="hidden md:flex" />
+
         <div className="hidden md:block">
             {isLoading ? (
               <Skeleton className="h-6 w-40" />
@@ -63,7 +66,7 @@ export function BuyerHeader() {
       {/* Search Bar - Conditional Rendering */}
       <div className={cn(
           "absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4 transition-opacity md:static md:w-full md:max-w-lg md:translate-x-0 md:translate-y-0 md:px-0 md:opacity-100",
-          isSearchOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          isSearchOpen ? "opacity-100" : "pointer-events-none opacity-0 md:pointer-events-auto"
       )}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
