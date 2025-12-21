@@ -1,23 +1,26 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { RadioTower, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { LiveSession } from '@/lib/types';
-import MuxPlayer from '@mux/mux-player-react';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
+import type { Peer } from 'peerjs';
 
 export default function BuyerLiveViewPage() {
     const params = useParams();
     const sellerId = params.streamId as string;
     const firestore = useFirestore();
+    const { user } = useUser();
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const peerRef = useRef<Peer | null>(null);
 
     const [pinnedProduct, setPinnedProduct] = React.useState<any>(null);
 
@@ -28,6 +31,42 @@ export default function BuyerLiveViewPage() {
 
     const { data: liveSession, isLoading, error } = useDoc<LiveSession>(liveSessionRef);
 
+    useEffect(() => {
+        if (!liveSession || liveSession.status !== 'live' || !user) {
+            return;
+        }
+
+        async function initPeer() {
+            const { Peer } = await import('peerjs');
+            const peer = new Peer(); // Let PeerJS assign an ID
+            peerRef.current = peer;
+
+            peer.on('open', id => {
+                const call = peer.call(sellerId, new MediaStream()); // Dummy stream to initiate
+                call.on('stream', (remoteStream) => {
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = remoteStream;
+                        videoRef.current.play().catch(e => console.error("Video play failed:", e));
+                    }
+                });
+                call.on('error', (err) => {
+                    console.error('PeerJS call error:', err);
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS main error:', err);
+            });
+        }
+
+        initPeer();
+
+        return () => {
+            peerRef.current?.destroy();
+        };
+
+    }, [liveSession, user, sellerId]);
+
     const handlePinProduct = (product: any) => {
         setPinnedProduct(product);
     };
@@ -35,7 +74,6 @@ export default function BuyerLiveViewPage() {
     const handleUnpinProduct = () => {
         setPinnedProduct(null);
     };
-
 
     if (isLoading) {
         return (
@@ -47,7 +85,7 @@ export default function BuyerLiveViewPage() {
         )
     }
     
-    if (error || !liveSession || liveSession.status !== 'live' || !liveSession.muxPlaybackId) {
+    if (error || !liveSession || liveSession.status !== 'live') {
         return (
              <BuyerLayout>
                 <div className="flex-1 space-y-4 p-8 pt-6">
@@ -67,13 +105,7 @@ export default function BuyerLiveViewPage() {
         <BuyerLayout>
             <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)]">
                 <div className="lg:col-span-3 h-full w-full bg-black relative">
-                    <MuxPlayer
-                        playbackId={liveSession.muxPlaybackId}
-                        streamType="live"
-                        autoPlay
-                        muted
-                        className="w-full h-full"
-                    />
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain" />
                      {pinnedProduct && (
                         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
                             <PinnedProduct product={pinnedProduct} />
@@ -98,4 +130,3 @@ export default function BuyerLiveViewPage() {
         </BuyerLayout>
     );
 }
-

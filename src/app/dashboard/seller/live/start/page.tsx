@@ -10,13 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useUser, useFirestore, useUserProfile } from "@/firebase";
 import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import type { Peer } from 'peerjs';
 
 export default function SellerLiveStudio() {
   const { user } = useUser();
-  const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const peerRef = useRef<Peer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
@@ -24,7 +24,6 @@ export default function SellerLiveStudio() {
   const { toast } = useToast();
 
   const cleanupStream = useCallback(() => {
-    console.log("Cleaning up stream...");
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -32,112 +31,83 @@ export default function SellerLiveStudio() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
-        mediaRecorder.current.stop();
-        mediaRecorder.current = null;
-    }
     setIsCameraOn(false);
   }, []);
 
-  // Effect to clean up when the component is unmounted
+  const stopLive = useCallback(async () => {
+    if (peerRef.current) {
+      peerRef.current.destroy();
+      peerRef.current = null;
+    }
+    setIsLive(false);
+    toast({ title: 'Stream Ended', description: 'You are no longer live.' });
+    if (user && firestore) {
+      const sessionRef = doc(firestore, 'liveSessions', user.uid);
+      await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
+    }
+  }, [user, firestore, toast]);
+
   useEffect(() => {
     return () => {
-      if (isLive) {
-        stopLive();
-      }
+      stopLive();
       cleanupStream();
     };
-  }, []); // Empty dependency array ensures this only runs on mount and unmount
-
+  }, [stopLive, cleanupStream]);
 
   async function startCamera() {
     if (isCameraOn) return;
-    
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setHasCameraPermission(false);
-        toast({ variant: 'destructive', title: 'Media Devices not supported' });
-        return;
-    }
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'user',
-            },
-            audio: true,
-        });
-        streamRef.current = stream;
-
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-        }
-        
-        setHasCameraPermission(true);
-        setIsCameraOn(true);
-
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: true,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setHasCameraPermission(true);
+      setIsCameraOn(true);
     } catch (err) {
-        console.error("Camera access error:", err);
-        setHasCameraPermission(false);
+      console.error("Camera access error:", err);
+      setHasCameraPermission(false);
     }
   }
 
   async function goLive() {
-    if (!streamRef.current || !user || !firestore || !userProfile) {
-        toast({ variant: 'destructive', title: 'Initialization Error', description: 'User or camera not ready.' });
-        return;
+    if (!streamRef.current || !user || !firestore) {
+      toast({ variant: 'destructive', title: 'Initialization Error', description: 'User or camera not ready.' });
+      return;
     }
-    
-    // Initialize MediaRecorder right before going live
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm; codecs=vp9' });
-    mediaRecorder.current = recorder;
 
-    recorder.ondataavailable = async (e) => {
-        if (e.data.size > 0) {
-            const formData = new FormData();
-            formData.append("video", e.data, "live.webm");
-            try {
-                await fetch("/api/live/upload", {
-                    method: "POST",
-                    body: formData,
-                });
-            } catch (error) {
-                console.error("Failed to upload video chunk:", error);
-            }
-        }
-    };
-    
-    // Create live session document in Firestore
-    const sessionRef = doc(firestore, 'liveSessions', user.uid);
-    await setDoc(sessionRef, {
+    const { Peer } = await import('peerjs');
+    const peer = new Peer(user.uid);
+    peerRef.current = peer;
+
+    peer.on('open', async (id) => {
+      const sessionRef = doc(firestore, 'liveSessions', user.uid);
+      await setDoc(sessionRef, {
         id: user.uid,
         sellerId: user.uid,
-        title: `${userProfile.fullName}'s Live Show`,
+        title: `${user.displayName || 'Seller'}'s Live Show`,
         status: 'live',
         startTime: serverTimestamp(),
-    }, { merge: true });
+      }, { merge: true });
+      setIsLive(true);
+      toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted.' });
+    });
 
-    mediaRecorder.current.start(5000); 
-    setIsLive(true);
-    toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted.' });
+    peer.on('call', (call) => {
+      if (streamRef.current) {
+        call.answer(streamRef.current);
+      }
+    });
+
+    peer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+        toast({ variant: 'destructive', title: 'Connection Error', description: 'Could not establish live connection. Please try again.' });
+        stopLive();
+    });
   }
-
-  async function stopLive() {
-    if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
-        mediaRecorder.current.stop();
-    }
-    setIsLive(false);
-    toast({ title: 'Stream Ended', description: 'You are no longer live.' });
-
-    // Update session status in Firestore
-    if (user && firestore) {
-        const sessionRef = doc(firestore, 'liveSessions', user.uid);
-        await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
-    }
-    // Don't call cleanupStream here, just stop the recorder
-    mediaRecorder.current = null;
-  }
-
 
   return (
     <SellerLayout>
@@ -145,7 +115,7 @@ export default function SellerLiveStudio() {
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Live Studio</CardTitle>
-            <CardDescription>Start your camera, then go live to broadcast short video clips to your audience.</CardDescription>
+            <CardDescription>Start your camera, then go live to broadcast to your audience.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="aspect-video w-full bg-black rounded-lg mb-4 relative">
@@ -157,7 +127,6 @@ export default function SellerLiveStudio() {
                 </div>
               )}
             </div>
-
             {hasCameraPermission === false && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -167,7 +136,6 @@ export default function SellerLiveStudio() {
                   </AlertDescription>
                 </Alert>
             )}
-
             <div className="flex flex-col sm:flex-row gap-2 mt-4">
               {!isCameraOn ? (
                 <Button onClick={startCamera} className="w-full">
