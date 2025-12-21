@@ -14,7 +14,7 @@ import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2 } f
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { logResellerShare } from '@/app/actions/reseller-actions';
 
 
@@ -86,6 +86,7 @@ const ProductGridSkeleton = () => (
 
 export default function ResellerProductsPage() {
   const firestore = useFirestore();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const productsQuery = useMemoFirebase(() => {
       if (!firestore) return null;
@@ -98,6 +99,15 @@ export default function ResellerProductsPage() {
 
   const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    if (!searchQuery) return products;
+
+    return products.filter(product =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [products, searchQuery]);
+
   return (
     <ResellerLayout>
         <div className="flex-1 space-y-4 p-8 pt-6">
@@ -108,7 +118,12 @@ export default function ResellerProductsPage() {
             <div className="flex items-center justify-between gap-4">
                 <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search products..." className="pl-9" />
+                <Input 
+                    placeholder="Search products..." 
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
                 </div>
                 <Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filters</Button>
             </div>
@@ -122,22 +137,22 @@ export default function ResellerProductsPage() {
             <TabsContent value="all" className="mt-6">
                 {isLoading ? (
                     <ProductGridSkeleton />
-                ) : products && products.length > 0 ? (
+                ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                        {filteredProducts.map(p => <ResellerProductCard key={p.id} product={p} />)}
                     </div>
                 ) : (
                     <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                        <p className="text-muted-foreground">No products available for reselling yet.</p>
+                        <p className="text-muted-foreground">No products found for "{searchQuery}".</p>
                     </div>
                 )}
             </TabsContent>
             <TabsContent value="high-commission" className="mt-6">
                 {isLoading ? (
                     <ProductGridSkeleton />
-                ) : products && products.length > 0 ? (
+                ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                        {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                        {filteredProducts.map(p => <ResellerProductCard key={p.id} product={p} />)}
                     </div>
                 ) : (
                     <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
