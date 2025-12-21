@@ -72,7 +72,8 @@ const TopResellersTable = () => {
                 return;
             }
             
-            const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
+            // Firestore 'in' queries are limited to 30 items. For larger scale, this would need batching.
+            const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds.slice(0, 30)));
             const usersSnapshot = await getDocs(usersQuery);
             const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as UserProfile]));
 
@@ -163,23 +164,11 @@ export default function ResellerCenterPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Reseller Center
         </h1>
-        <Tabs defaultValue="requests" className="space-y-4">
+        <Tabs defaultValue="commissions" className="space-y-4">
             <TabsList>
-                <TabsTrigger value="requests"><Users className="mr-2 h-4 w-4"/>Manage Resellers</TabsTrigger>
                 <TabsTrigger value="commissions"><BadgePercent className="mr-2 h-4 w-4"/>Commission Rules</TabsTrigger>
                 <TabsTrigger value="top-performers"><Trophy className="mr-2 h-4 w-4"/>Top Performers</TabsTrigger>
             </TabsList>
-            <TabsContent value="requests" className="space-y-4">
-                 <Card>
-                  <CardHeader>
-                    <CardTitle>Manage Resellers & Requests</CardTitle>
-                    <CardDescription>Approve or reject requests from users who want to resell your products. You can also remove existing resellers.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ManageResellersTable />
-                  </CardContent>
-                </Card>
-            </TabsContent>
             <TabsContent value="commissions" className="space-y-4">
                 <Card>
                   <CardHeader>
