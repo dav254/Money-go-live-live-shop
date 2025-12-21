@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -29,13 +30,14 @@ import {
 } from "@/components/ui/alert-dialog"
 
 
-const ResellerProductCard = ({ product, shares, onShareClick }: { product: Product; shares: number; onShareClick: () => void; }) => {
+const ResellerProductCard = ({ product }: { product: Product }) => {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
     const firestore = useFirestore();
     const [showCopyFallback, setShowCopyFallback] = useState(false);
     const [shareUrl, setShareUrl] = useState('');
+    const [shareCount, setShareCount] = useState(0); // Local state for immediate feedback
 
 
     const handleShare = async (e: React.MouseEvent) => {
@@ -60,16 +62,9 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
                 description: 'Your unique reseller link is ready to be shared.',
             });
 
-            // Log the share event to the backend
+            // Log the share event to the backend and update UI optimistically
             logResellerShare(user.uid, product.id, product.sellerId);
-
-            // Increment the click count on the product
-            const productRef = doc(firestore, "products", product.id);
-            await updateDoc(productRef, {
-                clickCount: increment(1)
-            });
-
-            onShareClick();
+            setShareCount(prev => prev + 1);
 
         } catch (err) {
             // If clipboard fails, show the manual copy dialog
@@ -98,8 +93,7 @@ const ResellerProductCard = ({ product, shares, onShareClick }: { product: Produ
                         <div className="flex-1">
                             <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
                             <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shares || 0} Shares</span>
-                                <span className="flex items-center gap-1">Clicks: {product.clickCount || 0}</span>
+                                <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shareCount || 0} Shares</span>
                             </div>
                             <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
                         </div>
@@ -150,7 +144,6 @@ const ProductGridSkeleton = () => (
 export default function ResellerProductsPage() {
   const firestore = useFirestore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [shareCounts, setShareCounts] = useState<Record<string, number>>({});
 
   const productsQuery = useMemoFirebase(() => {
       if (!firestore) return null;
@@ -172,12 +165,6 @@ export default function ResellerProductsPage() {
     );
   }, [products, searchQuery]);
   
-  const handleShareClick = (productId: string) => {
-    setShareCounts(prev => ({
-        ...prev,
-        [productId]: (prev[productId] || 0) + 1
-    }));
-  };
 
   return (
     <ResellerLayout>
@@ -214,8 +201,6 @@ export default function ResellerProductsPage() {
                             <ResellerProductCard 
                                 key={p.id} 
                                 product={p} 
-                                shares={shareCounts[p.id] || 0}
-                                onShareClick={() => handleShareClick(p.id)}
                             />
                         ))}
                     </div>
@@ -234,8 +219,6 @@ export default function ResellerProductsPage() {
                             <ResellerProductCard 
                                 key={p.id} 
                                 product={p} 
-                                shares={shareCounts[p.id] || 0}
-                                onShareClick={() => handleShareClick(p.id)}
                             />
                         ))}
                     </div>
