@@ -265,11 +265,11 @@ service cloud.firestore {
 
     // Payments collection rules
     match /payments/{paymentId} {
-      // Allow a user to list payments ONLY if they are filtering by their own userId.
-      allow list: if request.auth != null && request.query.where[0][2] == request.auth.uid;
+      // Allow a user to list payments ONLY if the query's 'where' clause for 'userId' matches their own UID.
+      allow list: if request.auth != null && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
       // Allow a user to read their own payment document.
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      // Client-side writes are handled by webhooks, so this can be false.
+      // Client-side writes are handled by webhooks, so this should be false.
       allow write: if false;
     }
     
