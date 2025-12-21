@@ -1,3 +1,4 @@
+
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -98,53 +99,55 @@ export default function ResellerProductsPage() {
   const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Products to Resell
-        </h1>
+    <ResellerLayout>
+        <div className="flex-1 space-y-4 p-8 pt-6">
+            <h1 className="font-headline text-3xl font-bold tracking-tight">
+            Products to Resell
+            </h1>
 
-        <div className="flex items-center justify-between gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search products..." className="pl-9" />
+            <div className="flex items-center justify-between gap-4">
+                <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search products..." className="pl-9" />
+                </div>
+                <Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filters</Button>
             </div>
-            <Button variant="outline"><Filter className="mr-2 h-4 w-4" /> Filters</Button>
+
+            <Tabs defaultValue="all">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="all">All Products</TabsTrigger>
+                <TabsTrigger value="high-commission"><Percent className="mr-1 h-4 w-4" /> High Commission</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all" className="mt-6">
+                {isLoading ? (
+                    <ProductGridSkeleton />
+                ) : products && products.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                        <p className="text-muted-foreground">No products available for reselling yet.</p>
+                    </div>
+                )}
+            </TabsContent>
+            <TabsContent value="high-commission" className="mt-6">
+                {isLoading ? (
+                    <ProductGridSkeleton />
+                ) : products && products.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                        <p className="text-muted-foreground">No high-commission products found.</p>
+                    </div>
+                )}
+            </TabsContent>
+
+            </Tabs>
         </div>
-
-        <Tabs defaultValue="all">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="all">All Products</TabsTrigger>
-            <TabsTrigger value="high-commission"><Percent className="mr-1 h-4 w-4" /> High Commission</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="mt-6">
-            {isLoading ? (
-                <ProductGridSkeleton />
-            ) : products && products.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
-                </div>
-            ) : (
-                 <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                    <p className="text-muted-foreground">No products available for reselling yet.</p>
-                </div>
-            )}
-          </TabsContent>
-           <TabsContent value="high-commission" className="mt-6">
-            {isLoading ? (
-                <ProductGridSkeleton />
-            ) : products && products.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {products.map(p => <ResellerProductCard key={p.id} product={p} />)}
-                </div>
-            ) : (
-                 <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                    <p className="text-muted-foreground">No high-commission products found.</p>
-                </div>
-            )}
-          </TabsContent>
-
-        </Tabs>
-      </div>
+    </ResellerLayout>
   );
 }
