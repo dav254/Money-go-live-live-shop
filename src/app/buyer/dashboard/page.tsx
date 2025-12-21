@@ -16,9 +16,10 @@ import { Package, Video, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, limit, orderBy } from 'firebase/firestore';
+import { collection, query, limit, orderBy, where } from 'firebase/firestore';
 import type { Product, SellerShop, HomepageSlide } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useEffect, useState } from 'react';
 
 const shortcuts = [
   {
@@ -87,8 +88,8 @@ const HomepageCarousel = () => {
                     </CarouselItem>
                 ))}
             </CarouselContent>
-            <CarouselPrevious className="left-4 hidden md:flex" />
-            <CarouselNext className="right-4 hidden md:flex" />
+            <CarouselPrevious className="hidden md:flex" />
+            <CarouselNext className="hidden md:flex" />
         </Carousel>
     );
 };
@@ -114,22 +115,37 @@ const SellerCarouselSkeleton = () => (
 
 export default function BuyerDashboardPage() {
   const firestore = useFirestore();
+  const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
 
-  const productsQuery = useMemoFirebase(() => {
+  useEffect(() => {
+    // In a real app, this would be updated whenever a user views a product.
+    // For this example, we'll simulate it by picking a random category on mount.
+    const categories = ['Fashion', 'Electronics', 'Home Goods', 'Beauty'];
+    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+    setLastViewedCategory(randomCategory);
+  }, []);
+
+  const dealsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'products'), limit(10));
+    // Simple query: get recent products with a discount
+    return query(collection(firestore, 'products'), where('wasPrice', '>', 0), limit(10));
   }, [firestore]);
+
+  const recommendedQuery = useMemoFirebase(() => {
+    if (!firestore || !lastViewedCategory) return null;
+    // Smarter query: get products from the same category as the last viewed item.
+    return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
+  }, [firestore, lastViewedCategory]);
+
 
   const sellerShopsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'sellerShops'), limit(4));
   }, [firestore]);
 
-  const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
+  const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
+  const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
   const { data: sellers, isLoading: isLoadingSellers } = useCollection<SellerShop>(sellerShopsQuery);
-
-  const dealsProducts = products?.slice(0, 5) || [];
-  const recommendedProducts = products?.slice(5, 10) || [];
 
   return (
     <BuyerLayout fullWidth={true}>
@@ -162,7 +178,7 @@ export default function BuyerDashboardPage() {
             {/* Today's Deals Carousel */}
             <div className="space-y-4">
             <h2 className="font-headline text-2xl font-bold">Today's Deals</h2>
-            {isLoadingProducts ? <ProductCarouselSkeleton /> : (
+            {isLoadingDeals ? <ProductCarouselSkeleton /> : (
                 <Carousel
                     opts={{
                     align: 'start',
@@ -170,7 +186,7 @@ export default function BuyerDashboardPage() {
                     className="w-full"
                 >
                     <CarouselContent>
-                    {dealsProducts.map((product) => (
+                    {(dealsProducts || []).map((product) => (
                         <CarouselItem
                         key={product.id}
                         className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5"
@@ -223,7 +239,9 @@ export default function BuyerDashboardPage() {
             <h2 className="font-headline text-2xl font-bold">
                 Recommended For You
             </h2>
-            {isLoadingProducts ? <ProductCarouselSkeleton /> : (
+            {isLoadingRecs ? (
+                <ProductCarouselSkeleton />
+            ) : recommendedProducts && recommendedProducts.length > 0 ? (
                 <Carousel
                     opts={{
                     align: 'start',
@@ -245,6 +263,11 @@ export default function BuyerDashboardPage() {
                     <CarouselPrevious className="hidden md:flex" />
                     <CarouselNext className="hidden md:flex" />
                 </Carousel>
+            ) : (
+                <div className="text-center text-muted-foreground p-8 border border-dashed rounded-lg">
+                    <p>No recommendations found for you right now.</p>
+                    <p className="text-sm">Browse more products to get personalized suggestions!</p>
+                </div>
             )}
             </div>
         </div>
