@@ -49,10 +49,14 @@ export function BuyerHeader() {
           </SheetContent>
         </Sheet>
         
-        {/* Desktop Sidebar Trigger & Logo */}
-        <div className="hidden items-center gap-4 md:flex">
-          <SidebarTrigger />
-          <Logo className="h-8 w-auto text-primary" />
+        <div className="hidden md:block">
+            {isLoading ? (
+              <Skeleton className="h-6 w-40" />
+            ) : (
+              <h1 className="text-lg font-semibold">
+                Welcome, <span className="text-primary">{buyerName}</span>
+              </h1>
+            )}
         </div>
       </div>
 
