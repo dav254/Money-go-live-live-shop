@@ -482,3 +482,5 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   );
 }
 
+
+    
