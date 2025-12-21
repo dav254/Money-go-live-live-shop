@@ -15,14 +15,25 @@ import { useUser, useUserProfile } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export function BuyerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
 
   const isLoading = isUserLoading || isProfileLoading;
   const buyerName = userProfile?.fullName || 'Buyer';
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false); // Close mobile search on submit
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
@@ -66,15 +77,24 @@ export function BuyerHeader() {
       {/* Search Bar - Conditional Rendering */}
       <div className={cn(
           "absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4 transition-opacity md:static md:w-full md:max-w-lg md:translate-x-0 md:translate-y-0 md:px-0 md:opacity-100",
-          isSearchOpen ? "opacity-100" : "pointer-events-none opacity-0 md:pointer-events-auto"
+          isSearchOpen ? "opacity-100 z-50" : "pointer-events-none opacity-0 md:pointer-events-auto"
       )}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search products, sellers..." className="pl-9" />
-           <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 md:hidden" onClick={() => setIsSearchOpen(false)}>
-              <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <form onSubmit={handleSearchSubmit}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input 
+              placeholder="Search products, sellers..." 
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {isSearchOpen && (
+              <Button variant="ghost" size="icon" type="button" className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 md:hidden" onClick={() => setIsSearchOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </form>
       </div>
       
       <div className="flex items-center gap-2">
