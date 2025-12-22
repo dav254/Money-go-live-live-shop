@@ -24,6 +24,34 @@ export default function SellerLiveStudio() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const { toast } = useToast();
 
+  const initializePeer = useCallback(async () => {
+    if (!user || peerRef.current) return;
+
+    const { default: Peer } = await import('peerjs');
+    const peer = new Peer(user.uid);
+    peerRef.current = peer;
+
+    peer.on('open', (id) => {
+        console.log('Seller PeerJS ID:', id);
+    });
+
+    peer.on('call', (call) => {
+        if (streamRef.current) {
+            call.answer(streamRef.current);
+        } else {
+            console.warn("Call received but no local stream to answer with.");
+        }
+    });
+
+    peer.on('error', (err) => {
+        console.error('PeerJS error:', err);
+        toast({ variant: 'destructive', title: 'Connection Error', description: `Live connection failed: ${err.message}` });
+        setIsLive(false);
+        setIsStarting(false);
+    });
+
+  }, [user, toast]);
+
   const cleanupStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -36,10 +64,6 @@ export default function SellerLiveStudio() {
   }, []);
 
   const stopLive = useCallback(async () => {
-    if (peerRef.current) {
-      peerRef.current.destroy();
-      peerRef.current = null;
-    }
     setIsLive(false);
     toast({ title: 'Stream Ended', description: 'You are no longer live.' });
     if (user && firestore) {
@@ -49,11 +73,15 @@ export default function SellerLiveStudio() {
   }, [user, firestore, toast]);
 
   useEffect(() => {
+    if (user) {
+        initializePeer();
+    }
     return () => {
       stopLive();
       cleanupStream();
+      peerRef.current?.destroy();
     };
-  }, [stopLive, cleanupStream]);
+  }, [initializePeer, stopLive, cleanupStream, user]);
 
   async function startCamera() {
     if (isCameraOn) return;
@@ -75,50 +103,31 @@ export default function SellerLiveStudio() {
   }
 
   async function goLive() {
-    if (!streamRef.current || !user || !firestore) {
-      toast({ variant: 'destructive', title: 'Initialization Error', description: 'User or camera not ready.' });
+    if (!streamRef.current || !user || !firestore || !peerRef.current) {
+      toast({ variant: 'destructive', title: 'Initialization Error', description: 'User, Peer connection or camera not ready.' });
       return;
     }
     
     setIsStarting(true);
     
-    // Dynamically import PeerJS only on the client-side
-    const { default: Peer } = await import('peerjs');
-    
-    // Destroy any existing peer connection before creating a new one
-    if (peerRef.current) {
-        peerRef.current.destroy();
-    }
-    
-    const peer = new Peer(user.uid);
-    peerRef.current = peer;
-
-    peer.on('open', async (id) => {
-      const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      await setDoc(sessionRef, {
-        id: user.uid,
-        sellerId: user.uid,
-        title: `${user.displayName || 'Seller'}'s Live Show`,
-        status: 'live',
-        startTime: serverTimestamp(),
-      }, { merge: true });
-      setIsLive(true);
-      setIsStarting(false);
-      toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted.' });
-    });
-
-    peer.on('call', (call) => {
-      if (streamRef.current) {
-        call.answer(streamRef.current);
-      }
-    });
-
-    peer.on('error', (err) => {
-        console.error('PeerJS error:', err);
-        toast({ variant: 'destructive', title: 'Connection Error', description: 'Could not establish live connection. Please try again.' });
-        stopLive();
+    try {
+        const sessionRef = doc(firestore, 'liveSessions', user.uid);
+        await setDoc(sessionRef, {
+            id: user.uid,
+            sellerId: user.uid,
+            title: `${user.displayName || 'Seller'}'s Live Show`,
+            status: 'live',
+            startTime: serverTimestamp(),
+        }, { merge: true });
+        
+        setIsLive(true);
+        toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted.' });
+    } catch (error) {
+        console.error("Error setting live status:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not update your live status.' });
+    } finally {
         setIsStarting(false);
-    });
+    }
   }
 
   return (
