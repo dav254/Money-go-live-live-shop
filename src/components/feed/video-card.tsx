@@ -39,7 +39,9 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     window.addEventListener('offline', handleOffline);
 
     // Set initial state
-    setIsOnline(navigator.onLine);
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine);
+    }
 
     return () => {
         window.removeEventListener('online', handleOnline);
@@ -53,14 +55,23 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     if (!videoElement) return;
 
     if (isIntersecting) {
-        videoElement.play().catch(error => {
-            console.error("Autoplay was prevented:", error);
-        });
+        // play() returns a promise, which can be interrupted.
+        const playPromise = videoElement.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                // Ignore interruption errors, as they are expected during fast scrolling.
+                if (error.name !== 'AbortError') {
+                    console.error("Autoplay was prevented:", error);
+                }
+            });
+        }
     } else {
         videoElement.pause();
         videoElement.currentTime = 0; // Reset video on scroll away
-        setIsMuted(true); // Mute when out of view
-        videoElement.muted = true;
+        if (!videoElement.muted) {
+            videoElement.muted = true;
+            setIsMuted(true);
+        }
     }
   }, [isIntersecting, item.video.imageUrl]);
   
