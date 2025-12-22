@@ -124,14 +124,6 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/promotions')}>
-              <Link href="/dashboard/seller/promotions">
-                <Tag />
-                <span>Promotions</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-tools')}>
               <Link href="/dashboard/seller/ai-tools">
                 <Sparkles />
@@ -159,7 +151,7 @@ export function SellerSidebar() {
       </SidebarGroup>
       
       <SidebarGroup>
-        <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
+        <SidebarGroupLabel>Help &amp; Resources</SidebarGroupLabel>
          <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/about')}>
