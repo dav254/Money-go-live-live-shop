@@ -63,24 +63,37 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
       return;
     }
 
-    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
     const newFollowingState = !isFollowing;
+    setIsFollowing(newFollowingState); // Optimistic UI update
 
     try {
-      await updateDoc(userProfileRef, {
-        following: newFollowingState ? arrayUnion(seller.id) : arrayRemove(seller.id),
-      });
-      // Note: We are not updating the seller's follower count here as that should
-      // ideally be handled by a backend function for security and consistency.
-      // The UI will update based on the user's "following" list.
-      setIsFollowing(newFollowingState);
-      toast({
-        title: newFollowingState ? 'Followed!' : 'Unfollowed',
-        description: `You are now ${newFollowingState ? 'following' : 'no longer following'} ${seller.name}.`,
-      });
+        const token = await user.getIdToken();
+        const response = await fetch('/api/follow', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sellerId: seller.id,
+                action: newFollowingState ? 'follow' : 'unfollow',
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update follow status.');
+        }
+
+        toast({
+            title: newFollowingState ? 'Followed!' : 'Unfollowed',
+            description: `You are now ${newFollowingState ? 'following' : 'no longer following'} ${seller.name}.`,
+        });
+
     } catch (error) {
-      console.error('Error updating follow status:', error);
-      toast({ variant: 'destructive', title: 'Something went wrong' });
+        console.error('Error updating follow status:', error);
+        // Revert optimistic UI update on error
+        setIsFollowing(!newFollowingState);
+        toast({ variant: 'destructive', title: 'Something went wrong' });
     }
   };
   
