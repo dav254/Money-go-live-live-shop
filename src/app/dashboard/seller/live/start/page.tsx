@@ -22,35 +22,8 @@ export default function SellerLiveStudio() {
   const [isStarting, setIsStarting] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [peerId, setPeerId] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const initializePeer = useCallback(async () => {
-    if (!user || peerRef.current) return;
-
-    const { default: Peer } = await import('peerjs');
-    const peer = new Peer(user.uid);
-    peerRef.current = peer;
-
-    peer.on('open', (id) => {
-        console.log('Seller PeerJS ID:', id);
-    });
-
-    peer.on('call', (call) => {
-        if (streamRef.current) {
-            call.answer(streamRef.current);
-        } else {
-            console.warn("Call received but no local stream to answer with.");
-        }
-    });
-
-    peer.on('error', (err) => {
-        console.error('PeerJS error:', err);
-        toast({ variant: 'destructive', title: 'Connection Error', description: `Live connection failed: ${err.message}` });
-        setIsLive(false);
-        setIsStarting(false);
-    });
-
-  }, [user, toast]);
 
   const cleanupStream = useCallback(() => {
     if (streamRef.current) {
@@ -64,24 +37,50 @@ export default function SellerLiveStudio() {
   }, []);
 
   const stopLive = useCallback(async () => {
-    setIsLive(false);
-    toast({ title: 'Stream Ended', description: 'You are no longer live.' });
-    if (user && firestore) {
+    if (isLive && user && firestore) {
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
+      await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() }).catch(console.error);
     }
-  }, [user, firestore, toast]);
-
+    setIsLive(false);
+  }, [isLive, user, firestore]);
+  
   useEffect(() => {
-    if (user) {
-        initializePeer();
+    if (!user || !firestore) return;
+
+    // Initialize PeerJS only once
+    if (!peerRef.current) {
+        import('peerjs').then(({ default: Peer }) => {
+            const peer = new Peer(user.uid);
+            peerRef.current = peer;
+
+            peer.on('open', (id) => {
+                console.log('Seller PeerJS ID:', id);
+                setPeerId(id);
+            });
+
+            peer.on('call', (call) => {
+                if (streamRef.current) {
+                    call.answer(streamRef.current);
+                }
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                toast({ variant: 'destructive', title: 'Connection Error', description: `Live connection failed: ${err.message}` });
+            });
+        });
     }
+
+    // Cleanup function
     return () => {
-      stopLive();
-      cleanupStream();
-      peerRef.current?.destroy();
+        stopLive();
+        cleanupStream();
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
     };
-  }, [initializePeer, stopLive, cleanupStream, user]);
+  }, [user, firestore, cleanupStream, stopLive, toast]);
 
   async function startCamera() {
     if (isCameraOn) return;
@@ -130,13 +129,21 @@ export default function SellerLiveStudio() {
     }
   }
 
+  const handleStopLive = () => {
+    stopLive();
+    cleanupStream();
+    toast({ title: 'Stream Ended', description: 'You are no longer live.' });
+  }
+
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Live Studio</CardTitle>
-            <CardDescription>Start your camera, then go live to broadcast to your audience.</CardDescription>
+            <CardDescription>
+                {peerId ? `Your stream is discoverable with ID: ${peerId}` : 'Initializing your stream...'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="aspect-video w-full bg-black rounded-lg mb-4 relative">
@@ -163,12 +170,12 @@ export default function SellerLiveStudio() {
                   <Camera className="mr-2 h-4 w-4" /> Start Camera
                 </Button>
               ) : !isLive ? (
-                <Button onClick={goLive} className="w-full bg-red-600 hover:bg-red-700" disabled={isStarting}>
-                  {isStarting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Radio className="mr-2 h-4 w-4" />}
-                  {isStarting ? 'Starting...' : 'GO LIVE'}
+                <Button onClick={goLive} className="w-full bg-red-600 hover:bg-red-700" disabled={isStarting || !peerId}>
+                  {isStarting || !peerId ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Radio className="mr-2 h-4 w-4" />}
+                  {isStarting ? 'Starting...' : !peerId ? 'Connecting...' : 'GO LIVE'}
                 </Button>
               ) : (
-                <Button onClick={stopLive} variant="secondary" className="w-full">
+                <Button onClick={handleStopLive} variant="secondary" className="w-full">
                   <Power className="mr-2 h-4 w-4" /> Stop Stream
                 </Button>
               )}
