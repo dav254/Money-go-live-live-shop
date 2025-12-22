@@ -37,7 +37,7 @@ const LiveSellerCard = ({ session }: { session: LiveSession }) => {
 
     return (
         <Link href={`/buyer/live/${session.sellerId}`} className="block">
-          <div className="border hover:border-primary/50 text-white p-4 rounded-lg flex justify-between items-center transition-all bg-card">
+          <div className="border hover:border-primary/50 text-foreground p-4 rounded-lg flex justify-between items-center transition-all bg-card">
             <div className="flex items-center gap-4">
                 <Avatar className="h-12 w-12 border-2 border-red-500">
                     <AvatarImage src={seller.profilePictureUrl} />

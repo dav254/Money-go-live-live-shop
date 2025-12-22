@@ -5,10 +5,10 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Radio, Power, Camera, AlertCircle } from "lucide-react";
+import { Video, Radio, Power, Camera, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useUser, useFirestore, useUserProfile } from "@/firebase";
+import { useUser, useFirestore } from "@/firebase";
 import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import type { Peer } from 'peerjs';
 
@@ -19,6 +19,7 @@ export default function SellerLiveStudio() {
   const peerRef = useRef<Peer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isLive, setIsLive] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const { toast } = useToast();
@@ -78,8 +79,17 @@ export default function SellerLiveStudio() {
       toast({ variant: 'destructive', title: 'Initialization Error', description: 'User or camera not ready.' });
       return;
     }
-
-    const { Peer } = await import('peerjs');
+    
+    setIsStarting(true);
+    
+    // Dynamically import PeerJS only on the client-side
+    const { default: Peer } = await import('peerjs');
+    
+    // Destroy any existing peer connection before creating a new one
+    if (peerRef.current) {
+        peerRef.current.destroy();
+    }
+    
     const peer = new Peer(user.uid);
     peerRef.current = peer;
 
@@ -93,6 +103,7 @@ export default function SellerLiveStudio() {
         startTime: serverTimestamp(),
       }, { merge: true });
       setIsLive(true);
+      setIsStarting(false);
       toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted.' });
     });
 
@@ -106,6 +117,7 @@ export default function SellerLiveStudio() {
         console.error('PeerJS error:', err);
         toast({ variant: 'destructive', title: 'Connection Error', description: 'Could not establish live connection. Please try again.' });
         stopLive();
+        setIsStarting(false);
     });
   }
 
@@ -142,8 +154,9 @@ export default function SellerLiveStudio() {
                   <Camera className="mr-2 h-4 w-4" /> Start Camera
                 </Button>
               ) : !isLive ? (
-                <Button onClick={goLive} className="w-full bg-red-600 hover:bg-red-700">
-                  <Radio className="mr-2 h-4 w-4" /> GO LIVE
+                <Button onClick={goLive} className="w-full bg-red-600 hover:bg-red-700" disabled={isStarting}>
+                  {isStarting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Radio className="mr-2 h-4 w-4" />}
+                  {isStarting ? 'Starting...' : 'GO LIVE'}
                 </Button>
               ) : (
                 <Button onClick={stopLive} variant="secondary" className="w-full">

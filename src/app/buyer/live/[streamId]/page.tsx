@@ -33,17 +33,21 @@ export default function BuyerLiveViewPage() {
     const { data: liveSession, isLoading, error } = useDoc<LiveSession>(liveSessionRef);
 
     useEffect(() => {
-        if (!liveSession || liveSession.status !== 'live' || !user) {
+        if (!liveSession || liveSession.status !== 'live' || !user || !sellerId) {
             return;
         }
 
         async function initPeer() {
-            const { Peer } = await import('peerjs');
-            const peer = new Peer(); // Let PeerJS assign an ID
+            // Dynamically import PeerJS on the client-side
+            const { default: Peer } = await import('peerjs');
+            
+            // Let PeerJS assign an ID
+            const peer = new Peer(); 
             peerRef.current = peer;
 
             peer.on('open', id => {
-                const call = peer.call(sellerId, new MediaStream()); // Dummy stream to initiate
+                // Dummy stream to initiate the call, the stream will be replaced by the seller's
+                const call = peer.call(sellerId, new MediaStream()); 
                 call.on('stream', (remoteStream) => {
                     if (videoRef.current) {
                         videoRef.current.srcObject = remoteStream;
@@ -62,6 +66,7 @@ export default function BuyerLiveViewPage() {
 
         initPeer();
 
+        // Cleanup on component unmount
         return () => {
             peerRef.current?.destroy();
         };
