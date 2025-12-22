@@ -78,7 +78,7 @@ export default function SellerDashboardPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('orderStatus', 'in', ['delivered', 'shipped']));
+    return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
   }, [firestore, user]);
 
   const payoutsQuery = useMemoFirebase(() => {
@@ -93,16 +93,23 @@ export default function SellerDashboardPage() {
 
   const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading;
 
-  const { totalLikes, totalViews, availableBalance } = React.useMemo(() => {
+  const { totalLikes, totalViews, availableBalance, orderStats } = React.useMemo(() => {
     const likes = products?.reduce((sum, product) => sum + (product.likes || 0), 0) || 0;
     const views = products?.reduce((sum, product) => sum + (product.viewCount || 0), 0) || 0;
     
-    const totalRevenue = orders?.reduce((sum, order) => sum + order.totalAmount, 0) || 0;
+    const completedOrders = orders?.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped') || [];
+    const totalRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
     const platformFees = totalRevenue * 0.10; // 10% platform fee
     const totalPaidOut = payouts?.reduce((sum, payout) => sum + payout.amount, 0) || 0;
     const balance = totalRevenue - platformFees - totalPaidOut;
 
-    return { totalLikes: likes, totalViews: views, availableBalance: balance };
+    const stats = {
+      pending: orders?.filter(o => o.orderStatus === 'pending').length || 0,
+      processing: orders?.filter(o => o.orderStatus === 'processing').length || 0,
+      shipped: orders?.filter(o => o.orderStatus === 'shipped').length || 0,
+    };
+
+    return { totalLikes: likes, totalViews: views, availableBalance: balance, orderStats: stats };
   }, [products, orders, payouts]);
   
   const handleDelete = async (productId: string) => {
@@ -196,7 +203,7 @@ export default function SellerDashboardPage() {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">5</div>
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{orderStats.pending}</div>}
                 <p className="text-xs text-muted-foreground">Awaiting processing</p>
               </CardContent>
             </Card>
@@ -206,7 +213,7 @@ export default function SellerDashboardPage() {
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">2</div>
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{orderStats.processing}</div>}
                 <p className="text-xs text-muted-foreground">Being prepared for shipment</p>
               </CardContent>
             </Card>
@@ -216,7 +223,7 @@ export default function SellerDashboardPage() {
                 <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">8</div>
+                {isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-bold">{orderStats.shipped}</div>}
                 <p className="text-xs text-muted-foreground">On their way to the customer</p>
               </CardContent>
             </Card>
