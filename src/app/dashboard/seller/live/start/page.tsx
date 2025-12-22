@@ -47,32 +47,56 @@ export default function SellerLiveStudio() {
   useEffect(() => {
     if (!user || !firestore) return;
 
-    // Initialize PeerJS only once
-    if (!peerRef.current) {
-        import('peerjs').then(({ default: Peer }) => {
-            const peer = new Peer(user.uid);
-            peerRef.current = peer;
+    let peer: Peer | null = null;
+    let reconnectTimeout: NodeJS.Timeout;
 
-            peer.on('open', (id) => {
-                console.log('Seller PeerJS ID:', id);
-                setPeerId(id);
-            });
+    const initializePeer = async () => {
+        const { default: Peer } = await import('peerjs');
+        
+        // Disconnect any existing peer connection
+        if (peerRef.current) {
+            peerRef.current.destroy();
+        }
+        
+        peer = new Peer(user.uid);
+        peerRef.current = peer;
 
-            peer.on('call', (call) => {
-                if (streamRef.current) {
-                    call.answer(streamRef.current);
-                }
-            });
+        peer.on('open', (id) => {
+            console.log('Seller PeerJS ID:', id);
+            setPeerId(id);
+        });
 
-            peer.on('error', (err) => {
-                console.error('PeerJS error:', err);
-                toast({ variant: 'destructive', title: 'Connection Error', description: `Live connection failed: ${err.message}` });
-            });
+        peer.on('call', (call) => {
+            if (streamRef.current) {
+                call.answer(streamRef.current);
+            }
+        });
+
+        peer.on('error', (err: any) => {
+            console.error('PeerJS error:', err);
+            
+            // Specifically handle the "ID is taken" error with a retry
+            if (err.type === 'unavailable-id') {
+                toast({
+                    variant: 'destructive',
+                    title: 'Connection Conflict',
+                    description: `ID is already in use. Retrying in 5 seconds...`,
+                });
+                
+                // Disconnect and schedule a reconnect attempt
+                peer?.disconnect();
+                reconnectTimeout = setTimeout(initializePeer, 5000);
+            } else {
+                 toast({ variant: 'destructive', title: 'Connection Error', description: `Live connection failed: ${err.message}` });
+            }
         });
     }
 
+    initializePeer();
+
     // Cleanup function
     return () => {
+        clearTimeout(reconnectTimeout);
         stopLive();
         cleanupStream();
         if (peerRef.current) {
