@@ -18,7 +18,7 @@ import { TopPerformingProducts } from '@/components/reseller/top-performing-prod
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import type { Order, UserProfile, Product } from '@/lib/types';
-import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
@@ -99,56 +99,6 @@ interface AggregatedProductStats {
     shares: number;
 }
 const TopSharedProductsTable = () => {
-    const firestore = useFirestore();
-
-    const resellActivitiesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'resellActivities'), limit(100));
-    }, [firestore]);
-    
-    const { data: activities, isLoading: isLoadingActivities } = useCollection<ResellActivity>(resellActivitiesQuery);
-
-    const productIds = useMemo(() => {
-        if (!activities || activities.length === 0) return [];
-        return [...new Set(activities.map(a => a.productId))];
-    }, [activities]);
-
-    const productsQuery = useMemoFirebase(() => {
-        if (productIds.length === 0 || !firestore) return null;
-        // Firestore 'in' query is limited to 30 items per query.
-        // For a real-world app with more products, you might need to batch these queries.
-        return query(collection(firestore, 'products'), where('__name__', 'in', productIds.slice(0, 30)));
-    }, [firestore, productIds]);
-    
-    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(productsQuery);
-
-    const topSharedProducts: AggregatedProductStats[] = useMemo(() => {
-        if (!activities || !products) return [];
-
-        const shareCounts = activities.reduce((acc, activity) => {
-            acc[activity.productId] = (acc[activity.productId] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        
-        const productMap = new Map(products.map(p => [p.id, p]));
-
-        return Object.entries(shareCounts)
-            .map(([productId, shares]) => {
-                const product = productMap.get(productId);
-                return {
-                    id: productId,
-                    name: product?.name || 'Unknown Product',
-                    imageUrl: product?.imageUrl || '',
-                    shares: shares
-                };
-            })
-            .sort((a, b) => b.shares - a.shares)
-            .slice(0, 5); // Get top 5
-
-    }, [activities, products]);
-    
-    const isLoading = isLoadingActivities || isLoadingProducts;
-
     return (
         <Table>
             <TableHeader>
@@ -158,34 +108,11 @@ const TopSharedProductsTable = () => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {isLoading ? (
-                    [...Array(3)].map((_, i) => (
-                         <TableRow key={i}>
-                            <TableCell><Skeleton className="h-10 w-48" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
-                        </TableRow>
-                    ))
-                ) : topSharedProducts.length > 0 ? (
-                    topSharedProducts.map(p => (
-                        <TableRow key={p.id}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted">
-                                         {p.imageUrl && <Image src={p.imageUrl} alt={p.name} fill className="object-cover" />}
-                                    </div>
-                                    <span className="font-medium">{p.name}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-right font-bold">{p.shares}</TableCell>
-                        </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                            No products have been shared yet.
-                        </TableCell>
-                    </TableRow>
-                )}
+                <TableRow>
+                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                        Data is being connected.
+                    </TableCell>
+                </TableRow>
             </TableBody>
         </Table>
     )
@@ -277,7 +204,7 @@ function ResellerDashboardPageContent() {
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${value}`}
+                                        tickFormatter={(value) => `''$''${value}`}
                                     />
                                      <RechartsTooltip
                                         cursor={{ fill: 'hsla(var(--muted))' }}
@@ -333,3 +260,5 @@ function ResellerDashboardPageContent() {
 export default function ResellerDashboardPage() {
     return <ResellerDashboardPageContent />
 }
+
+    
