@@ -9,7 +9,6 @@ import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
 import { LogisticsTable } from '@/components/seller/logistics-table';
-import { AiRecordsTable } from '@/components/seller/ai-records-table';
 import Recorder from '@/components/studio/Recorder';
 
 function ProductsPageContent() {
@@ -27,7 +26,6 @@ function ProductsPageContent() {
             <TabsTrigger value="my-products">My Products</TabsTrigger>
             <TabsTrigger value="add-new">Add / Edit Product</TabsTrigger>
             <TabsTrigger value="record-studio">Record Studio</TabsTrigger>
-            <TabsTrigger value="ai-records">AI Records</TabsTrigger>
             <TabsTrigger value="discounts">Discounts</TabsTrigger>
             <TabsTrigger value="logistics">Logistics</TabsTrigger>
           </TabsList>
@@ -39,9 +37,6 @@ function ProductsPageContent() {
           </TabsContent>
           <TabsContent value="record-studio" className="space-y-4 h-[calc(100vh-12rem)]">
             <Recorder />
-          </TabsContent>
-           <TabsContent value="ai-records" className="space-y-4">
-            <AiRecordsTable />
           </TabsContent>
           <TabsContent value="discounts" className="space-y-4">
              <DiscountedProductsTable />
