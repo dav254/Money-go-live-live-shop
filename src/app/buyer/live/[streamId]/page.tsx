@@ -41,19 +41,23 @@ export default function BuyerLiveViewPage() {
             // Dynamically import PeerJS on the client-side
             const { default: Peer } = await import('peerjs');
             
-            // Let PeerJS assign an ID
+            // Let PeerJS assign an ID for the buyer
             const peer = new Peer(); 
             peerRef.current = peer;
 
             peer.on('open', id => {
-                // Dummy stream to initiate the call, the stream will be replaced by the seller's
-                const call = peer.call(sellerId, new MediaStream()); 
+                // The buyer calls the seller's ID.
+                // We don't need to send a stream from the buyer.
+                const call = peer.call(sellerId, undefined as any);
+
+                // When the seller answers and sends back their stream, this event is triggered.
                 call.on('stream', (remoteStream) => {
                     if (videoRef.current) {
                         videoRef.current.srcObject = remoteStream;
                         videoRef.current.play().catch(e => console.error("Video play failed:", e));
                     }
                 });
+
                 call.on('error', (err) => {
                     console.error('PeerJS call error:', err);
                 });
@@ -111,7 +115,7 @@ export default function BuyerLiveViewPage() {
         <BuyerLayout>
             <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)]">
                 <div className="lg:col-span-3 h-full w-full bg-black relative">
-                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain" />
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
                      {pinnedProduct && (
                         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
                             <PinnedProduct product={pinnedProduct} />
