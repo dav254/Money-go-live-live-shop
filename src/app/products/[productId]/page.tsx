@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
@@ -383,6 +384,17 @@ export default function BuyerProductPage() {
                      <div>
                         <p className="text-3xl font-bold text-red-500">USD ${product.price.toLocaleString()}</p>
                     </div>
+                    
+                    {product.coupon && (
+                        <div className="bg-yellow-500/10 border border-dashed border-yellow-500/50 text-yellow-300 p-3 rounded-lg flex items-center gap-3">
+                            <Tag className="h-5 w-5 text-yellow-400" />
+                            <div>
+                                <p className="font-bold">Live Deal</p>
+                                <p className="text-sm">Use code <span className="font-mono bg-black/30 px-1.5 py-0.5 rounded-sm">{product.coupon.code}</span> for {product.coupon.discount}% off!</p>
+                            </div>
+                        </div>
+                    )}
+
 
                     {/* 4. Delivery & Location Section */}
                     <Card className="bg-[#2a2a2a] border-neutral-800">

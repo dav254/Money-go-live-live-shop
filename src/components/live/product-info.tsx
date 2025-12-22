@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import type { Product, Review } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star, Store } from 'lucide-react';
+import { ShoppingCart, Star, Store, Tag } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -50,6 +51,11 @@ export function ProductInfo({ product }: ProductInfoProps) {
             </div>
             <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-white truncate">{product.name}</h3>
+                {product.coupon && (
+                  <div className="flex items-center gap-1.5 text-xs text-yellow-400 font-bold mt-1">
+                      <Tag className="h-3 w-3" /> LIVE DEAL: {product.coupon.discount}% OFF
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-xs text-neutral-300 mt-1">
                     {reviews && reviews.length > 0 && (
                       <>

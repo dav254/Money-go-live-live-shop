@@ -96,6 +96,11 @@ export interface Product {
     rating?: number;
     shippingCost?: number;
     salesCount?: number;
+    coupon?: {
+        code: string;
+        discount: number; // Percentage or fixed amount
+        type: 'percentage' | 'fixed';
+    };
 }
 
 export type Seller = {
