@@ -46,21 +46,26 @@ export default function BuyerLiveViewPage() {
             peerRef.current = peer;
 
             peer.on('open', id => {
+                console.log('My peer ID is: ' + id);
                 // The buyer calls the seller's ID.
-                // We don't need to send a stream from the buyer.
                 const call = peer.call(sellerId, undefined as any);
 
-                // When the seller answers and sends back their stream, this event is triggered.
-                call.on('stream', (remoteStream) => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = remoteStream;
-                        videoRef.current.play().catch(e => console.error("Video play failed:", e));
-                    }
-                });
+                // IMPORTANT: Check if the call object was created successfully.
+                if (call) {
+                    // When the seller answers and sends back their stream, this event is triggered.
+                    call.on('stream', (remoteStream) => {
+                        if (videoRef.current) {
+                            videoRef.current.srcObject = remoteStream;
+                            videoRef.current.play().catch(e => console.error("Video play failed:", e));
+                        }
+                    });
 
-                call.on('error', (err) => {
-                    console.error('PeerJS call error:', err);
-                });
+                    call.on('error', (err) => {
+                        console.error('PeerJS call error:', err);
+                    });
+                } else {
+                    console.error('Failed to create call object. Seller may be offline or an error occurred.');
+                }
             });
 
             peer.on('error', (err) => {
