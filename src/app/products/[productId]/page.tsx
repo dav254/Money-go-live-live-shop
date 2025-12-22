@@ -376,7 +376,11 @@ export default function BuyerProductPage() {
                         <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
                         <div className="flex items-center gap-4 mt-1 text-sm">
                             <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
-                             {reviews && reviews.length > 0 && <span className="text-neutral-400">Sold {product.salesCount || 0}</span>}
+                            {reviews && reviews.length > 0 && <span className="text-neutral-400">Sold {product.salesCount || 0}</span>}
+                            <span className="flex items-center gap-1.5 text-neutral-400">
+                                <Eye className="h-4 w-4" />
+                                {product.viewCount || 0} views
+                            </span>
                         </div>
                     </div>
 
