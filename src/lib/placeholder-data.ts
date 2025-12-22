@@ -96,9 +96,15 @@ export const products: Product[] = [
     name: 'Classic Leather Handbag',
     price: 850,
     originalPrice: 1000,
+    wasPrice: 1000,
     image: getImage('product-handbag'),
     stock: 3,
     sellerId: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
+    coupon: {
+        code: 'SUMMER24',
+        discount: 15,
+        type: 'percentage'
+    }
   },
   {
     id: 'prod-2',
