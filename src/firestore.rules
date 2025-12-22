@@ -52,6 +52,11 @@ service cloud.firestore {
       // Follower count must be updated by the backend.
       allow update: if request.auth.uid == shopId && !('followers' in request.resource.data.diff(resource.data).affectedKeys());
       allow write: if request.auth.uid == shopId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    
+      // Commission Tiers Subcollection
+      match /commissionTiers/{tierId} {
+        allow list, read, create, update, delete: if request.auth.uid == shopId;
+      }
     }
 
     // Products are publicly readable.

@@ -1,6 +1,21 @@
 
 {
   "entities": {
+    "CommissionTier": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CommissionTier",
+      "type": "object",
+      "description": "Represents a single performance-based commission tier set by a seller.",
+      "properties": {
+        "id": { "type": "string" },
+        "sellerId": { "type": "string", "description": "The ID of the seller who created this tier." },
+        "salesTarget": { "type": "number", "description": "The number of sales a reseller must achieve to unlock this tier." },
+        "commissionBoost": { "type": "number", "description": "The percentage boost to the commission rate (e.g., 5 for a +5% boost)." },
+        "description": { "type": "string", "description": "A short description of the tier's reward." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "sellerId", "salesTarget", "commissionBoost", "createdAt"]
+    },
     "WalletTransaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Wallet Transaction",
@@ -1307,6 +1322,19 @@
             {
               "name": "sellerShopId",
               "description": "The unique identifier for the seller's shop."
+            }
+          ],
+          "subcollections": [
+            {
+              "path": "commissionTiers/{tierId}",
+              "definition": {
+                "entityName": "CommissionTier",
+                "schema": { "$ref": "#/backend/entities/CommissionTier" },
+                "description": "Stores performance-based commission tiers set by the seller.",
+                "params": [
+                  { "name": "tierId", "description": "The unique ID for a commission tier." }
+                ]
+              }
             }
           ]
         }

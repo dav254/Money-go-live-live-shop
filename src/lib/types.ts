@@ -37,6 +37,15 @@ export interface UserProfile {
     }
 }
 
+export interface CommissionTier {
+    id: string;
+    sellerId: string;
+    salesTarget: number;
+    commissionBoost: number;
+    description: string;
+    createdAt: Timestamp;
+}
+
 // Targeting options for a boost campaign
 export interface TargetingOptions {
     counties: string[];
