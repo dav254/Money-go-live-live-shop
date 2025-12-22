@@ -433,3 +433,13 @@ export interface WalletTransaction {
     description: string;
     timestamp: any;
 }
+
+export interface Coupon {
+    id: string;
+    code: string;
+    type: 'percentage' | 'fixed';
+    value: number;
+    expires: any;
+    status: 'active' | 'expired';
+    isResellerOnly: boolean;
+}
