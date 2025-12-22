@@ -414,7 +414,8 @@ export default function BuyerProductPage() {
                             <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700">+</Button>
                         </div>
                     </div>
-                    {product.stock <= 5 && <p className="text-red-500 text-sm font-semibold">Only {product.stock} left in stock!</p>}
+                    {product.stock != null && product.stock <= 5 && <p className="text-red-500 text-sm font-semibold">Only {product.stock} left in stock!</p>}
+
 
                     {/* 6. Seller Shop Info Block */}
                     {!isReseller && (
@@ -502,3 +503,4 @@ export default function BuyerProductPage() {
     
 
     
+

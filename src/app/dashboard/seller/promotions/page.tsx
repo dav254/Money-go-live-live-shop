@@ -54,7 +54,7 @@ interface Coupon {
   isResellerOnly: boolean;
 }
 
-const mockCoupons: Coupon[] = [
+const initialCoupons: Coupon[] = [
   { id: '1', code: 'SUMMER24', type: 'percentage', value: 15, expires: new Date('2024-08-31'), status: 'active', isResellerOnly: false },
   { id: '2', code: 'RESELLNOW', type: 'fixed', value: 10, expires: new Date('2024-12-31'), status: 'active', isResellerOnly: true },
   { id: '3', code: 'WELCOME10', type: 'percentage', value: 10, expires: new Date('2023-12-31'), status: 'expired', isResellerOnly: false },
@@ -83,7 +83,7 @@ const CouponForm = ({ onSave, onCancel }: { onSave: (coupon: Coupon) => void, on
       isResellerOnly,
     });
   };
-
+  
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -128,7 +128,7 @@ const CouponForm = ({ onSave, onCancel }: { onSave: (coupon: Coupon) => void, on
 };
 
 export default function SellerPromotionsPage() {
-  const [coupons, setCoupons] = React.useState(mockCoupons);
+  const [coupons, setCoupons] = React.useState(initialCoupons);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const { toast } = useToast();
 

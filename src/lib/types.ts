@@ -436,10 +436,11 @@ export interface WalletTransaction {
 
 export interface Coupon {
     id: string;
+    sellerId: string;
     code: string;
     type: 'percentage' | 'fixed';
     value: number;
     expires: any;
-    status: 'active' | 'expired';
+    status: 'active' | 'expired' | 'archived';
     isResellerOnly: boolean;
 }
