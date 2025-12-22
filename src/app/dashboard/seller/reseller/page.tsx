@@ -57,162 +57,6 @@ const mockAlerts = [
     }
 ]
 
-const TopSharedProductsTable = () => {
-    return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Total Shares</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                        Data is being connected.
-                    </TableCell>
-                </TableRow>
-            </TableBody>
-        </Table>
-    )
-}
-
-const tierFormSchema = z.object({
-    salesTarget: z.coerce.number().min(1, 'Sales target must be at least 1.'),
-    commissionBoost: z.coerce.number().min(1, 'Boost must be at least 1%.').max(100),
-    description: z.string().min(10, 'Please provide a short description.'),
-});
-
-const CommissionTiers = ({ sellerId }: { sellerId: string }) => {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-
-    const tiersQuery = useMemoFirebase(() => {
-        return query(collection(firestore, 'sellerShops', sellerId, 'commissionTiers'));
-    }, [firestore, sellerId]);
-    const { data: tiers, isLoading } = useCollection<CommissionTier>(tiersQuery);
-
-    const form = useForm<z.infer<typeof tierFormSchema>>({
-        resolver: zodResolver(tierFormSchema),
-        defaultValues: { salesTarget: 20, commissionBoost: 5, description: '' },
-    });
-
-    async function onSubmit(values: z.infer<typeof tierFormSchema>) {
-        setIsSaving(true);
-        const tiersRef = collection(firestore, 'sellerShops', sellerId, 'commissionTiers');
-        try {
-            await addDoc(tiersRef, {
-                sellerId,
-                ...values,
-                createdAt: serverTimestamp(),
-            });
-            toast({ title: 'Success!', description: 'New commission tier created.' });
-            setIsDialogOpen(false);
-            form.reset();
-        } catch (error) {
-            console.error("Failed to create tier", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not create the tier.' });
-        } finally {
-            setIsSaving(false);
-        }
-    }
-    
-    const handleDelete = async (tierId: string) => {
-        const tierRef = doc(firestore, 'sellerShops', sellerId, 'commissionTiers', tierId);
-        try {
-            await deleteDoc(tierRef);
-            toast({ title: 'Tier Deleted' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the tier.' });
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="flex items-center gap-2">
-                            <Trophy />
-                            Commission Tiers
-                        </CardTitle>
-                        <CardDescription>
-                            Create performance-based tiers to incentivize your top resellers.
-                        </CardDescription>
-                    </div>
-                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Tier</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                             <DialogHeader>
-                                <DialogTitle>Create New Commission Tier</DialogTitle>
-                                <DialogDescription>Set a sales goal to unlock a higher commission rate.</DialogDescription>
-                            </DialogHeader>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                                     <FormField control={form.control} name="salesTarget" render={({ field }) => (
-                                        <FormItem><Label>Sales Target (monthly)</Label><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                     )} />
-                                     <FormField control={form.control} name="commissionBoost" render={({ field }) => (
-                                        <FormItem><Label>Commission Boost (%)</Label><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                     )} />
-                                     <FormField control={form.control} name="description" render={({ field }) => (
-                                        <FormItem><Label>Description</Label><FormControl><Input placeholder="e.g., Unlocks a 'Top Reseller' badge" {...field} /></FormControl><FormMessage /></FormItem>
-                                     )} />
-                                     <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                                        <Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create Tier</Button>
-                                    </DialogFooter>
-                                </form>
-                            </Form>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Sales Target (monthly)</TableHead>
-                            <TableHead>Commission Boost</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                             <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading tiers...</TableCell></TableRow>
-                        ) : tiers && tiers.length > 0 ? (
-                            tiers.map(tier => (
-                            <TableRow key={tier.id}>
-                                <TableCell>
-                                    <p className="font-medium">{tier.salesTarget} items</p>
-                                    <p className="text-xs text-muted-foreground">{tier.description}</p>
-                                </TableCell>
-                                <TableCell className="font-semibold text-green-500">+{tier.commissionBoost}%</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(tier.id)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))) : (
-                             <TableRow>
-                                <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
-                                    No commission tiers created yet.
-                                </TableCell>
-                            </TableRow>
-                         )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    );
-};
-
-
 export default function ResellerCenterPage() {
     const { user } = useUser();
 
@@ -227,7 +71,6 @@ export default function ResellerCenterPage() {
                 <TabsList>
                     <TabsTrigger value="analytics"><BarChart2 className="mr-2 h-4 w-4"/>Analytics</TabsTrigger>
                     <TabsTrigger value="commissions"><BadgePercent className="mr-2 h-4 w-4"/>Commission Rules</TabsTrigger>
-                    <TabsTrigger value="tiers"><Trophy className="mr-2 h-4 w-4" />Commission Tiers</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="analytics" className="space-y-6">
@@ -249,15 +92,6 @@ export default function ResellerCenterPage() {
                             ))}
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Share2 /> Top Shared Products</CardTitle>
-                            <CardDescription>Products most frequently shared by your reseller network.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <TopSharedProductsTable />
-                        </CardContent>
-                    </Card>
                 </TabsContent>
 
                 <TabsContent value="commissions" className="space-y-4">
@@ -273,10 +107,6 @@ export default function ResellerCenterPage() {
                         <CommissionSettingsTable />
                     </CardContent>
                     </Card>
-                </TabsContent>
-
-                <TabsContent value="tiers">
-                    {user && <CommissionTiers sellerId={user.uid} />}
                 </TabsContent>
 
             </Tabs>
