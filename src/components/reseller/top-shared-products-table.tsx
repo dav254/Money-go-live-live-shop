@@ -22,7 +22,7 @@ const TableSkeleton = () => {
             <TableHeader>
                 <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Total Shares by Resellers</TableHead>
+                    <TableHead className="text-right">Total Shares by You</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -57,56 +57,42 @@ export function TopSharedProductsTable() {
             return;
         }
 
-        const sellerId = user.uid;
+        const resellerId = user.uid;
         let productsUnsubscribe: (() => void) | undefined;
         let activitiesUnsubscribe: (() => void) | undefined;
 
         setIsLoading(true);
 
-        let allProducts: Product[] = [];
-        let allActivities: ResellActivity[] = [];
-        let productDataLoaded = false;
-        let activityDataLoaded = false;
+        const productsQuery = query(collection(firestore, 'products'));
+        productsUnsubscribe = onSnapshot(productsQuery, (productsSnapshot) => {
+            const allProducts = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+            const allProductsMap = new Map(allProducts.map(p => [p.id, p]));
 
-        const processData = () => {
-            if (!productDataLoaded || !activityDataLoaded) return;
-            
-            const shareCounts = allActivities.reduce((acc, activity) => {
-                acc[activity.productId] = (acc[activity.productId] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
+            const activitiesQuery = query(collection(firestore, 'resellActivities'), where('resellerId', '==', resellerId));
+            activitiesUnsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
+                const shareCounts = activitiesSnapshot.docs.reduce((acc, doc) => {
+                    const activity = doc.data() as ResellActivity;
+                    acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
 
-            const combinedData = allProducts.map(product => ({
-                product,
-                shares: shareCounts[product.id] || 0,
-            }))
-            .filter(item => item.shares > 0)
-            .sort((a, b) => b.shares - a.shares)
-            .slice(0, 10);
-
-            setTopShared(combinedData);
-            setIsLoading(false); // Stop loading after the first full processing
-        };
-        
-        const productsQuery = query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
-        productsUnsubscribe = onSnapshot(productsQuery, (snapshot) => {
-            allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-            productDataLoaded = true;
-            processData();
+                const combinedData = Object.entries(shareCounts)
+                    .map(([productId, shares]) => {
+                        const product = allProductsMap.get(productId);
+                        return product ? { product, shares } : null;
+                    })
+                    .filter(item => item !== null)
+                    .sort((a, b) => b!.shares - a!.shares)
+                    .slice(0, 10) as { product: Product; shares: number }[];
+                
+                setTopShared(combinedData);
+                setIsLoading(false);
+            }, (error) => {
+                console.error("Error fetching resell activities:", error);
+                setIsLoading(false);
+            });
         }, (error) => {
             console.error("Error fetching products:", error);
-            productDataLoaded = true;
-            setIsLoading(false);
-        });
-
-        const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
-        activitiesUnsubscribe = onSnapshot(activitiesQuery, (snapshot) => {
-            allActivities = snapshot.docs.map(doc => doc.data() as ResellActivity);
-            activityDataLoaded = true;
-            processData();
-        }, (error) => {
-            console.error("Error fetching resell activities:", error);
-            activityDataLoaded = true;
             setIsLoading(false);
         });
 
@@ -126,7 +112,7 @@ export function TopSharedProductsTable() {
             <TableHeader>
                 <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Total Shares by Resellers</TableHead>
+                    <TableHead className="text-right">Your Total Shares</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -145,7 +131,7 @@ export function TopSharedProductsTable() {
                 ) : (
                     <TableRow>
                         <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                            No products have been shared by resellers yet.
+                            You haven't shared any products yet.
                         </TableCell>
                     </TableRow>
                 )}

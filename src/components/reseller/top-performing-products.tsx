@@ -11,26 +11,42 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Order } from '@/lib/types';
 
-// Define a type for our mock product stats
-interface ProductStats {
-  id: string;
-  name: string;
-  clicks: number;
-  orders: number;
-  commission: number;
-}
-
-// Sample data for demonstration purposes
-const topProducts: ProductStats[] = [
-  { id: 'prod-1', name: 'Classic Leather Handbag', clicks: 150, orders: 25, commission: 212.50 },
-  { id: 'prod-2', name: 'NextGen Smartphone', clicks: 120, orders: 15, commission: 180.00 },
-  { id: 'prod-5', name: 'Chronograph Watch', clicks: 95, orders: 10, commission: 150.00 },
-  { id: 'prod-6', name: 'Noise-Cancelling Headphones', clicks: 80, orders: 8, commission: 96.00 },
-];
 
 export function TopPerformingProducts() {
-  const isLoading = false; // Set to false as we are using static data
+  const { user, isLoading: isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid), where('orderStatus', 'in', ['delivered', 'shipped', 'processing']));
+  }, [firestore, user]);
+
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const isLoading = isUserLoading || areOrdersLoading;
+
+  const topProducts = React.useMemo(() => {
+    if (!orders) return [];
+
+    const productStats = orders.reduce((acc, order) => {
+        order.items.forEach(item => {
+            if (!acc[item.productId]) {
+                acc[item.productId] = { id: item.productId, name: item.name, orders: 0, commission: 0, clicks: 0 };
+            }
+            acc[item.productId].orders += 1;
+            acc[item.productId].commission += (order.resellerCommission || 0) / order.items.length; // Approximate commission per item
+        });
+        return acc;
+    }, {} as Record<string, { id: string; name: string; clicks: number; orders: number; commission: number; }>);
+
+    return Object.values(productStats).sort((a, b) => b.commission - a.commission).slice(0, 5);
+
+  }, [orders]);
+
 
   if (isLoading) {
     return (
@@ -38,7 +54,6 @@ export function TopPerformingProducts() {
         <TableHeader>
             <TableRow>
             <TableHead>Product</TableHead>
-            <TableHead>Clicks</TableHead>
             <TableHead>Orders</TableHead>
             <TableHead className="text-right">Commission Earned</TableHead>
             </TableRow>
@@ -47,7 +62,6 @@ export function TopPerformingProducts() {
             {[...Array(3)].map((_, i) => (
                 <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                 </TableRow>
@@ -62,7 +76,6 @@ export function TopPerformingProducts() {
         <TableHeader>
             <TableRow>
             <TableHead>Product</TableHead>
-            <TableHead>Clicks</TableHead>
             <TableHead>Orders</TableHead>
             <TableHead className="text-right">Commission Earned (USD)</TableHead>
             </TableRow>
@@ -72,14 +85,13 @@ export function TopPerformingProducts() {
                 topProducts.map((p) => (
                 <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.clicks.toLocaleString()}</TableCell>
                     <TableCell>{p.orders}</TableCell>
                     <TableCell className="text-right font-semibold text-green-500">${p.commission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>
                 ))
             ) : (
                     <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                         No sales data found. Share some products to get started!
                     </TableCell>
                 </TableRow>
