@@ -87,17 +87,12 @@ const TopResellersTable = () => {
     );
 };
 
-interface ResellActivity {
-    id: string;
-    productId: string;
-    // other fields if they exist
-}
-interface AggregatedProductStats {
-    id: string;
-    name: string;
-    imageUrl: string;
-    shares: number;
-}
+const mockTopShared = [
+    { id: 'prod-1', name: 'Classic Leather Handbag', imageUrl: 'https://picsum.photos/seed/product1/40', shares: 542 },
+    { id: 'prod-6', name: 'Noise-Cancelling Headphones', imageUrl: 'https://picsum.photos/seed/product6/40', shares: 488 },
+    { id: 'prod-5', name: 'Chronograph Watch', imageUrl: 'https://picsum.photos/seed/product5/40', shares: 310 },
+];
+
 const TopSharedProductsTable = () => {
     return (
         <Table>
@@ -108,11 +103,17 @@ const TopSharedProductsTable = () => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                <TableRow>
-                    <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
-                        Data is being connected.
-                    </TableCell>
-                </TableRow>
+                {mockTopShared.map(product => (
+                    <TableRow key={product.id}>
+                        <TableCell>
+                            <div className="flex items-center gap-3">
+                                <Image src={product.imageUrl} alt={product.name} width={40} height={40} className="rounded-md" />
+                                <span className="font-medium">{product.name}</span>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{product.shares}</TableCell>
+                    </TableRow>
+                ))}
             </TableBody>
         </Table>
     )
@@ -260,5 +261,3 @@ function ResellerDashboardPageContent() {
 export default function ResellerDashboardPage() {
     return <ResellerDashboardPageContent />
 }
-
-    

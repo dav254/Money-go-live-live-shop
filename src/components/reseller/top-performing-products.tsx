@@ -11,59 +11,26 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
 
-// Define a type for our aggregated product stats
+// Define a type for our mock product stats
 interface ProductStats {
   id: string;
   name: string;
-  clicks: number; // Note: Clicks are not tracked in the current data model.
+  clicks: number;
   orders: number;
   commission: number;
 }
 
+// Sample data for demonstration purposes
+const topProducts: ProductStats[] = [
+  { id: 'prod-1', name: 'Classic Leather Handbag', clicks: 150, orders: 25, commission: 212.50 },
+  { id: 'prod-2', name: 'NextGen Smartphone', clicks: 120, orders: 15, commission: 180.00 },
+  { id: 'prod-5', name: 'Chronograph Watch', clicks: 95, orders: 10, commission: 150.00 },
+  { id: 'prod-6', name: 'Noise-Cancelling Headphones', clicks: 80, orders: 8, commission: 96.00 },
+];
+
 export function TopPerformingProducts() {
-  const { user, isLoading: isUserLoading } = useUser();
-  const firestore = useFirestore();
-
-  // 1. Create a query to get all orders for the current reseller
-  const ordersQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    // This query assumes that an 'order' document has a 'resellerId' field.
-    return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
-  }, [firestore, user]);
-
-  // 2. Fetch the collection of orders
-  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-
-  // 3. Process the fetched orders to aggregate stats
-  const topProducts = React.useMemo(() => {
-    if (!orders) return [];
-
-    const stats: Record<string, ProductStats> = {};
-
-    orders.forEach(order => {
-      if (!stats[order.productId]) {
-        stats[order.productId] = {
-          id: order.productId,
-          name: order.productName || 'Unknown Product',
-          orders: 0,
-          commission: 0,
-          clicks: 0, // Clicks are not tracked, so this will remain 0
-        };
-      }
-      stats[order.productId].orders += 1;
-      stats[order.productId].commission += order.commissionEarned || 0;
-    });
-
-    // Sort by commission earned in descending order
-    return Object.values(stats).sort((a, b) => b.commission - a.commission);
-
-  }, [orders]);
-
-  const isLoading = isUserLoading || areOrdersLoading;
+  const isLoading = false; // Set to false as we are using static data
 
   if (isLoading) {
     return (
@@ -97,7 +64,7 @@ export function TopPerformingProducts() {
             <TableHead>Product</TableHead>
             <TableHead>Clicks</TableHead>
             <TableHead>Orders</TableHead>
-            <TableHead className="text-right">Commission Earned</TableHead>
+            <TableHead className="text-right">Commission Earned (USD)</TableHead>
             </TableRow>
         </TableHeader>
         <TableBody>
@@ -105,7 +72,7 @@ export function TopPerformingProducts() {
                 topProducts.map((p) => (
                 <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell className="text-muted-foreground">N/A</TableCell>
+                    <TableCell className="text-muted-foreground">{p.clicks.toLocaleString()}</TableCell>
                     <TableCell>{p.orders}</TableCell>
                     <TableCell className="text-right font-semibold text-green-500">${p.commission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                 </TableRow>
