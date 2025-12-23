@@ -87,32 +87,29 @@ const TopSharedProductsTable = () => {
         }
 
         const sellerId = user.uid;
-        
-        // Unsubscribe function for the snapshot listener
         let unsubscribe: (() => void) | undefined;
 
         const fetchAndAggregateData = async () => {
             setIsLoading(true);
-
             try {
-                // 1. Fetch all of the seller's products once.
+                // Fetch all of the seller's products once.
                 const productsQuery = query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
                 const productsSnapshot = await getDocs(productsQuery);
                 const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Product]));
 
-                // 2. Set up a real-time listener for resell activities.
+                // Set up a real-time listener for resell activities.
                 const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
                 
                 unsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
                     const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
 
-                    // 3. Aggregate share counts from the activities.
+                    // Aggregate share counts.
                     const shareCounts = activities.reduce((acc, activity) => {
                         acc[activity.productId] = (acc[activity.productId] || 0) + 1;
                         return acc;
                     }, {} as Record<string, number>);
                     
-                    // 4. Combine product details with share counts.
+                    // Combine product details with share counts.
                     const combinedData = Array.from(productsMap.values()).map(product => ({
                         product,
                         shares: shareCounts[product.id] || 0,
@@ -122,11 +119,14 @@ const TopSharedProductsTable = () => {
                     .slice(0, 5); // Get top 5
 
                     setTopShared(combinedData);
+                    setIsLoading(false); // Set loading to false after initial data load
+                }, (error) => {
+                    console.error("Error with real-time listener for activities: ", error);
                     setIsLoading(false);
                 });
 
             } catch (error) {
-                console.error("Error fetching shared product data:", error);
+                console.error("Error fetching initial product data:", error);
                 setIsLoading(false);
             }
         };
