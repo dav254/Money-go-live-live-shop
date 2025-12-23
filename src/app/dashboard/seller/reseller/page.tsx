@@ -155,7 +155,7 @@ const TopSharedProductsTable = () => {
                     ))
                 ) : (
                     <TableRow>
-                        <TableCell colSpan={2} className="text-center h-24 text-muted-foreground">
+                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
                             No products have been shared by resellers yet.
                         </TableCell>
                     </TableRow>
