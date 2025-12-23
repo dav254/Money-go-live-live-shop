@@ -13,11 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BadgePercent, Users, Trophy, BarChart2, Share2, Target, Percent, PlusCircle, Trash2, AlertTriangle, TrendingUp, Lightbulb, Loader2 } from 'lucide-react';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import type { Product, UserProfile, ResellActivity, CommissionTier } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -73,13 +73,76 @@ const TopPerformingProductsTable = () => {
     );
 };
 
-const mockTopShared = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', imageUrl: 'https://picsum.photos/seed/product1/40', shares: 542 },
-    { id: 'prod-6', name: 'Noise-Cancelling Headphones', imageUrl: 'https://picsum.photos/seed/product6/40', shares: 488 },
-    { id: 'prod-5', name: 'Chronograph Watch', imageUrl: 'https://picsum.photos/seed/product5/40', shares: 310 },
-];
 
-const TopSharedProductsTable = () => {
+const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
+    const firestore = useFirestore();
+    const [topProducts, setTopProducts] = useState<{ id: string; name: string; imageUrl: string; shares: number }[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTopShared = async () => {
+            if (!firestore || !sellerId) {
+                setIsLoading(false);
+                return;
+            };
+
+            setIsLoading(true);
+
+            // 1. Fetch all resell activities for this seller
+            const activitiesQuery = query(
+                collection(firestore, 'resellActivities'),
+                where('sellerId', '==', sellerId)
+            );
+            const activitiesSnapshot = await getDocs(activitiesQuery);
+            const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
+
+            if (activities.length === 0) {
+                setTopProducts([]);
+                setIsLoading(false);
+                return;
+            }
+
+            // 2. Aggregate share counts for each product
+            const shareCounts = activities.reduce((acc, activity) => {
+                acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const productIds = Object.keys(shareCounts);
+            
+            // Firestore 'in' query is limited to 30 items. For larger scale, this needs pagination or a different strategy.
+            const topProductIds = productIds.sort((a, b) => shareCounts[b] - shareCounts[a]).slice(0, 5);
+
+            if (topProductIds.length === 0) {
+                setTopProducts([]);
+                setIsLoading(false);
+                return;
+            }
+
+            // 3. Fetch details for the top products
+            const productsQuery = query(collection(firestore, 'products'), where('id', 'in', topProductIds));
+            const productsSnapshot = await getDocs(productsQuery);
+            const productsData = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+            // 4. Combine data and set state
+            const finalTopProducts = topProductIds.map(id => {
+                const product = productsData.find(p => p.id === id);
+                return {
+                    id: id,
+                    name: product?.name || 'Unknown Product',
+                    imageUrl: product?.imageUrl || 'https://picsum.photos/seed/placeholder/40',
+                    shares: shareCounts[id],
+                };
+            }).sort((a,b) => b.shares - a.shares);
+
+            setTopProducts(finalTopProducts);
+            setIsLoading(false);
+        };
+
+        fetchTopShared();
+    }, [firestore, sellerId]);
+
+
     return (
         <Table>
             <TableHeader>
@@ -89,7 +152,12 @@ const TopSharedProductsTable = () => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {mockTopShared.map(product => (
+                {isLoading ? (
+                    <TableRow>
+                        <TableCell colSpan={2} className="text-center h-24">Loading data...</TableCell>
+                    </TableRow>
+                ) : topProducts.length > 0 ? (
+                    topProducts.map(product => (
                     <TableRow key={product.id}>
                         <TableCell>
                             <div className="flex items-center gap-3">
@@ -99,7 +167,12 @@ const TopSharedProductsTable = () => {
                         </TableCell>
                         <TableCell className="text-right font-medium">{product.shares}</TableCell>
                     </TableRow>
-                ))}
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={2} className="text-center h-24 text-muted-foreground">No products have been shared yet.</TableCell>
+                    </TableRow>
+                )}
             </TableBody>
         </Table>
     );
@@ -157,7 +230,7 @@ export default function ResellerCenterPage() {
                             <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                           <TopSharedProductsTable />
+                           {user && <TopSharedProductsTable sellerId={user.uid} />}
                         </CardContent>
                     </Card>
 
