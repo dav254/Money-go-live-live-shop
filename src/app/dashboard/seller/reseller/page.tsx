@@ -65,7 +65,7 @@ const TopPerformingProductsTable = () => {
                     <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-center">{p.sales}</TableCell>
-                        <TableCell className="text-right font-semibold text-primary">${p.commission.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-semibold text-primary">${'p.commission.toFixed(2)'}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -74,68 +74,13 @@ const TopPerformingProductsTable = () => {
 };
 
 
-const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
-    const firestore = useFirestore();
-    const [topProducts, setTopProducts] = useState<{ id: string; name: string; imageUrl: string; shares: number }[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+const mockTopShared = [
+    { id: 'prod-1', name: 'Classic Leather Handbag', imageUrl: 'https://picsum.photos/seed/product1/40', shares: 542 },
+    { id: 'prod-6', name: 'Noise-Cancelling Headphones', imageUrl: 'https://picsum.photos/seed/product6/40', shares: 488 },
+    { id: 'prod-5', name: 'Chronograph Watch', imageUrl: 'https://picsum.photos/seed/product5/40', shares: 310 },
+];
 
-    useEffect(() => {
-        if (!firestore || !sellerId) {
-            setIsLoading(false);
-            return;
-        }
-
-        const activitiesQuery = query(
-            collection(firestore, 'resellActivities'),
-            where('sellerId', '==', sellerId)
-        );
-
-        const unsubscribe = onSnapshot(activitiesQuery, async (activitiesSnapshot) => {
-            setIsLoading(true);
-            const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
-
-            if (activities.length === 0) {
-                setTopProducts([]);
-                setIsLoading(false);
-                return;
-            }
-
-            const shareCounts = activities.reduce((acc, activity) => {
-                acc[activity.productId] = (acc[activity.productId] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-
-            const productIds = Object.keys(shareCounts);
-            
-            if (productIds.length === 0) {
-                setTopProducts([]);
-                setIsLoading(false);
-                return;
-            }
-
-            const productsQuery = query(collection(firestore, 'products'), where('id', 'in', productIds));
-            const productsSnapshot = await getDocs(productsQuery);
-            const productsData = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-
-            const finalTopProducts = productIds.map(id => {
-                const product = productsData.find(p => p.id === id);
-                return {
-                    id: id,
-                    name: product?.name || 'Unknown Product',
-                    imageUrl: product?.imageUrl || 'https://picsum.photos/seed/placeholder/40',
-                    shares: shareCounts[id],
-                };
-            }).sort((a, b) => b.shares - a.shares).slice(0, 5); // Show top 5
-
-            setTopProducts(finalTopProducts);
-            setIsLoading(false);
-        });
-
-        // Cleanup listener on component unmount
-        return () => unsubscribe();
-    }, [firestore, sellerId]);
-
-
+const TopSharedProductsTable = () => {
     return (
         <Table>
             <TableHeader>
@@ -145,12 +90,7 @@ const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {isLoading ? (
-                    <TableRow>
-                        <TableCell colSpan={2} className="text-center h-24">Loading data...</TableCell>
-                    </TableRow>
-                ) : topProducts.length > 0 ? (
-                    topProducts.map(product => (
+                {mockTopShared.map(product => (
                     <TableRow key={product.id}>
                         <TableCell>
                             <div className="flex items-center gap-3">
@@ -160,16 +100,12 @@ const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
                         </TableCell>
                         <TableCell className="text-right font-medium">{product.shares}</TableCell>
                     </TableRow>
-                    ))
-                ) : (
-                    <TableRow>
-                        <TableCell colSpan={2} className="text-center h-24 text-muted-foreground">No products have been shared yet.</TableCell>
-                    </TableRow>
-                )}
+                ))}
             </TableBody>
         </Table>
-    );
-};
+    )
+}
+
 
 export default function ResellerCenterPage() {
     const { user } = useUser();
@@ -196,7 +132,7 @@ export default function ResellerCenterPage() {
                         <CardContent className="space-y-3">
                             {mockAlerts.map(alert => (
                                 <Alert key={alert.title} variant={alert.type === 'stale' ? 'destructive' : 'default'} className="bg-primary/5">
-                                    <alert.icon className={`h-4 w-4 ${alert.color}`} />
+                                    <alert.icon className={`h-4 w-4 ${'alert.color'}`} />
                                     <AlertTitle className="font-semibold">{alert.title}</AlertTitle>
                                     <AlertDescription>
                                         {alert.description}
@@ -223,7 +159,7 @@ export default function ResellerCenterPage() {
                             <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                           {user && <TopSharedProductsTable sellerId={user.uid} />}
+                           <TopSharedProductsTable />
                         </CardContent>
                     </Card>
 
