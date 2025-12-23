@@ -11,12 +11,9 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BadgePercent, Lightbulb } from 'lucide-react';
-import React, { useMemo, useState, useEffect } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { useUser, useFirestore } from '@/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import type { Product, ResellActivity } from '@/lib/types';
 import { TopSharedProductsTable } from '@/components/reseller/top-shared-products-table';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 
@@ -28,7 +25,7 @@ const mockAlerts = [
     },
     {
         title: "Stale Product: 'Winter Scarf'",
-        description: "This product hasn't been shared by any resellers in over 30 days. Consider pausing it or creating new video content to promote it.",
+        description: "This product hasn't been shared by any resellers in over 30 days. Consider creating new video content to promote it.",
     }
 ];
 
