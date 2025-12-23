@@ -10,24 +10,46 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Lightbulb } from 'lucide-react';
+import { BadgePercent, Lightbulb, Badge, Users, ShoppingBag, CircleDollarSign } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { TopSharedProductsTable } from '@/components/reseller/top-shared-products-table';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 
-const mockAlerts = [
-    {
-        title: "Top Performer: 'Classic Handbag'",
-        description: "This item is being shared a lot but has a low commission rate (5%). Consider increasing it to 10-15% to motivate resellers even more.",
-    },
-    {
-        title: "Stale Product: 'Winter Scarf'",
-        description: "This product hasn't been shared by any resellers in over 30 days. Consider creating new video content to promote it.",
-    }
+const mockResellers = [
+    { name: 'Alice', sales: 15, earnings: 450.75, status: 'Active' },
+    { name: 'Bob', sales: 10, earnings: 320.50, status: 'Active' },
+    { name: 'Charlie', sales: 5, earnings: 150.00, status: 'Pending' },
+    { name: 'Diana', sales: 2, earnings: 65.20, status: 'Active' },
 ];
+
+const mockStats = {
+    totalResellers: 4,
+    totalSales: 32,
+    totalCommissionPaid: 986.45,
+};
+
+const StatCard = ({ title, value, icon: Icon }: { title: string, value: string, icon: React.ElementType }) => (
+    <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+            <div className="text-2xl font-bold">{value}</div>
+        </CardContent>
+    </Card>
+);
 
 export default function ResellerCenterPage() {
     return (
@@ -44,21 +66,48 @@ export default function ResellerCenterPage() {
                 </TabsList>
 
                 <TabsContent value="analytics" className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <StatCard title="Total Resellers" value={mockStats.totalResellers.toString()} icon={Users} />
+                        <StatCard title="Total Reseller Sales" value={mockStats.totalSales.toString()} icon={ShoppingBag} />
+                        <StatCard title="Total Commission Paid" value={`$${mockStats.totalCommissionPaid.toLocaleString()}`} icon={CircleDollarSign} />
+                    </div>
+
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Lightbulb /> Performance Alerts</CardTitle>
-                            <CardDescription>AI-powered suggestions to optimize your reseller program.</CardDescription>
+                            <CardTitle>My Resellers</CardTitle>
+                            <CardDescription>Manage and view the performance of your resellers.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            {mockAlerts.map(alert => (
-                                <Alert key={alert.title} variant='default' className="bg-primary/5">
-                                    <AlertTitle className="font-semibold">{alert.title}</AlertTitle>
-                                    <AlertDescription>
-                                        {alert.description}
-                                        <Button variant="link" className="p-0 h-auto ml-2">Take Action</Button>
-                                    </AlertDescription>
-                                </Alert>
-                            ))}
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Reseller</TableHead>
+                                        <TableHead>Sales</TableHead>
+                                        <TableHead>Your Earnings (USD)</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {mockResellers.map(reseller => (
+                                        <TableRow key={reseller.name}>
+                                            <TableCell className="font-medium flex items-center gap-2">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={`https://picsum.photos/seed/${reseller.name}/40`} />
+                                                    <AvatarFallback>{reseller.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                {reseller.name}
+                                            </TableCell>
+                                            <TableCell>{reseller.sales}</TableCell>
+                                            <TableCell>${reseller.earnings.toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={reseller.status === 'Active' ? 'default' : 'secondary'} className={reseller.status === 'Active' ? 'bg-green-600/80' : ''}>
+                                                    {reseller.status}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
 
@@ -68,7 +117,21 @@ export default function ResellerCenterPage() {
                             <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                           <TopSharedProductsTable />
+                            <Table>
+                                <TableHeader>
+                                <TableRow>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead>Total Shares</TableHead>
+                                </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell colSpan={2} className="h-24 text-center">
+                                            You haven't shared any products yet.
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
