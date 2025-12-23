@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BadgePercent, BarChart2, Share2, AlertTriangle, TrendingUp, Lightbulb } from 'lucide-react';
-import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -55,11 +54,19 @@ const TopSharedProductsTable = () => {
         let productsUnsubscribe: (() => void) | undefined;
         let activitiesUnsubscribe: (() => void) | undefined;
 
+        // Start loading whenever this effect runs
+        setIsLoading(true);
+
         // State to hold products and activities separately
         let allProducts: Product[] = [];
         let allActivities: ResellActivity[] = [];
+        let productDataLoaded = false;
+        let activityDataLoaded = false;
 
         const processData = () => {
+            // Only process when both datasets have been loaded at least once
+            if (!productDataLoaded || !activityDataLoaded) return;
+            
             if (!allProducts.length) {
                 setTopShared([]);
                 return;
@@ -84,10 +91,12 @@ const TopSharedProductsTable = () => {
         const productsQuery = query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
         productsUnsubscribe = onSnapshot(productsQuery, (snapshot) => {
             allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+            productDataLoaded = true; // Mark as loaded
             processData();
-            setIsLoading(false);
+            setIsLoading(false); // Stop loading after the first successful data fetch
         }, (error) => {
             console.error("Error fetching products:", error);
+            productDataLoaded = true;
             setIsLoading(false);
         });
 
@@ -95,9 +104,11 @@ const TopSharedProductsTable = () => {
         const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
         activitiesUnsubscribe = onSnapshot(activitiesQuery, (snapshot) => {
             allActivities = snapshot.docs.map(doc => doc.data() as ResellActivity);
+            activityDataLoaded = true; // Mark as loaded
             processData();
         }, (error) => {
             console.error("Error fetching resell activities:", error);
+            activityDataLoaded = true;
             setIsLoading(false);
         });
 
