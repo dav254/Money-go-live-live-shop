@@ -65,7 +65,7 @@ const TopPerformingProductsTable = () => {
                     <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-center">{p.sales}</TableCell>
-                        <TableCell className="text-right font-semibold text-primary">${'p.commission.toFixed(2)'}</TableCell>
+                        <TableCell className="text-right font-semibold text-primary">${p.commission.toFixed(2)}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -74,13 +74,64 @@ const TopPerformingProductsTable = () => {
 };
 
 
-const mockTopShared = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', imageUrl: 'https://picsum.photos/seed/product1/40', shares: 542 },
-    { id: 'prod-6', name: 'Noise-Cancelling Headphones', imageUrl: 'https://picsum.photos/seed/product6/40', shares: 488 },
-    { id: 'prod-5', name: 'Chronograph Watch', imageUrl: 'https://picsum.photos/seed/product5/40', shares: 310 },
-];
-
 const TopSharedProductsTable = () => {
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const sellerProductsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+    }, [user, firestore]);
+
+    const resellActivitiesQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'resellActivities'), where('sellerId', '==', user.uid));
+    }, [user, firestore]);
+
+    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(sellerProductsQuery);
+    const { data: activities, isLoading: isLoadingActivities } = useCollection<ResellActivity>(resellActivitiesQuery);
+
+    const topShared = useMemo(() => {
+        if (!activities || !products) return [];
+
+        const shareCounts = activities.reduce((acc, activity) => {
+            acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        
+        const productsMap = new Map(products.map(p => [p.id, p]));
+
+        return Object.entries(shareCounts)
+            .map(([productId, shares]) => ({
+                product: productsMap.get(productId),
+                shares,
+            }))
+            .filter(item => item.product) // Ensure product exists
+            .sort((a, b) => b.shares - a.shares)
+            .slice(0, 5); // Get top 5
+
+    }, [activities, products]);
+    
+    const isLoading = isLoadingProducts || isLoadingActivities;
+
+    if (isLoading) {
+        return (
+             <Table>
+                <TableHeader>
+                    <TableRow><TableHead>Product</TableHead><TableHead className="text-right">Total Shares by Resellers</TableHead></TableRow>
+                </TableHeader>
+                <TableBody>
+                    {[...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-12 ml-auto" /></TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        )
+    }
+
     return (
         <Table>
             <TableHeader>
@@ -90,17 +141,25 @@ const TopSharedProductsTable = () => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {mockTopShared.map(product => (
-                    <TableRow key={product.id}>
-                        <TableCell>
-                            <div className="flex items-center gap-3">
-                                <Image src={product.imageUrl} alt={product.name} width={40} height={40} className="rounded-md" />
-                                <span className="font-medium">{product.name}</span>
-                            </div>
+                {topShared.length > 0 ? (
+                    topShared.map(item => (
+                        <TableRow key={item.product!.id}>
+                            <TableCell>
+                                <div className="flex items-center gap-3">
+                                    <Image src={item.product!.imageUrl} alt={item.product!.name} width={40} height={40} className="rounded-md" />
+                                    <span className="font-medium">{item.product!.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{item.shares}</TableCell>
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                        <TableCell colSpan={2} className="text-center h-24 text-muted-foreground">
+                            No products have been shared by resellers yet.
                         </TableCell>
-                        <TableCell className="text-right font-medium">{product.shares}</TableCell>
                     </TableRow>
-                ))}
+                )}
             </TableBody>
         </Table>
     )
@@ -132,7 +191,7 @@ export default function ResellerCenterPage() {
                         <CardContent className="space-y-3">
                             {mockAlerts.map(alert => (
                                 <Alert key={alert.title} variant={alert.type === 'stale' ? 'destructive' : 'default'} className="bg-primary/5">
-                                    <alert.icon className={`h-4 w-4 ${'alert.color'}`} />
+                                    <alert.icon className={`h-4 w-4 ${alert.color}`} />
                                     <AlertTitle className="font-semibold">{alert.title}</AlertTitle>
                                     <AlertDescription>
                                         {alert.description}
