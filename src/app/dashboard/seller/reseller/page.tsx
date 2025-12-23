@@ -77,42 +77,60 @@ const TopPerformingProductsTable = () => {
 const TopSharedProductsTable = () => {
     const { user } = useUser();
     const firestore = useFirestore();
+    const [topShared, setTopShared] = useState<{ product: Product; shares: number }[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const sellerProductsQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-    }, [user, firestore]);
+    useEffect(() => {
+        if (!user || !firestore) {
+            setIsLoading(false);
+            return;
+        }
 
-    const resellActivitiesQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'resellActivities'), where('sellerId', '==', user.uid));
-    }, [user, firestore]);
+        const fetchAndAggregateData = async () => {
+            setIsLoading(true);
+            const sellerId = user.uid;
 
-    const { data: products, isLoading: isLoadingProducts } = useCollection<Product>(sellerProductsQuery);
-    const { data: activities, isLoading: isLoadingActivities } = useCollection<ResellActivity>(resellActivitiesQuery);
+            // Fetch all resell activities for this seller
+            const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
+            const activitiesSnapshot = await getDocs(activitiesQuery);
+            const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
 
-    const topShared = useMemo(() => {
-        if (!activities || !products) return [];
+            if (activities.length === 0) {
+                setTopShared([]);
+                setIsLoading(false);
+                return;
+            }
 
-        const shareCounts = activities.reduce((acc, activity) => {
-            acc[activity.productId] = (acc[activity.productId] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+            // Aggregate share counts
+            const shareCounts = activities.reduce((acc, activity) => {
+                acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+
+            const productIds = Object.keys(shareCounts);
+
+            if (productIds.length > 0) {
+                // Fetch details for the shared products
+                const productsQuery = query(collection(firestore, 'products'), where('id', 'in', productIds));
+                const productsSnapshot = await getDocs(productsQuery);
+                const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data() as Product]));
+
+                const combinedData = productIds.map(productId => ({
+                    product: productsMap.get(productId)!,
+                    shares: shareCounts[productId],
+                }))
+                .filter(item => item.product) // Ensure product exists
+                .sort((a, b) => b.shares - a.shares)
+                .slice(0, 5); // Get top 5
+                
+                setTopShared(combinedData);
+            }
+            setIsLoading(false);
+        };
+
+        fetchAndAggregateData();
         
-        const productsMap = new Map(products.map(p => [p.id, p]));
-
-        return Object.entries(shareCounts)
-            .map(([productId, shares]) => ({
-                product: productsMap.get(productId),
-                shares,
-            }))
-            .filter(item => item.product) // Ensure product exists
-            .sort((a, b) => b.shares - a.shares)
-            .slice(0, 5); // Get top 5
-
-    }, [activities, products]);
-    
-    const isLoading = isLoadingProducts || isLoadingActivities;
+    }, [user, firestore]);
 
     if (isLoading) {
         return (
@@ -143,11 +161,11 @@ const TopSharedProductsTable = () => {
             <TableBody>
                 {topShared.length > 0 ? (
                     topShared.map(item => (
-                        <TableRow key={item.product!.id}>
+                        <TableRow key={item.product.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <Image src={item.product!.imageUrl} alt={item.product!.name} width={40} height={40} className="rounded-md" />
-                                    <span className="font-medium">{item.product!.name}</span>
+                                    <Image src={item.product.imageUrl} alt={item.product.name} width={40} height={40} className="rounded-md" />
+                                    <span className="font-medium">{item.product.name}</span>
                                 </div>
                             </TableCell>
                             <TableCell className="text-right font-medium">{item.shares}</TableCell>
