@@ -283,11 +283,11 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout>
-      <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Admin Dashboard
         </h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           {stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
@@ -352,6 +352,7 @@ export default function AdminDashboardPage() {
                       tickLine={false}
                       axisLine={false}
                       tickMargin={8}
+                      fontSize={12}
                       tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     />
                     <YAxis
@@ -359,7 +360,7 @@ export default function AdminDashboardPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => `$${"$"}{value}`}
+                      tickFormatter={(value) => `$${value}`}
                     />
                      <ChartTooltip
                       cursor={false}
