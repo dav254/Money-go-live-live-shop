@@ -4,7 +4,7 @@
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -28,6 +28,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
+import { TopSharedProductsTable } from '@/components/reseller/top-shared-products-table';
 
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
@@ -173,7 +175,29 @@ export default function ResellerProductsPage() {
             Products to Resell
             </h1>
 
-            <div className="flex items-center justify-between gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><TrendingUp /> Top Performing Products</CardTitle>
+                        <CardDescription>Products generating the most commission from reseller sales.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TopPerformingProducts />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Share2 /> Top Shared Products</CardTitle>
+                        <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <TopSharedProductsTable />
+                    </CardContent>
+                </Card>
+            </div>
+
+
+            <div className="flex items-center justify-between gap-4 pt-8">
                 <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
