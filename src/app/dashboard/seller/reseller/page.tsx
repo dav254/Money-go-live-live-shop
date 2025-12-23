@@ -17,7 +17,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, deleteDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, deleteDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { Product, UserProfile, ResellActivity, CommissionTier } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -80,20 +80,18 @@ const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchTopShared = async () => {
-            if (!firestore || !sellerId) {
-                setIsLoading(false);
-                return;
-            };
+        if (!firestore || !sellerId) {
+            setIsLoading(false);
+            return;
+        }
 
+        const activitiesQuery = query(
+            collection(firestore, 'resellActivities'),
+            where('sellerId', '==', sellerId)
+        );
+
+        const unsubscribe = onSnapshot(activitiesQuery, async (activitiesSnapshot) => {
             setIsLoading(true);
-
-            // 1. Fetch all resell activities for this seller
-            const activitiesQuery = query(
-                collection(firestore, 'resellActivities'),
-                where('sellerId', '==', sellerId)
-            );
-            const activitiesSnapshot = await getDocs(activitiesQuery);
             const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
 
             if (activities.length === 0) {
@@ -102,7 +100,6 @@ const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
                 return;
             }
 
-            // 2. Aggregate share counts for each product
             const shareCounts = activities.reduce((acc, activity) => {
                 acc[activity.productId] = (acc[activity.productId] || 0) + 1;
                 return acc;
@@ -110,22 +107,17 @@ const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
 
             const productIds = Object.keys(shareCounts);
             
-            // Firestore 'in' query is limited to 30 items. For larger scale, this needs pagination or a different strategy.
-            const topProductIds = productIds.sort((a, b) => shareCounts[b] - shareCounts[a]).slice(0, 5);
-
-            if (topProductIds.length === 0) {
+            if (productIds.length === 0) {
                 setTopProducts([]);
                 setIsLoading(false);
                 return;
             }
 
-            // 3. Fetch details for the top products
-            const productsQuery = query(collection(firestore, 'products'), where('id', 'in', topProductIds));
+            const productsQuery = query(collection(firestore, 'products'), where('id', 'in', productIds));
             const productsSnapshot = await getDocs(productsQuery);
             const productsData = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
-            // 4. Combine data and set state
-            const finalTopProducts = topProductIds.map(id => {
+            const finalTopProducts = productIds.map(id => {
                 const product = productsData.find(p => p.id === id);
                 return {
                     id: id,
@@ -133,13 +125,14 @@ const TopSharedProductsTable = ({ sellerId }: { sellerId: string }) => {
                     imageUrl: product?.imageUrl || 'https://picsum.photos/seed/placeholder/40',
                     shares: shareCounts[id],
                 };
-            }).sort((a,b) => b.shares - a.shares);
+            }).sort((a, b) => b.shares - a.shares).slice(0, 5); // Show top 5
 
             setTopProducts(finalTopProducts);
             setIsLoading(false);
-        };
+        });
 
-        fetchTopShared();
+        // Cleanup listener on component unmount
+        return () => unsubscribe();
     }, [firestore, sellerId]);
 
 
