@@ -10,21 +10,16 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Users, Trophy, BarChart2, Share2, Target, Percent, PlusCircle, Trash2, AlertTriangle, TrendingUp, Lightbulb, Loader2 } from 'lucide-react';
+import { BadgePercent, BarChart2, Share2, AlertTriangle, TrendingUp, Lightbulb } from 'lucide-react';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, deleteDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import type { Product, UserProfile, ResellActivity, CommissionTier } from '@/lib/types';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import type { Product, ResellActivity } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import Image from 'next/image';
 
 const mockAlerts = [
@@ -44,36 +39,6 @@ const mockAlerts = [
     }
 ];
 
-const mockTopPerformingProducts = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', sales: 42, commission: 450.75 },
-    { id: 'prod-5', name: 'Chronograph Watch', sales: 25, commission: 310.20 },
-    { id: 'prod-6', name: 'Noise-Cancelling Headphones', sales: 18, commission: 215.50 },
-];
-
-const TopPerformingProductsTable = () => {
-    return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-center">Reseller Sales</TableHead>
-                    <TableHead className="text-right">Total Commission Paid</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {mockTopPerformingProducts.map(p => (
-                    <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-center">{p.sales}</TableCell>
-                        <TableCell className="text-right font-semibold text-primary">${p.commission.toFixed(2)}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    );
-};
-
-
 const TopSharedProductsTable = () => {
     const { user } = useUser();
     const firestore = useFirestore();
@@ -87,59 +52,61 @@ const TopSharedProductsTable = () => {
         }
 
         const sellerId = user.uid;
-        let unsubscribe: (() => void) | undefined;
+        let productsUnsubscribe: (() => void) | undefined;
+        let activitiesUnsubscribe: (() => void) | undefined;
 
-        const fetchAndAggregateData = async () => {
-            setIsLoading(true);
-            try {
-                // Fetch all of the seller's products once.
-                const productsQuery = query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
-                const productsSnapshot = await getDocs(productsQuery);
-                const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Product]));
+        // State to hold products and activities separately
+        let allProducts: Product[] = [];
+        let allActivities: ResellActivity[] = [];
 
-                // Set up a real-time listener for resell activities.
-                const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
-                
-                unsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
-                    const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
-
-                    // Aggregate share counts.
-                    const shareCounts = activities.reduce((acc, activity) => {
-                        acc[activity.productId] = (acc[activity.productId] || 0) + 1;
-                        return acc;
-                    }, {} as Record<string, number>);
-                    
-                    // Combine product details with share counts.
-                    const combinedData = Array.from(productsMap.values()).map(product => ({
-                        product,
-                        shares: shareCounts[product.id] || 0,
-                    }))
-                    .filter(item => item.shares > 0) // Only show products that have been shared
-                    .sort((a, b) => b.shares - a.shares)
-                    .slice(0, 5); // Get top 5
-
-                    setTopShared(combinedData);
-                    setIsLoading(false); // Set loading to false after initial data load
-                }, (error) => {
-                    console.error("Error with real-time listener for activities: ", error);
-                    setIsLoading(false);
-                });
-
-            } catch (error) {
-                console.error("Error fetching initial product data:", error);
-                setIsLoading(false);
+        const processData = () => {
+            if (!allProducts.length) {
+                setTopShared([]);
+                return;
             }
-        };
+            const shareCounts = allActivities.reduce((acc, activity) => {
+                acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
 
-        fetchAndAggregateData();
+            const combinedData = allProducts.map(product => ({
+                product,
+                shares: shareCounts[product.id] || 0,
+            }))
+            .filter(item => item.shares > 0)
+            .sort((a, b) => b.shares - a.shares)
+            .slice(0, 10); // Show top 10
 
-        // Cleanup the listener when the component unmounts
-        return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
+            setTopShared(combinedData);
         };
         
+        // Listener for Products
+        const productsQuery = query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
+        productsUnsubscribe = onSnapshot(productsQuery, (snapshot) => {
+            allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+            processData();
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching products:", error);
+            setIsLoading(false);
+        });
+
+        // Listener for Activities
+        const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
+        activitiesUnsubscribe = onSnapshot(activitiesQuery, (snapshot) => {
+            allActivities = snapshot.docs.map(doc => doc.data() as ResellActivity);
+            processData();
+        }, (error) => {
+            console.error("Error fetching resell activities:", error);
+            setIsLoading(false);
+        });
+
+        // Cleanup listeners on unmount
+        return () => {
+            if (productsUnsubscribe) productsUnsubscribe();
+            if (activitiesUnsubscribe) activitiesUnsubscribe();
+        };
+
     }, [user, firestore]);
 
     if (isLoading) {
@@ -151,7 +118,7 @@ const TopSharedProductsTable = () => {
                 <TableBody>
                     {[...Array(3)].map((_, i) => (
                         <TableRow key={i}>
-                            <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+                            <TableCell><div className="flex items-center gap-3"><Skeleton className="h-10 w-10 rounded-md" /><Skeleton className="h-6 w-48" /></div></TableCell>
                             <TableCell><Skeleton className="h-6 w-12 ml-auto" /></TableCell>
                         </TableRow>
                     ))}
@@ -195,8 +162,6 @@ const TopSharedProductsTable = () => {
 
 
 export default function ResellerCenterPage() {
-    const { user } = useUser();
-
     return (
         <SellerLayout>
         <div className="flex-1 space-y-4 p-8 pt-6">
@@ -232,16 +197,6 @@ export default function ResellerCenterPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Top Performing Products (by Resellers)</CardTitle>
-                            <CardDescription>Products generating the most commission from reseller sales.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <TopPerformingProductsTable />
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
                             <CardTitle>Top Shared Products</CardTitle>
                             <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
                         </CardHeader>
@@ -249,7 +204,6 @@ export default function ResellerCenterPage() {
                            <TopSharedProductsTable />
                         </CardContent>
                     </Card>
-
                 </TabsContent>
 
                 <TabsContent value="commissions" className="space-y-4">
@@ -266,7 +220,6 @@ export default function ResellerCenterPage() {
                     </CardContent>
                     </Card>
                 </TabsContent>
-
             </Tabs>
         </div>
         </SellerLayout>
