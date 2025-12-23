@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
+import { TopSharedProductsTable } from '@/components/reseller/top-shared-products-table';
 
 const chartConfig = {
   earnings: {
@@ -86,38 +87,6 @@ const TopResellersTable = () => {
         </Table>
     );
 };
-
-const mockTopShared = [
-    { id: 'prod-1', name: 'Classic Leather Handbag', imageUrl: 'https://picsum.photos/seed/product1/40', shares: 542 },
-    { id: 'prod-6', name: 'Noise-Cancelling Headphones', imageUrl: 'https://picsum.photos/seed/product6/40', shares: 488 },
-    { id: 'prod-5', name: 'Chronograph Watch', imageUrl: 'https://picsum.photos/seed/product5/40', shares: 310 },
-];
-
-const TopSharedProductsTable = () => {
-    return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Total Shares</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {mockTopShared.map(product => (
-                    <TableRow key={product.id}>
-                        <TableCell>
-                            <div className="flex items-center gap-3">
-                                <Image src={product.imageUrl} alt={product.name} width={40} height={40} className="rounded-md" />
-                                <span className="font-medium">{product.name}</span>
-                            </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">{product.shares}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    )
-}
 
 
 function ResellerDashboardPageContent() {
@@ -205,7 +174,7 @@ function ResellerDashboardPageContent() {
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `''$''${value}`}
+                                        tickFormatter={(value) => `$${"value"}`}
                                     />
                                      <RechartsTooltip
                                         cursor={{ fill: 'hsla(var(--muted))' }}
@@ -230,7 +199,7 @@ function ResellerDashboardPageContent() {
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Share2 /> Top Shared Products</CardTitle>
-                        <CardDescription>Products most frequently shared by the entire reseller network.</CardDescription>
+                        <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <TopSharedProductsTable />
