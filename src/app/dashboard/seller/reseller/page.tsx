@@ -86,49 +86,59 @@ const TopSharedProductsTable = () => {
             return;
         }
 
+        const sellerId = user.uid;
+        
+        // Unsubscribe function for the snapshot listener
+        let unsubscribe: (() => void) | undefined;
+
         const fetchAndAggregateData = async () => {
             setIsLoading(true);
-            const sellerId = user.uid;
 
-            // Fetch all resell activities for this seller
-            const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
-            const activitiesSnapshot = await getDocs(activitiesQuery);
-            const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
-
-            if (activities.length === 0) {
-                setTopShared([]);
-                setIsLoading(false);
-                return;
-            }
-
-            // Aggregate share counts
-            const shareCounts = activities.reduce((acc, activity) => {
-                acc[activity.productId] = (acc[activity.productId] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-
-            const productIds = Object.keys(shareCounts);
-
-            if (productIds.length > 0) {
-                // Fetch details for the shared products
-                const productsQuery = query(collection(firestore, 'products'), where('id', 'in', productIds));
+            try {
+                // 1. Fetch all of the seller's products once.
+                const productsQuery = query(collection(firestore, 'products'), where('sellerId', '==', sellerId));
                 const productsSnapshot = await getDocs(productsQuery);
-                const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data() as Product]));
+                const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Product]));
 
-                const combinedData = productIds.map(productId => ({
-                    product: productsMap.get(productId)!,
-                    shares: shareCounts[productId],
-                }))
-                .filter(item => item.product) // Ensure product exists
-                .sort((a, b) => b.shares - a.shares)
-                .slice(0, 5); // Get top 5
+                // 2. Set up a real-time listener for resell activities.
+                const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
                 
-                setTopShared(combinedData);
+                unsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
+                    const activities = activitiesSnapshot.docs.map(doc => doc.data() as ResellActivity);
+
+                    // 3. Aggregate share counts from the activities.
+                    const shareCounts = activities.reduce((acc, activity) => {
+                        acc[activity.productId] = (acc[activity.productId] || 0) + 1;
+                        return acc;
+                    }, {} as Record<string, number>);
+                    
+                    // 4. Combine product details with share counts.
+                    const combinedData = Array.from(productsMap.values()).map(product => ({
+                        product,
+                        shares: shareCounts[product.id] || 0,
+                    }))
+                    .filter(item => item.shares > 0) // Only show products that have been shared
+                    .sort((a, b) => b.shares - a.shares)
+                    .slice(0, 5); // Get top 5
+
+                    setTopShared(combinedData);
+                    setIsLoading(false);
+                });
+
+            } catch (error) {
+                console.error("Error fetching shared product data:", error);
+                setIsLoading(false);
             }
-            setIsLoading(false);
         };
 
         fetchAndAggregateData();
+
+        // Cleanup the listener when the component unmounts
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
         
     }, [user, firestore]);
 
@@ -164,7 +174,7 @@ const TopSharedProductsTable = () => {
                         <TableRow key={item.product.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <Image src={item.product.imageUrl} alt={item.product.name} width={40} height={40} className="rounded-md" />
+                                    <Image src={item.product.imageUrl || 'https://picsum.photos/seed/placeholder/40'} alt={item.product.name || 'Product'} width={40} height={40} className="rounded-md object-cover" />
                                     <span className="font-medium">{item.product.name}</span>
                                 </div>
                             </TableCell>
