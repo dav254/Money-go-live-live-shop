@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -443,8 +442,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </AlertDialog>
       </div>
 
-      <ScrollArea className="flex-1 bg-muted/10 pb-20" ref={scrollAreaRef}>
-        <div className="p-4 space-y-6">
+      <ScrollArea className="flex-1 bg-muted/10" ref={scrollAreaRef}>
+        <div className="p-4 space-y-6 pb-24">
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
             <div key={msg.id} className={cn("flex", msg.senderId === currentUser.uid ? "justify-end" : "justify-start")}>
