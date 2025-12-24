@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import type { Product, ResellActivity } from '@/lib/types';
 import Image from 'next/image';
@@ -74,8 +74,7 @@ export function SellerTopSharedProductsTable() {
                 return;
             }
 
-            // Firestore 'in' query is limited to 30 items. For more products, pagination or a different approach is needed.
-            const activitiesQuery = query(collection(firestore, 'resellActivities'), where('productId', 'in', sellerProductIds.slice(0, 30)));
+            const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
             
             activitiesUnsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
                 const shareCounts = activitiesSnapshot.docs.reduce((acc, doc) => {
@@ -96,11 +95,21 @@ export function SellerTopSharedProductsTable() {
                 setTopShared(combinedData);
                 setIsLoading(false);
             }, (error) => {
-                console.error("Error fetching resell activities:", error);
+                console.error("FirebaseError in resellActivities subscription:", error);
+                const permissionError = new FirestorePermissionError({
+                    path: 'resellActivities',
+                    operation: 'list',
+                });
+                errorEmitter.emit('permission-error', permissionError);
                 setIsLoading(false);
             });
         }, (error) => {
-            console.error("Error fetching seller products:", error);
+            console.error("FirebaseError in products subscription:", error);
+             const permissionError = new FirestorePermissionError({
+                path: 'products',
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
             setIsLoading(false);
         });
 
