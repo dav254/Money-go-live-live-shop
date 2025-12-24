@@ -29,7 +29,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs, getDoc } from 'firebase/firestore';
 import type { Order, UserProfile, ResellerApplication } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -118,29 +118,29 @@ const MyResellersTable = () => {
                 }
 
                 // 2. Fetch profiles for these resellers
-                const resellersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
+                // Firestore 'in' query is limited to 30 items. For larger scale, this would need batching.
+                const resellersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds.slice(0, 30)));
                 const resellersSnapshot = await getDocs(resellersQuery);
                 const resellersMap = new Map(resellersSnapshot.docs.map(d => [d.id, d.data() as UserProfile]));
 
                 // 3. Fetch all orders made by these resellers for the current seller
-                const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
+                const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds.slice(0, 30)));
                 const ordersSnapshot = await getDocs(ordersQuery);
                 const orders = ordersSnapshot.docs.map(d => d.data() as Order);
 
                 // 4. Aggregate stats for each reseller
-                const stats = resellerIds.map(resellerId => {
-                    const resellerProfile = resellersMap.get(resellerId);
-                    const resellerOrders = orders.filter(o => o.resellerId === resellerId);
+                const stats = Array.from(resellersMap.values()).map(resellerProfile => {
+                    const resellerOrders = orders.filter(o => o.resellerId === resellerProfile.id);
                     const totalSales = resellerOrders.length;
                     const totalEarnings = resellerOrders.reduce((sum, order) => sum + (order.resellerCommission || 0), 0);
 
                     return {
-                        id: resellerId,
+                        id: resellerProfile.id,
                         fullName: resellerProfile?.fullName || 'Unknown Reseller',
                         profilePictureUrl: resellerProfile?.profilePictureUrl,
                         salesCount: totalSales,
                         totalEarnings: totalEarnings,
-                        status: 'Active', // Or determine status based on other criteria
+                        status: 'Active',
                         orders: resellerOrders,
                     };
                 }).sort((a,b) => b.totalEarnings - a.totalEarnings);
@@ -224,7 +224,7 @@ const MyResellersTable = () => {
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">No resellers have made sales for you yet.</TableCell>
+                            <TableCell colSpan={5} className="h-24 text-center">You have no approved resellers yet, or they haven't made any sales.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -251,15 +251,13 @@ export default function ResellerCenterPage() {
         setIsLoadingStats(true);
         const fetchData = async () => {
             try {
-                // Fetch approved reseller applications
                 const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
                 const appsSnapshot = await getDocs(appsQuery);
                 const totalResellers = appsSnapshot.size;
 
-                // Fetch reseller orders
                 const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
                 if (resellerIds.length > 0) {
-                     const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
+                     const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds.slice(0,30)));
                     const ordersSnapshot = await getDocs(ordersQuery);
                     const totalSales = ordersSnapshot.size;
                     const totalCommissionPaid = ordersSnapshot.docs.reduce((acc, doc) => acc + (doc.data().resellerCommission || 0), 0);
