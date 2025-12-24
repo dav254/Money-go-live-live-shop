@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs, orderBy, limit, startAfter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, startAfter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
@@ -22,13 +21,11 @@ export function ChatSystem() {
   const [allChats, setAllChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [participants, setParticipants] = useState<UserProfile[]>([]);
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
   const isAdmin = userProfile?.userRole === 'admin';
 
-  const fetchChats = useCallback(async (loadMore = false) => {
+  useEffect(() => {
     if (!firestore || !user) return;
 
     setIsLoading(true);
@@ -38,96 +35,92 @@ export function ChatSystem() {
       chatsQuery = query(
         collection(firestore, 'chats'),
         orderBy('lastMessageTimestamp', 'desc'),
-        limit(CHAT_PAGE_SIZE)
       );
     } else {
       chatsQuery = query(
         collection(firestore, 'chats'),
         where('participantIds', 'array-contains', user.uid),
-        orderBy('lastMessageTimestamp', 'desc'),
-        limit(CHAT_PAGE_SIZE)
       );
     }
 
-    if (loadMore && lastVisible) {
-      chatsQuery = query(chatsQuery, startAfter(lastVisible));
-    }
-    
-    try {
-        const querySnapshot = await getDocs(chatsQuery);
-        const fetchedChats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
-        
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-        setHasMore(fetchedChats.length === CHAT_PAGE_SIZE);
+    const unsubscribeChats = onSnapshot(chatsQuery, async (querySnapshot) => {
+      const fetchedChats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
+      setAllChats(fetchedChats);
 
-        if (loadMore) {
-            setAllChats(prev => [...prev, ...fetchedChats]);
-        } else {
-            setAllChats(fetchedChats);
-        }
-
-        const participantIds = new Set<string>();
-        fetchedChats.forEach(chat => {
-            chat.participantIds.forEach(id => {
-                if (id !== user.uid) {
-                  participantIds.add(id);
-                }
-            });
+      const participantIds = new Set<string>();
+      fetchedChats.forEach(chat => {
+        chat.participantIds.forEach(id => {
+            if (id !== user.uid) {
+              participantIds.add(id);
+            }
         });
-        
-        if (participantIds.size > 0) {
-            const usersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', Array.from(participantIds)));
-            const usersSnapshot = await getDocs(usersQuery);
-            const fetchedParticipants = usersSnapshot.docs.map(doc => doc.data() as UserProfile);
-            setParticipants(prev => {
-                const existingIds = new Set(prev.map(p => p.id));
-                const newParticipants = fetchedParticipants.filter(p => !existingIds.has(p.id));
-                return [...prev, ...newParticipants];
-            });
-        }
-    } catch (error) {
-        console.error("Error fetching chats:", error);
-    } finally {
-        setIsLoading(false);
-    }
-  }, [firestore, user, lastVisible, isAdmin]);
+      });
 
-  useEffect(() => {
-    if(user && firestore) {
-      fetchChats();
-    }
-  }, [user, firestore, isAdmin]); // Re-fetch if admin status changes
+      if (participantIds.size > 0) {
+        // Firestore 'in' query can take at most 30 elements
+        const participantIdChunks = Array.from(participantIds).reduce((acc, item, i) => {
+            const chunkIndex = Math.floor(i / 30);
+            if (!acc[chunkIndex]) acc[chunkIndex] = [];
+            acc[chunkIndex].push(item);
+            return acc;
+        }, [] as string[][]);
+
+        const participantPromises = participantIdChunks.map(chunk =>
+            getDocs(query(collection(firestore, 'userProfiles'), where('id', 'in', chunk)))
+        );
+        
+        const participantSnapshots = await Promise.all(participantPromises);
+        const fetchedParticipants = participantSnapshots.flatMap(snapshot =>
+            snapshot.docs.map(doc => doc.data() as UserProfile)
+        );
+
+        setParticipants(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newParticipants = fetchedParticipants.filter(p => !existingIds.has(p.id));
+            return [...prev, ...newParticipants];
+        });
+      }
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching chats in real-time:", error);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribeChats();
+
+  }, [firestore, user, isAdmin]);
 
 
   const chatsWithParticipants = useMemo(() => {
     if (!allChats || !participants || !user) return [];
     
     return allChats
-      .filter(chat => isAdmin || !chat.deletedFor?.includes(user.uid)) // Filter out deleted chats for non-admins
+      .filter(chat => isAdmin || !chat.deletedFor?.includes(user.uid))
       .map(chat => {
         const otherParticipantId = chat.participantIds.find(id => id !== user.uid);
         const otherParticipant = participants.find(p => p.id === otherParticipantId);
         return { ...chat, otherParticipant };
-      });
+      })
+      .sort((a, b) => b.lastMessageTimestamp?.toMillis() - a.lastMessageTimestamp?.toMillis());
 
   }, [allChats, participants, user, isAdmin]);
   
   useEffect(() => {
     const chatWithId = searchParams.get('chatWith');
-    if (chatWithId && chatsWithParticipants.length > 0) {
+    if (chatWithId && chatsWithParticipants.length > 0 && !selectedChat) {
       const chatToSelect = chatsWithParticipants.find(c => c.participantIds.includes(chatWithId));
       if (chatToSelect) {
         setSelectedChat(chatToSelect);
       }
     }
-  }, [searchParams, chatsWithParticipants]);
+  }, [searchParams, chatsWithParticipants, selectedChat]);
 
 
   const handleChatDeleted = () => {
-      setSelectedChat(null);
-      // Refetch the initial list after a deletion
-      setLastVisible(null);
-      fetchChats();
+      if(selectedChat) {
+        setAllChats(prev => prev.filter(c => c.id !== selectedChat.id));
+        setSelectedChat(null);
+      }
   }
 
   return (
@@ -137,8 +130,6 @@ export function ChatSystem() {
         selectedChat={selectedChat}
         onSelectChat={setSelectedChat}
         isLoading={isLoading}
-        loadMore={() => fetchChats(true)}
-        hasMore={hasMore}
       />
       <ChatWindow
         chat={selectedChat}

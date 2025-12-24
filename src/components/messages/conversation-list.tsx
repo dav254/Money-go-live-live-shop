@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,11 +15,9 @@ interface ConversationListProps {
   selectedChat: Chat | null;
   onSelectChat: (chat: Chat) => void;
   isLoading: boolean;
-  loadMore: () => void;
-  hasMore: boolean;
 }
 
-export function ConversationList({ chats, selectedChat, onSelectChat, isLoading, loadMore, hasMore }: ConversationListProps) {
+export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
   return (
     <div className="hidden h-full w-full max-w-xs flex-col border-r bg-muted/20 md:flex">
       <div className="flex items-center gap-2 border-b p-3">
@@ -58,13 +55,14 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading,
                   <div className="flex-1 overflow-hidden">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold">{otherParticipant.fullName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {chat.lastMessageTimestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      {chat.lastMessageTimestamp && (
+                        <p className="text-xs text-muted-foreground">
+                          {chat.lastMessageTimestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="truncate text-sm text-muted-foreground pr-4">{chat.lastMessage}</p>
-                      {/* {chat.unread > 0 && <Badge className="flex h-5 w-5 items-center justify-center p-0">{chat.unread}</Badge>} */}
                     </div>
                   </div>
                 </button>
@@ -72,13 +70,6 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading,
             })
           )}
         </div>
-         {hasMore && (
-            <div className="p-3">
-                <Button variant="outline" className="w-full" onClick={loadMore} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Load More'}
-                </Button>
-            </div>
-        )}
       </ScrollArea>
     </div>
   );
