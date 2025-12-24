@@ -33,18 +33,17 @@ export function TopPerformingProducts() {
     if (!orders) return [];
 
     const productStats = orders.reduce((acc, order) => {
-        // Assuming single-item orders for simplicity based on current data model
-        const productId = order.productId;
-        const productName = order.productName;
         const commission = order.resellerCommission || 0;
-
-        if (productId && productName) {
-            if (!acc[productId]) {
-                acc[productId] = { id: productId, name: productName, orders: 0, commission: 0 };
-            }
-            acc[productId].orders += 1;
-            acc[productId].commission += commission;
+        if (!order.productId || !order.productName || commission <= 0) {
+            return acc;
         }
+
+        if (!acc[order.productId]) {
+            acc[order.productId] = { id: order.productId, name: order.productName, orders: 0, commission: 0 };
+        }
+        acc[order.productId].orders += 1;
+        acc[order.productId].commission += commission;
+        
         return acc;
     }, {} as Record<string, { id: string; name: string; orders: number; commission: number; }>);
 
