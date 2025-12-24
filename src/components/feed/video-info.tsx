@@ -8,10 +8,9 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface VideoInfoProps {
   seller: Seller | null;
-  viewers: number;
 }
 
-export function VideoInfo({ seller, viewers }: VideoInfoProps) {
+export function VideoInfo({ seller }: VideoInfoProps) {
   // Render a loading state or null if seller data is not yet available
   if (!seller) {
     return (
@@ -53,10 +52,6 @@ export function VideoInfo({ seller, viewers }: VideoInfoProps) {
                 <span>{(seller.followers || 0).toLocaleString()} followers</span>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-sm text-white backdrop-blur-sm">
-            <Users className="h-4 w-4 text-red-500" />
-            <span className="font-semibold">{(viewers || 0).toLocaleString()}</span>
         </div>
       </div>
     </div>

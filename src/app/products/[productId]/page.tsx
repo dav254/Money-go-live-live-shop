@@ -259,20 +259,36 @@ export default function BuyerProductPage() {
             return;
         }
 
-        const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         const newFollowingState = !isFollowing;
+        setIsFollowing(newFollowingState); // Optimistic UI update
 
         try {
-            await updateDoc(userProfileRef, {
-                following: newFollowingState ? arrayUnion(sellerId) : arrayRemove(sellerId),
+            const token = await user.getIdToken();
+            const response = await fetch('/api/follow', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sellerId: sellerId,
+                    action: newFollowingState ? 'follow' : 'unfollow',
+                }),
             });
-            setIsFollowing(newFollowingState);
+
+            if (!response.ok) {
+                throw new Error('Failed to update follow status.');
+            }
+
             toast({
                 title: newFollowingState ? 'Followed!' : 'Unfollowed',
                 description: `You are now ${newFollowingState ? 'following' : 'no longer following'} this shop.`,
             });
+
         } catch (error) {
             console.error('Error updating follow status:', error);
+            // Revert optimistic UI update on error
+            setIsFollowing(!newFollowingState);
             toast({ variant: 'destructive', title: 'Something went wrong' });
         }
     };
@@ -377,10 +393,6 @@ export default function BuyerProductPage() {
                         <div className="flex items-center gap-4 mt-1 text-sm">
                             <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
                             {reviews && reviews.length > 0 && <span className="text-neutral-400">Sold {product.salesCount || 0}</span>}
-                            <span className="flex items-center gap-1.5 text-neutral-400">
-                                <Eye className="h-4 w-4" />
-                                {product.viewCount || 0} views
-                            </span>
                         </div>
                     </div>
 

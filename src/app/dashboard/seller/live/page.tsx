@@ -79,7 +79,7 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
           mediaType: mediaType,
         },
         likes: product.likes || 0,
-        viewers: product.viewCount || 0,
+        viewers: 0, // View count removed
         comments: [], // Placeholder
     };
 

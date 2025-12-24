@@ -166,7 +166,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
         </div>
       )}
       
-      <VideoInfo seller={item.seller} viewers={item.viewers} />
+      <VideoInfo seller={item.seller} />
 
        {/* Comments Feed (Bottom Left) */}
        <div className="absolute bottom-24 left-4 z-20 pointer-events-auto flex flex-col gap-2 max-h-48 overflow-y-auto">

@@ -394,7 +394,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const isSeller = userProfile?.userRole === 'seller';
 
   return (
-    <div className="flex h-full flex-col bg-background relative">
+    <div className="flex h-full flex-col bg-background">
       <div className="flex items-center justify-between border-b p-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
@@ -443,7 +443,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       </div>
 
       <ScrollArea className="flex-1 bg-muted/10" ref={scrollAreaRef}>
-        <div className="p-4 space-y-6 pb-24">
+        <div className="p-4 space-y-6">
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
             <div key={msg.id} className={cn("flex", msg.senderId === currentUser.uid ? "justify-end" : "justify-start")}>
@@ -471,7 +471,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="absolute bottom-0 left-0 right-0 border-t bg-background p-3">
+      <div className="border-t bg-background p-3">
         {uploadProgress !== null && (
           <div className="mb-2">
             <Progress value={uploadProgress} className="h-1" />
