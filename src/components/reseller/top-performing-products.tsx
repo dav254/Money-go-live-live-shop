@@ -33,15 +33,20 @@ export function TopPerformingProducts() {
     if (!orders) return [];
 
     const productStats = orders.reduce((acc, order) => {
-        order.items.forEach(item => {
-            if (!acc[item.productId]) {
-                acc[item.productId] = { id: item.productId, name: item.name, orders: 0, commission: 0, clicks: 0 };
+        // Assuming single-item orders for simplicity based on current data model
+        const productId = order.productId;
+        const productName = order.productName;
+        const commission = order.resellerCommission || 0;
+
+        if (productId && productName) {
+            if (!acc[productId]) {
+                acc[productId] = { id: productId, name: productName, orders: 0, commission: 0 };
             }
-            acc[item.productId].orders += 1;
-            acc[item.productId].commission += (order.resellerCommission || 0) / order.items.length; // Approximate commission per item
-        });
+            acc[productId].orders += 1;
+            acc[productId].commission += commission;
+        }
         return acc;
-    }, {} as Record<string, { id: string; name: string; clicks: number; orders: number; commission: number; }>);
+    }, {} as Record<string, { id: string; name: string; orders: number; commission: number; }>);
 
     return Object.values(productStats).sort((a, b) => b.commission - a.commission).slice(0, 5);
 
