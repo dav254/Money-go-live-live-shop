@@ -99,58 +99,62 @@ const MyResellersTable = () => {
 
     useEffect(() => {
         if (!user || !firestore) {
-            setIsLoading(false);
+            if (!isUserLoading) setIsLoading(false);
             return;
         }
 
         const fetchData = async () => {
             setIsLoading(true);
+            try {
+                // 1. Find all approved reseller applications for the current seller
+                const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
+                const appsSnapshot = await getDocs(appsQuery);
+                const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
 
-            // 1. Find all approved reseller applications for the current seller
-            const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
-            const appsSnapshot = await getDocs(appsQuery);
-            const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
+                if (resellerIds.length === 0) {
+                    setResellerStats([]);
+                    setIsLoading(false);
+                    return;
+                }
 
-            if (resellerIds.length === 0) {
-                setResellerStats([]);
+                // 2. Fetch profiles for these resellers
+                const resellersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
+                const resellersSnapshot = await getDocs(resellersQuery);
+                const resellersMap = new Map(resellersSnapshot.docs.map(d => [d.id, d.data() as UserProfile]));
+
+                // 3. Fetch all orders made by these resellers for the current seller
+                const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
+                const ordersSnapshot = await getDocs(ordersQuery);
+                const orders = ordersSnapshot.docs.map(d => d.data() as Order);
+
+                // 4. Aggregate stats for each reseller
+                const stats = resellerIds.map(resellerId => {
+                    const resellerProfile = resellersMap.get(resellerId);
+                    const resellerOrders = orders.filter(o => o.resellerId === resellerId);
+                    const totalSales = resellerOrders.length;
+                    const totalEarnings = resellerOrders.reduce((sum, order) => sum + (order.resellerCommission || 0), 0);
+
+                    return {
+                        id: resellerId,
+                        fullName: resellerProfile?.fullName || 'Unknown Reseller',
+                        profilePictureUrl: resellerProfile?.profilePictureUrl,
+                        salesCount: totalSales,
+                        totalEarnings: totalEarnings,
+                        status: 'Active', // Or determine status based on other criteria
+                        orders: resellerOrders,
+                    };
+                }).sort((a,b) => b.totalEarnings - a.totalEarnings);
+                
+                setResellerStats(stats);
+            } catch (error) {
+                console.error("Error fetching reseller data:", error);
+            } finally {
                 setIsLoading(false);
-                return;
             }
-
-            // 2. Fetch profiles for these resellers
-            const resellersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
-            const resellersSnapshot = await getDocs(resellersQuery);
-            const resellersMap = new Map(resellersSnapshot.docs.map(d => [d.id, d.data() as UserProfile]));
-
-            // 3. Fetch all orders made by these resellers for the current seller
-            const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
-            const ordersSnapshot = await getDocs(ordersQuery);
-            const orders = ordersSnapshot.docs.map(d => d.data() as Order);
-
-            // 4. Aggregate stats for each reseller
-            const stats = resellerIds.map(resellerId => {
-                const resellerProfile = resellersMap.get(resellerId);
-                const resellerOrders = orders.filter(o => o.resellerId === resellerId);
-                const totalSales = resellerOrders.length;
-                const totalEarnings = resellerOrders.reduce((sum, order) => sum + (order.resellerCommission || 0), 0);
-
-                return {
-                    id: resellerId,
-                    fullName: resellerProfile?.fullName || 'Unknown Reseller',
-                    profilePictureUrl: resellerProfile?.profilePictureUrl,
-                    salesCount: totalSales,
-                    totalEarnings: totalEarnings,
-                    status: 'Active', // Or determine status based on other criteria
-                    orders: resellerOrders,
-                };
-            }).sort((a,b) => b.totalEarnings - a.totalEarnings);
-            
-            setResellerStats(stats);
-            setIsLoading(false);
         };
 
         fetchData();
-    }, [user, firestore]);
+    }, [user, firestore, isUserLoading]);
     
 
     const handleViewSales = (reseller: any) => {
@@ -165,7 +169,7 @@ const MyResellersTable = () => {
                     <TableRow>
                         <TableHead>Reseller</TableHead>
                         <TableHead className="text-center">Sales</TableHead>
-                        <TableHead className="text-right">Your Earnings (USD)</TableHead>
+                        <TableHead className="text-right">Commission Paid (USD)</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -246,24 +250,28 @@ export default function ResellerCenterPage() {
         if (!user || !firestore) return;
         setIsLoadingStats(true);
         const fetchData = async () => {
-            // Fetch approved reseller applications
-            const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
-            const appsSnapshot = await getDocs(appsQuery);
-            const totalResellers = appsSnapshot.size;
+            try {
+                // Fetch approved reseller applications
+                const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
+                const appsSnapshot = await getDocs(appsQuery);
+                const totalResellers = appsSnapshot.size;
 
-            // Fetch reseller orders
-            const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
-            if (resellerIds.length > 0) {
-                 const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
-                const ordersSnapshot = await getDocs(ordersQuery);
-                const totalSales = ordersSnapshot.size;
-                const totalCommissionPaid = ordersSnapshot.docs.reduce((acc, doc) => acc + (doc.data().resellerCommission || 0), 0);
-                setStats({ totalResellers, totalSales, totalCommissionPaid });
-            } else {
-                setStats({ totalResellers: 0, totalSales: 0, totalCommissionPaid: 0 });
+                // Fetch reseller orders
+                const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
+                if (resellerIds.length > 0) {
+                     const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
+                    const ordersSnapshot = await getDocs(ordersQuery);
+                    const totalSales = ordersSnapshot.size;
+                    const totalCommissionPaid = ordersSnapshot.docs.reduce((acc, doc) => acc + (doc.data().resellerCommission || 0), 0);
+                    setStats({ totalResellers, totalSales, totalCommissionPaid });
+                } else {
+                    setStats({ totalResellers: 0, totalSales: 0, totalCommissionPaid: 0 });
+                }
+            } catch (error) {
+                console.error("Error fetching stats:", error);
+            } finally {
+                setIsLoadingStats(false);
             }
-            
-            setIsLoadingStats(false);
         };
         fetchData();
     }, [user, firestore]);
