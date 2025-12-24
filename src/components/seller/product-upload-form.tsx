@@ -32,6 +32,7 @@ import {
   DollarSign,
   MapPin,
   Truck,
+  Video,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -41,6 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import type { Product } from '@/lib/types';
+import { Label } from '../ui/label';
 
 
 const formSchema = z.object({
@@ -71,6 +73,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEditMode = !!productToEdit;
 
@@ -106,15 +109,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         location: productToEdit.location || '',
         deliveryOptions: productToEdit.deliveryOptions || '',
       });
-      setExistingImageUrls(productToEdit.imageUrls || []);
-      setExistingVideoUrls(productToEdit.videoUrls || []);
+      setExistingImageUrls(productToEdit.imageUrls || (productToEdit.imageUrl ? [productToEdit.imageUrl] : []));
+      setExistingVideoUrls(productToEdit.videoUrls || (productToEdit.videoUrl ? [productToEdit.videoUrl] : []));
     }
   }, [productToEdit, isEditMode, form]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       const newFiles = Array.from(event.target.files);
-      const totalMedia = files.length + existingImageUrls.length + existingVideoUrls.length;
       setFiles((prev) => [...prev, ...newFiles].slice(0, 5 - (existingImageUrls.length + existingVideoUrls.length)));
     }
   };
@@ -185,6 +187,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to upload products.' });
+        return;
+    }
+
+    if (!isEditMode && files.length === 0) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must upload at least one image or video.' });
         return;
     }
 
@@ -265,7 +272,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
-             <CardTitle>Add New Product</CardTitle>
+             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8 pt-6">
 
@@ -327,6 +334,65 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         </FormItem>
                     )}
                 />
+            </div>
+
+            {/* Media Upload Section */}
+            <div className="space-y-6 pt-8 border-t">
+                 <h3 className="text-lg font-medium leading-6 text-foreground">Media Uploads</h3>
+                 <div className="space-y-2">
+                    <Label htmlFor="file-upload">Product Images & Videos (Max 5 total)</Label>
+                    <input
+                        id="file-upload"
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,video/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                        disabled={isUploading || allMediaCount >= 5}
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-dashed"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading || allMediaCount >= 5}
+                    >
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        {isUploading ? 'Uploading...' : `Click to select files (${allMediaCount}/5)`}
+                    </Button>
+                 </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    {existingImageUrls.map((url, index) => (
+                        <div key={`existing-img-${index}`} className="relative group">
+                            <Image src={url} alt={`Existing image ${index + 1}`} width={150} height={150} className="rounded-md object-cover w-full aspect-square" />
+                            <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4"/></Button>
+                        </div>
+                    ))}
+                     {existingVideoUrls.map((url, index) => (
+                        <div key={`existing-vid-${index}`} className="relative group">
+                           <video src={url} className="rounded-md object-cover w-full aspect-square bg-black" />
+                            <div className="absolute top-1 left-1 bg-black/50 p-1 rounded-full"><Video className="h-3 w-3 text-white" /></div>
+                            <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4"/></Button>
+                        </div>
+                    ))}
+                    {files.map((file, index) => (
+                      <div key={index} className="relative group">
+                        {file.type.startsWith('image/') ? (
+                          <Image src={URL.createObjectURL(file)} alt={file.name} width={150} height={150} className="rounded-md object-cover w-full aspect-square" />
+                        ) : (
+                          <div className="relative w-full aspect-square">
+                            <video src={URL.createObjectURL(file)} className="rounded-md object-cover w-full h-full bg-black" />
+                            <div className="absolute top-1 left-1 bg-black/50 p-1 rounded-full"><Video className="h-3 w-3 text-white" /></div>
+                          </div>
+                        )}
+                        <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4"/></Button>
+                        {uploadProgress[file.name] !== undefined && (
+                          <Progress value={uploadProgress[file.name]} className="absolute bottom-0 left-0 right-0 h-1 rounded-none" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
             </div>
 
             {/* Pricing & Inventory Section */}
