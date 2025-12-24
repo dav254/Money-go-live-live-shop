@@ -19,6 +19,7 @@ import {
   User,
   Search,
   Bell,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -60,7 +61,7 @@ export function ResellerSidebar() {
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/toolkit')}>
             <Link href="/dashboard/reseller/toolkit">
               <FolderKanban />
-              <span>Reseller Toolkit</span>
+              <span>AI Toolkit</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -91,6 +92,14 @@ export function ResellerSidebar() {
       </SidebarMenu>
     </SidebarGroup>
     <SidebarMenu className="mt-auto">
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild size="sm" isActive={isActive('/reseller/about')}>
+                <Link href="/reseller/about">
+                    <Info />
+                    <span>About Go Earn</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
             <Link href="/dashboard/account">
