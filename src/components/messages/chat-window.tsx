@@ -199,12 +199,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
   
   useEffect(() => {
-    // Scroll to bottom when messages load or change
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
 
-    // Play sound for new incoming messages
     if (messages && messages.length > prevMessagesCountRef.current) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage && lastMessage.senderId !== currentUser?.uid) {
@@ -393,7 +392,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const isSeller = userProfile?.userRole === 'seller';
 
   return (
-    <div className="flex h-full flex-1 flex-col">
+    <div className="flex h-[calc(100vh-theme(space.16))] flex-col">
       <div className="flex items-center justify-between border-b p-3">
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8 border">

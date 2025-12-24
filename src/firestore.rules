@@ -301,7 +301,8 @@ service cloud.firestore {
     
     match /notifications/{notificationId} {
       allow read, update: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow list: if request.auth != null && request.query.where[0][2] == request.auth.uid;
+      // Allow a user to list notifications only if they query for their own userId
+      allow list: if request.auth != null && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
       // Only backend can create notifications
       allow create: if false;
     }

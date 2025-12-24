@@ -23,6 +23,7 @@ import {
   Download,
   Wallet,
   Loader2,
+  Bell
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -277,59 +278,76 @@ export default function ResellerCommissionsPage() {
             <StatCard title="Ready for Payout" value={`$${commissionStats.withdrawable.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={Wallet} description="Available for withdrawal now." isLoading={isLoading} isPrimary />
         </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Recent Commission History</CardTitle>
-                <CardDescription>Commissions are marked as 'pending' until the order is delivered.</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                    [...Array(3)].map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                            <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                        </TableRow>
-                    ))
-                ) : recentHistory.length > 0 ? (
-                recentHistory.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium text-xs text-muted-foreground">#{item.id.substring(0, 6)}...</TableCell>
-                    <TableCell>{item.productName}</TableCell>
-                    <TableCell className="font-semibold text-green-500">${item.resellerCommission?.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                    <TableCell>
-                       <Badge variant={item.orderStatus === 'delivered' ? 'default' : 'secondary'} className={item.orderStatus === 'delivered' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>
-                        {item.orderStatus === 'delivered' ? 'Cleared' : 'Pending'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.orderDate.toDate().toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))
-                ) : (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="md:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Recent Commission History</CardTitle>
+                    <CardDescription>Commissions are marked as 'pending' until the order is delivered.</CardDescription>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No commission history found.</TableCell>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Commission</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
                     </TableRow>
-                )}
-              </TableBody>
-            </Table>
-             <Button variant="link" className="mt-4 px-0">View all commission history</Button>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                    {isLoading ? (
+                        [...Array(3)].map((_, i) => (
+                            <TableRow key={i}>
+                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                                <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                                <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                            </TableRow>
+                        ))
+                    ) : recentHistory.length > 0 ? (
+                    recentHistory.map((item) => (
+                    <TableRow key={item.id}>
+                        <TableCell className="font-medium text-xs text-muted-foreground">#{item.id.substring(0, 6)}...</TableCell>
+                        <TableCell>{item.productName}</TableCell>
+                        <TableCell className="font-semibold text-green-500">${item.resellerCommission?.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                        <TableCell>
+                        <Badge variant={item.orderStatus === 'delivered' ? 'default' : 'secondary'} className={item.orderStatus === 'delivered' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>
+                            {item.orderStatus === 'delivered' ? 'Cleared' : 'Pending'}
+                        </Badge>
+                        </TableCell>
+                        <TableCell>{item.orderDate.toDate().toLocaleDateString()}</TableCell>
+                    </TableRow>
+                    ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No commission history found.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+                <Button variant="link" className="mt-4 px-0">View all commission history</Button>
+            </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Notifications</CardTitle>
+                    <CardDescription>Check for important updates and alerts.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center text-center p-6 bg-gray-50 rounded-lg">
+                        <Bell className="w-12 h-12 text-gray-400 mb-4" />
+                        <p className="text-sm text-gray-600 mb-4">You have 3 unread notifications.</p>
+                        <Button asChild>
+                            <Link href="/dashboard/reseller/notifications">View Notifications</Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
       </div>
     </ResellerLayout>
   );

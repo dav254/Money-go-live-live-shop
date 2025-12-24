@@ -1,4 +1,6 @@
 
+'use server';
+
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 
@@ -20,7 +22,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
       // --- Trigger Condition ---
       // Only run if the status changes TO 'delivered' from something else.
       if (beforeData.orderStatus === 'delivered' || afterData.orderStatus !== 'delivered') {
-        functions.logger.log(`Order ${orderId} status not changed to 'delivered'. Exiting function.`);
+        functions.logger.log(`Order ${orderId} status not 'delivered'. Exiting.`);
         return null;
       }
 
@@ -30,7 +32,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
         return null;
       }
 
-      const { sellerId, resellerId, productPrice, shippingCost, commissionRate } = afterData;
+      const { sellerId, resellerId, productPrice, shippingCost, commissionRate, productName } = afterData;
       
       try {
         // --- Define Rates (can be moved to Firestore config later) ---
@@ -63,17 +65,19 @@ export const processOrderAndDistributeEarnings = functions.firestore
         });
 
         // B. Seller's Shipping Reimbursement Transaction
-        const sellerShippingRef = db.collection("walletTransactions").doc();
-        batch.set(sellerShippingRef, {
-            userId: sellerId,
-            orderId: orderId,
-            type: "SHIPPING_FEE",
-            amount: shippingCost || 0,
-            description: `Shipping reimbursement for order #${orderId.substring(0, 6)}`,
-            timestamp: timestamp,
-        });
+        if (shippingCost && shippingCost > 0) {
+            const sellerShippingRef = db.collection("walletTransactions").doc();
+            batch.set(sellerShippingRef, {
+                userId: sellerId,
+                orderId: orderId,
+                type: "SHIPPING_FEE",
+                amount: shippingCost,
+                description: `Shipping reimbursement for order #${orderId.substring(0, 6)}`,
+                timestamp: timestamp,
+            });
+        }
 
-        // C. Reseller's Commission Transaction (if applicable)
+        // C. Reseller's Commission Transaction & Notification
         if (resellerId && resellerCommission > 0) {
           const resellerTransactionRef = db.collection("walletTransactions").doc();
           batch.set(resellerTransactionRef, {
@@ -82,6 +86,18 @@ export const processOrderAndDistributeEarnings = functions.firestore
             type: "COMMISSION",
             amount: resellerCommission,
             description: `Commission for order #${orderId.substring(0, 6)}`,
+            timestamp: timestamp,
+          });
+
+          // Create notification for the reseller
+          const resellerNotifRef = db.collection('notifications').doc();
+          batch.set(resellerNotifRef, {
+            userId: resellerId,
+            type: 'commission',
+            title: 'New Commission Earned!',
+            message: `You earned $${resellerCommission.toFixed(2)} commission from the sale of "${productName}".`,
+            link: `/dashboard/reseller/commissions`,
+            status: 'unread',
             timestamp: timestamp,
           });
         }
@@ -107,6 +123,18 @@ export const processOrderAndDistributeEarnings = functions.firestore
           description: `VAT (16%) for order #${orderId.substring(0, 6)}`,
           timestamp: timestamp,
         });
+        
+        // F. Seller Notification for the sale
+        const sellerNotifRef = db.collection('notifications').doc();
+        batch.set(sellerNotifRef, {
+            userId: sellerId,
+            type: 'order',
+            title: 'Sale Completed & Funds Cleared',
+            message: `Your sale of "${productName}" is complete. $${sellerNetEarnings.toFixed(2)} has been added to your wallet.`,
+            link: `/dashboard/seller/earnings`,
+            status: 'unread',
+            timestamp: timestamp,
+        });
 
         // --- Commit all transactions atomically ---
         await batch.commit();
@@ -115,6 +143,13 @@ export const processOrderAndDistributeEarnings = functions.firestore
         return null;
       } catch (error) {
         functions.logger.error(`Error processing delivered order ${orderId}:`, error);
+        // Optionally, log this error to a specific collection for monitoring
+        await db.collection('errorLogs').add({
+            message: `Failed to process order ${orderId}`,
+            error: (error as Error).message,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            context: { function: 'processOrderAndDistributeEarnings', orderData: afterData }
+        });
         return null;
       }
     });
@@ -178,4 +213,3 @@ export const sendOrderUpdateNotification = functions.firestore
 
         return null;
     });
-
