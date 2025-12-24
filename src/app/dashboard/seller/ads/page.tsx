@@ -39,7 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { BoostRequest, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUser, useFirestore, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import {
   PlusCircle,
@@ -63,6 +63,7 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow, addDays, isPast } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
@@ -391,6 +392,11 @@ export default function SellerAdsPage() {
     const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
     const { toast } = useToast();
 
+    const productsMap = React.useMemo(() => {
+        return new Map(products.map(p => [p.id, p]));
+    }, [products]);
+
+
     const fetchCampaigns = React.useCallback(async () => {
         if (!user) return;
         setIsLoading(true);
@@ -472,45 +478,61 @@ export default function SellerAdsPage() {
         setIsDetailsOpen(true);
     };
 
+    const statusIcons: { [key in BoostRequest['status']]: React.ElementType } = {
+        pending: Clock,
+        approved: CheckCircle,
+        active: Rocket,
+        rejected: XCircle,
+        completed: CheckCircle,
+        draft: Clock,
+    };
+
     const columns: ColumnDef<BoostRequest>[] = [
     {
-        accessorKey: 'videoUrl',
-        header: 'Campaign',
-        cell: ({ row }) => (
-            <div className="flex items-center gap-3">
-                 <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-                    <video
-                        src={row.original.videoUrl}
-                        className="w-full h-full object-cover"
-                        muted
-                        loop
-                        onMouseOver={e => e.currentTarget.play()}
-                        onMouseOut={e => e.currentTarget.pause()}
-                    />
+        accessorKey: 'product',
+        header: 'Product',
+        cell: ({ row }) => {
+            const product = productsMap.get(row.original.productId);
+            return (
+                 <div className="flex items-center gap-3">
+                     <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                        <video
+                            src={row.original.videoUrl}
+                            className="w-full h-full object-cover"
+                            muted
+                            loop
+                            onMouseOver={e => e.currentTarget.play()}
+                            onMouseOut={e => e.currentTarget.pause()}
+                        />
+                    </div>
+                    <div>
+                        <p className="font-semibold">{product?.name || 'Unknown Product'}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-xs">{row.original.caption}</p>
+                    </div>
                 </div>
-                <span className="font-medium truncate max-w-xs">{row.original.caption || 'No caption'}</span>
-            </div>
-        ),
+            )
+        },
     },
     {
         accessorKey: 'status',
         header: 'Status',
         cell: ({ row }) => {
-        const status = row.original.status;
-        const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
-            active: 'default',
-            approved: 'default',
-            rejected: 'destructive',
-            pending: 'secondary',
-            draft: 'secondary',
-            completed: 'outline'
-        }[status] as any;
-        return <Badge variant={variant} className={`capitalize ${status === 'active' || status === 'approved' ? 'bg-green-600/80' : ''}`}>{status}</Badge>;
+            const status = row.original.status;
+            const Icon = statusIcons[status];
+            const variant: 'default' | 'secondary' | 'outline' | 'destructive' = {
+                active: 'default',
+                approved: 'default',
+                rejected: 'destructive',
+                pending: 'secondary',
+                draft: 'secondary',
+                completed: 'outline'
+            }[status] as any;
+            return <Badge variant={variant} className={`capitalize ${status === 'active' || status === 'approved' ? 'bg-green-600/80' : ''}`}><Icon className="mr-1.5 h-3 w-3"/>{status}</Badge>;
         },
     },
     {
         accessorKey: 'pointsPaid',
-        header: 'Cost (Points)',
+        header: 'Cost',
         cell: ({ row }) => `${row.original.pointsPaid.toLocaleString()} pts`,
     },
     {
@@ -615,3 +637,4 @@ export default function SellerAdsPage() {
     </SellerLayout>
   );
 }
+
