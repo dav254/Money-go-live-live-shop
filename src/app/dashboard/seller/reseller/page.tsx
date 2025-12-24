@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BadgePercent, Users, ShoppingBag, CircleDollarSign } from 'lucide-react';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
 import { SellerTopSharedProductsTable } from '@/components/seller/seller-top-shared-products-table';
@@ -28,42 +28,24 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, getDocs } from 'firebase/firestore';
+import type { Order, UserProfile, ResellerApplication } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// --- MOCK DATA ---
-const mockResellers = [
-    { id: 'reseller1', fullName: 'Alice Johnson', profilePictureUrl: 'https://picsum.photos/seed/alice/40', salesCount: 15, totalEarnings: 450.75, status: 'Active' },
-    { id: 'reseller2', fullName: 'Bob Williams', profilePictureUrl: 'https://picsum.photos/seed/bob/40', salesCount: 10, totalEarnings: 320.50, status: 'Active' },
-    { id: 'reseller3', fullName: 'Charlie Brown', profilePictureUrl: 'https://picsum.photos/seed/charlie/40', salesCount: 5, totalEarnings: 150.00, status: 'Pending' },
-    { id: 'reseller4', fullName: 'Diana Prince', profilePictureUrl: 'https://picsum.photos/seed/diana/40', salesCount: 2, totalEarnings: 65.20, status: 'Active' },
-];
-
-const mockSalesData = {
-    'reseller1': [
-        { id: 'sale1', productName: 'Classic Leather Handbag', productImage: 'https://picsum.photos/seed/prod1/40', commission: 25.50, status: 'delivered' },
-        { id: 'sale2', productName: 'Urban Explorer Sneakers', productImage: 'https://picsum.photos/seed/prod2/40', commission: 18.00, status: 'shipped' },
-    ],
-    'reseller2': [
-         { id: 'sale3', productName: 'NextGen Smartphone', productImage: 'https://picsum.photos/seed/prod3/40', commission: 50.00, status: 'delivered' },
-    ],
-    // Add more mock sales for other resellers if needed
-};
-// --- END MOCK DATA ---
-
-const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
+const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string | number, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
             <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-             <div className="text-2xl font-bold">{value}</div>
+             {isLoading ? <Skeleton className="h-8 w-2/3" /> : <div className="text-2xl font-bold">{value}</div>}
         </CardContent>
     </Card>
 );
 
-const ResellerSalesDialog = ({ reseller, isOpen, onOpenChange }: { reseller: any | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) => {
-    const sales = reseller ? mockSalesData[reseller.id] || [] : [];
-
+const ResellerSalesDialog = ({ reseller, sales, isOpen, onOpenChange }: { reseller: any | null, sales: Order[], isOpen: boolean, onOpenChange: (open: boolean) => void }) => {
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-2xl">
@@ -90,8 +72,8 @@ const ResellerSalesDialog = ({ reseller, isOpen, onOpenChange }: { reseller: any
                                                 <span className="font-medium">{sale.productName}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-right font-semibold text-primary">${(sale.commission || 0).toFixed(2)}</TableCell>
-                                        <TableCell className="text-center"><Badge variant="secondary" className="capitalize">{sale.status}</Badge></TableCell>
+                                        <TableCell className="text-right font-semibold text-primary">${(sale.resellerCommission || 0).toFixed(2)}</TableCell>
+                                        <TableCell className="text-center"><Badge variant="secondary" className="capitalize">{sale.orderStatus}</Badge></TableCell>
                                     </TableRow>
                                 ))
                             ) : (
@@ -107,19 +89,78 @@ const ResellerSalesDialog = ({ reseller, isOpen, onOpenChange }: { reseller: any
     );
 };
 
-
 const MyResellersTable = () => {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+    const [resellerStats, setResellerStats] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedReseller, setSelectedReseller] = useState<any | null>(null);
     const [isSalesDialogOpen, setIsSalesDialogOpen] = useState(false);
+
+    useEffect(() => {
+        if (!user || !firestore) {
+            setIsLoading(false);
+            return;
+        }
+
+        const fetchData = async () => {
+            setIsLoading(true);
+
+            // 1. Find all approved reseller applications for the current seller
+            const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
+            const appsSnapshot = await getDocs(appsQuery);
+            const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
+
+            if (resellerIds.length === 0) {
+                setResellerStats([]);
+                setIsLoading(false);
+                return;
+            }
+
+            // 2. Fetch profiles for these resellers
+            const resellersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', resellerIds));
+            const resellersSnapshot = await getDocs(resellersQuery);
+            const resellersMap = new Map(resellersSnapshot.docs.map(d => [d.id, d.data() as UserProfile]));
+
+            // 3. Fetch all orders made by these resellers for the current seller
+            const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
+            const ordersSnapshot = await getDocs(ordersQuery);
+            const orders = ordersSnapshot.docs.map(d => d.data() as Order);
+
+            // 4. Aggregate stats for each reseller
+            const stats = resellerIds.map(resellerId => {
+                const resellerProfile = resellersMap.get(resellerId);
+                const resellerOrders = orders.filter(o => o.resellerId === resellerId);
+                const totalSales = resellerOrders.length;
+                const totalEarnings = resellerOrders.reduce((sum, order) => sum + (order.resellerCommission || 0), 0);
+
+                return {
+                    id: resellerId,
+                    fullName: resellerProfile?.fullName || 'Unknown Reseller',
+                    profilePictureUrl: resellerProfile?.profilePictureUrl,
+                    salesCount: totalSales,
+                    totalEarnings: totalEarnings,
+                    status: 'Active', // Or determine status based on other criteria
+                    orders: resellerOrders,
+                };
+            }).sort((a,b) => b.totalEarnings - a.totalEarnings);
+            
+            setResellerStats(stats);
+            setIsLoading(false);
+        };
+
+        fetchData();
+    }, [user, firestore]);
+    
 
     const handleViewSales = (reseller: any) => {
         setSelectedReseller(reseller);
         setIsSalesDialogOpen(true);
     };
 
-    return (
-        <>
-            <Table>
+    if (isLoading) {
+        return (
+             <Table>
                 <TableHeader>
                     <TableRow>
                         <TableHead>Reseller</TableHead>
@@ -130,8 +171,35 @@ const MyResellersTable = () => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {mockResellers.length > 0 ? (
-                        mockResellers.map(reseller => (
+                    {[...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                            <TableCell><Skeleton className="h-10 w-40" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-10 mx-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-20 ml-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        )
+    }
+
+    return (
+        <>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Reseller</TableHead>
+                        <TableHead className="text-center">Sales</TableHead>
+                        <TableHead className="text-right">Commission Paid (USD)</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {resellerStats.length > 0 ? (
+                        resellerStats.map(reseller => (
                             <TableRow key={reseller.id}>
                                 <TableCell className="font-medium flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
@@ -159,6 +227,7 @@ const MyResellersTable = () => {
             </Table>
             <ResellerSalesDialog 
                 reseller={selectedReseller}
+                sales={selectedReseller?.orders || []}
                 isOpen={isSalesDialogOpen}
                 onOpenChange={setIsSalesDialogOpen}
             />
@@ -168,11 +237,36 @@ const MyResellersTable = () => {
 
 
 export default function ResellerCenterPage() {
-    const mockStats = {
-        totalResellers: mockResellers.length,
-        totalSales: mockResellers.reduce((acc, r) => acc + r.salesCount, 0),
-        totalCommissionPaid: mockResellers.reduce((acc, r) => acc + r.totalEarnings, 0),
-    };
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const [stats, setStats] = useState({ totalResellers: 0, totalSales: 0, totalCommissionPaid: 0 });
+    const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+    useEffect(() => {
+        if (!user || !firestore) return;
+        setIsLoadingStats(true);
+        const fetchData = async () => {
+            // Fetch approved reseller applications
+            const appsQuery = query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid), where('status', '==', 'approved'));
+            const appsSnapshot = await getDocs(appsQuery);
+            const totalResellers = appsSnapshot.size;
+
+            // Fetch reseller orders
+            const resellerIds = appsSnapshot.docs.map(d => (d.data() as ResellerApplication).resellerId);
+            if (resellerIds.length > 0) {
+                 const ordersQuery = query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('resellerId', 'in', resellerIds));
+                const ordersSnapshot = await getDocs(ordersQuery);
+                const totalSales = ordersSnapshot.size;
+                const totalCommissionPaid = ordersSnapshot.docs.reduce((acc, doc) => acc + (doc.data().resellerCommission || 0), 0);
+                setStats({ totalResellers, totalSales, totalCommissionPaid });
+            } else {
+                setStats({ totalResellers: 0, totalSales: 0, totalCommissionPaid: 0 });
+            }
+            
+            setIsLoadingStats(false);
+        };
+        fetchData();
+    }, [user, firestore]);
 
     return (
         <SellerLayout>
@@ -189,9 +283,9 @@ export default function ResellerCenterPage() {
 
                 <TabsContent value="analytics" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-3">
-                        <StatCard title="Total Resellers" value={mockStats.totalResellers.toString()} icon={Users} />
-                        <StatCard title="Total Reseller Sales" value={mockStats.totalSales.toString()} icon={ShoppingBag} />
-                        <StatCard title="Total Commission Paid" value={`$${mockStats.totalCommissionPaid.toLocaleString()}`} icon={CircleDollarSign} />
+                        <StatCard isLoading={isLoadingStats} title="Total Resellers" value={stats.totalResellers.toString()} icon={Users} />
+                        <StatCard isLoading={isLoadingStats} title="Total Reseller Sales" value={stats.totalSales.toString()} icon={ShoppingBag} />
+                        <StatCard isLoading={isLoadingStats} title="Total Commission Paid" value={`$${stats.totalCommissionPaid.toLocaleString()}`} icon={CircleDollarSign} />
                     </div>
 
                     <Card>
