@@ -1,8 +1,9 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Bell, Menu, MessageSquare } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
@@ -66,12 +67,6 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
           <Link href="/dashboard/reseller/notifications">
             <Bell />
             <span className="sr-only">Notifications</span>
-          </Link>
-        </Button>
-         <Button variant="ghost" size="icon" asChild>
-          <Link href="/messages">
-            <MessageSquare />
-            <span className="sr-only">Messages</span>
           </Link>
         </Button>
         <UserNav />
