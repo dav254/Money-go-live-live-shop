@@ -11,18 +11,61 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, updateDoc, writeBatch, orderBy } from 'firebase/firestore';
 import type { Notification } from '@/lib/types';
 import Link from 'next/link';
+import { Timestamp } from 'firebase/firestore';
+
+const mockNotificationsData: Notification[] = [
+    {
+        id: '1',
+        userId: 'reseller1',
+        type: 'commission',
+        title: 'New Commission Earned!',
+        message: 'You earned $5.50 commission from the sale of "Classic Leather Handbag".',
+        link: '/dashboard/reseller/commissions',
+        status: 'unread',
+        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 5)), // 5 minutes ago
+    },
+    {
+        id: '2',
+        userId: 'reseller1',
+        type: 'announcement',
+        title: 'New Feature: AI Toolkit',
+        message: 'Supercharge your shares with our new AI Caption Generator, now available in your toolkit.',
+        link: '/dashboard/reseller/toolkit',
+        status: 'unread',
+        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 2)), // 2 hours ago
+    },
+    {
+        id: '3',
+        userId: 'reseller1',
+        type: 'payout',
+        title: 'Payout Successful',
+        message: 'Your withdrawal of $52.00 has been processed and sent to your account.',
+        link: '/dashboard/reseller/wallet',
+        status: 'read',
+        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 24)), // 1 day ago
+    },
+     {
+        id: '4',
+        userId: 'reseller1',
+        type: 'commission',
+        title: 'New Commission Earned!',
+        message: 'You earned $12.00 commission from the sale of "NextGen Smartphone".',
+        link: '/dashboard/reseller/commissions',
+        status: 'read',
+        timestamp: Timestamp.fromDate(new Date(Date.now() - 1000 * 60 * 60 * 48)), // 2 days ago
+    }
+];
+
 
 const notificationIcons: Record<Notification['type'], React.ReactNode> = {
   commission: <Sparkles className="h-5 w-5 text-yellow-500" />,
   announcement: <Megaphone className="h-5 w-5 text-blue-500" />,
   payout: <BadgeCent className="h-5 w-5 text-green-500" />,
-  // Add other types as needed
   order: <></>, 
   invoice: <></>,
+  message: <></>,
 };
 
 const NotificationItem = ({ notification, onMarkRead }: { notification: Notification; onMarkRead: (id: string) => void; }) => (
@@ -58,51 +101,30 @@ const NotificationItem = ({ notification, onMarkRead }: { notification: Notifica
 
 
 export default function ResellerNotificationsPage() {
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
     const { toast } = useToast();
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [notifications, setNotifications] = React.useState<Notification[]>([]);
 
-    const notificationsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(collection(firestore, 'notifications'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
-    }, [firestore, user]);
+    React.useEffect(() => {
+        // Simulate fetching data
+        setTimeout(() => {
+            setNotifications(mockNotificationsData);
+            setIsLoading(false);
+        }, 1000);
+    }, []);
 
-    const { data: notifications, isLoading: isLoadingNotifications } = useCollection<Notification>(notificationsQuery);
-    
-    const isLoading = isUserLoading || isLoadingNotifications;
-
-    const handleMarkRead = async (id: string) => {
-        if (!firestore) return;
-        const notifRef = doc(firestore, 'notifications', id);
-        try {
-            await updateDoc(notifRef, { status: 'read' });
-        } catch (error) {
-            console.error("Failed to mark notification as read:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not update notification.' });
-        }
+    const handleMarkRead = (id: string) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'read' } : n));
     };
     
-    const handleMarkAllRead = async () => {
-        if (!firestore || !notifications || unreadCount === 0) return;
-        
-        const batch = writeBatch(firestore);
-        unreadNotifications.forEach(notif => {
-            const notifRef = doc(firestore, 'notifications', notif.id);
-            batch.update(notifRef, { status: 'read' });
-        });
-
-        try {
-            await batch.commit();
-            toast({ title: 'All Caught Up!', description: 'All notifications have been marked as read.' });
-        } catch (error) {
-             console.error("Failed to mark all as read:", error);
-             toast({ variant: 'destructive', title: 'Error', description: 'Could not mark all notifications as read.' });
-        }
+    const handleMarkAllRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })));
+        toast({ title: 'All Caught Up!', description: 'All notifications have been marked as read.' });
     };
     
-    const unreadNotifications = React.useMemo(() => notifications?.filter(n => n.status === 'unread') || [], [notifications]);
-    const commissionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'commission' || n.type === 'payout') || [], [notifications]);
-    const promotionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'announcement') || [], [notifications]);
+    const unreadNotifications = React.useMemo(() => notifications.filter(n => n.status === 'unread') || [], [notifications]);
+    const commissionNotifications = React.useMemo(() => notifications.filter(n => n.type === 'commission' || n.type === 'payout') || [], [notifications]);
+    const promotionNotifications = React.useMemo(() => notifications.filter(n => n.type === 'announcement') || [], [notifications]);
     
     const unreadCount = unreadNotifications.length;
 
