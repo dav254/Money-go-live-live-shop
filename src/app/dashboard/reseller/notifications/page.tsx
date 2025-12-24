@@ -11,71 +11,23 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-
-interface Notification {
-    id: string;
-    userId: string;
-    type: 'commission' | 'announcement' | 'payout';
-    title: string;
-    message: string;
-    link?: string;
-    status: 'read' | 'unread';
-    timestamp: Date;
-}
-
-// --- MOCK DATA ---
-const mockNotifications: Notification[] = [
-    {
-        id: 'notif-1',
-        userId: 'reseller-123',
-        type: 'commission',
-        title: 'New Commission Earned!',
-        message: 'You earned $5.50 commission from the sale of "Classic Leather Handbag".',
-        link: '/dashboard/reseller/commissions',
-        status: 'unread',
-        timestamp: new Date(new Date().setHours(new Date().getHours() - 1))
-    },
-    {
-        id: 'notif-2',
-        userId: 'reseller-123',
-        type: 'announcement',
-        title: 'New High-Commission Products Added',
-        message: 'Check out the new electronics category with commissions up to 25%!',
-        link: '/dashboard/reseller/products',
-        status: 'unread',
-        timestamp: new Date(new Date().setDate(new Date().getDate() - 1))
-    },
-    {
-        id: 'notif-3',
-        userId: 'reseller-123',
-        type: 'payout',
-        title: 'Payout Processed',
-        message: 'Your withdrawal of $125.00 has been sent to your selected payout method.',
-        link: '/dashboard/reseller/wallet',
-        status: 'read',
-        timestamp: new Date(new Date().setDate(new Date().getDate() - 2))
-    },
-    {
-        id: 'notif-4',
-        userId: 'reseller-123',
-        type: 'commission',
-        title: 'Commission Cleared',
-        message: 'Your $12.00 commission for order #ABC-123 is now available for withdrawal.',
-        link: '/dashboard/reseller/wallet',
-        status: 'read',
-        timestamp: new Date(new Date().setDate(new Date().getDate() - 3))
-    }
-];
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, doc, updateDoc, writeBatch, orderBy } from 'firebase/firestore';
+import type { Notification } from '@/lib/types';
+import Link from 'next/link';
 
 const notificationIcons: Record<Notification['type'], React.ReactNode> = {
   commission: <Sparkles className="h-5 w-5 text-yellow-500" />,
   announcement: <Megaphone className="h-5 w-5 text-blue-500" />,
   payout: <BadgeCent className="h-5 w-5 text-green-500" />,
+  // Add other types as needed
+  order: <></>, 
+  invoice: <></>,
 };
 
 const NotificationItem = ({ notification, onMarkRead }: { notification: Notification; onMarkRead: (id: string) => void; }) => (
-  <div className={cn(
-    "transition-colors",
+  <Link href={notification.link || '#'} className={cn(
+    "block transition-colors",
     notification.status === 'unread' && "bg-primary/5"
   )}>
     <div className="flex items-start gap-4 p-4">
@@ -88,36 +40,69 @@ const NotificationItem = ({ notification, onMarkRead }: { notification: Notifica
         </div>
         <div className="flex flex-col items-end gap-2">
             <p className="text-xs text-muted-foreground whitespace-nowrap">
-                {formatDistanceToNow(notification.timestamp, { addSuffix: true })}
+                {notification.timestamp ? formatDistanceToNow(notification.timestamp.toDate(), { addSuffix: true }) : ''}
             </p>
             {notification.status === 'unread' && (
-                <Button size="sm" variant="ghost" className="h-auto p-1" onClick={() => onMarkRead(notification.id)}>
+                <Button size="sm" variant="ghost" className="h-auto p-1" onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onMarkRead(notification.id);
+                }}>
                     <Check className="h-4 w-4" />
                 </Button>
             )}
         </div>
     </div>
-  </div>
+  </Link>
 );
 
 
 export default function ResellerNotificationsPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
-    const [notifications, setNotifications] = React.useState<Notification[]>(mockNotifications);
-    const [isLoading, setIsLoading] = React.useState(false); // Can be used to simulate loading
 
-    const handleMarkRead = (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'read' } : n));
+    const notificationsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(collection(firestore, 'notifications'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
+    }, [firestore, user]);
+
+    const { data: notifications, isLoading: isLoadingNotifications } = useCollection<Notification>(notificationsQuery);
+    
+    const isLoading = isUserLoading || isLoadingNotifications;
+
+    const handleMarkRead = async (id: string) => {
+        if (!firestore) return;
+        const notifRef = doc(firestore, 'notifications', id);
+        try {
+            await updateDoc(notifRef, { status: 'read' });
+        } catch (error) {
+            console.error("Failed to mark notification as read:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not update notification.' });
+        }
     };
     
-    const handleMarkAllRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })));
-        toast({ title: 'All Caught Up!', description: 'All notifications have been marked as read.' });
+    const handleMarkAllRead = async () => {
+        if (!firestore || !notifications || unreadCount === 0) return;
+        
+        const batch = writeBatch(firestore);
+        unreadNotifications.forEach(notif => {
+            const notifRef = doc(firestore, 'notifications', notif.id);
+            batch.update(notifRef, { status: 'read' });
+        });
+
+        try {
+            await batch.commit();
+            toast({ title: 'All Caught Up!', description: 'All notifications have been marked as read.' });
+        } catch (error) {
+             console.error("Failed to mark all as read:", error);
+             toast({ variant: 'destructive', title: 'Error', description: 'Could not mark all notifications as read.' });
+        }
     };
     
-    const unreadNotifications = React.useMemo(() => notifications.filter(n => n.status === 'unread'), [notifications]);
-    const commissionNotifications = React.useMemo(() => notifications.filter(n => n.type === 'commission'), [notifications]);
-    const promotionNotifications = React.useMemo(() => notifications.filter(n => n.type === 'announcement'), [notifications]);
+    const unreadNotifications = React.useMemo(() => notifications?.filter(n => n.status === 'unread') || [], [notifications]);
+    const commissionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'commission' || n.type === 'payout') || [], [notifications]);
+    const promotionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'announcement') || [], [notifications]);
     
     const unreadCount = unreadNotifications.length;
 
