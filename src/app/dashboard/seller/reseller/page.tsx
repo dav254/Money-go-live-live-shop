@@ -210,7 +210,10 @@ const MyResellersTable = () => {
                                         <AvatarImage src={reseller.profilePictureUrl || `https://picsum.photos/seed/${reseller.id}/40`} />
                                         <AvatarFallback>{reseller.fullName?.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    {reseller.fullName}
+                                    <div>
+                                        <span>{reseller.fullName}</span>
+                                        <p className="text-xs font-mono text-muted-foreground">ID: #{reseller.id.substring(0,6)}</p>
+                                    </div>
                                 </TableCell>
                                 <TableCell className="text-center">{reseller.salesCount}</TableCell>
                                 <TableCell className="text-right">${reseller.totalEarnings.toFixed(2)}</TableCell>
