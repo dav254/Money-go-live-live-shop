@@ -443,7 +443,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </AlertDialog>
       </div>
 
-      <ScrollArea className="flex-1 bg-muted/10" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 bg-muted/10 pb-20" ref={scrollAreaRef}>
         <div className="p-4 space-y-6">
           {isLoadingMessages && <p className="text-center text-muted-foreground">Loading messages...</p>}
           {messages?.map((msg) => (
@@ -472,7 +472,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="border-t bg-background p-3">
+      <div className="absolute bottom-0 left-0 right-0 w-full border-t bg-background p-3">
         {uploadProgress !== null && (
           <div className="mb-2">
             <Progress value={uploadProgress} className="h-1" />
