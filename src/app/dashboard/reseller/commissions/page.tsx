@@ -214,14 +214,14 @@ export default function ResellerCommissionsPage() {
         
         let total = 0;
         let pending = 0;
-        let withdrawable = 0;
+        let cleared = 0;
 
         orders.forEach(order => {
             const commission = order.resellerCommission || 0;
             if (commission > 0) {
                 total += commission;
                 if (order.orderStatus === 'delivered') {
-                    withdrawable += commission;
+                    cleared += commission;
                 } else if (order.orderStatus === 'processing' || order.orderStatus === 'shipped') {
                     pending += commission;
                 }
@@ -229,7 +229,7 @@ export default function ResellerCommissionsPage() {
         });
         
         const paidOut = payouts.reduce((acc, p) => acc + p.amount, 0);
-        withdrawable = withdrawable - paidOut;
+        const withdrawable = cleared - paidOut;
 
 
         return { total, pending, withdrawable, paidOut };
