@@ -257,6 +257,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
               link: `/messages?chatWith=${currentUser.uid}`,
               status: 'unread',
               timestamp: serverTimestamp(),
+          }).catch(error => {
+              console.error("Failed to create notification:", error);
+              // Do not throw an error here, as sending the message is the primary action.
           });
       }
   };
