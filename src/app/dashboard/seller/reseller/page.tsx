@@ -10,11 +10,12 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Lightbulb, Badge, Users, ShoppingBag, CircleDollarSign } from 'lucide-react';
+import { BadgePercent, Users, ShoppingBag, CircleDollarSign } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { CommissionSettingsTable } from '@/components/seller/commission-settings-table';
+import { SellerTopSharedProductsTable } from '@/components/seller/seller-top-shared-products-table';
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 
 const mockResellers = [
@@ -117,21 +119,7 @@ export default function ResellerCenterPage() {
                             <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>Total Shares</TableHead>
-                                </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow>
-                                        <TableCell colSpan={2} className="h-24 text-center">
-                                            You haven't shared any products yet.
-                                        </TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
+                           <SellerTopSharedProductsTable />
                         </CardContent>
                     </Card>
                 </TabsContent>

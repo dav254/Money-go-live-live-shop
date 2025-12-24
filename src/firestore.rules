@@ -182,8 +182,8 @@ service cloud.firestore {
       // Sellers can read activities related to their products.
       // Resellers can read their own share activities.
       allow list: if request.auth != null && (
-          (request.query.where.size() > 0 && request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
-          (request.query.where.size() > 0 && request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid)
+          (request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
+          (request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid)
       );
       allow read: if request.auth != null && (
         resource.data.resellerId == request.auth.uid || 
@@ -253,7 +253,7 @@ service cloud.firestore {
     // Reseller Applications
     match /resellerApplications/{applicationId} {
       allow create: if request.auth != null && request.resource.data.resellerId == request.auth.uid;
-      allow read: if request.auth != null && resource.data.sellerId == request.auth.uid;
+      allow list, read: if request.auth != null && resource.data.sellerId == request.auth.uid;
       allow update: if request.auth != null && resource.data.sellerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
     }
     
