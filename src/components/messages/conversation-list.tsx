@@ -6,9 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Search, Loader2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import type { Chat } from '@/lib/types';
-import { Button } from '../ui/button';
 
 interface ConversationListProps {
   chats: Chat[];
@@ -19,7 +18,7 @@ interface ConversationListProps {
 
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
   return (
-    <div className="hidden h-full w-full max-w-xs flex-col border-r bg-muted/20 md:flex">
+    <div className="flex h-full w-full flex-col border-r bg-muted/20 md:max-w-xs">
       <div className="flex items-center gap-2 border-b p-3">
         <h2 className="font-headline text-xl font-bold">Messages</h2>
         {chats && <Badge>{chats.length}</Badge>}

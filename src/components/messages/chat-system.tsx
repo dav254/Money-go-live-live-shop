@@ -3,14 +3,14 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, startAfter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
 import { useSearchParams } from 'next/navigation';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
-
-const CHAT_PAGE_SIZE = 25;
+import { getDocs } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
 
 export function ChatSystem() {
   const { user } = useUser();
@@ -34,12 +34,12 @@ export function ChatSystem() {
     if (isAdmin) {
       chatsQuery = query(
         collection(firestore, 'chats'),
-        orderBy('lastMessageTimestamp', 'desc'),
+        orderBy('lastMessageTimestamp', 'desc')
       );
     } else {
       chatsQuery = query(
         collection(firestore, 'chats'),
-        where('participantIds', 'array-contains', user.uid),
+        where('participantIds', 'array-contains', user.uid)
       );
     }
 
@@ -57,7 +57,6 @@ export function ChatSystem() {
       });
 
       if (participantIds.size > 0) {
-        // Firestore 'in' query can take at most 30 elements
         const participantIdChunks = Array.from(participantIds).reduce((acc, item, i) => {
             const chunkIndex = Math.floor(i / 30);
             if (!acc[chunkIndex]) acc[chunkIndex] = [];
@@ -90,7 +89,6 @@ export function ChatSystem() {
 
   }, [firestore, user, isAdmin]);
 
-
   const chatsWithParticipants = useMemo(() => {
     if (!allChats || !participants || !user) return [];
     
@@ -101,7 +99,7 @@ export function ChatSystem() {
         const otherParticipant = participants.find(p => p.id === otherParticipantId);
         return { ...chat, otherParticipant };
       })
-      .sort((a, b) => b.lastMessageTimestamp?.toMillis() - a.lastMessageTimestamp?.toMillis());
+      .sort((a, b) => (b.lastMessageTimestamp?.toMillis() || 0) - (a.lastMessageTimestamp?.toMillis() || 0));
 
   }, [allChats, participants, user, isAdmin]);
   
@@ -115,27 +113,35 @@ export function ChatSystem() {
     }
   }, [searchParams, chatsWithParticipants, selectedChat]);
 
-
   const handleChatDeleted = () => {
-      if(selectedChat) {
-        setAllChats(prev => prev.filter(c => c.id !== selectedChat.id));
-        setSelectedChat(null);
-      }
-  }
+    if(selectedChat) {
+      setAllChats(prev => prev.filter(c => c.id !== selectedChat.id));
+      setSelectedChat(null);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedChat(null);
+  };
 
   return (
-    <div className="flex h-full">
-      <ConversationList
-        chats={chatsWithParticipants}
-        selectedChat={selectedChat}
-        onSelectChat={setSelectedChat}
-        isLoading={isLoading}
-      />
-      <ChatWindow
-        chat={selectedChat}
-        currentUser={user}
-        onChatDeleted={handleChatDeleted}
-      />
+    <div className="flex h-full w-full overflow-hidden">
+      <div className={cn("w-full md:w-auto md:flex-shrink-0 transition-transform duration-300", selectedChat ? "-translate-x-full md:translate-x-0" : "translate-x-0")}>
+        <ConversationList
+            chats={chatsWithParticipants}
+            selectedChat={selectedChat}
+            onSelectChat={setSelectedChat}
+            isLoading={isLoading}
+        />
+      </div>
+      <div className={cn("w-full md:flex-1 flex-shrink-0 transition-transform duration-300 absolute md:static inset-0", selectedChat ? "translate-x-0" : "translate-x-full md:translate-x-0")}>
+        <ChatWindow
+            chat={selectedChat}
+            currentUser={user}
+            onChatDeleted={handleChatDeleted}
+            onBack={handleBack}
+        />
+      </div>
     </div>
   );
 }

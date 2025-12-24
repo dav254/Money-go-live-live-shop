@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2 } from 'lucide-react';
+import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2, ArrowLeft } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
@@ -44,6 +43,7 @@ interface ChatWindowProps {
   chat: Chat | null;
   currentUser: User | null;
   onChatDeleted?: () => void;
+  onBack?: () => void;
 }
 
 const SharedProductCard = ({ productId }: { productId: string }) => {
@@ -180,7 +180,7 @@ function playNotificationSound() {
 }
 
 
-export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps) {
+export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const firestore = useFirestore();
   const { userProfile } = useUserProfile(currentUser?.uid);
@@ -385,7 +385,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
 
   if (!chat || !currentUser) {
     return (
-      <div className="flex h-full flex-1 flex-col items-center justify-center bg-muted/20">
+      <div className="hidden h-full flex-1 flex-col items-center justify-center bg-muted/20 md:flex">
         <p className="text-muted-foreground">Select a conversation to start chatting</p>
       </div>
     );
@@ -395,9 +395,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted }: ChatWindowProps
   const isSeller = userProfile?.userRole === 'seller';
 
   return (
-    <div className="flex h-[calc(100vh-theme(space.16))] flex-col">
+    <div className="flex h-full flex-col bg-background">
       <div className="flex items-center justify-between border-b p-3">
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <Avatar className="h-8 w-8 border">
             <AvatarImage src={otherParticipant?.profilePictureUrl} alt={otherParticipant?.fullName} />
             <AvatarFallback>{otherParticipant?.fullName?.charAt(0)}</AvatarFallback>
