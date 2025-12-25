@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -32,18 +31,18 @@ import {
   DollarSign,
   MapPin,
   Truck,
+  Image as ImageIcon,
   Video,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import type { Product } from '@/lib/types';
 import { Label } from '../ui/label';
-
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -134,26 +133,18 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   }
 
 
-  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
-    const timestamp = Math.round((new Date()).getTime() / 1000);
-    const folder = 'products';
-    const paramsToSign = { timestamp, folder };
-    
-    const signatureResponse = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paramsToSign }),
-    });
-    const { signature } = await signatureResponse.json();
-
+ const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
+    // We now rely on a signed upload preset created in the Cloudinary dashboard.
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
-    formData.append('timestamp', timestamp.toString());
-    formData.append('signature', signature);
-    formData.append('folder', folder);
-    
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+    formData.append('upload_preset', 'go-earn-preset'); // ** IMPORTANT: This preset must be created in your Cloudinary account **
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    if (!cloudName) {
+        const errorMsg = "Cloudinary cloud name is not configured. Please check your .env.local file.";
+        toast({ variant: 'destructive', title: 'Configuration Error', description: errorMsg });
+        throw new Error(errorMsg);
+    }
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
 
     return new Promise((resolve, reject) => {
@@ -172,11 +163,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 const uploadedData = JSON.parse(xhr.responseText);
                 resolve({ url: uploadedData.secure_url, type: file.type });
             } else {
-                reject(new Error(`Cloudinary upload failed: ${xhr.statusText}`));
+                console.error('Cloudinary upload error:', xhr.responseText);
+                reject(new Error(`Cloudinary upload failed: ${xhr.statusText}`))
             }
         };
 
         xhr.onerror = () => {
+            console.error('Network error during upload:', xhr.responseText);
             reject(new Error('Network error during upload.'));
         };
 
@@ -187,11 +180,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
         toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to upload products.' });
-        return;
-    }
-
-    if (!isEditMode && files.length === 0) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must upload at least one image or video.' });
         return;
     }
 
@@ -257,7 +245,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
     } catch (error) {
         console.error('Error during product submission:', error);
-        toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not save your product. Please try again.' });
+        toast({ variant: 'destructive', title: 'Submission Failed', description: (error as Error).message || 'Could not save your product. Please try again.' });
     } finally {
       setIsUploading(false);
     }
@@ -272,7 +260,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
-             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
+             <CardTitle>Add New Product</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8 pt-6">
 
@@ -335,7 +323,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     )}
                 />
             </div>
-
+            
             {/* Media Upload Section */}
             <div className="space-y-6 pt-8 border-t">
                  <h3 className="text-lg font-medium leading-6 text-foreground">Media Uploads</h3>
@@ -359,40 +347,36 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         disabled={isUploading || allMediaCount >= 5}
                     >
                         <UploadCloud className="mr-2 h-4 w-4" />
-                        {isUploading ? 'Uploading...' : `Click to select files (${allMediaCount}/5)`}
+                        {isUploading ? 'Uploading...' : `Select Files (${5 - allMediaCount} remaining)`}
                     </Button>
-                 </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                    {existingImageUrls.map((url, index) => (
-                        <div key={`existing-img-${index}`} className="relative group">
-                            <Image src={url} alt={`Existing image ${index + 1}`} width={150} height={150} className="rounded-md object-cover w-full aspect-square" />
-                            <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4"/></Button>
-                        </div>
-                    ))}
-                     {existingVideoUrls.map((url, index) => (
-                        <div key={`existing-vid-${index}`} className="relative group">
-                           <video src={url} className="rounded-md object-cover w-full aspect-square bg-black" />
-                            <div className="absolute top-1 left-1 bg-black/50 p-1 rounded-full"><Video className="h-3 w-3 text-white" /></div>
-                            <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4"/></Button>
-                        </div>
-                    ))}
-                    {files.map((file, index) => (
-                      <div key={index} className="relative group">
-                        {file.type.startsWith('image/') ? (
-                          <Image src={URL.createObjectURL(file)} alt={file.name} width={150} height={150} className="rounded-md object-cover w-full aspect-square" />
-                        ) : (
-                          <div className="relative w-full aspect-square">
-                            <video src={URL.createObjectURL(file)} className="rounded-md object-cover w-full h-full bg-black" />
-                            <div className="absolute top-1 left-1 bg-black/50 p-1 rounded-full"><Video className="h-3 w-3 text-white" /></div>
-                          </div>
-                        )}
-                        <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4"/></Button>
-                        {uploadProgress[file.name] !== undefined && (
-                          <Progress value={uploadProgress[file.name]} className="absolute bottom-0 left-0 right-0 h-1 rounded-none" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                </div>
+                 {(files.length > 0 || existingImageUrls.length > 0 || existingVideoUrls.length > 0) && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                         {existingImageUrls.map((url) => (
+                            <div key={url} className="relative aspect-square group">
+                                <Image src={url} alt="Existing product image" fill className="object-cover rounded-md" />
+                                <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4" /></Button>
+                            </div>
+                        ))}
+                         {existingVideoUrls.map((url) => (
+                             <div key={url} className="relative aspect-square group bg-black">
+                                <video src={url} className="object-cover rounded-md h-full w-full" muted />
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white"/></div>
+                                <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4" /></Button>
+                            </div>
+                         ))}
+                        {files.map(file => (
+                            <div key={file.name} className="relative aspect-square group">
+                                <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover rounded-md" />
+                                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-2">
+                                    <p className="text-white text-xs text-center truncate w-full">{file.name}</p>
+                                    {uploadProgress[file.name] !== undefined && <Progress value={uploadProgress[file.name]} className="h-1 mt-1 w-full" />}
+                                </div>
+                                <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4" /></Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Pricing & Inventory Section */}
