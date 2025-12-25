@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -134,17 +135,23 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
 
  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
-    // We now rely on a signed upload preset created in the Cloudinary dashboard.
+    const timestamp = Math.round((new Date()).getTime() / 1000);
+    const paramsToSign = { timestamp };
+
+    const signatureResponse = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paramsToSign),
+    });
+    const { signature } = await signatureResponse.json();
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', 'go-earn-preset'); // ** IMPORTANT: This preset must be created in your Cloudinary account **
-
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    if (!cloudName) {
-        const errorMsg = "Cloudinary cloud name is not configured. Please check your .env.local file.";
-        toast({ variant: 'destructive', title: 'Configuration Error', description: errorMsg });
-        throw new Error(errorMsg);
-    }
+    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+    
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
 
     return new Promise((resolve, reject) => {
