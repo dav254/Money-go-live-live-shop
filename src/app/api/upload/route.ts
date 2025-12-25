@@ -35,7 +35,8 @@ export async function POST(request: Request) {
         return NextResponse.json(health);
     }
     
-    const { paramsToSign } = body;
+    // The `paramsToSign` are the body of the request, not nested.
+    const paramsToSign = body;
 
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
     if (!apiSecret) {
