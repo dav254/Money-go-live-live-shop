@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -57,17 +58,31 @@ export default function LoginPage() {
       const userDocRef = doc(firestore, 'userProfiles', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
-      toast({
-        title: 'Login Successful!',
-        description: "Welcome back.",
-      });
-
       if (userDocSnap.exists()) {
         const userProfile = userDocSnap.data();
+        
+        // Check if the account is suspended
+        if (userProfile.status === 'suspended') {
+            await auth.signOut(); // Sign the user out immediately
+            toast({
+                variant: 'destructive',
+                title: 'Account Suspended',
+                description: 'Your account has been suspended. Please contact support.',
+            });
+            return;
+        }
+
+        toast({
+            title: 'Login Successful!',
+            description: "Welcome back.",
+        });
+
         if (userProfile.userRole === 'seller') {
           router.push('/dashboard/seller');
         } else if (userProfile.userRole === 'reseller') {
           router.push('/dashboard/reseller');
+        } else if (userProfile.userRole === 'admin') {
+          router.push('/dashboard/admin');
         } else {
           router.push('/buyer/dashboard');
         }

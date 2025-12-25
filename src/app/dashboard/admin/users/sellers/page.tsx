@@ -312,12 +312,16 @@ export default function AdminSellersPage() {
                                 setIsPointsDialogOpen(true);
                             }}>Manage Points</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => toast({ title: 'Coming Soon!', description: 'This feature is under development.' })}>
-                                Freeze Payouts
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-yellow-600" onClick={() => handleStatusUpdate(seller.id, 'suspended')}>
+                            <DropdownMenuItem>Freeze Payouts</DropdownMenuItem>
+                            {seller.status !== 'suspended' ? (
+                                <DropdownMenuItem className="text-yellow-600" onClick={() => handleStatusUpdate(seller.id, 'suspended')}>
                                 Suspend Seller
-                            </DropdownMenuItem>
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem onClick={() => handleStatusUpdate(seller.id, 'active')}>
+                                Unsuspend Seller
+                                </DropdownMenuItem>
+                            )}
                             <AlertDialogTrigger asChild>
                                 <DropdownMenuItem className="text-destructive">Delete Seller</DropdownMenuItem>
                             </AlertDialogTrigger>
@@ -339,7 +343,7 @@ export default function AdminSellersPage() {
             );
         },
     },
-    ], [handleDeleteSeller, toast]);
+    ], [handleDeleteSeller, toast, handleStatusUpdate]);
 
 
   const table = useReactTable({
