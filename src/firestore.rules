@@ -7,10 +7,12 @@ service cloud.firestore {
     // Public read is now allowed for user profiles.
     match /userProfiles/{userId} {
       allow read: if true;
-      // Allow user to update their own profile, OR an admin to update specific fields.
+      // Allow user to update their own profile, OR an admin/backend function to update specific fields.
       allow update: if request.auth.uid == userId ||
                       (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole']));
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole'])) ||
+                      // Allow backend functions to increment points for referrals
+                      (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
       allow create: if request.auth.uid != null;
       
       // A user can only read and write to their own cart.
@@ -65,7 +67,7 @@ service cloud.firestore {
 
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount', 'clickCount']);
                     
       // Allow delete only by the product owner.
       allow delete: if resource.data.sellerId == request.auth.uid;
@@ -208,7 +210,7 @@ service cloud.firestore {
     }
     
     // Resell Activities
-    match /resell_activities/{activityId} {
+    match /resellActivities/{activityId} {
         // Allow a user to list activities if they are filtering by their own ID as seller or reseller.
         allow list: if request.auth != null &&
                      (
@@ -218,9 +220,7 @@ service cloud.firestore {
         // Allow read on individual documents if the user is the seller or reseller.
         allow get: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
         // Allow a reseller to create a 'share' activity.
-        allow create: if request.auth != null &&
-                       request.resource.data.resellerId == request.auth.uid &&
-                       request.resource.data.activityType == 'share';
+        allow create: if request.auth != null && request.resource.data.resellerId == request.auth.uid;
     }
 
     // Reseller Applications
