@@ -181,7 +181,7 @@ export default function BuyerProductPage() {
 
     const handleAddToCart = async () => {
         if (!user) {
-          toast({ title: 'Please log in', description: 'You need to be logged in to add items to your cart.', action: <Button onClick={() => router.push('/login')}>Login</Button> });
+          router.push('/signup');
           return;
         }
         if (!product) return;
@@ -209,7 +209,7 @@ export default function BuyerProductPage() {
 
     const handleBuyNow = async () => {
         if (!user) {
-          toast({ title: 'Please log in', description: 'You need to be logged in to purchase an item.', action: <Button onClick={() => router.push('/login')}>Login</Button> });
+          router.push('/signup');
           return;
         }
         if (!product) return;
@@ -254,7 +254,7 @@ export default function BuyerProductPage() {
     
     const handleFollow = async () => {
         if (!user || !firestore || !sellerId) {
-            toast({ variant: 'destructive', title: 'Please log in to follow sellers.' });
+            router.push('/signup');
             return;
         }
 
@@ -289,6 +289,46 @@ export default function BuyerProductPage() {
             // Revert optimistic UI update on error
             setIsFollowing(!newFollowingState);
             toast({ variant: 'destructive', title: 'Something went wrong' });
+        }
+    };
+
+    const handleMessageSeller = async () => {
+        if (!user || !firestore) {
+            router.push('/signup');
+            return;
+        }
+        if (sellerId === user.uid) {
+            toast({ title: 'Cannot start chat', description: 'You cannot message yourself.' });
+            return;
+        }
+
+        const chatsRef = collection(firestore, 'chats');
+        const q = query(chatsRef, where('participantIds', 'array-contains', user.uid));
+        
+        try {
+            const querySnapshot = await getDocs(q);
+            let existingChatId: string | null = null;
+            querySnapshot.forEach(doc => {
+                if (doc.data().participantIds.includes(sellerId)) {
+                    existingChatId = doc.id;
+                }
+            });
+
+            if (existingChatId) {
+                router.push(`/messages?chatWith=${sellerId}`);
+            } else {
+                const newChatRef = doc(collection(firestore, 'chats'));
+                await setDoc(newChatRef, {
+                    id: newChatRef.id,
+                    participantIds: [user.uid, sellerId],
+                    lastMessage: 'Conversation started.',
+                    lastMessageTimestamp: serverTimestamp(),
+                });
+                router.push(`/messages?chatWith=${sellerId}`);
+            }
+        } catch (error) {
+            console.error("Error handling message seller: ", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat.' });
         }
     };
     
@@ -503,10 +543,10 @@ export default function BuyerProductPage() {
                         <Store className="h-5 w-5 text-neutral-300"/>
                         <span className="text-xs text-neutral-400">Shop</span>
                     </Link>
-                    <Link href={`/messages?chatWith=${sellerId}`} className="flex flex-col items-center p-2">
+                    <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center p-2 h-auto">
                         <MessageSquare className="h-5 w-5 text-neutral-300" />
                         <span className="text-xs text-neutral-400">Chat</span>
-                    </Link>
+                    </Button>
                     <Button variant="secondary" className="flex-1 bg-[#2a2a2a] text-white" onClick={handleAddToCart}>Add to Cart</Button>
                     <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleBuyNow}>Buy Now</Button>
                 </div>
@@ -514,3 +554,5 @@ export default function BuyerProductPage() {
         </MainLayout>
     );
 }
+
+    
