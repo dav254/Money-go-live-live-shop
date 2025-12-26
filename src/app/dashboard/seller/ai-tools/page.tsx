@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -6,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2 } from 'lucide-react';
+import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -42,7 +41,15 @@ const tools = [
     points: 100,
   },
   {
-    title: 'AI Poster & Video Maker',
+    title: 'AI Poster Generator',
+    description: 'Request a unique, AI-generated promotional poster for your product, approved by admin.',
+    icon: ImageGeneratorIcon,
+    href: '/dashboard/seller/ai-tools/poster-generator',
+    cta: 'Request Poster',
+    points: 150,
+  },
+  {
+    title: 'Image-to-Video Generator',
     description: 'Turn your static product images into engaging short videos for your feed.',
     icon: ImageIcon,
     href: '/dashboard/seller/ai-tools/image-to-video',
