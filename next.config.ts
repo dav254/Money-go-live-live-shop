@@ -44,7 +44,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverComponentsExternalPackages: ['@genkit-ai/next'],
 };
 
 export default nextConfig;
