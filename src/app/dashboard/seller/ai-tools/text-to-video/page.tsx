@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Text, Download, ChevronLeft } from 'lucide-react';
+import { Loader2, Sparkles, Text, Download, ChevronLeft, UploadCloud } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
+import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
@@ -22,6 +23,7 @@ export default function TextToVideoPage() {
     const [prompt, setPrompt] = useState('A cinematic shot of a an old car driving down a deserted road at sunset.');
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
     const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
 
     const productsQuery = useMemoFirebase(() => {
@@ -36,22 +38,15 @@ export default function TextToVideoPage() {
             toast({ variant: 'destructive', title: 'Prompt is required', description: 'Please enter a description for your video.' });
             return;
         }
-        if (!selectedProductId) {
-            toast({ variant: 'destructive', title: 'Product selection required', description: 'Please select which product this video is for.' });
-            return;
-        }
 
         setIsGenerating(true);
         setGeneratedVideoUrl(null);
         toast({ title: '🤖 Starting Video Generation...', description: 'This is a slow process and may take over a minute. Please wait.' });
 
         try {
-            const result = await generateVideoFromText({ 
-                prompt,
-                productId: selectedProductId,
-             });
+            const result = await generateVideoFromText({ prompt });
             setGeneratedVideoUrl(result.videoUrl);
-            toast({ title: '✅ Video Generated & Saved!', description: 'Your new video has been added to the selected product.' });
+            toast({ title: '✅ Video Generated!', description: 'Your new video is ready for preview.' });
         } catch (error: any) {
             console.error("Error generating video:", error);
             toast({ variant: 'destructive', title: 'Video Generation Failed', description: error.message || 'Please try again.' });
@@ -59,6 +54,29 @@ export default function TextToVideoPage() {
             setIsGenerating(false);
         }
     };
+    
+    const handlePublishVideo = async () => {
+        if (!generatedVideoUrl || !selectedProductId) {
+             toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select a product to publish the video to.' });
+            return;
+        }
+        
+        setIsPublishing(true);
+        toast({ title: 'Publishing Video...', description: 'Adding the video to your product.' });
+
+        try {
+            await publishVideoToProduct({
+                productId: selectedProductId,
+                videoUrl: generatedVideoUrl
+            });
+            toast({ title: 'Published!', description: 'Your video is now live on your product page.' });
+        } catch (error: any) {
+             console.error("Error publishing video:", error);
+            toast({ variant: 'destructive', title: 'Publish Failed', description: error.message || 'Please try again.' });
+        } finally {
+            setIsPublishing(false);
+        }
+    }
 
     return (
         <SellerLayout>
@@ -70,25 +88,12 @@ export default function TextToVideoPage() {
                                 <Text className="text-primary" /> Text-to-Video Generator
                             </CardTitle>
                             <CardDescription>
-                                Describe a video, assign it to a product, and let our AI create it for you. This tool costs 250 points.
+                                Describe a video and let our AI create it for you. This tool costs 250 points per generation.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">1. Select Product</label>
-                                <Select onValueChange={setSelectedProductId} disabled={areProductsLoading}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Assign video to a product..."} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {products?.map(p => (
-                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
                              <div className="space-y-2">
-                                <label className="text-sm font-medium">2. Describe Your Video</label>
+                                <label className="text-sm font-medium">1. Describe Your Video</label>
                                 <Textarea
                                     rows={8}
                                     value={prompt}
@@ -97,18 +102,21 @@ export default function TextToVideoPage() {
                                     disabled={isGenerating}
                                 />
                             </div>
-                            <Button className="w-full" onClick={handleGenerateVideo} disabled={isGenerating || !selectedProductId}>
+                            <Button className="w-full" onClick={handleGenerateVideo} disabled={isGenerating}>
                                 {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                                Generate & Save Video
+                                Generate Video
                             </Button>
                         </CardContent>
                     </Card>
 
                     <Card className="sticky top-24">
                         <CardHeader>
-                            <CardTitle>Result</CardTitle>
+                            <CardTitle>2. Preview & Publish</CardTitle>
+                             <CardDescription>
+                                Review your video, select a product to add it to, then publish.
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="space-y-4">
                             <div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center">
                                 {isGenerating ? (
                                     <div className="text-center text-muted-foreground">
@@ -121,12 +129,26 @@ export default function TextToVideoPage() {
                                     <p className="text-muted-foreground">Your video will appear here.</p>
                                 )}
                             </div>
-                             {generatedVideoUrl && (
-                                 <Button variant="outline" className="w-full mt-4" asChild>
-                                    <Link href={`/dashboard/products?tab=add-new`}>
-                                        View in Products
-                                    </Link>
-                                </Button>
+                            {generatedVideoUrl && (
+                                <div className="space-y-4">
+                                     <div className="space-y-2">
+                                        <label className="text-sm font-medium">Assign to Product</label>
+                                        <Select onValueChange={setSelectedProductId} disabled={areProductsLoading || isPublishing}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Select a product..."} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {products?.map(p => (
+                                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                     <Button className="w-full" onClick={handlePublishVideo} disabled={isPublishing || !selectedProductId}>
+                                        {isPublishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                                        Publish to Product
+                                    </Button>
+                                </div>
                             )}
                         </CardContent>
                     </Card>

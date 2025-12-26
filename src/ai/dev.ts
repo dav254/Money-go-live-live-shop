@@ -17,3 +17,4 @@ import '@/ai/flows/generate-video-from-text.ts';
 import '@/ai/flows/enhance-video.ts';
 import '@/ai/flows/generate-caption.ts';
 import '@/ai/flows/admin-chat-flow.ts';
+import '@/ai/flows/publish-video.ts';
