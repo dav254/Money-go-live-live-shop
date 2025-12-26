@@ -17,7 +17,8 @@ const AdminChatOutputSchema = z.string();
 // Define the prompt for the AI model
 const adminChatPrompt = ai.definePrompt({
   name: 'adminChatPrompt',
-  input: { schema: AdminChatInputSchema },
+  // The prompt expects an object with a 'prompt' key, not a raw string.
+  input: { schema: z.object({ prompt: z.string() }) },
   output: { schema: AdminChatOutputSchema },
   prompt: `You are a helpful and friendly AI assistant embedded within the admin dashboard of an e-commerce platform called Go Earn. The administrator of the platform is talking to you.
 
@@ -42,7 +43,8 @@ const adminChatFlow = ai.defineFlow(
     outputSchema: AdminChatOutputSchema,
   },
   async (prompt) => {
-    const { output } = await adminChatPrompt(prompt);
+    // Pass the input string as an object to match the prompt's input schema
+    const { output } = await adminChatPrompt({ prompt });
     // The exclamation mark asserts that output is not null, which is expected here.
     return output!;
   }
