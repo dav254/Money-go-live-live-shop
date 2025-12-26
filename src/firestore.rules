@@ -12,7 +12,7 @@ service cloud.firestore {
       allow update: if request.auth.uid == userId &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'username', 'fullName', 'bio', 'location', 'profilePictureUrl', 'phoneNumber']) ||
                       (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole', 'connections']));
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'aiPoints', 'verificationStatus', 'userRole', 'connections']));
       allow create: if request.auth.uid != null;
       
       // A user can only read and write to their own cart.
