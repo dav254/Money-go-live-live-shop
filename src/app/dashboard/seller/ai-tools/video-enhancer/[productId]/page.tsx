@@ -16,6 +16,7 @@ import { Loader2, Sparkles, ChevronLeft, Film } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { enhanceVideo } from '@/ai/flows/enhance-video';
 
 const PageSkeleton = () => (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -53,16 +54,34 @@ export default function EnhanceVideoPage() {
         }
         setIsGenerating(true);
         setGeneratedVideoUrl(null);
-        toast({ title: '🤖 Simulating Video Enhancement...', description: 'Please wait a few seconds.' });
+        toast({ title: '🤖 Starting Video Enhancement...', description: 'This may take over a minute. Please wait.' });
 
-        // Frontend-only mock. No backend call is made.
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        try {
+            // Fetch the video from its URL to get a data URI
+            const videoResponse = await fetch(selectedVideo);
+            const videoBlob = await videoResponse.blob();
+            const videoDataUri = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(videoBlob);
+            });
+            
+            const result = await enhanceVideo({
+                productId: product.id,
+                videoDataUri: videoDataUri,
+                prompt: prompt,
+            });
 
-        // Use a placeholder video URL for the result
-        setGeneratedVideoUrl('https://res.cloudinary.com/demo/video/upload/e_sepia/dog.mp4');
-        
-        toast({ title: '✅ Mock Enhancement Complete!', description: 'This is a sample result.' });
-        setIsGenerating(false);
+            setGeneratedVideoUrl(result.videoUrl);
+            toast({ title: '✅ Video Enhanced!', description: 'Your new video has been added to the product gallery.' });
+
+        } catch (error: any) {
+             console.error("Error enhancing video:", error);
+            toast({ variant: 'destructive', title: 'Enhancement Failed', description: error.message || 'Please try again.' });
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     if (isLoading) {
@@ -92,7 +111,7 @@ export default function EnhanceVideoPage() {
                                 {product.videoUrls?.map((url, index) => (
                                     <Label key={index} htmlFor={`vid-${index}`} className="block relative aspect-square rounded-md overflow-hidden cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-primary">
                                         <video src={url} className="w-full h-full object-cover" muted />
-                                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                                             <Film className="h-6 w-6 text-white/70" />
                                         </div>
                                         <RadioGroupItem value={url} id={`vid-${index}`} className="absolute top-2 right-2" />
@@ -145,6 +164,11 @@ export default function EnhanceVideoPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <video src={generatedVideoUrl} controls autoPlay muted loop className="w-full rounded-md" />
+                                    <Button variant="outline" className="w-full mt-4" asChild>
+                                        <Link href={`/dashboard/products?tab=add-new`}>
+                                            View in Products
+                                        </Link>
+                                    </Button>
                                 </CardContent>
                             </Card>
                         )}
