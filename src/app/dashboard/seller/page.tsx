@@ -230,13 +230,6 @@ export default function SellerDashboardPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto mb-4 text-sm pb-2">
-            <Button asChild variant="default" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller">My Products</Link></Button>
-            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/orders">Orders</Link></Button>
-            <Button asChild variant="secondary" className="rounded-xl shadow-sm whitespace-nowrap"><Link href="/dashboard/seller/analytics">Analytics</Link></Button>
-        </div>
-
         {/* Add Buttons */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <Button asChild className="font-semibold" style={{ backgroundColor: '#2563eb' }}>
