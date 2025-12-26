@@ -51,12 +51,16 @@ export default function AIChatPage() {
     await addDoc(chatCollection, userMessage);
     
     try {
-        // Call the real AI flow
         const aiResponseText = await askAdminAI(userMessageText);
 
-        // Store the AI's response
+        // **FIX:** Check for null or empty response from the AI
+        const responseToSave = aiResponseText && aiResponseText.trim() !== ''
+            ? aiResponseText
+            : "I'm sorry, I couldn't find an answer to that. Please try rephrasing your question.";
+
+        // Store the AI's (or fallback) response
         const aiResponse: Omit<AdminChatMessage, 'id'> = {
-            text: aiResponseText,
+            text: responseToSave,
             sender: 'ai',
             timestamp: serverTimestamp() as any,
         };
@@ -69,9 +73,9 @@ export default function AIChatPage() {
             title: 'AI Error',
             description: 'I could not process your request. Please try again.'
         });
-        // Optionally, add an error message to the chat
+        // Add a more descriptive error message to the chat
         const errorResponse: Omit<AdminChatMessage, 'id'> = {
-            text: "Sorry, I encountered an error and couldn't respond.",
+            text: "Sorry, I encountered an error and couldn't respond. The technical details have been logged.",
             sender: 'ai',
             timestamp: serverTimestamp() as any,
         };
