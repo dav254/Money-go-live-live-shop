@@ -12,8 +12,8 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { initializeAdminApp } from '@/firebase/admin';
-// Do not import from 'firebase-admin' at the top level
+import { db } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import { v2 as cloudinary } from 'cloudinary';
 
 // Configure Cloudinary
@@ -48,11 +48,6 @@ async function uploadToCloudinary(videoDataUri: string, productId: string): Prom
 
 
 export async function generateVideoFromImage(input: GenerateVideoFromImageInput): Promise<GenerateVideoFromImageOutput> {
-  // Initialize Firebase Admin for server-side operations
-  const adminApp = initializeAdminApp();
-  const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
-  const firestore = getFirestore(adminApp);
-
   // 1. Generate new image using Gemini Flash
   const { media } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash-image-preview'),
@@ -76,7 +71,7 @@ export async function generateVideoFromImage(input: GenerateVideoFromImageInput)
   const permanentImageUrl = await uploadToCloudinary(generatedImageDataUri, input.productId);
   
   // 3. Update the product document in Firestore
-  const productRef = firestore.collection('products').doc(input.productId);
+  const productRef = db.collection('products').doc(input.productId);
   await productRef.update({
     imageUrls: FieldValue.arrayUnion(permanentImageUrl), // Add to imageUrls instead of videoUrls
   });

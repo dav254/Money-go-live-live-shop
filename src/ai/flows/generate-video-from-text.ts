@@ -13,9 +13,11 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { initializeAdminApp } from '@/firebase/admin';
-// Do not import from 'firebase-admin' at the top level
+import { db } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
 import { v2 as cloudinary } from 'cloudinary';
+import fetch from 'node-fetch';
+
 
 // Configure Cloudinary
 cloudinary.config({
@@ -47,11 +49,6 @@ async function uploadToCloudinary(videoDataUri: string, productId: string): Prom
 }
 
 export async function generateVideoFromText(input: GenerateVideoFromTextInput): Promise<GenerateVideoFromTextOutput> {
-  // Initialize Firebase Admin for server-side operations
-  const adminApp = initializeAdminApp();
-  const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
-  const firestore = getFirestore(adminApp);
-
   // 1. Generate video using Veo
   let { operation } = await ai.generate({
     model: googleAI.model('veo-2.0-generate-001'),
@@ -95,7 +92,7 @@ export async function generateVideoFromText(input: GenerateVideoFromTextInput): 
   const permanentVideoUrl = await uploadToCloudinary(videoDataUri, input.productId);
   
   // 5. Update the product document in Firestore
-  const productRef = firestore.collection('products').doc(input.productId);
+  const productRef = db.collection('products').doc(input.productId);
   await productRef.update({
     videoUrls: FieldValue.arrayUnion(permanentVideoUrl),
   });
