@@ -1,9 +1,8 @@
-
-
 'use server';
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import type { UserProfile } from "@/lib/types";
 
 admin.initializeApp();
 
@@ -39,15 +38,31 @@ export const processOrderAndDistributeEarnings = functions.firestore
         // --- Define Rates (can be moved to Firestore config later) ---
         const VAT_RATE = 0.16; // 16%
         const PLATFORM_FEE_RATE = 0.10; // 10%
+        const SELLER_REFERRAL_COMMISSION_RATE = 0.01; // 1% of product price for the person who referred the seller
 
         // --- Calculate All Financial Splits ---
         const taxAmount = productPrice * VAT_RATE;
-        const platformFee = productPrice * PLATFORM_FEE_RATE;
+        
         let resellerCommission = 0;
         if (resellerId && commissionRate) {
             resellerCommission = productPrice * (commissionRate / 100);
         }
-        const sellerNetEarnings = productPrice - platformFee - resellerCommission;
+        
+        // Fetch the seller's profile to check if they were referred
+        const sellerProfileSnap = await db.doc(`userProfiles/${sellerId}`).get();
+        const sellerProfile = sellerProfileSnap.data() as UserProfile | undefined;
+        
+        let sellerReferralCommission = 0;
+        let sellerReferrerId: string | null = null;
+        if (sellerProfile?.referredBy) {
+            sellerReferrerId = sellerProfile.referredBy;
+            sellerReferralCommission = productPrice * SELLER_REFERRAL_COMMISSION_RATE;
+        }
+        
+        // The platform fee is now reduced by any commissions paid out from it.
+        const platformFee = (productPrice * PLATFORM_FEE_RATE) - sellerReferralCommission;
+
+        const sellerNetEarnings = productPrice - (productPrice * PLATFORM_FEE_RATE) - resellerCommission;
 
         const batch = db.batch();
         const timestamp = admin.firestore.FieldValue.serverTimestamp();
@@ -78,7 +93,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
             });
         }
 
-        // C. Reseller's Commission Transaction & Notification
+        // C. Reseller's Commission Transaction & Notification (for the direct sale)
         if (resellerId && resellerCommission > 0) {
           const resellerTransactionRef = db.collection("walletTransactions").doc();
           batch.set(resellerTransactionRef, {
@@ -102,8 +117,33 @@ export const processOrderAndDistributeEarnings = functions.firestore
             timestamp: timestamp,
           });
         }
+        
+        // NEW: D. Seller Referrer's Commission Transaction & Notification
+        if (sellerReferrerId && sellerReferralCommission > 0) {
+            const sellerReferrerTxRef = db.collection("walletTransactions").doc();
+            batch.set(sellerReferrerTxRef, {
+                userId: sellerReferrerId,
+                orderId: orderId,
+                type: "COMMISSION",
+                amount: sellerReferralCommission,
+                description: `Seller referral bonus from order #${orderId.substring(0, 6)}`,
+                timestamp: timestamp,
+            });
+            
+             // Create notification for the seller's referrer
+            const sellerReferrerNotifRef = db.collection('notifications').doc();
+            batch.set(sellerReferrerNotifRef, {
+                userId: sellerReferrerId,
+                type: 'commission',
+                title: 'Seller Referral Bonus!',
+                message: `You earned a $${sellerReferralCommission.toFixed(2)} bonus because a seller you referred made a sale!`,
+                link: `/dashboard/reseller/commissions`,
+                status: 'unread',
+                timestamp: timestamp,
+            });
+        }
 
-        // D. Platform Fee Transaction
+        // E. Platform Fee Transaction
         const platformTransactionRef = db.collection("walletTransactions").doc();
         batch.set(platformTransactionRef, {
           userId: "platform_revenue",
@@ -114,7 +154,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
           timestamp: timestamp,
         });
         
-        // E. Tax Collection Transaction
+        // F. Tax Collection Transaction
         const taxTransactionRef = db.collection("walletTransactions").doc();
         batch.set(taxTransactionRef, {
           userId: "tax_collected", // Special ID for tax liability
@@ -125,7 +165,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
           timestamp: timestamp,
         });
         
-        // F. Seller Notification for the sale
+        // G. Seller Notification for the sale
         const sellerNotifRef = db.collection('notifications').doc();
         batch.set(sellerNotifRef, {
             userId: sellerId,
@@ -296,4 +336,48 @@ export const processPayout = functions.firestore
             return null;
         }
     });
+
+/**
+ * Awards points to a referrer when a new user signs up with their code.
+ */
+export const awardReferralPoints = functions.firestore
+  .document("userProfiles/{userId}")
+  .onCreate(async (snap, context) => {
+    const newUser = snap.data() as UserProfile;
+    const { userId } = context.params;
+
+    // Exit if there's no referrer
+    if (!newUser.referredBy) {
+      functions.logger.log(`User ${userId} was not referred. No points awarded.`);
+      return null;
+    }
+
+    const referrerId = newUser.referredBy;
+    const referrerRef = db.doc(`userProfiles/${referrerId}`);
+    const POINTS_PER_REFERRAL = 10;
+
+    try {
+      await referrerRef.update({
+        aiPoints: admin.firestore.FieldValue.increment(POINTS_PER_REFERRAL),
+      });
+
+      // Create a notification for the referrer
+      const notificationRef = db.collection('notifications').doc();
+      await notificationRef.set({
+        userId: referrerId,
+        type: 'commission', // Using 'commission' type for point notifications for now
+        title: 'You Earned Referral Points!',
+        message: `You earned ${POINTS_PER_REFERRAL} points because ${newUser.fullName} joined using your link.`,
+        link: '/dashboard/reseller',
+        status: 'unread',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      functions.logger.info(`Awarded ${POINTS_PER_REFERRAL} points to referrer ${referrerId} for new user ${userId}.`);
+      return null;
+    } catch (error) {
+      functions.logger.error(`Failed to award referral points to ${referrerId}:`, error);
+      return null;
+    }
+  });
 
