@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import * as functions from "firebase-functions";
@@ -213,3 +214,86 @@ export const sendOrderUpdateNotification = functions.firestore
 
         return null;
     });
+
+/**
+ * Securely processes a payout request when an admin approves it.
+ * Triggered when a payout's status changes from 'pending' to 'processing'.
+ */
+export const processPayout = functions.firestore
+    .document("payouts/{payoutId}")
+    .onUpdate(async (change, context) => {
+        const beforeData = change.before.data();
+        const afterData = change.after.data();
+        const { payoutId } = context.params;
+
+        // --- Trigger Condition ---
+        // Only run if status changes from 'pending' to 'processing'
+        if (beforeData.status !== 'pending' || afterData.status !== 'processing') {
+            functions.logger.log(`Payout ${payoutId} not ready for processing. Status: ${afterData.status}`);
+            return null;
+        }
+
+        const { sellerId, amount, payoutMethodId, payoutMethodInfo } = afterData;
+
+        // --- Validation ---
+        if (!sellerId || !amount || !payoutMethodId) {
+            functions.logger.error(`Payout ${payoutId} is missing critical data.`);
+            await db.doc(`payouts/${payoutId}`).update({ status: 'failed', adminNotes: 'Missing critical payout data.' });
+            return null;
+        }
+        
+        try {
+            functions.logger.info(`Processing payout ${payoutId} for seller ${sellerId} of amount ${amount}`);
+
+            //
+            // --- PAYMENT PROVIDER INTEGRATION ---
+            // THIS IS WHERE YOU WOULD ADD YOUR PAYSTACK, PAYPAL, OR MPESA API CALLS
+            //
+            // 1. Fetch the seller's actual payout details securely from their profile
+            //    const payoutMethodDoc = await db.doc(`userProfiles/${sellerId}/payoutMethods/${payoutMethodId}`).get();
+            //    if (!payoutMethodDoc.exists) throw new Error('Payout method not found.');
+            //    const methodDetails = payoutMethodDoc.data();
+            //
+            // 2. Call the payment provider's API with the details
+            //    e.g., const paymentResult = await paystack.transfer.create({ amount: amount * 100, recipient: methodDetails.recipientCode });
+            //
+            // 3. Check the result from the payment provider
+            //    if (!paymentResult.status) throw new Error(paymentResult.message);
+            //
+            
+            // --- MOCK SUCCESS (for now) ---
+            const mockTransactionId = `MOCK_TXN_${payoutId}`;
+            functions.logger.warn(`THIS IS A MOCK PAYOUT FOR ${payoutId}. NO REAL MONEY WAS SENT.`);
+            // --- END MOCK ---
+            
+            // On successful payment, update the payout document to 'completed'
+            await db.doc(`payouts/${payoutId}`).update({
+                status: 'completed',
+                processedAt: admin.firestore.FieldValue.serverTimestamp(),
+                transactionId: mockTransactionId, // The real ID from your payment provider
+            });
+
+            // Create a formal transaction record in the wallet ledger
+            const walletTransactionRef = db.collection("walletTransactions").doc();
+            await walletTransactionRef.set({
+              userId: sellerId,
+              orderId: payoutId, // Use payoutId as the source reference
+              type: "PAYOUT_COMPLETED",
+              amount: -amount, // Negative amount as it's a debit from their wallet
+              description: `Payout to ${payoutMethodInfo}`,
+              timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            functions.logger.info(`Successfully processed payout ${payoutId}.`);
+            return null;
+
+        } catch (error) {
+            functions.logger.error(`Error processing payout ${payoutId}:`, error);
+            await db.doc(`payouts/${payoutId}`).update({
+                status: 'failed',
+                adminNotes: `Processing failed: ${(error as Error).message}`
+            });
+            return null;
+        }
+    });
+
