@@ -358,6 +358,14 @@
           "items": {
             "type": "string"
           }
+        },
+        "referredBy": {
+            "type": "string",
+            "description": "The UID of the reseller who referred this user."
+        },
+        "aiPoints": {
+            "type": "number",
+            "description": "Points balance for using AI features."
         }
       },
       "required": [
