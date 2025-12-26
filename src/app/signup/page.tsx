@@ -83,8 +83,6 @@ export default function SignupPage() {
       const resellerRefId = localStorage.getItem('resellerRefId');
       if (resellerRefId) {
           userProfile.referredBy = resellerRefId;
-          // Optional: remove the item after use to prevent re-attribution on future signups
-          // localStorage.removeItem('resellerRefId');
       }
 
 
@@ -99,6 +97,8 @@ export default function SignupPage() {
         router.push('/dashboard/seller/about');
       } else if (values.role === 'buyer') {
         router.push('/buyer/about');
+      } else if (values.role === 'reseller') {
+        router.push('/dashboard/reseller');
       } else {
         router.push('/login');
       }
