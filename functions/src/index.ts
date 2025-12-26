@@ -355,7 +355,7 @@ export const awardReferralPoints = functions.firestore
 
     const referrerId = newUser.referredBy;
     const referrerRef = db.doc(`userProfiles/${referrerId}`);
-    const POINTS_PER_REFERRAL = 10;
+    const POINTS_PER_REFERRAL = 5;
 
     try {
       await referrerRef.update({
@@ -382,3 +382,6 @@ export const awardReferralPoints = functions.firestore
     }
   });
 
+
+
+    
