@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -79,8 +78,12 @@ export function GenerateDescriptionForm() {
   }
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(generatedDescription);
-    toast({ title: 'Copied!', description: 'The description has been copied to your clipboard.' });
+    navigator.clipboard.writeText(generatedDescription).then(() => {
+      toast({ title: 'Copied!', description: 'The description has been copied to your clipboard.' });
+    }, (err) => {
+      console.error('Could not copy text: ', err);
+      toast({ variant: 'destructive', title: 'Copy Failed', description: 'Could not copy the description to your clipboard.' });
+    });
   };
 
   return (
