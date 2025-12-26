@@ -12,7 +12,7 @@ service cloud.firestore {
                       (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole'])) ||
                       // Allow backend functions to increment points for referrals
-                      (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
+                      (request.resource.data.aiPoints == resource.data.aiPoints + 10 && request.auth.uid != null);
       allow create: if request.auth.uid != null;
       
       // A user can only read and write to their own cart.
@@ -220,7 +220,9 @@ service cloud.firestore {
         // Allow read on individual documents if the user is the seller or reseller.
         allow get: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
         // Allow a reseller to create a 'share' activity.
-        allow create: if request.auth != null && request.resource.data.resellerId == request.auth.uid;
+        allow create: if request.auth != null &&
+                       request.resource.data.resellerId == request.auth.uid &&
+                       request.resource.data.activityType == 'share';
     }
 
     // Reseller Applications
