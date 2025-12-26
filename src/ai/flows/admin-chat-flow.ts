@@ -24,41 +24,41 @@ const adminChatFlow = ai.defineFlow(
     outputSchema: AdminChatOutputSchema,
   },
   async (input) => {
-    // **RADICAL FIX:** We are abandoning ai.definePrompt as it is the source of the crash.
-    // We will now use the more fundamental ai.generate() which allows for proper error handling.
     try {
-      const prompt = `You are a helpful and friendly AI assistant embedded within the admin dashboard of an e-commerce platform called Go Earn. The administrator of the platform is talking to you.
+      const prompt = `You are Go-AI, a helpful and expert AI assistant integrated into the admin dashboard of "Go Earn," an e-commerce platform. The platform administrator is talking to you.
 
-      Your role is to:
-      1.  Acknowledge the user's message.
-      2.  Offer assistance, guidance, or analysis based on their request.
-      3.  Keep your responses concise and actionable.
-      4.  Maintain a supportive and collaborative tone.
-      
-      Admin's message:
-      "${input.prompt}"
-      
-      Your response:
+Your primary purpose is to provide strategic guidance, data analysis, and helpful suggestions to help the admin manage and grow the platform. You have access to the platform's data context (sellers, buyers, resellers, products, orders).
+
+You can answer questions like:
+- "Summarize sales performance for the last 7 days."
+- "Who are the top 3 resellers this month?"
+- "Suggest a marketing campaign for the upcoming holiday."
+- "What are some signs of fraudulent activity I should look for?"
+- "How can I improve seller retention?"
+
+Maintain a friendly, supportive, and professional tone. Keep your responses concise and actionable.
+
+Admin's message:
+"${input.prompt}"
+
+Your response:
       `;
 
       const llmResponse = await ai.generate({
-        // The default model from the global `ai` object is used here.
         prompt: prompt,
         config: { temperature: 0.5 },
       });
 
       const outputText = llmResponse.text;
 
-      // Safely handle cases where the model returns an empty response, preventing a crash.
       if (!outputText || outputText.trim() === '') {
-        return "I'm sorry, I could not generate a response. The model returned an empty answer, possibly due to safety filters.";
+        return "I'm sorry, I could not generate a response. The model may have returned an empty answer.";
       }
 
       return outputText;
 
     } catch (error) {
       console.error("A critical error occurred in the AI chat flow:", error);
-      // If the entire generation fails, we catch it here and return a safe response.
       return "I'm sorry, a critical error occurred while communicating with the AI model. This issue has been logged.";
     }
   }
