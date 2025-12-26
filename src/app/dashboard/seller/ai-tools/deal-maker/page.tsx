@@ -55,7 +55,7 @@ export default function AIDealMakerPage() {
         }
 
         const product = products?.find(p => p.id === selectedProductId);
-        if (!product) return;
+        if (!product || !user) return;
 
         setIsLoading(true);
         setDeal(null);
@@ -66,6 +66,7 @@ export default function AIDealMakerPage() {
                 productCategory: product.category || 'General',
                 currentPrice: product.price,
                 productDescription: product.description || '',
+                userId: user.uid, // Pass the user ID to the flow
             });
             setDeal(result);
         } catch (error) {
@@ -85,7 +86,7 @@ export default function AIDealMakerPage() {
                            <Handshake className="text-primary" /> AI Deal Maker
                         </CardTitle>
                         <CardDescription>
-                           Select a product and let our AI generate strategic deal suggestions to boost your sales.
+                           Select a product and let our AI generate strategic deal suggestions to boost your sales. This costs 100 AI Points.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col md:flex-row items-center gap-4">
@@ -101,7 +102,7 @@ export default function AIDealMakerPage() {
                         </Select>
                         <Button onClick={handleGenerateDeals} disabled={isLoading || !selectedProductId}>
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            Generate Deals
+                            Generate Deals (100 Points)
                         </Button>
                     </CardContent>
                 </Card>

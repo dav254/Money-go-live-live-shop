@@ -44,6 +44,10 @@ export type GenerateDealSuggestionOutput = z.infer<typeof GenerateDealSuggestion
 const DEAL_MAKER_COST = 100;
 
 export async function generateDealSuggestion(input: GenerateDealSuggestionInput): Promise<GenerateDealSuggestionOutput> {
+  if (!input.userId) {
+    throw new Error('User ID is required to generate deal suggestions.');
+  }
+  
   const userRef = db.collection('userProfiles').doc(input.userId);
   const userSnap = await userRef.get();
 
