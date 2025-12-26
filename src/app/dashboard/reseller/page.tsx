@@ -11,7 +11,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link as LinkIcon, TrendingUp, Trophy, Share2, BadgeCent, Loader2 } from 'lucide-react';
+import { Link as LinkIcon, TrendingUp, Trophy, Share2, BadgeCent, Loader2, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
@@ -91,104 +91,6 @@ const TopResellersTable = () => {
     );
 };
 
-const BuyPointsDialog = () => {
-    const { user } = useUser();
-    const { toast } = useToast();
-    const router = useRouter();
-    const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
-
-    const pointPackages = [
-        { points: 500, price: 5, description: 'Get started' },
-        { points: 1200, price: 10, description: 'Best value' },
-        { points: 3000, price: 25, description: 'Power user' },
-    ];
-
-    const handlePayment = async (gateway: 'paystack' | 'paypal', points: number, price: number) => {
-        if (!user?.email) {
-            toast({
-                variant: 'destructive',
-                title: 'Cannot initiate payment',
-                description: 'User email is missing.',
-            });
-            return;
-        }
-        setIsLoadingPayment(gateway);
-
-        try {
-            const response = await fetch('/api/create-payment-intent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transactionType: 'points-purchase',
-                    amount: price,
-                    email: user.email,
-                    gateway: gateway,
-                    metadata: {
-                        userId: user.uid,
-                        points: points
-                    }
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || 'Failed to create payment intent.');
-            }
-
-            const data = await response.json();
-            
-            if (data.checkoutUrl) {
-                router.push(data.checkoutUrl);
-            } else {
-                throw new Error('No checkout URL received.');
-            }
-
-        } catch (err: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Payment Error',
-                description: err.message || 'Could not initiate payment. Please try again.',
-            });
-            setIsLoadingPayment(null);
-        }
-    };
-
-
-    return (
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Buy AI Points</DialogTitle>
-                <DialogDescription>
-                    Points are used to power your AI tools. Choose a package to top up your balance.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-                {pointPackages.map(pkg => (
-                    <Card key={pkg.points}>
-                        <CardContent className="p-4 flex items-center justify-between">
-                            <div>
-                                <p className="font-bold text-lg">{pkg.points.toLocaleString()} Points</p>
-                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xl font-bold text-primary">${pkg.price}</p>
-                                <div className="flex gap-2 mt-1">
-                                    <Button size="sm" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                        {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Paystack'}
-                                    </Button>
-                                    <Button size="sm" variant="secondary" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                         {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        </DialogContent>
-    );
-};
-
 
 function ResellerDashboardPageContent() {
     const { user, isLoading: isUserLoading } = useUser();
@@ -237,27 +139,26 @@ function ResellerDashboardPageContent() {
                 </h1>
             </div>
             <div className="flex items-center space-x-2">
-                <Dialog>
-                    <Card>
-                        <CardContent className="p-3 flex items-center gap-4">
-                            <div className="p-3 bg-primary/10 rounded-md">
-                                <BadgeCent className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Your Balance</p>
-                                {isLoading ? (
-                                    <Skeleton className="h-6 w-24" />
-                                ) : (
-                                    <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
-                                )}
-                            </div>
-                            <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">Buy Points</Button>
-                            </DialogTrigger>
-                        </CardContent>
-                    </Card>
-                    <BuyPointsDialog />
-                </Dialog>
+                <Card>
+                    <CardContent className="p-3 flex items-center gap-4">
+                        <div className="p-3 bg-primary/10 rounded-md">
+                            <BadgeCent className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Your Balance</p>
+                            {isLoading ? (
+                                <Skeleton className="h-6 w-24" />
+                            ) : (
+                                <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
+                            )}
+                        </div>
+                        <Button size="sm" variant="outline" asChild>
+                            <Link href="/dashboard/reseller/wallet">
+                                <Wallet className="mr-2 h-4 w-4" /> Withdraw
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
                 <Button asChild>
                     <Link href="/dashboard/reseller/products">
                         <LinkIcon className="mr-2 h-4 w-4" />
@@ -299,7 +200,7 @@ function ResellerDashboardPageContent() {
                                         fontSize={12}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(value) => `$${value}`}
+                                        tickFormatter={(value) => `$${"$"}{value}`}
                                     />
                                      <RechartsTooltip
                                         cursor={{ fill: 'hsla(var(--muted))' }}
