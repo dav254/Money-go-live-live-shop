@@ -20,6 +20,7 @@ import { generateProductDescription } from '@/ai/flows/generate-product-descript
 import { useState } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name is required.' }),
@@ -33,6 +34,7 @@ export function GenerateDescriptionForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedDescription, setGeneratedDescription] = useState('');
   const { toast } = useToast();
+  const { user } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,17 +48,30 @@ export function GenerateDescriptionForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+        toast({
+            variant: 'destructive',
+            title: 'Authentication Error',
+            description: 'You must be logged in to use this feature.',
+        });
+        return;
+    }
+    
     setIsLoading(true);
     setGeneratedDescription('');
     try {
-      const result = await generateProductDescription(values);
+      const result = await generateProductDescription({
+          ...values,
+          userId: user.uid,
+      });
       setGeneratedDescription(result.description);
-    } catch (error) {
+      toast({ title: 'Success!', description: 'A new product description has been generated.' });
+    } catch (error: any) {
       console.error('Failed to generate description:', error);
       toast({
         variant: 'destructive',
         title: 'Generation Failed',
-        description: 'There was an error generating the product description. Please try again.',
+        description: error.message || 'There was an error generating the product description. Please try again.',
       });
     } finally {
       setIsLoading(false);

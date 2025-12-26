@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -10,6 +11,10 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { db } from '@/firebase/server';
+import { FieldValue } from 'firebase-admin/firestore';
+
+const DESCRIPTION_COST = 25;
 
 const GenerateProductDescriptionInputSchema = z.object({
   productName: z.string().describe('The name of the product.'),
@@ -17,6 +22,7 @@ const GenerateProductDescriptionInputSchema = z.object({
   keyFeatures: z.string().describe('Key features of the product, separated by commas.'),
   targetAudience: z.string().describe('The target audience for the product.'),
   tone: z.string().describe('The desired tone of the description (e.g., professional, funny, exciting).'),
+  userId: z.string().describe('The ID of the user requesting the description.'),
 });
 
 export type GenerateProductDescriptionInput = z.infer<typeof GenerateProductDescriptionInputSchema>;
@@ -28,7 +34,36 @@ const GenerateProductDescriptionOutputSchema = z.object({
 export type GenerateProductDescriptionOutput = z.infer<typeof GenerateProductDescriptionOutputSchema>;
 
 export async function generateProductDescription(input: GenerateProductDescriptionInput): Promise<GenerateProductDescriptionOutput> {
-  return generateProductDescriptionFlow(input);
+  const userRef = db.collection('userProfiles').doc(input.userId);
+  const userSnap = await userRef.get();
+
+  if (!userSnap.exists) {
+    throw new Error('User not found.');
+  }
+  
+  const userData = userSnap.data();
+  const currentPoints = userData?.aiPoints || 0;
+
+  if (currentPoints < DESCRIPTION_COST) {
+    throw new Error(`Insufficient points. You need ${DESCRIPTION_COST} points, but you only have ${currentPoints}.`);
+  }
+
+  // Deduct points before generating
+  await userRef.update({
+    aiPoints: FieldValue.increment(-DESCRIPTION_COST),
+  });
+
+  try {
+    const result = await generateProductDescriptionFlow(input);
+    return result;
+  } catch (error) {
+    // If AI generation fails, refund the points
+    await userRef.update({
+      aiPoints: FieldValue.increment(DESCRIPTION_COST),
+    });
+    console.error('AI description generation failed, points refunded.', error);
+    throw new Error('Failed to generate description from the AI model.');
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -54,6 +89,9 @@ const generateProductDescriptionFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+     if (!output) {
+      throw new Error('Failed to generate description from the AI model.');
+    }
+    return output;
   }
 );
