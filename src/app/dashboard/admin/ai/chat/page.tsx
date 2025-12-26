@@ -14,11 +14,14 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import type { AdminChatMessage } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { askAdminAI } from '@/ai/flows/admin-chat-flow';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AIChatPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const messagesQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -27,40 +30,64 @@ export default function AIChatPage() {
 
   const { data: messages, isLoading } = useCollection<AdminChatMessage>(messagesQuery);
   const [input, setInput] = useState('');
+  const [isResponding, setIsResponding] = useState(false);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !user) return;
 
+    const userMessageText = input;
+    setInput(''); // Clear input immediately
+    setIsResponding(true);
+
+    const chatCollection = collection(firestore, 'admins', user.uid, 'adminChat');
+
+    // Store the user's message first
     const userMessage: Omit<AdminChatMessage, 'id'> = {
-      text: input,
+      text: userMessageText,
       sender: 'user',
       timestamp: serverTimestamp() as any,
     };
-    
-    // For now, we mock the AI response immediately for a better user experience.
-    // In a real scenario, this would come from a backend flow.
-    const aiResponse: Omit<AdminChatMessage, 'id'> = {
-      text: `I have stored your message: "${input}". Let's continue building our plan. What is the next step?`,
-      sender: 'ai',
-      timestamp: serverTimestamp() as any,
-    };
-
-    const chatCollection = collection(firestore, 'admins', user.uid, 'adminChat');
-    
-    // Add both messages to Firestore
     await addDoc(chatCollection, userMessage);
-    await addDoc(chatCollection, aiResponse);
     
-    setInput('');
+    try {
+        // Call the real AI flow
+        const aiResponseText = await askAdminAI(userMessageText);
+
+        // Store the AI's response
+        const aiResponse: Omit<AdminChatMessage, 'id'> = {
+            text: aiResponseText,
+            sender: 'ai',
+            timestamp: serverTimestamp() as any,
+        };
+        await addDoc(chatCollection, aiResponse);
+
+    } catch (error) {
+        console.error("AI chat error:", error);
+        toast({
+            variant: 'destructive',
+            title: 'AI Error',
+            description: 'I could not process your request. Please try again.'
+        });
+        // Optionally, add an error message to the chat
+        const errorResponse: Omit<AdminChatMessage, 'id'> = {
+            text: "Sorry, I encountered an error and couldn't respond.",
+            sender: 'ai',
+            timestamp: serverTimestamp() as any,
+        };
+        await addDoc(chatCollection, errorResponse);
+    } finally {
+        setIsResponding(false);
+    }
   };
 
   useEffect(() => {
     // Scroll to the bottom when messages are loaded or new messages are added
-    if (scrollAreaRef.current) {
-      scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight });
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isResponding]);
 
 
   return (
@@ -71,7 +98,7 @@ export default function AIChatPage() {
               <CardHeader>
                 <CardTitle className="font-headline text-2xl flex items-center gap-3">
                   <Bot className="text-primary" />
-                  My Memory & Planning
+                  AI Assistant Chat
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
@@ -100,18 +127,29 @@ export default function AIChatPage() {
                         )}
                       </div>
                     ))}
+                    {isResponding && (
+                         <div className="flex items-start gap-3 justify-start">
+                            <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
+                                <AvatarFallback><Bot size={18} /></AvatarFallback>
+                            </Avatar>
+                            <div className="max-w-md rounded-xl px-4 py-3 text-sm shadow bg-card border rounded-bl-none">
+                                <p className="animate-pulse">Thinking...</p>
+                            </div>
+                         </div>
+                    )}
                   </div>
                 </ScrollArea>
                 <form onSubmit={handleSendMessage} className="flex w-full items-center space-x-2 pt-4 border-t">
                   <Input
                     id="message"
-                    placeholder="Type your plans here..."
+                    placeholder="Ask me anything about your platform..."
                     className="flex-1"
                     autoComplete="off"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    disabled={isResponding}
                   />
-                  <Button type="submit" size="icon">
+                  <Button type="submit" size="icon" disabled={isResponding}>
                     <Send className="h-4 w-4" />
                     <span className="sr-only">Send</span>
                   </Button>
