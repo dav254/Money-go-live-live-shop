@@ -8,17 +8,18 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-// Define the input schema for the chat flow
-const AdminChatInputSchema = z.string();
+const AdminChatInputSchema = z.object({
+  prompt: z.string(),
+});
+export type AdminChatInput = z.infer<typeof AdminChatInputSchema>;
 
-// Define the output schema for the chat flow
 const AdminChatOutputSchema = z.string();
+export type AdminChatOutput = z.infer<typeof AdminChatOutputSchema>;
 
-// Define the prompt for the AI model
+
 const adminChatPrompt = ai.definePrompt({
   name: 'adminChatPrompt',
-  // The prompt expects an object with a 'prompt' key, not a raw string.
-  input: { schema: z.object({ prompt: z.string() }) },
+  input: { schema: AdminChatInputSchema },
   output: { schema: AdminChatOutputSchema },
   prompt: `You are a helpful and friendly AI assistant embedded within the admin dashboard of an e-commerce platform called Go Earn. The administrator of the platform is talking to you.
 
@@ -35,27 +36,20 @@ Your response:
 `,
 });
 
-// Define the main flow for the admin chat
 const adminChatFlow = ai.defineFlow(
   {
     name: 'adminChatFlow',
     inputSchema: AdminChatInputSchema,
     outputSchema: AdminChatOutputSchema,
   },
-  async (prompt) => {
-    // Pass the input string as an object to match the prompt's input schema
-    const { output } = await adminChatPrompt({ prompt });
-    // The exclamation mark asserts that output is not null, which is expected here.
+  async (input) => {
+    const { output } = await adminChatPrompt(input);
     return output!;
   }
 );
 
-/**
- * An exported async function that wraps the Genkit flow.
- * This is the function the frontend will call.
- * @param userInput The message string from the admin.
- * @returns A promise that resolves to the AI's response string.
- */
+
 export async function askAdminAI(userInput: string): Promise<string> {
-  return await adminChatFlow(userInput);
+  return await adminChatFlow({ prompt: userInput });
 }
+
