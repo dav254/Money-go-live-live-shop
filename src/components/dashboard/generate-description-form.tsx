@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateProductDescription } from '@/ai/flows/generate-product-description';
 import { useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
 
@@ -77,6 +77,11 @@ export function GenerateDescriptionForm() {
       setIsLoading(false);
     }
   }
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedDescription);
+    toast({ title: 'Copied!', description: 'The description has been copied to your clipboard.' });
+  };
 
   return (
     <Card>
@@ -183,7 +188,10 @@ export function GenerateDescriptionForm() {
                 <div className="mt-2 p-4 bg-muted/50 rounded-md whitespace-pre-wrap text-sm">
                     {generatedDescription}
                 </div>
-                 <Button variant="outline" className="mt-4">Copy Description</Button>
+                 <Button variant="outline" className="mt-4" onClick={handleCopy}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Description
+                </Button>
             </div>
         )}
       </CardContent>
