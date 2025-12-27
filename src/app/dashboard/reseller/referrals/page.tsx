@@ -24,14 +24,13 @@ import { Badge } from '@/components/ui/badge';
 import { Users, BadgeCent, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const columns: ColumnDef<UserProfile>[] = [
   {
-    accessorKey: 'fullName',
     header: 'New User',
     cell: ({ row }) => {
         const user = row.original;
@@ -91,20 +90,30 @@ export default function ResellerReferralsPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
+  const [referrals, setReferrals] = React.useState<UserProfile[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
+  // 1. Fetch all users who have a 'referredBy' field.
   const referredUsersQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'userProfiles'), where('referredBy', '==', user.uid));
   }, [user, firestore]);
 
   const { data: referredUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(referredUsersQuery);
+  
+  React.useEffect(() => {
+    if (areUsersLoading) {
+      setIsLoading(true);
+    } else {
+      setReferrals(referredUsers || []);
+      setIsLoading(false);
+    }
+  }, [referredUsers, areUsersLoading]);
 
-  const isLoading = isUserLoading || isProfileLoading || areUsersLoading;
-
-  const totalReferralPoints = (referredUsers?.length || 0) * 5;
+  const totalReferralPoints = (referrals?.length || 0) * 5;
 
   const table = useReactTable({
-    data: referredUsers || [],
+    data: referrals,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -122,7 +131,7 @@ export default function ResellerReferralsPage() {
                 Users who have signed up using your referral link. You earn 5 AI points for each new user.
             </p>
           </div>
-           <div className="grid grid-cols-2 gap-4">
+           <div className="grid grid-cols-1 gap-4">
                 <StatCard 
                     title="Total Referral Earnings"
                     value={`${totalReferralPoints.toLocaleString()} Points`}
@@ -136,19 +145,6 @@ export default function ResellerReferralsPage() {
                         </Link>
                     </Button>
                 </StatCard>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Your Total Balance</CardTitle>
-                         <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading ? (
-                            <Skeleton className="h-8 w-24" />
-                        ) : (
-                            <p className="text-2xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
-                        )}
-                    </CardContent>
-                </Card>
             </div>
         </div>
 
