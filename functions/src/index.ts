@@ -10,8 +10,8 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Processes a delivered order to distribute earnings and taxes automatically.
- * Triggered when an order's status is updated, specifically to 'delivered'.
+ * Processes a delivered order to distribute earnings, taxes, and referral bonuses.
+ * Triggered when an order's status is updated to 'delivered'.
  */
 export const processOrderAndDistributeEarnings = functions.firestore
     .document("orders/{orderId}")
@@ -28,12 +28,12 @@ export const processOrderAndDistributeEarnings = functions.firestore
       }
 
       // --- Basic Validation ---
-      if (!afterData || !afterData.sellerId || !afterData.productPrice) {
-        functions.logger.error("Order missing critical data (sellerId, productPrice)", { orderId });
+      if (!afterData || !afterData.sellerId || !afterData.productPrice || !afterData.buyerId) {
+        functions.logger.error("Order missing critical data (sellerId, buyerId, productPrice)", { orderId });
         return null;
       }
 
-      const { sellerId, resellerId, productPrice, shippingCost, commissionRate, productName } = afterData;
+      const { sellerId, resellerId, buyerId, productPrice, shippingCost, commissionRate, productName } = afterData;
       
       try {
         // --- Define Rates (can be moved to Firestore config later) ---
@@ -119,7 +119,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
           });
         }
         
-        // NEW: D. Seller Referrer's Commission Transaction & Notification
+        // D. Seller Referrer's Commission Transaction & Notification
         if (sellerReferrerId && sellerReferralCommission > 0) {
             const sellerReferrerTxRef = db.collection("walletTransactions").doc();
             batch.set(sellerReferrerTxRef, {
@@ -143,7 +143,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
                 timestamp: timestamp,
             });
         }
-
+        
         // E. Platform Fee Transaction
         const platformTransactionRef = db.collection("walletTransactions").doc();
         batch.set(platformTransactionRef, {
@@ -177,6 +177,31 @@ export const processOrderAndDistributeEarnings = functions.firestore
             status: 'unread',
             timestamp: timestamp,
         });
+
+        // H. Award referral points on first successful order
+        const buyerProfileRef = db.doc(`userProfiles/${buyerId}`);
+        const buyerProfileSnap = await buyerProfileRef.get();
+        const buyerProfile = buyerProfileSnap.data() as UserProfile | undefined;
+        
+        if (buyerProfile && buyerProfile.referredBy && !buyerProfile.referralBonusAwarded) {
+            const POINTS_PER_REFERRAL = 5;
+            const referrerRef = db.doc(`userProfiles/${buyerProfile.referredBy}`);
+            
+            batch.update(referrerRef, { aiPoints: admin.firestore.FieldValue.increment(POINTS_PER_REFERRAL) });
+            batch.update(buyerProfileRef, { referralBonusAwarded: true });
+
+            const referrerNotifRef = db.collection('notifications').doc();
+            batch.set(referrerNotifRef, {
+                userId: buyerProfile.referredBy,
+                type: 'commission',
+                title: 'Referral Bonus!',
+                message: `You earned ${POINTS_PER_REFERRAL} points because ${buyerProfile.fullName} made their first purchase!`,
+                link: '/dashboard/reseller/referrals',
+                status: 'unread',
+                timestamp: timestamp,
+            });
+        }
+
 
         // --- Commit all transactions atomically ---
         await batch.commit();
@@ -337,65 +362,3 @@ export const processPayout = functions.firestore
             return null;
         }
     });
-
-/**
- * Awards points to a referrer when a new user signs up with their code.
- */
-export const awardReferralPoints = functions.firestore
-  .document("userProfiles/{userId}")
-  .onCreate(async (snap, context) => {
-    const newUser = snap.data() as UserProfile;
-    const { userId } = context.params;
-
-    // Exit if there's no referrer
-    if (!newUser.referredBy) {
-      functions.logger.log(`User ${userId} was not referred. No points awarded.`);
-      return null;
-    }
-
-    const referrerId = newUser.referredBy;
-    const referrerRef = db.doc(`userProfiles/${referrerId}`);
-    const POINTS_PER_REFERRAL = 5;
-
-    try {
-      // Use a transaction to safely read and update the points
-      await db.runTransaction(async (transaction) => {
-        const referrerDoc = await transaction.get(referrerRef);
-        if (!referrerDoc.exists) {
-          throw new Error("Referrer user profile not found!");
-        }
-        const currentPoints = referrerDoc.data()?.aiPoints || 0;
-        const newPoints = currentPoints + POINTS_PER_REFERRAL;
-        transaction.update(referrerRef, { aiPoints: newPoints });
-      });
-
-      // Create a notification for the referrer
-      const notificationRef = db.collection('notifications').doc();
-      await notificationRef.set({
-        userId: referrerId,
-        type: 'commission', // Using 'commission' type for point notifications for now
-        title: 'You Earned Referral Points!',
-        message: `You earned ${POINTS_PER_REFERRAL} points because ${newUser.fullName} joined using your link.`,
-        link: '/dashboard/reseller/referrals',
-        status: 'unread',
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      functions.logger.info(`Awarded ${POINTS_PER_REFERRAL} points to referrer ${referrerId} for new user ${userId}.`);
-      return null;
-    } catch (error) {
-      functions.logger.error(`Failed to award referral points to ${referrerId}:`, error);
-      return null;
-    }
-  });
-
-
-
-    
-
-    
-
-    
-
-
-

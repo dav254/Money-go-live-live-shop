@@ -25,6 +25,7 @@ export interface UserProfile {
     walletBalance?: number;
     wishlist?: string[]; // Array of product IDs
     referredBy?: string; // ID of the user who referred this user
+    referralBonusAwarded?: boolean; // New field to track if the bonus has been given
     connections?: {
       tiktok?: {
         openId: string;
