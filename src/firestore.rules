@@ -6,7 +6,7 @@ service cloud.firestore {
     // Users can read and update their own profile.
     // Public read is now allowed for user profiles.
     match /userProfiles/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow list: if request.auth != null && request.query.where[0][0] == 'referredBy' && request.query.where[0][2] == request.auth.uid;
       // Allow user to update their own profile, OR an admin/backend function to update specific fields.
       allow update: if request.auth.uid == userId ||
@@ -132,7 +132,7 @@ service cloud.firestore {
                        )
                      );
 
-      allow delete: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' || resource.data.sellerId == request.auth.uid);
+      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
     }
     
     // Payout requests can only be created by the seller themselves.
@@ -306,5 +306,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
