@@ -41,7 +41,7 @@ const columns: ColumnDef<UserProfile>[] = [
                     <AvatarFallback>{user.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <Link href={`/dashboard/admin/users/buyers?id=${user.id}`} className="font-medium hover:underline">{user.fullName}</Link>
+                    <p className="font-medium">{user.fullName}</p>
                     <p className="text-xs text-muted-foreground">@{user.username}</p>
                 </div>
             </div>
