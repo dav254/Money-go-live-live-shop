@@ -142,7 +142,7 @@ export default function BuyerProductPage() {
     
     const recommendedProductsQuery = useMemoFirebase(() => {
         if (!product || !user) return null;
-        return query(collection(firestore, 'products'), where('category', '==', product.category), limit(5));
+        return query(collection(firestore, 'products'), where('sellerId', '==', product.sellerId), limit(5));
     }, [firestore, product, user]);
     const { data: recommendedProducts, isLoading: areRecsLoading } = useCollection<Product>(recommendedProductsQuery);
 
@@ -351,20 +351,6 @@ export default function BuyerProductPage() {
             });
         });
     };
-    
-    const handleLike = () => {
-        if (!firestore || !productId) return;
-        const productRef = doc(firestore, 'products', productId);
-        
-        const batch = writeBatch(firestore);
-        batch.update(productRef, { likes: increment(1) });
-        batch.commit().catch(console.error);
-
-        toast({
-            title: "Liked!",
-            description: "You liked this product.",
-        });
-    };
 
     const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading;
 
@@ -408,7 +394,6 @@ export default function BuyerProductPage() {
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
-                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70" onClick={handleLike}><Heart className="h-5 w-5" /></Button>
                         <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                     </div>
                     {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-bold">{discountPercentage}% OFF</Badge>}
@@ -527,7 +512,7 @@ export default function BuyerProductPage() {
                     
                     {/* 10. Recommended From This Seller */}
                     <div>
-                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">You Might Also Like</h2>
+                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from this Seller</h2>
                          {areRecsLoading ? (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <Skeleton className="h-64 w-full" />
@@ -538,7 +523,7 @@ export default function BuyerProductPage() {
                                 {filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}
                             </div>
                          ) : (
-                             <p className="text-neutral-400 text-sm">No recommendations available.</p>
+                             <p className="text-neutral-400 text-sm">No other products from this seller.</p>
                          )}
                     </div>
                 </div>
