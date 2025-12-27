@@ -1,9 +1,10 @@
+
 'use client';
 
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Share2, DollarSign, TrendingUp, BarChart, Rocket, CheckCircle, Sparkles, BookOpen } from 'lucide-react';
+import { Share2, DollarSign, TrendingUp, BarChart, Rocket, CheckCircle, Sparkles, BookOpen, Users, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 const resellerBenefits = [
@@ -53,7 +54,7 @@ export default function ResellerAboutPage() {
                     ))}
                 </div>
 
-                 <div className="py-8">
+                <div className="py-8">
                     <h2 className="text-center font-headline text-3xl font-bold mb-8">How It Works: Your 4 Steps to Earning</h2>
                     <div className="relative">
                          <div className="hidden md:block absolute top-6 left-0 w-full h-0.5 bg-border border-dashed"></div>
@@ -69,40 +70,50 @@ export default function ResellerAboutPage() {
                     </div>
                 </div>
 
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-8">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 font-headline text-2xl">
-                                <Rocket className="text-primary"/>
-                                Your Growth Engine
-                            </CardTitle>
-                             <CardDescription>
-                                We give you the tools. You bring the hustle.
-                             </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary flex-shrink-0" /><span>Zero startup cost. Start earning today.</span></div>
-                            <div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary flex-shrink-0" /><span>Access to thousands of products.</span></div>
-                            <div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary flex-shrink-0" /><span>Real-time dashboard to track all your stats.</span></div>
-                             <div className="flex items-center gap-3"><CheckCircle className="h-5 w-5 text-primary flex-shrink-0" /><span>Fast and secure payouts to your wallet.</span></div>
-                        </CardContent>
-                    </Card>
-                     <Card className="bg-primary/10 border-primary/50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 font-headline text-2xl">
-                               <BookOpen />
-                                Go Earn Academy
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                           <p>
-                                Want to learn the secrets of top resellers? Visit the Go Earn Academy for free video courses and tutorials on how to sell effectively on WhatsApp, TikTok, and more.
-                           </p>
-                           <Button asChild variant="secondary">
-                               <Link href="/dashboard/reseller/support/academy">Start Learning</Link>
-                           </Button>
-                        </CardContent>
-                    </Card>
+                <div className="py-8 bg-black rounded-lg">
+                    <h2 className="text-center font-headline text-3xl font-bold mb-8 text-white">Two Paths to Profit</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 container mx-auto max-w-5xl">
+                        <Card className="bg-neutral-900 border-green-500/30">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3 text-green-400">
+                                    <DollarSign />
+                                    1. Earn Cash from Sales
+                                </CardTitle>
+                                <CardDescription>This is your primary way to earn withdrawable cash.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p>Every time a buyer makes a purchase using your unique product link, you earn a percentage of that sale as a commission.</p>
+                                <ul className="list-disc pl-5 space-y-2 text-sm">
+                                    <li>Find products with high commission rates.</li>
+                                    <li>Share the links on your social media.</li>
+                                    <li>When a sale is completed, the cash is added directly to your wallet.</li>
+                                </ul>
+                                <Button asChild variant="secondary" className="bg-green-600/20 text-green-300 hover:bg-green-600/30">
+                                    <Link href="/dashboard/reseller/commissions">View My Commissions</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                         <Card className="bg-neutral-900 border-yellow-500/30">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3 text-yellow-400">
+                                    <Trophy />
+                                    2. Earn Prizes from Referrals
+                                </CardTitle>
+                                <CardDescription>Bring new users to the platform to earn points and unlock rewards.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p>Share your main referral link. For every new user (buyer, seller, or reseller) that signs up, you earn AI Points.</p>
+                                <ul className="list-disc pl-5 space-y-2 text-sm">
+                                    <li><strong className="text-yellow-700">Bronze Tier (350 points):</strong> Win a Go Earn T-Shirt.</li>
+                                    <li><strong className="text-gray-400">Silver Tier (700 points):</strong> Get a KES 1,000 Shopping Voucher.</li>
+                                    <li><strong className="text-yellow-400">Gold Tier (1000 points):</strong> Receive a KES 2,500 Cash Prize.</li>
+                                </ul>
+                                 <Button asChild variant="secondary" className="bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/30">
+                                    <Link href="/dashboard/reseller/referrals">Track My Referrals</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
                 <div className="text-center pt-8 space-y-4 border-t">
