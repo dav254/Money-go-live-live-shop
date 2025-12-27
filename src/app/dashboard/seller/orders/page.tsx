@@ -2,10 +2,7 @@
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users } from 'lucide-react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,23 +17,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useUser, useFirestore } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 
+// This is the new type for the orders we'll receive from our API
 interface ManagedOrder extends Order {
-    productName?: string;
-    productImage?: string;
     buyerName?: string;
+    resellerName?: string;
 }
-
-const ResellerCell = ({ resellerId }: { resellerId: string }) => {
-    const firestore = useFirestore();
-    const resellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', resellerId), [firestore, resellerId]);
-    const { data: reseller, isLoading } = useDoc<UserProfile>(resellerProfileRef);
-
-    if (isLoading) return <Skeleton className="h-5 w-24" />;
-    return <span className="font-medium">{reseller?.fullName || 'Unknown Reseller'}</span>;
-};
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
@@ -56,15 +46,39 @@ const AllOrdersTable = () => {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
+    const [orders, setOrders] = useState<ManagedOrder[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const ordersQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
-    }, [firestore, user]);
-
-    const { data: orders, isLoading: areOrdersLoading } = useCollection<ManagedOrder>(ordersQuery);
-
-    const isLoading = isUserLoading || areOrdersLoading;
+    const fetchOrders = useCallback(async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/seller/orders', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch orders');
+            }
+            const data = await response.json();
+            setOrders(data);
+        } catch (error) {
+            console.error("Error fetching orders:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not fetch your orders. Please try again.'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user, toast]);
+    
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders]);
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
@@ -72,6 +86,7 @@ const AllOrdersTable = () => {
         try {
             await updateDoc(orderRef, { orderStatus: newStatus });
             toast({ title: 'Success', description: `Order marked as ${newStatus}.` });
+            fetchOrders(); // Refetch orders to update the UI
         } catch (error) {
             console.error('Failed to update order status:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
@@ -144,7 +159,7 @@ const AllOrdersTable = () => {
                                     <div className="flex items-center gap-2 text-sm">
                                         <Users className="h-4 w-4 text-muted-foreground" />
                                         <div>
-                                            <ResellerCell resellerId={order.resellerId} />
+                                            <span className="font-medium">{order.resellerName || 'Unknown Reseller'}</span>
                                             <p className="text-xs text-green-500 font-semibold">${(order.resellerCommission || 0).toFixed(2)} commission</p>
                                         </div>
                                     </div>
