@@ -26,9 +26,9 @@ import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 
 const ResellerInfo = ({ order }: { order: Order }) => {
-    const productPrice = order.productPrice || (order.totalAmount - (order.shippingCost || 0));
+    const productPrice = order.productPrice || 0;
     const platformFee = productPrice * 0.10;
-
+    
     if (!order.resellerId) {
         const sellerNet = productPrice - platformFee;
         return (
@@ -74,34 +74,9 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 
-const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][] }) => {
-    const { user, isLoading: isUserLoading } = useUser();
+const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
-
-    const ordersQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        
-        return query(
-            collection(firestore, 'orders'),
-            where('sellerId', '==', user.uid)
-        );
-    }, [firestore, user]);
-
-    const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-
-    const filteredAndSortedOrders = useMemo(() => {
-        if (!data) return [];
-
-        let filtered = data;
-        if (statusFilter && statusFilter.length > 0) {
-            filtered = data.filter(order => statusFilter.includes(order.orderStatus));
-        }
-
-        return filtered.sort((a,b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
-    }, [data, statusFilter]);
-
-    const isLoading = isUserLoading || areOrdersLoading;
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
@@ -158,7 +133,7 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
         );
     }
 
-    if (!filteredAndSortedOrders || filteredAndSortedOrders.length === 0) {
+    if (!orders || orders.length === 0) {
        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
             <h2 className="text-xl font-semibold">No Orders Found</h2>
             <p className="text-muted-foreground">This section is empty. New orders will appear here.</p>
@@ -179,7 +154,7 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredAndSortedOrders.map(order => {
+                    {orders.map(order => {
                         const firstItem = order.items?.[0];
                         const productName = firstItem?.name || order.productName;
                         const productImage = firstItem?.imageUrl || order.productImage;
@@ -245,36 +220,82 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
     );
 };
 
+const OrderSection = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
+    return (
+         <Tabs defaultValue="all" className="space-y-4">
+            <TabsList>
+                <TabsTrigger value="all"><ListOrdered className="mr-2 h-4 w-4"/>All</TabsTrigger>
+                <TabsTrigger value="pending"><ShoppingCart className="mr-2 h-4 w-4" />New</TabsTrigger>
+                <TabsTrigger value="processing"><Package className="mr-2 h-4 w-4"/>Processing</TabsTrigger>
+                <TabsTrigger value="shipped"><Truck className="mr-2 h-4 w-4"/>Shipped</TabsTrigger>
+                <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all">
+                <AllOrdersTable orders={orders} isLoading={isLoading} />
+            </TabsContent>
+             <TabsContent value="pending">
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'pending')} isLoading={isLoading} />
+            </TabsContent>
+            <TabsContent value="processing">
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'processing')} isLoading={isLoading} />
+            </TabsContent>
+            <TabsContent value="shipped">
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped')} isLoading={isLoading} />
+            </TabsContent>
+            <TabsContent value="delivered">
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} />
+            </TabsContent>
+        </Tabs>
+    )
+}
 
 export default function SellerOrdersPage() {
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(
+            collection(firestore, 'orders'),
+            where('sellerId', '==', user.uid)
+        );
+    }, [firestore, user]);
+
+    const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    const { directSales, resellerSales } = useMemo(() => {
+        const direct: Order[] = [];
+        const reseller: Order[] = [];
+        if (data) {
+            data.forEach(order => {
+                if (order.resellerId) {
+                    reseller.push(order);
+                } else {
+                    direct.push(order);
+                }
+            });
+        }
+        return { directSales: direct, resellerSales: reseller };
+    }, [data]);
+
+    const isLoading = isUserLoading || areOrdersLoading;
+
   return (
     <SellerLayout>
        <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           My Orders
         </h1>
-        <Tabs defaultValue="all" className="space-y-4">
+        <Tabs defaultValue="direct" className="space-y-4">
             <TabsList>
-                <TabsTrigger value="all"><ListOrdered className="mr-2 h-4 w-4"/>All Orders</TabsTrigger>
-                <TabsTrigger value="pending"><ShoppingCart className="mr-2 h-4 w-4" />New Orders</TabsTrigger>
-                <TabsTrigger value="processing"><Package className="mr-2 h-4 w-4"/>Processing</TabsTrigger>
-                <TabsTrigger value="shipped"><Truck className="mr-2 h-4 w-4"/>Shipped</TabsTrigger>
-                <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
+                <TabsTrigger value="direct">Direct Sales ({directSales.length})</TabsTrigger>
+                <TabsTrigger value="reseller">Reseller Sales ({resellerSales.length})</TabsTrigger>
             </TabsList>
-            <TabsContent value="all">
-                <AllOrdersTable />
+             <TabsContent value="direct">
+                <OrderSection orders={directSales} isLoading={isLoading} />
             </TabsContent>
-             <TabsContent value="pending">
-                <AllOrdersTable statusFilter={['pending']} />
-            </TabsContent>
-            <TabsContent value="processing">
-                <AllOrdersTable statusFilter={['processing']} />
-            </TabsContent>
-            <TabsContent value="shipped">
-                <AllOrdersTable statusFilter={['shipped']} />
-            </TabsContent>
-            <TabsContent value="delivered">
-                <AllOrdersTable statusFilter={['delivered']} />
+             <TabsContent value="reseller">
+                <OrderSection orders={resellerSales} isLoading={isLoading} />
             </TabsContent>
         </Tabs>
       </div>
