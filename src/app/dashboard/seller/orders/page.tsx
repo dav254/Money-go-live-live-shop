@@ -82,6 +82,7 @@ const AllOrdersTable = () => {
 
     const sortedOrders = useMemo(() => {
         if (!orders) return [];
+        // Client-side sorting to show latest orders first
         return [...orders].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
     }, [orders]);
 
@@ -121,6 +122,7 @@ const AllOrdersTable = () => {
                             <TableHead>Product</TableHead>
                             <TableHead>Amount</TableHead>
                             <TableHead>Source / Commission</TableHead>
+                            <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -131,6 +133,7 @@ const AllOrdersTable = () => {
                                 <TableCell><Skeleton className="h-10 w-48" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-16" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+                                <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                             </TableRow>
@@ -156,6 +159,7 @@ const AllOrdersTable = () => {
                         <TableHead>Product</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Source / Commission</TableHead>
+                        <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -175,6 +179,9 @@ const AllOrdersTable = () => {
                             <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
                             <TableCell>
                                <ResellerInfo order={order} />
+                            </TableCell>
+                            <TableCell>
+                                {order.orderDate.toDate().toLocaleDateString()}
                             </TableCell>
                             <TableCell>
                                 <OrderStatusBadge status={order.orderStatus} />
