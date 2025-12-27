@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, ReactNode } from 'react';
@@ -343,45 +344,76 @@ export default function ResellerWalletPage() {
   }, [firestore, user]);
   const { data: payoutMethods, isLoading: isLoadingMethods } = useCollection<PayoutMethod>(payoutMethodsQuery);
 
-  // Fetch Orders and Payouts
+  // Fetch Orders to calculate commissions
   const resellerOrdersQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid), where('orderStatus', '==', 'delivered'));
+    return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
   }, [firestore, user]);
   
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(resellerOrdersQuery);
+
+  // Fetch Payouts to calculate what has been paid
   const payoutsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
   }, [firestore, user]);
   
-  const { data: completedOrders, isLoading: areOrdersLoading } = useCollection<Order>(resellerOrdersQuery);
   const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
   
   const isLoading = isUserLoading || isLoadingMethods || arePayoutsLoading || areOrdersLoading;
 
   // Calculate wallet balances
   const { availableBalance, pendingBalance, totalEarned } = useMemo(() => {
-    const totalCommission = completedOrders?.reduce((sum, order) => sum + (order.resellerCommission || 0), 0) || 0;
+    let clearedCommission = 0;
+    let pendingCommission = 0;
+    
+    (orders || []).forEach(order => {
+        const commission = order.resellerCommission || 0;
+        if (commission > 0) {
+            if (order.orderStatus === 'delivered') {
+                clearedCommission += commission;
+            } else if (order.orderStatus === 'processing' || order.orderStatus === 'shipped') {
+                pendingCommission += commission;
+            }
+        }
+    });
+
     const totalPaidOut = payouts?.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0) || 0;
     
-    // This is a simplified calculation. Pending balance would require querying non-delivered orders.
-    // For now, we'll represent the core logic.
     return {
-      availableBalance: totalCommission - totalPaidOut,
-      pendingBalance: 0, // Placeholder
-      totalEarned: totalCommission,
+      availableBalance: clearedCommission - totalPaidOut,
+      pendingBalance: pendingCommission,
+      totalEarned: clearedCommission,
     };
-  }, [completedOrders, payouts]);
+  }, [orders, payouts]);
+  
+  const getCommissionStatus = (orderStatus: Order['orderStatus']): {text: string, variant: 'secondary' | 'default' | 'destructive'} => {
+    switch(orderStatus) {
+        case 'delivered':
+            return { text: 'Cleared', variant: 'default' };
+        case 'shipped':
+        case 'processing':
+        case 'pending':
+            return { text: 'Pending', variant: 'secondary' };
+        case 'cancelled':
+        case 'disputed':
+            return { text: 'Cancelled', variant: 'destructive' };
+        default:
+            return { text: 'Pending', variant: 'secondary' };
+    }
+  }
   
   // Combine and sort transactions for history
   const transactions = useMemo(() => {
-    const commissionTxs = (completedOrders || []).map(order => ({
-      id: order.id,
-      type: 'commission' as const,
-      amount: order.resellerCommission || 0,
-      date: order.orderDate.toDate(),
-      description: `Commission: ${order.productName}`,
-      status: 'cleared'
+    const commissionTxs = (orders || [])
+        .filter(order => order.resellerCommission && order.resellerCommission > 0)
+        .map(order => ({
+            id: order.id,
+            type: 'commission' as const,
+            amount: order.resellerCommission || 0,
+            date: order.orderDate.toDate(),
+            description: `Commission: ${order.productName}`,
+            status: getCommissionStatus(order.orderStatus),
     }));
 
     const payoutTxs = (payouts || []).map(payout => ({
@@ -390,11 +422,11 @@ export default function ResellerWalletPage() {
       amount: -payout.amount,
       date: payout.requestedAt.toDate(),
       description: `Withdrawal to ${payout.payoutMethodInfo}`,
-      status: payout.status
+      status: { text: payout.status, variant: payout.status === 'completed' ? 'default' : 'secondary' } as {text: string, variant: 'secondary' | 'default' | 'destructive'},
     }));
 
     return [...commissionTxs, ...payoutTxs].sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [completedOrders, payouts]);
+  }, [orders, payouts]);
 
 
   const handleDeleteMethod = async (methodId: string) => {
@@ -447,14 +479,14 @@ export default function ResellerWalletPage() {
             title="Pending Clearance"
             value={`$${pendingBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
             icon={CircleDollarSign}
-            description="From orders awaiting completion."
+            description="From orders awaiting delivery."
             isLoading={isLoading}
           />
           <StatCard
-            title="Total Lifetime Earnings"
+            title="Total Cleared Earnings"
             value={`$${totalEarned.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
             icon={History}
-            description="All commissions earned to date."
+            description="All commissions from completed sales."
             isLoading={isLoading}
           />
         </div>
@@ -464,7 +496,7 @@ export default function ResellerWalletPage() {
                 {/* Transaction History */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><History /> Transaction History</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><History /> Commission & Payout History</CardTitle>
                     <CardDescription>A record of all your wallet activities.</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -474,17 +506,18 @@ export default function ResellerWalletPage() {
                           <TableHead>Date</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Description</TableHead>
+                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {isLoading ? (
                             [...Array(3)].map((_, i) => (
-                                <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-6" /></TableCell></TableRow>
+                                <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-6" /></TableCell></TableRow>
                             ))
                         ) : transactions.length > 0 ? (
-                          transactions.slice(0, 5).map((tx, i) => (
-                          <TableRow key={tx.id}>
+                          transactions.slice(0, 10).map((tx, i) => (
+                          <TableRow key={`${tx.id}-${i}`}>
                             <TableCell className="text-muted-foreground text-xs">{tx.date.toLocaleDateString()}</TableCell>
                             <TableCell>
                               <Badge variant={ tx.type === 'payout' ? 'destructive' : 'secondary'}>
@@ -492,13 +525,14 @@ export default function ResellerWalletPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="font-medium">{tx.description}</TableCell>
+                            <TableCell><Badge variant={tx.status.variant} className={tx.status.variant === 'default' ? 'bg-green-600/80' : tx.status.variant === 'secondary' ? 'bg-yellow-500/80' : ''}>{tx.status.text}</Badge></TableCell>
                             <TableCell className={`text-right font-semibold ${tx.amount >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                 {tx.amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}
                             </TableCell>
                           </TableRow>
                         ))) : (
                              <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">No transactions yet.</TableCell>
+                                <TableCell colSpan={5} className="h-24 text-center">No transactions yet.</TableCell>
                             </TableRow>
                         )}
                       </TableBody>
@@ -580,3 +614,4 @@ export default function ResellerWalletPage() {
     </ResellerLayout>
   );
 }
+
