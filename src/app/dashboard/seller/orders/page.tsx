@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -25,16 +26,35 @@ import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 
 const ResellerInfo = ({ order }: { order: Order }) => {
+    const productPrice = order.productPrice || (order.totalAmount - (order.shippingCost || 0));
+    const platformFee = productPrice * 0.10;
+
     if (!order.resellerId) {
-        return <span className="text-sm text-muted-foreground">Direct Sale</span>;
+        const sellerNet = productPrice - platformFee;
+        return (
+            <div className="text-sm">
+                <p className="font-medium">Direct Sale</p>
+                <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                   <p>Platform Fee: <span className="font-semibold text-red-400">-${platformFee.toFixed(2)}</span></p>
+                   <p>Your Net: <span className="font-semibold text-green-400">${sellerNet.toFixed(2)}</span></p>
+                </div>
+            </div>
+        );
     }
+    
+    const resellerCommission = order.resellerCommission || 0;
+    const sellerNet = productPrice - platformFee - resellerCommission;
 
     return (
         <div className="flex items-center gap-2 text-sm">
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
                 <p className="font-medium text-xs">Reseller ID: #{order.resellerId.substring(0,6)}...</p>
-                <p className="text-xs text-muted-foreground">Commission: <span className="font-semibold text-green-500">${(order.resellerCommission || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+                <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                   <p>Reseller Share: <span className="font-semibold text-orange-400">-${resellerCommission.toFixed(2)}</span></p>
+                   <p>Platform Fee: <span className="font-semibold text-red-400">-${platformFee.toFixed(2)}</span></p>
+                   <p>Your Net: <span className="font-semibold text-green-400">${sellerNet.toFixed(2)}</span></p>
+                </div>
             </div>
         </div>
     );
