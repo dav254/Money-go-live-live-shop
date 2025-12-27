@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -23,9 +24,15 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUser } from '@/firebase/auth/use-user';
+import { Separator } from '../ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { useUserProfile } from '@/firebase';
 
 export function ResellerSidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
   const isActive = (path: string) => pathname.startsWith(path);
   
   return (
@@ -38,6 +45,14 @@ export function ResellerSidebar() {
             <Link href="/dashboard/reseller">
               <AreaChart />
               <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/referrals')}>
+            <Link href="/dashboard/reseller/referrals">
+              <UsersIcon />
+              <span>My Referrals</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -62,14 +77,6 @@ export function ResellerSidebar() {
             <Link href="/dashboard/reseller/toolkit">
               <FolderKanban />
               <span>AI Toolkit</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/referrals')}>
-            <Link href="/dashboard/reseller/referrals">
-              <UsersIcon />
-              <span>My Referrals</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
