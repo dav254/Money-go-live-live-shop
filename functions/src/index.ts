@@ -358,7 +358,7 @@ export const awardReferralPoints = functions.firestore
     const POINTS_PER_REFERRAL = 5;
 
     try {
-      // Use a transaction to safely update the points
+      // Use a transaction to safely read and update the points
       await db.runTransaction(async (transaction) => {
         const referrerDoc = await transaction.get(referrerRef);
         if (!referrerDoc.exists) {
@@ -396,5 +396,6 @@ export const awardReferralPoints = functions.firestore
     
 
     
+
 
 
