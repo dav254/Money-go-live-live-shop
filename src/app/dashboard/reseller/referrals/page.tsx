@@ -31,6 +31,14 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const columns: ColumnDef<UserProfile>[] = [
   {
@@ -44,8 +52,8 @@ const columns: ColumnDef<UserProfile>[] = [
                     <AvatarFallback>{user.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="font-medium">{user.fullName}</p>
-                    <p className="text-xs text-muted-foreground">@{user.username}</p>
+                    <Link href={`/dashboard/admin/users/buyers?id=${user.id}`} className="font-medium hover:underline">{user.fullName}</Link>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
             </div>
         )
@@ -154,6 +162,8 @@ export default function ResellerReferralsPage() {
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+  
+  const availablePrizes = tiers.filter(tier => totalReferralPoints >= tier.points && !claimedTiers.includes(tier.name));
 
   return (
     <ResellerLayout>
@@ -176,9 +186,36 @@ export default function ResellerReferralsPage() {
                     isLoading={isLoading}
                     isPrimary
                 >
-                     <Button size="sm" variant="secondary" className="w-full" disabled>
-                        Redeem Points (Coming Soon)
-                    </Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button size="sm" variant="secondary" className="w-full">Redeem Prizes</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Redeem Your Prizes</DialogTitle>
+                                <DialogDescription>
+                                    You've unlocked the following rewards! Click to claim.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4 space-y-3">
+                                {availablePrizes.length > 0 ? (
+                                    availablePrizes.map(tier => (
+                                         <div key={tier.name} className="flex items-center justify-between rounded-lg border p-3">
+                                            <div>
+                                                <p className="font-semibold">{tier.name} Tier Prize</p>
+                                                <p className="text-sm text-muted-foreground">{tier.prize}</p>
+                                            </div>
+                                            <Button onClick={() => handleRedeemPrize(tier.name)}>Claim</Button>
+                                         </div>
+                                    ))
+                                ) : (
+                                    <p className="text-center text-muted-foreground py-8">
+                                        You have no new prizes to claim. Keep referring to unlock more!
+                                    </p>
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </StatCard>
             </div>
         </div>
