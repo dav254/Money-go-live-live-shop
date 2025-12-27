@@ -376,7 +376,7 @@ export const awardReferralPoints = functions.firestore
         type: 'commission', // Using 'commission' type for point notifications for now
         title: 'You Earned Referral Points!',
         message: `You earned ${POINTS_PER_REFERRAL} points because ${newUser.fullName} joined using your link.`,
-        link: '/dashboard/reseller',
+        link: '/dashboard/reseller/referrals',
         status: 'unread',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -396,3 +396,4 @@ export const awardReferralPoints = functions.firestore
     
 
     
+
