@@ -26,6 +26,7 @@ import {
   CircleDollarSign,
   DollarSign,
   Package,
+  Calculator,
 } from 'lucide-react';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import Link from 'next/link';
@@ -33,6 +34,8 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where, Timestamp } from 'firebase/firestore';
 import type { Order, Payout } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string, icon: React.ElementType, description?: string }) => (
     <Card>
@@ -61,6 +64,53 @@ const StatCardSkeleton = () => (
         </CardContent>
     </Card>
 )
+
+const EarningsCalculator = () => {
+    const [price, setPrice] = React.useState(100);
+    const platformFee = price * 0.10;
+    const resellerCommission = price * 0.10;
+    const sellerEarnings = price - platformFee - resellerCommission;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Calculator />
+                    Earnings Calculator
+                </CardTitle>
+                <CardDescription>
+                    See how much you earn from a sale after fees.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="sale-price">Product Sale Price (USD)</Label>
+                    <Input
+                        id="sale-price"
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                        placeholder="Enter sale price"
+                    />
+                </div>
+                <div className="space-y-2 rounded-lg border p-4">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Platform Fee (10%)</span>
+                        <span className="font-medium text-red-500">-${platformFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Reseller Commission (10%)</span>
+                        <span className="font-medium text-orange-400">-${resellerCommission.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
+                        <span>Your Net Earnings</span>
+                        <span className="text-green-500">${sellerEarnings.toFixed(2)}</span>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 
 export default function SellerEarningsPage() {
@@ -182,78 +232,85 @@ export default function SellerEarningsPage() {
             </>
           )}
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Sales Ledger &amp; Invoice History</CardTitle>
-            <CardDescription>A real-time breakdown of every sale you've made.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead className="text-right">Total Amount</TableHead>
-                  <TableHead className="text-right">Platform Fee</TableHead>
-                  <TableHead className="text-right">Reseller Fee</TableHead>
-                  <TableHead className="text-right">Your Net</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Invoice</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                     [...Array(5)].map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                            <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                            <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                <Card>
+                <CardHeader>
+                    <CardTitle>Sales Ledger &amp; Invoice History</CardTitle>
+                    <CardDescription>A real-time breakdown of every sale you've made.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead>Order</TableHead>
+                        <TableHead className="text-right">Total Amount</TableHead>
+                        <TableHead className="text-right">Platform Fee</TableHead>
+                        <TableHead className="text-right">Reseller Fee</TableHead>
+                        <TableHead className="text-right">Your Net</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Invoice</TableHead>
                         </TableRow>
-                    ))
-                ) : recentTransactions.length > 0 ? (
-                    recentTransactions.map((order) => {
-                       const platformFee = order.platformFee || 0;
-                       const resellerCommission = order.resellerCommission || 0;
-                       const netEarning = order.totalAmount - platformFee - resellerCommission;
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            [...Array(5)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
+                                </TableRow>
+                            ))
+                        ) : recentTransactions.length > 0 ? (
+                            recentTransactions.map((order) => {
+                            const platformFee = order.platformFee || 0;
+                            const resellerCommission = order.resellerCommission || 0;
+                            const netEarning = order.totalAmount - platformFee - resellerCommission;
 
-                       return (
-                            <TableRow key={order.id}>
-                                <TableCell>
-                                    <div className="font-medium">{order.productName}</div>
-                                    <div className="text-xs text-muted-foreground">#{order.id.substring(0,6)}...</div>
-                                </TableCell>
-                                <TableCell className="text-right font-semibold">${order.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                <TableCell className="text-right text-red-500">-${platformFee.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                <TableCell className="text-right text-orange-400">-${resellerCommission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                <TableCell className="text-right font-bold text-green-500">${netEarning.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                <TableCell>
-                                <Badge variant={order.orderStatus === 'delivered' ? 'default' : 'secondary'} className={order.orderStatus === 'delivered' ? 'bg-green-600/80' : ''}>
-                                    {order.orderStatus}
-                                </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Button asChild variant="outline" size="sm">
-                                        <Link href={`/invoice/${order.id}`}>View</Link>
-                                    </Button>
+                            return (
+                                    <TableRow key={order.id}>
+                                        <TableCell>
+                                            <div className="font-medium">{order.productName}</div>
+                                            <div className="text-xs text-muted-foreground">#{order.id.substring(0,6)}...</div>
+                                        </TableCell>
+                                        <TableCell className="text-right font-semibold">${order.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="text-right text-red-500">-${platformFee.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="text-right text-orange-400">-${resellerCommission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="text-right font-bold text-green-500">${netEarning.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell>
+                                        <Badge variant={order.orderStatus === 'delivered' ? 'default' : 'secondary'} className={order.orderStatus === 'delivered' ? 'bg-green-600/80' : ''}>
+                                            {order.orderStatus}
+                                        </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button asChild variant="outline" size="sm">
+                                                <Link href={`/invoice/${order.id}`}>View</Link>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                            );
+                            })
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={7} className="h-24 text-center">
+                                    No transactions yet.
                                 </TableCell>
                             </TableRow>
-                       );
-                    })
-                ) : (
-                     <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
-                            No transactions yet.
-                        </TableCell>
-                    </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                        )}
+                    </TableBody>
+                    </Table>
+                </CardContent>
+                </Card>
+            </div>
+            <div className="space-y-6">
+                <EarningsCalculator />
+            </div>
+        </div>
       </div>
     </SellerLayout>
   );
