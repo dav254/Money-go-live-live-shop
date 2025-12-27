@@ -42,7 +42,7 @@ const columns: ColumnDef<UserProfile>[] = [
                 </Avatar>
                 <div>
                     <Link href={`/dashboard/admin/users/buyers?id=${user.id}`} className="font-medium hover:underline">{user.fullName}</Link>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                    <p className="text-xs text-muted-foreground">@{user.username}</p>
                 </div>
             </div>
         )
@@ -83,6 +83,25 @@ const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary, children }: 
       </CardContent>
        {children && <CardFooter className="mt-auto">{children}</CardFooter>}
     </Card>
+);
+
+const DataTableSkeleton = () => (
+    <div className="rounded-md border">
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    {Array.from({ length: 4 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                        {Array.from({ length: 4 }).map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    </div>
 );
 
 
