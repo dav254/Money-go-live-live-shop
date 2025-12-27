@@ -1,5 +1,4 @@
 
-
 import { Timestamp } from 'firebase/firestore';
 
 // Represents the user's public profile
@@ -25,6 +24,7 @@ export interface UserProfile {
     shopName?: string; // For sellers
     walletBalance?: number;
     wishlist?: string[]; // Array of product IDs
+    referredBy?: string; // ID of the user who referred this user
     connections?: {
       tiktok?: {
         openId: string;
@@ -453,3 +453,5 @@ export interface Coupon {
     status: 'active' | 'expired' | 'archived';
     isResellerOnly: boolean;
 }
+
+    
