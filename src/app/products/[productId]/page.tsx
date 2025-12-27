@@ -102,9 +102,9 @@ export default function BuyerProductPage() {
     // This effect runs when the component mounts, which is when a video is viewed.
     useEffect(() => {
         if (firestore && productId && user) {
-        const productRef = doc(firestore, 'products', productId);
-        // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
-        updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
+            const productRef = doc(firestore, 'products', productId);
+            // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
+            updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
         }
     }, [firestore, productId, user]);
 
@@ -368,6 +368,11 @@ export default function BuyerProductPage() {
 
     const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading;
 
+    const filteredRecommendedProducts = useMemo(() => {
+        if (!recommendedProducts) return [];
+        return recommendedProducts.filter(p => p.id !== productId);
+    }, [recommendedProducts, productId]);
+
     if (isLoading) {
         return <MainLayout><ProductPageSkeleton /></MainLayout>;
     }
@@ -557,5 +562,7 @@ export default function BuyerProductPage() {
         </LayoutComponent>
     );
 }
+
+    
 
     
