@@ -1,9 +1,13 @@
 
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users } from 'lucide-react';
-import type { Order, UserProfile } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
+import type { Order, UserProfile, Product } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -17,16 +21,37 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import React, { useState, useEffect, useCallback } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import React, { useMemo } from 'react';
 
+const ResellerInfo = ({ order }: { order: Order }) => {
+    const firestore = useFirestore();
+    
+    const resellerProfileRef = useMemoFirebase(() => {
+        if (!order.resellerId) return null;
+        return doc(firestore, 'userProfiles', order.resellerId);
+    }, [firestore, order.resellerId]);
 
-// This is the new type for the orders we'll receive from our API
-interface ManagedOrder extends Order {
-    buyerName?: string;
-    resellerName?: string;
-}
+    const { data: reseller, isLoading: isResellerLoading } = useDoc<UserProfile>(resellerProfileRef);
+
+    if (!order.resellerId) {
+        return <span className="text-sm text-muted-foreground">Direct Sale</span>;
+    }
+
+    if (isResellerLoading) {
+        return <Skeleton className="h-5 w-24" />;
+    }
+
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <div>
+                <p className="font-medium">{reseller?.fullName || 'Unknown Reseller'}</p>
+                <p className="text-xs text-muted-foreground">Commission: <span className="font-semibold text-green-500">${(order.resellerCommission || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
+            </div>
+        </div>
+    );
+};
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
@@ -46,39 +71,22 @@ const AllOrdersTable = () => {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [orders, setOrders] = useState<ManagedOrder[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
 
-    const fetchOrders = useCallback(async () => {
-        if (!user) return;
-        setIsLoading(true);
-        try {
-            const token = await user.getIdToken();
-            const response = await fetch('/api/seller/orders', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (!response.ok) {
-                throw new Error('Failed to fetch orders');
-            }
-            const data = await response.json();
-            setOrders(data);
-        } catch (error) {
-            console.error("Error fetching orders:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not fetch your orders. Please try again.'
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [user, toast]);
-    
-    useEffect(() => {
-        fetchOrders();
-    }, [fetchOrders]);
+    const ordersQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        // Simplified query to fix permission error. Sorting is now done on the client.
+        return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    const sortedOrders = useMemo(() => {
+        if (!orders) return [];
+        return [...orders].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
+    }, [orders]);
+
+
+    const isLoading = isUserLoading || areOrdersLoading;
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
@@ -86,10 +94,21 @@ const AllOrdersTable = () => {
         try {
             await updateDoc(orderRef, { orderStatus: newStatus });
             toast({ title: 'Success', description: `Order marked as ${newStatus}.` });
-            fetchOrders(); // Refetch orders to update the UI
         } catch (error) {
             console.error('Failed to update order status:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
+        }
+    };
+    
+    const handleDelete = async (orderId: string) => {
+        if (!firestore) return;
+        const orderRef = doc(firestore, 'orders', orderId);
+        try {
+            await deleteDoc(orderRef);
+            toast({ title: 'Order Deleted', description: 'The order has been removed from your list.' });
+        } catch (error) {
+            console.error('Failed to delete order:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the order.' });
         }
     };
 
@@ -122,7 +141,7 @@ const AllOrdersTable = () => {
         );
     }
 
-    if (!orders || orders.length === 0) {
+    if (!sortedOrders || sortedOrders.length === 0) {
        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
             <h2 className="text-xl font-semibold">No Orders Found</h2>
             <p className="text-muted-foreground">Your sales history will appear here.</p>
@@ -142,49 +161,54 @@ const AllOrdersTable = () => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {orders.map(order => (
+                    {sortedOrders.map(order => (
                         <TableRow key={order.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
                                     <Avatar className="h-10 w-10 rounded-md">
                                         <AvatarImage src={order.productImage} />
-                                        <AvatarFallback>{order.productName?.charAt(0)}</AvatarFallback>
+                                        <AvatarFallback>{(order.productName || 'P').charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <span className="font-medium">{order.productName}</span>
                                 </div>
                             </TableCell>
                             <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
                             <TableCell>
-                                {order.resellerId ? (
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <Users className="h-4 w-4 text-muted-foreground" />
-                                        <div>
-                                            <span className="font-medium">{order.resellerName || 'Unknown Reseller'}</span>
-                                            <p className="text-xs text-green-500 font-semibold">${(order.resellerCommission || 0).toFixed(2)} commission</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <span className="text-sm text-muted-foreground">Direct Sale</span>
-                                )}
+                               <ResellerInfo order={order} />
                             </TableCell>
                             <TableCell>
                                 <OrderStatusBadge status={order.orderStatus} />
                             </TableCell>
                             <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm">Manage</Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
-                                        {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
-                                        {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
-                                        <DropdownMenuSeparator />
-                                        {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                <AlertDialog>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="sm">Manage</Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
+                                            {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
+                                            {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
+                                            <DropdownMenuSeparator />
+                                            {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive">Delete Order</DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will permanently delete this order. This action cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDelete(order.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </TableCell>
                         </TableRow>
                     ))}
