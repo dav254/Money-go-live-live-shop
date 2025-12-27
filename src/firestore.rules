@@ -6,7 +6,7 @@ service cloud.firestore {
     // Users can read and update their own profile.
     // Public read is now allowed for user profiles.
     match /userProfiles/{userId} {
-      allow read: if true;
+      allow read: if request.auth != null && request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
       allow list: if request.auth != null && request.query.where[0][0] == 'referredBy' && request.query.where[0][2] == request.auth.uid;
       // Allow user to update their own profile, OR an admin/backend function to update specific fields.
       allow update: if request.auth.uid == userId ||
@@ -306,3 +306,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
