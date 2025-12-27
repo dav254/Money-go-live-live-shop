@@ -62,7 +62,6 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         
-        // Simplified query to comply with security rules
         return query(
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
@@ -75,12 +74,10 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
         if (!data) return [];
 
         let filtered = data;
-        // Perform status filtering on the client-side
         if (statusFilter && statusFilter.length > 0) {
             filtered = data.filter(order => statusFilter.includes(order.orderStatus));
         }
 
-        // Perform sorting on the client-side
         return filtered.sort((a,b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
     }, [data, statusFilter]);
 
@@ -162,60 +159,66 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredAndSortedOrders.map(order => (
-                        <TableRow key={order.id}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-10 w-10 rounded-md">
-                                        <AvatarImage src={order.productImage} />
-                                        <AvatarFallback>{(order.productName || 'P').charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{order.productName}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
-                            <TableCell>
-                               <ResellerInfo order={order} />
-                            </TableCell>
-                            <TableCell>
-                                {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
-                            </TableCell>
-                            <TableCell>
-                                <OrderStatusBadge status={order.orderStatus} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <AlertDialog>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" size="sm">Manage</Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
-                                            {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
-                                            {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
-                                            <DropdownMenuSeparator />
-                                            {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
-                                            <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem className="text-destructive">Delete Order</DropdownMenuItem>
-                                            </AlertDialogTrigger>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will permanently delete this order. This action cannot be undone.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(order.id)}>Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {filteredAndSortedOrders.map(order => {
+                        const firstItem = order.items?.[0];
+                        const productName = firstItem?.name || order.productName;
+                        const productImage = firstItem?.imageUrl || order.productImage;
+                        
+                        return (
+                            <TableRow key={order.id}>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10 rounded-md">
+                                            <AvatarImage src={productImage} />
+                                            <AvatarFallback>{(productName || 'P').charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="font-medium">{productName}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
+                                <TableCell>
+                                   <ResellerInfo order={order} />
+                                </TableCell>
+                                <TableCell>
+                                    {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
+                                </TableCell>
+                                <TableCell>
+                                    <OrderStatusBadge status={order.orderStatus} />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <AlertDialog>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm">Manage</Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
+                                                {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
+                                                {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
+                                                <DropdownMenuSeparator />
+                                                {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem className="text-destructive">Delete Order</DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>This will permanently delete this order. This action cannot be undone.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDelete(order.id)}>Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
         </div>
