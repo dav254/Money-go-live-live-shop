@@ -1,10 +1,11 @@
 
+
 'use server';
 
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import type { Order, Product } from '@/lib/types';
-import { collection, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
 
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     const platformFee = subtotal * PLATFORM_FEE_RATE;
     let resellerCommission = 0;
     if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
-        resellerCommission = subtotal * (productData.commissionRate / 100);
+        resellerCommission = subtotal * 0.10;
     }
     
     // 3. Update the order to 'processing'
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
       orderStatus: 'processing',
       paymentMethod: 'demo_simulation',
       platformFee: platformFee,
-      resellerCommission: resellerCommission > 0 ? resellerCommission : null,
+      resellerCommission: resellerCommission,
     });
 
     // 4. Create a payment log entry

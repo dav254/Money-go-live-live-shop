@@ -71,16 +71,22 @@ export async function POST(request: Request) {
           const platformFee = subtotal * PLATFORM_FEE_RATE;
 
           let resellerCommission = 0;
-          // If a reseller is involved, calculate a fixed 10% commission
-          if (orderData.resellerId) {
-              resellerCommission = subtotal * 0.10;
-          }
+            if (orderData.resellerId) {
+                const productRef = doc(db, 'products', orderData.productId!);
+                const productSnap = await getDoc(productRef);
+                if (productSnap.exists()) {
+                    const productData = productSnap.data() as Product;
+                    if (productData.commissionRate && productData.commissionRate > 0) {
+                        resellerCommission = subtotal * 0.10;
+                    }
+                }
+            }
           
           await updateDoc(orderRef, {
             orderStatus: 'processing',
             paymentMethod: `paystack_${event.data.channel}`,
             platformFee: platformFee,
-            resellerCommission: resellerCommission > 0 ? resellerCommission : 0,
+            resellerCommission: resellerCommission,
           });
           
           const paymentRef = collection(db, 'payments');

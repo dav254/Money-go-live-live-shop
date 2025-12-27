@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -132,10 +133,21 @@ export default function CartPage() {
             resellerId = userProfile.referredBy;
         }
 
+        // Fetch all product details to check commission rates
+        const productIds = cartItems.map(item => item.productId);
+        const productsQuery = query(collection(firestore, 'products'), where('__name__', 'in', productIds));
+        const productsSnapshot = await getDocs(productsQuery);
+        const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data() as Product]));
+
         let totalCommission = 0;
         if (resellerId) {
-             // Use a fixed 10% commission rate for all items if a reseller is involved
-            totalCommission = subtotal * 0.10;
+            cartItems.forEach(item => {
+                const product = productsMap.get(item.productId);
+                // If the product has a commission rate enabled, calculate 10%
+                if (product && product.commissionRate && product.commissionRate > 0) {
+                    totalCommission += item.price * item.quantity * 0.10;
+                }
+            });
         }
 
         const newOrderData: Partial<Order> = {
@@ -156,7 +168,7 @@ export default function CartPage() {
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            resellerCommission: totalCommission > 0 ? totalCommission : 0,
+            resellerCommission: totalCommission,
             ...(resellerId && { resellerId: resellerId }),
         };
 
@@ -242,3 +254,4 @@ export default function CartPage() {
         </BuyerLayout>
     );
 }
+

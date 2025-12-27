@@ -225,8 +225,9 @@ export default function BuyerProductPage() {
         }
 
         let resellerCommission = 0;
-        // If a reseller is involved and the product is enabled for reselling (fixed 10%)
+        // If a reseller is involved and the product has a non-zero commission rate (i.e., is enabled for reselling)
         if (resellerId && product.commissionRate && product.commissionRate > 0) {
+            // Use a fixed 10% commission rate for the calculation
             resellerCommission = product.price * 0.10;
         }
         
@@ -248,7 +249,7 @@ export default function BuyerProductPage() {
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            resellerCommission: resellerCommission > 0 ? resellerCommission : 0,
+            resellerCommission: resellerCommission,
             ...(resellerId && { resellerId: resellerId }),
         };
 
@@ -563,4 +564,5 @@ export default function BuyerProductPage() {
     
 
     
+
 
