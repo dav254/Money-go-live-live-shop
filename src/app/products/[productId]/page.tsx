@@ -141,9 +141,9 @@ export default function BuyerProductPage() {
     const { data: reviews, isLoading: areReviewsLoading } = useCollection<Review>(reviewsQuery);
     
     const recommendedProductsQuery = useMemoFirebase(() => {
-        if (!product || !user) return null;
+        if (!product) return null;
         return query(collection(firestore, 'products'), where('sellerId', '==', product.sellerId), limit(5));
-    }, [firestore, product, user]);
+    }, [firestore, product]);
     const { data: recommendedProducts, isLoading: areRecsLoading } = useCollection<Product>(recommendedProductsQuery);
 
     const [isFollowing, setIsFollowing] = useState(false);
@@ -510,7 +510,7 @@ export default function BuyerProductPage() {
                         </AccordionItem>
                     </Accordion>
                     
-                    {/* 10. Recommended From This Seller */}
+                    {/* 10. More from this Seller */}
                     <div>
                         <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from this Seller</h2>
                          {areRecsLoading ? (
@@ -551,3 +551,4 @@ export default function BuyerProductPage() {
     
 
     
+
