@@ -28,6 +28,7 @@ import {
 } from '@tanstack/react-table';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
+import { Badge } from '@/components/ui/badge';
 
 const TableSkeleton = () => {
     return (
