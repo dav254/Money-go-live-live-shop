@@ -2,7 +2,7 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, getDocs, collection, query, where, limit, updateDoc } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -68,7 +68,6 @@ export default function CheckoutPage() {
 
     const { data: order, isLoading: isLoadingOrder, error: orderError } = useDoc<Order>(orderRef);
     
-    // We need to fetch the seller's shipping cost from their profile, not the order, to prevent manipulation.
     const [liveShippingCost, setLiveShippingCost] = useState<number>(0);
     const [isLoadingShipping, setIsLoadingShipping] = useState(true);
 
@@ -76,13 +75,16 @@ export default function CheckoutPage() {
         const fetchSellerShipping = async () => {
             if (order?.sellerId && firestore) {
                 setIsLoadingShipping(true);
-                // In a real app, this might come from a dedicated 'products' subcollection or from the seller's main product.
-                // For simplicity, we'll assume a flat rate from the seller's main product for now.
-                const productsRef = collection(firestore, 'products');
-                const q = query(productsRef, where('sellerId', '==', order.sellerId), limit(1));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const productData = querySnapshot.docs[0].data() as Product;
+                // Use a single product from the items array to get the seller's info
+                const firstItemProductId = order.items?.[0]?.productId || order.productId;
+                if (!firstItemProductId) {
+                    setIsLoadingShipping(false);
+                    return;
+                }
+                const productRef = doc(firestore, 'products', firstItemProductId);
+                const productSnap = await getDoc(productRef);
+                if (productSnap.exists()) {
+                    const productData = productSnap.data() as Product;
                     setLiveShippingCost(productData.shippingCost || 0);
                 }
                 setIsLoadingShipping(false);
@@ -103,7 +105,6 @@ export default function CheckoutPage() {
         if (order.items && order.items.length > 0) {
             return order.items;
         }
-        // Fallback for older single-item orders
         if (order.productId && order.productName && order.productPrice) {
             return [{
                 productId: order.productId,
@@ -148,7 +149,6 @@ export default function CheckoutPage() {
             const data = await response.json();
             
             if (data.checkoutUrl) {
-                // Redirect user to the payment page
                 router.push(data.checkoutUrl);
             } else {
                 throw new Error('No checkout URL received.');

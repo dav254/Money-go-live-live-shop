@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import type { Order, Product } from '@/lib/types';
+import { collection, doc, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
 
@@ -19,10 +20,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
     }
 
-    const orderRef = db.doc(`orders/${orderId}`);
-    const orderSnap = await orderRef.get();
+    const orderRef = doc(db, 'orders', orderId);
+    const orderSnap = await getDoc(orderRef);
 
-    if (!orderSnap.exists) {
+    if (!orderSnap.exists()) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
@@ -31,19 +32,16 @@ export async function POST(request: Request) {
     // --- Perform the same logic as the payment webhooks ---
     
     // Determine the primary product ID from the order
-    const firstItemProductId = orderData.items?.[0]?.productId;
-    const legacyProductId = orderData.productId;
-    const primaryProductId = firstItemProductId || legacyProductId;
-
+    const primaryProductId = orderData.items?.[0]?.productId || orderData.productId;
     if (!primaryProductId) {
          throw new Error(`Product ID is missing from order ${orderId}.`);
     }
     
     // 1. Fetch the product to get the commission rate
-    const productRef = db.doc(`products/${primaryProductId}`);
-    const productSnap = await productRef.get();
-    if (!productSnap.exists) {
-        throw new Error(`Product not found for order ${orderId}.`);
+    const productRef = doc(db, 'products', primaryProductId);
+    const productSnap = await getDoc(productRef);
+    if (!productSnap.exists()) {
+        throw new Error(`Product ${primaryProductId} not found for order ${orderId}.`);
     }
     const productData = productSnap.data() as Product;
 
@@ -52,11 +50,11 @@ export async function POST(request: Request) {
     const platformFee = subtotal * PLATFORM_FEE_RATE;
     let resellerCommission = 0;
     if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
-        resellerCommission = (orderData.productPrice || 0) * (productData.commissionRate / 100);
+        resellerCommission = subtotal * (productData.commissionRate / 100);
     }
     
     // 3. Update the order to 'processing'
-    await orderRef.update({
+    await updateDoc(orderRef, {
       orderStatus: 'processing',
       paymentMethod: 'demo_simulation',
       platformFee: platformFee,
@@ -64,14 +62,14 @@ export async function POST(request: Request) {
     });
 
     // 4. Create a payment log entry
-    const paymentRef = db.collection('payments');
-    await paymentRef.add({
+    const paymentRef = collection(db, 'payments');
+    await addDoc(paymentRef, {
         orderId: orderId,
         userId: orderData.buyerId,
         amount: orderData.totalAmount,
         paymentMethod: 'demo_simulation',
         paymentStatus: 'completed',
-        paymentDate: new Date(),
+        paymentDate: serverTimestamp(),
         transactionType: 'product-purchase',
         transactionId: `SIM_${Date.now()}`,
     });

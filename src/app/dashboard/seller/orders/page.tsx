@@ -25,28 +25,15 @@ import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 
 const ResellerInfo = ({ order }: { order: Order }) => {
-    const firestore = useFirestore();
-    
-    const resellerProfileRef = useMemoFirebase(() => {
-        if (!order.resellerId) return null;
-        return doc(firestore, 'userProfiles', order.resellerId);
-    }, [firestore, order.resellerId]);
-
-    const { data: reseller, isLoading: isResellerLoading } = useDoc<UserProfile>(resellerProfileRef);
-
     if (!order.resellerId) {
         return <span className="text-sm text-muted-foreground">Direct Sale</span>;
-    }
-
-    if (isResellerLoading) {
-        return <Skeleton className="h-5 w-24" />;
     }
 
     return (
         <div className="flex items-center gap-2 text-sm">
             <Users className="h-4 w-4 text-muted-foreground" />
             <div>
-                <p className="font-medium">{reseller?.fullName || 'Unknown Reseller'}</p>
+                <p className="font-medium text-xs">Reseller ID: #{order.resellerId.substring(0,6)}...</p>
                 <p className="text-xs text-muted-foreground">Commission: <span className="font-semibold text-green-500">${(order.resellerCommission || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></p>
             </div>
         </div>
@@ -75,16 +62,16 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         
-        const baseQuery = query(
+        let q = query(
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
         );
 
         if (statusFilter && statusFilter.length > 0) {
-            return query(baseQuery, where('orderStatus', 'in', statusFilter));
+            q = query(q, where('orderStatus', 'in', statusFilter));
         }
-
-        return baseQuery;
+        
+        return q;
     }, [firestore, user, statusFilter]);
 
     const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);

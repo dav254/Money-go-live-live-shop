@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { db } from '@/firebase/server';
 import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import type { Order, Product } from '@/lib/types';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
 
@@ -29,10 +29,13 @@ export async function POST(request: Request) {
             let metadata;
             
             try {
+                // PayPal doesn't have a native metadata object like Paystack,
+                // so we pass a JSON string in the custom_id field.
                 metadata = JSON.parse(customId);
             } catch (e) {
-                console.error("Could not parse PayPal custom_id JSON:", customId);
-                return NextResponse.json({ status: 'success', message: 'Fallback handling, no metadata.' });
+                 // Fallback for older orders that just had the orderId.
+                const orderId = customId;
+                metadata = { transactionType: 'product-purchase', orderId };
             }
 
             const transactionType = metadata?.transactionType;
@@ -48,42 +51,49 @@ export async function POST(request: Request) {
                         aiPoints: increment(points)
                     });
                     
-                    // Create a payment log for this transaction
                     const paymentRef = collection(db, 'payments');
                     await addDoc(paymentRef, {
-                        userId: userId, // Link to the user who bought points
+                        userId: userId,
                         amount: amount,
                         paymentMethod: 'paypal',
                         paymentStatus: 'completed',
                         paymentDate: serverTimestamp(),
                         transactionType: 'points-purchase',
-                        transactionId: resource.id, // PayPal order ID
+                        transactionId: resource.id,
                     });
                     console.log(`Credited ${points} points to user ${userId} and logged payment via PayPal.`);
                 }
 
             } else { // Default to product purchase
-                const orderId = metadata.orderId || purchaseUnit.reference_id;
+                const orderId = metadata.orderId;
                 if (orderId) {
                     const orderRef = doc(db, 'orders', orderId);
                     const orderSnap = await getDoc(orderRef);
                     if (!orderSnap.exists()) {
                          throw new Error(`Order ${orderId} not found.`);
                     }
-                    const orderData = orderSnap.data();
-                    const productRef = doc(db, 'products', orderData.productId);
+                    const orderData = orderSnap.data() as Order;
+                    
+                    // Determine the primary product ID from the order
+                    const primaryProductId = orderData.items?.[0]?.productId || orderData.productId;
+                    if (!primaryProductId) {
+                         throw new Error(`Product ID is missing from order ${orderId}.`);
+                    }
+
+                    const productRef = doc(db, 'products', primaryProductId);
                     const productSnap = await getDoc(productRef);
 
                     if (!productSnap.exists()) {
-                        throw new Error(`Product ${orderData.productId} not found for order ${orderId}.`);
+                        throw new Error(`Product ${primaryProductId} not found for order ${orderId}.`);
                     }
 
                     const productData = productSnap.data() as Product;
-                    const platformFee = orderData.productPrice * PLATFORM_FEE_RATE;
+                    const subtotal = orderData.subtotal ?? orderData.productPrice ?? 0;
+                    const platformFee = subtotal * PLATFORM_FEE_RATE;
                     let resellerCommission = 0;
 
                     if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
-                        resellerCommission = orderData.productPrice * (productData.commissionRate / 100);
+                        resellerCommission = subtotal * (productData.commissionRate / 100);
                     }
                     
                     await updateDoc(orderRef, {
@@ -92,17 +102,17 @@ export async function POST(request: Request) {
                         platformFee: platformFee,
                         resellerCommission: resellerCommission > 0 ? resellerCommission : null,
                     });
-                     // Create a payment log for this transaction, now including buyerId
+                     
                     const paymentRef = collection(db, 'payments');
                     await addDoc(paymentRef, {
                         orderId: orderId,
-                        userId: orderData.buyerId, // Add the buyer's ID
+                        userId: orderData.buyerId,
                         amount: orderData.totalAmount,
                         paymentMethod: 'paypal',
                         paymentStatus: 'completed',
                         paymentDate: serverTimestamp(),
                         transactionType: 'product-purchase',
-                        transactionId: resource.id, // PayPal order ID
+                        transactionId: resource.id,
                     });
                     console.log(`Order ${orderId} updated to processing and payment logged via PayPal webhook.`);
                 }

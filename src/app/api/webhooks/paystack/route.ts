@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';
 import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import type { Order, Product } from '@/lib/types';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
         }
 
       } else { // Default to product purchase
-        const orderId = event.data.reference;
+        const orderId = metadata?.orderId || event.data.reference; // Fallback to reference
         
         if (orderId) {
           const orderRef = doc(db, 'orders', orderId);
@@ -64,20 +64,28 @@ export async function POST(request: Request) {
           if (!orderSnap.exists()) {
               throw new Error(`Order ${orderId} not found.`);
           }
-          const orderData = orderSnap.data();
-          const productRef = doc(db, 'products', orderData.productId);
+          const orderData = orderSnap.data() as Order;
+          
+          // Determine the primary product ID from the order
+          const primaryProductId = orderData.items?.[0]?.productId || orderData.productId;
+          if (!primaryProductId) {
+                throw new Error(`Product ID is missing from order ${orderId}.`);
+          }
+
+          const productRef = doc(db, 'products', primaryProductId);
           const productSnap = await getDoc(productRef);
 
           if (!productSnap.exists()) {
-              throw new Error(`Product ${orderData.productId} not found for order ${orderId}.`);
+              throw new Error(`Product ${primaryProductId} not found for order ${orderId}.`);
           }
 
           const productData = productSnap.data() as Product;
-          const platformFee = orderData.productPrice * PLATFORM_FEE_RATE;
+          const subtotal = orderData.subtotal ?? orderData.productPrice ?? 0;
+          const platformFee = subtotal * PLATFORM_FEE_RATE;
           let resellerCommission = 0;
 
           if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
-              resellerCommission = orderData.productPrice * (productData.commissionRate / 100);
+              resellerCommission = subtotal * (productData.commissionRate / 100);
           }
 
           await updateDoc(orderRef, {

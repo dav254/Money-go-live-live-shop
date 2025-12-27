@@ -23,7 +23,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
       // --- Trigger Condition ---
       // Only run if the status changes TO 'delivered' from something else.
       if (beforeData.orderStatus === 'delivered' || afterData.orderStatus !== 'delivered') {
-        functions.logger.log(`Order ${orderId} status not 'delivered'. Exiting.`);
+        functions.logger.log(`Order ${orderId} status not 'delivered' or was already delivered. Exiting.`);
         return null;
       }
 
@@ -45,8 +45,9 @@ export const processOrderAndDistributeEarnings = functions.firestore
         const taxAmount = productPrice * VAT_RATE;
         
         let resellerCommission = 0;
-        if (resellerId && commissionRate) {
-            resellerCommission = productPrice * (commissionRate / 100);
+        // The reseller commission should be based on the stored commission rate on the order.
+        if (resellerId && afterData.resellerCommission && afterData.resellerCommission > 0) {
+            resellerCommission = afterData.resellerCommission;
         }
         
         // Fetch the seller's profile to check if they were referred
@@ -362,3 +363,4 @@ export const processPayout = functions.firestore
             return null;
         }
     });
+

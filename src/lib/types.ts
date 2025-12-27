@@ -198,14 +198,14 @@ export interface Order {
   id: string;
   buyerId: string;
   sellerId: string;
-  items: {
+  items?: {
     productId: string;
     name: string;
     price: number;
     quantity: number;
     imageUrl: string;
   }[];
-  subtotal: number;
+  subtotal?: number;
   shippingCost: number;
   totalAmount: number;
   orderDate: any; // Can be Timestamp or string
@@ -223,6 +223,7 @@ export interface Order {
   productImage?: string;
   quantity?: number;
   productPrice?: number;
+  commissionRate?: number;
 }
 
 export interface Payout {
