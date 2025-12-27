@@ -117,7 +117,7 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal', amount?: number) => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal') => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
@@ -134,7 +134,7 @@ export default function CheckoutPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderId: order.id,
-                    amount: amount ?? liveTotalAmount, // Use the live total amount
+                    amount: liveTotalAmount, // Use the live total amount
                     email: user.email,
                     gateway: gateway,
                 }),
@@ -163,6 +163,37 @@ export default function CheckoutPage() {
             setIsLoadingPayment(null);
         }
     };
+    
+    const handleSimulatePayment = async () => {
+        if (!orderId) return;
+        
+        setIsLoadingPayment('demo');
+        
+        try {
+            const response = await fetch('/api/checkout/simulate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId }),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'Failed to simulate payment.');
+            }
+            
+            toast({ title: "Payment Simulated!", description: "Order status has been updated to processing." });
+            router.push('/buyer/my-orders');
+            
+        } catch (err: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Simulation Error',
+                description: err.message || 'Could not simulate the payment. Please check the logs.',
+            });
+        } finally {
+            setIsLoadingPayment(null);
+        }
+    }
 
 
     if (isLoading) {
@@ -265,11 +296,11 @@ export default function CheckoutPage() {
                             size="lg"
                             variant="secondary"
                             className="w-full justify-center gap-4 h-16 text-lg"
-                            onClick={() => handlePayment('paystack', 1)}
+                            onClick={handleSimulatePayment}
                             disabled={!!isLoadingPayment}
                          >
-                            {isLoadingPayment === 'paystack' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Simulate Demo Payment ($1)
+                            {isLoadingPayment === 'demo' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Simulate Demo Payment
                         </Button>
                     </div>
                 </div>
@@ -277,5 +308,3 @@ export default function CheckoutPage() {
         </BuyerLayout>
     )
 }
-
-
