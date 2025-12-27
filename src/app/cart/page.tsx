@@ -125,35 +125,28 @@ export default function CartPage() {
         
         setIsCheckingOut(true);
 
-        const newOrderRef = doc(collection(firestore, 'orders'));
-        const firstItem = cartItems[0];
+        // Assume all items are from the same seller for simplicity
+        const sellerId = cartItems[0].sellerId;
         
         let resellerId = localStorage.getItem('resellerRefId');
         if (!resellerId && userProfile.referredBy) {
             resellerId = userProfile.referredBy;
         }
 
-        // Fetch all product details to check commission rates
-        const productIds = cartItems.map(item => item.productId);
-        const productsQuery = query(collection(firestore, 'products'), where('__name__', 'in', productIds));
-        const productsSnapshot = await getDocs(productsQuery);
-        const productsMap = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data() as Product]));
-
         let totalCommission = 0;
         if (resellerId) {
-            cartItems.forEach(item => {
-                const product = productsMap.get(item.productId);
-                // If the product has a commission rate enabled, calculate 10%
-                if (product && product.commissionRate && product.commissionRate > 0) {
-                    totalCommission += item.price * item.quantity * 0.10;
-                }
-            });
+            totalCommission = cartItems.reduce((acc, item) => {
+                // Always calculate 10% if a reseller is involved.
+                return acc + (item.price * item.quantity * 0.10);
+            }, 0);
         }
 
+        const newOrderRef = doc(collection(firestore, 'orders'));
+        
         const newOrderData: Partial<Order> = {
             id: newOrderRef.id,
             buyerId: user.uid,
-            sellerId: firstItem.sellerId, // Simplified: assumes all items from one seller
+            sellerId: sellerId,
             items: cartItems.map(item => ({
                 productId: item.productId,
                 name: item.name,

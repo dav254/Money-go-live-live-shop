@@ -71,16 +71,10 @@ export async function POST(request: Request) {
           const platformFee = subtotal * PLATFORM_FEE_RATE;
 
           let resellerCommission = 0;
-            if (orderData.resellerId) {
-                const productRef = doc(db, 'products', orderData.productId!);
-                const productSnap = await getDoc(productRef);
-                if (productSnap.exists()) {
-                    const productData = productSnap.data() as Product;
-                    if (productData.commissionRate && productData.commissionRate > 0) {
-                        resellerCommission = subtotal * 0.10;
-                    }
-                }
-            }
+          // If a reseller is involved, calculate 10% commission.
+          if (orderData.resellerId) {
+              resellerCommission = subtotal * 0.10;
+          }
           
           await updateDoc(orderRef, {
             orderStatus: 'processing',

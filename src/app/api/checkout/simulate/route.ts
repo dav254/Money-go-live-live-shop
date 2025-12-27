@@ -32,29 +32,17 @@ export async function POST(request: Request) {
 
     // --- Perform the same logic as the payment webhooks ---
     
-    // Determine the primary product ID from the order
-    const primaryProductId = orderData.items?.[0]?.productId || orderData.productId;
-    if (!primaryProductId) {
-         throw new Error(`Product ID is missing from order ${orderId}.`);
-    }
-    
-    // 1. Fetch the product to get the commission rate
-    const productRef = doc(db, 'products', primaryProductId);
-    const productSnap = await getDoc(productRef);
-    if (!productSnap.exists()) {
-        throw new Error(`Product ${primaryProductId} not found for order ${orderId}.`);
-    }
-    const productData = productSnap.data() as Product;
-
-    // 2. Calculate fees and commissions
+    // 1. Calculate fees and commissions
     const subtotal = orderData.subtotal ?? orderData.productPrice ?? 0;
     const platformFee = subtotal * PLATFORM_FEE_RATE;
+    
     let resellerCommission = 0;
-    if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
+    // If a reseller is involved, calculate 10% commission.
+    if (orderData.resellerId) {
         resellerCommission = subtotal * 0.10;
     }
     
-    // 3. Update the order to 'processing'
+    // 2. Update the order to 'processing'
     await updateDoc(orderRef, {
       orderStatus: 'processing',
       paymentMethod: 'demo_simulation',
@@ -62,7 +50,7 @@ export async function POST(request: Request) {
       resellerCommission: resellerCommission,
     });
 
-    // 4. Create a payment log entry
+    // 3. Create a payment log entry
     const paymentRef = collection(db, 'payments');
     await addDoc(paymentRef, {
         orderId: orderId,

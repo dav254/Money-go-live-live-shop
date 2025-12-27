@@ -225,9 +225,8 @@ export default function BuyerProductPage() {
         }
 
         let resellerCommission = 0;
-        // If a reseller is involved and the product has a non-zero commission rate (i.e., is enabled for reselling)
-        if (resellerId && product.commissionRate && product.commissionRate > 0) {
-            // Use a fixed 10% commission rate for the calculation
+        // If a reseller is involved, calculate 10% commission.
+        if (resellerId) {
             resellerCommission = product.price * 0.10;
         }
         
@@ -564,5 +563,6 @@ export default function BuyerProductPage() {
     
 
     
+
 
 
