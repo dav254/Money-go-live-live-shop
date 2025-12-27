@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { format } from 'date-fns';
 
 
 const ReviewDialog = ({ order }: { order: Order }) => {
@@ -194,9 +195,12 @@ const OrderCard = ({ order }: { order: Order }) => {
                         </Link>
                     )}
                 </div>
-                 <Badge variant="default" className={getStatusClass(order.orderStatus)}>
-                    {order.orderStatus}
-                </Badge>
+                 <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{format(order.orderDate, 'MMM d, yyyy')}</span>
+                    <Badge variant="default" className={getStatusClass(order.orderStatus)}>
+                        {order.orderStatus}
+                    </Badge>
+                </div>
             </CardHeader>
             <Separator />
             <CardContent className="p-4">
