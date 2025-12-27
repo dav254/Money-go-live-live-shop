@@ -35,19 +35,9 @@ export function VideoActions({
   const firestore = useFirestore();
   const router = useRouter();
   const { userProfile } = useUserProfile(user?.uid);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(product.likes || 0);
-
-  useEffect(() => {
-      // This is a placeholder for checking if the user has liked this item.
-      // For now, it resets on product change.
-      setIsLiked(false);
-      setLikeCount(product.likes || 0);
-  }, [product.id, product.likes]);
-
-
+  
   const handleShare = () => {
-    const url = `https://goearnvid.shop/products/${product.id}`;
+    const url = `${window.location.origin}/products/${product.id}`;
     navigator.clipboard.writeText(url).then(() => {
         toast({
             title: "Link Copied!",
@@ -63,33 +53,6 @@ export function VideoActions({
     });
   };
 
-  const handleLikeToggle = async () => {
-    if (!firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to database.' });
-        return;
-    }
-
-    const productRef = doc(firestore, 'products', product.id);
-    
-    // Optimistically update the UI
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    setLikeCount(prev => newLikedState ? prev + 1 : prev - 1);
-
-    try {
-        await updateDoc(productRef, {
-            likes: increment(newLikedState ? 1 : -1)
-        });
-    } catch (e) {
-        // Revert UI on error
-        setIsLiked(!newLikedState);
-        setLikeCount(prev => newLikedState ? prev - 1 : prev + 1);
-        console.error("Error updating likes:", e);
-        toast({ variant: 'destructive', title: 'Something went wrong'});
-    }
-  };
-
-
   const handleScrollClick = (direction: 'up' | 'down') => {
     if (typeof onScroll === 'function') {
       onScroll(direction);
@@ -104,12 +67,6 @@ export function VideoActions({
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('up')}>
           <ChevronUp className="h-6 w-6 text-white" />
         </Button>
-      </div>
-      <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLikeToggle}>
-          <Heart className={`h-6 w-6 text-white transition-colors ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
-        </Button>
-        <span className="text-sm font-semibold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
       </div>
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>
