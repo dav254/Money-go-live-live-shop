@@ -101,6 +101,14 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/earnings')}>
+              <Link href="/dashboard/seller/earnings">
+                <Wallet />
+                <span>Earnings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
 
@@ -151,7 +159,7 @@ export function SellerSidebar() {
       </SidebarGroup>
       
       <SidebarGroup>
-        <SidebarGroupLabel>Help &amp; Resources</SidebarGroupLabel>
+        <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
          <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/about')}>
