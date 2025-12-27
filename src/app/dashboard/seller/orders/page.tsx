@@ -75,16 +75,16 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         
-        let q = query(
+        const baseQuery = query(
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
         );
 
         if (statusFilter && statusFilter.length > 0) {
-            q = query(q, where('orderStatus', 'in', statusFilter));
+            return query(baseQuery, where('orderStatus', 'in', statusFilter));
         }
 
-        return q;
+        return baseQuery;
     }, [firestore, user, statusFilter]);
 
     const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
