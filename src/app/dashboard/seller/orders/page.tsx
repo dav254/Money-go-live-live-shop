@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import React, { useMemo } from 'react';
+import { format } from 'date-fns';
 
 const ResellerInfo = ({ order }: { order: Order }) => {
     const firestore = useFirestore();
@@ -181,7 +182,7 @@ const AllOrdersTable = () => {
                                <ResellerInfo order={order} />
                             </TableCell>
                             <TableCell>
-                                {order.orderDate.toDate().toLocaleDateString()}
+                                {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
                             </TableCell>
                             <TableCell>
                                 <OrderStatusBadge status={order.orderStatus} />
