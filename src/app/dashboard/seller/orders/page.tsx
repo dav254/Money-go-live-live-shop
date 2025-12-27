@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -68,25 +67,28 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 
-const AllOrdersTable = () => {
+const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][] }) => {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
 
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        // Simplified query to fix permission error. Sorting is now done on the client.
-        return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
-    }, [firestore, user]);
+        
+        let q = query(
+            collection(firestore, 'orders'),
+            where('sellerId', '==', user.uid),
+            orderBy('orderDate', 'desc') // Always include orderBy
+        );
+
+        if (statusFilter && statusFilter.length > 0) {
+            q = query(q, where('orderStatus', 'in', statusFilter));
+        }
+
+        return q;
+    }, [firestore, user, statusFilter]);
 
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-
-    const sortedOrders = useMemo(() => {
-        if (!orders) return [];
-        // Client-side sorting to show latest orders first
-        return [...orders].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
-    }, [orders]);
-
 
     const isLoading = isUserLoading || areOrdersLoading;
 
@@ -145,10 +147,10 @@ const AllOrdersTable = () => {
         );
     }
 
-    if (!sortedOrders || sortedOrders.length === 0) {
+    if (!orders || orders.length === 0) {
        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
             <h2 className="text-xl font-semibold">No Orders Found</h2>
-            <p className="text-muted-foreground">Your sales history will appear here.</p>
+            <p className="text-muted-foreground">This section is empty. New orders will appear here.</p>
         </div>
     }
 
@@ -166,7 +168,7 @@ const AllOrdersTable = () => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {sortedOrders.map(order => (
+                    {orders.map(order => (
                         <TableRow key={order.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
@@ -234,7 +236,30 @@ export default function SellerOrdersPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           My Orders
         </h1>
-        <AllOrdersTable />
+        <Tabs defaultValue="all" className="space-y-4">
+            <TabsList>
+                <TabsTrigger value="all"><ListOrdered className="mr-2 h-4 w-4"/>All Orders</TabsTrigger>
+                <TabsTrigger value="pending"><ShoppingCart className="mr-2 h-4 w-4" />New Orders</TabsTrigger>
+                <TabsTrigger value="processing"><Package className="mr-2 h-4 w-4"/>Processing</TabsTrigger>
+                <TabsTrigger value="shipped"><Truck className="mr-2 h-4 w-4"/>Shipped</TabsTrigger>
+                <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all">
+                <AllOrdersTable />
+            </TabsContent>
+             <TabsContent value="pending">
+                <AllOrdersTable statusFilter={['pending']} />
+            </TabsContent>
+            <TabsContent value="processing">
+                <AllOrdersTable statusFilter={['processing']} />
+            </TabsContent>
+            <TabsContent value="shipped">
+                <AllOrdersTable statusFilter={['shipped']} />
+            </TabsContent>
+            <TabsContent value="delivered">
+                <AllOrdersTable statusFilter={['delivered']} />
+            </TabsContent>
+        </Tabs>
       </div>
     </SellerLayout>
   );
