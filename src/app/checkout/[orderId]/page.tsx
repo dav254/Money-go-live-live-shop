@@ -3,7 +3,7 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { doc, getDocs, collection, query, where, limit, updateDoc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -61,6 +61,7 @@ export default function CheckoutPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
+    const [isDemoLoading, setIsDemoLoading] = useState(false);
 
     const orderRef = useMemoFirebase(() => {
         if (!orderId || !firestore) return null;
@@ -77,7 +78,7 @@ export default function CheckoutPage() {
         const fetchSellerShipping = async () => {
             if (order?.sellerId && firestore) {
                 setIsLoadingShipping(true);
-                // In a real app, this might come from a dedicated 'products' subcollection or from the seller's profile.
+                // In a real app, this might come from a dedicated 'products' subcollection or from the seller's main product.
                 // For simplicity, we'll assume a flat rate from the seller's main product for now.
                 const productsRef = collection(firestore, 'products');
                 const q = query(productsRef, where('sellerId', '==', order.sellerId), limit(1));
@@ -162,6 +163,24 @@ export default function CheckoutPage() {
                 description: err.message || 'Could not initiate payment. Please try again or use another method.',
             });
             setIsLoadingPayment(null);
+        }
+    };
+    
+    const handleDemoPayment = async () => {
+        if (!orderRef) return;
+        setIsDemoLoading(true);
+        try {
+            await updateDoc(orderRef, { orderStatus: 'processing' });
+            toast({
+                title: "Demo Payment Successful!",
+                description: "The order status has been updated to 'processing'."
+            });
+            // The component will re-render due to the listener in useDoc, showing the "Order Not Payable" screen.
+        } catch (error) {
+            console.error("Demo payment error:", error);
+            toast({ variant: 'destructive', title: "Demo Failed", description: "Could not update the order status." });
+        } finally {
+            setIsDemoLoading(false);
         }
     };
 
@@ -261,6 +280,16 @@ export default function CheckoutPage() {
                          >
                             {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : <div className="h-6 w-6 bg-white rounded" />} 
                             Pay with PayPal
+                        </Button>
+                         <Button
+                            size="lg"
+                            variant="secondary"
+                            className="w-full justify-center gap-4 h-16 text-lg"
+                            onClick={handleDemoPayment}
+                            disabled={isDemoLoading}
+                         >
+                            {isDemoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Simulate Demo Payment
                         </Button>
                     </div>
                 </div>
