@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
@@ -61,7 +60,6 @@ export default function CheckoutPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
-    const [isDemoLoading, setIsDemoLoading] = useState(false);
 
     const orderRef = useMemoFirebase(() => {
         if (!orderId || !firestore) return null;
@@ -119,7 +117,7 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal') => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal', amount?: number) => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
@@ -136,7 +134,7 @@ export default function CheckoutPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderId: order.id,
-                    amount: liveTotalAmount, // Use the live total amount
+                    amount: amount ?? liveTotalAmount, // Use the live total amount
                     email: user.email,
                     gateway: gateway,
                 }),
@@ -163,24 +161,6 @@ export default function CheckoutPage() {
                 description: err.message || 'Could not initiate payment. Please try again or use another method.',
             });
             setIsLoadingPayment(null);
-        }
-    };
-    
-    const handleDemoPayment = async () => {
-        if (!orderRef) return;
-        setIsDemoLoading(true);
-        try {
-            await updateDoc(orderRef, { orderStatus: 'processing' });
-            toast({
-                title: "Demo Payment Successful!",
-                description: "The order status has been updated to 'processing'."
-            });
-            // The component will re-render due to the listener in useDoc, showing the "Order Not Payable" screen.
-        } catch (error) {
-            console.error("Demo payment error:", error);
-            toast({ variant: 'destructive', title: "Demo Failed", description: "Could not update the order status." });
-        } finally {
-            setIsDemoLoading(false);
         }
     };
 
@@ -285,11 +265,11 @@ export default function CheckoutPage() {
                             size="lg"
                             variant="secondary"
                             className="w-full justify-center gap-4 h-16 text-lg"
-                            onClick={handleDemoPayment}
-                            disabled={isDemoLoading}
+                            onClick={() => handlePayment('paystack', 1)}
+                            disabled={!!isLoadingPayment}
                          >
-                            {isDemoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Simulate Demo Payment
+                            {isLoadingPayment === 'paystack' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Simulate Demo Payment ($1)
                         </Button>
                     </div>
                 </div>
@@ -297,3 +277,5 @@ export default function CheckoutPage() {
         </BuyerLayout>
     )
 }
+
+
