@@ -141,9 +141,9 @@ export default function BuyerProductPage() {
     const { data: reviews, isLoading: areReviewsLoading } = useCollection<Review>(reviewsQuery);
     
     const recommendedProductsQuery = useMemoFirebase(() => {
-        if (!product) return null;
+        if (!product || !user) return null;
         return query(collection(firestore, 'products'), where('category', '==', product.category), limit(5));
-    }, [firestore, product]);
+    }, [firestore, product, user]);
     const { data: recommendedProducts, isLoading: areRecsLoading } = useCollection<Product>(recommendedProductsQuery);
 
     const [isFollowing, setIsFollowing] = useState(false);
@@ -336,7 +336,7 @@ export default function BuyerProductPage() {
     };
     
     const handleShare = () => {
-        const productUrl = `https://goearnvid.shop/products/${productId}`;
+        const productUrl = `${window.location.origin}/products/${productId}`;
         navigator.clipboard.writeText(productUrl).then(() => {
             toast({
                 title: "Link Copied!",
