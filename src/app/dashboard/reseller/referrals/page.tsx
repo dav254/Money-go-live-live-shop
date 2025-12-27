@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Users, BadgeCent, Wallet } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,6 +69,23 @@ const columns: ColumnDef<UserProfile>[] = [
   }
 ];
 
+const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary }: { title: string, value: string, icon: React.ElementType, isLoading: boolean, isPrimary?: boolean }) => (
+    <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+            <Skeleton className="h-8 w-3/4" />
+        ) : (
+            <div className="text-2xl font-bold">{value}</div>
+        )}
+      </CardContent>
+    </Card>
+);
+
+
 export default function ResellerReferralsPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
@@ -82,6 +99,8 @@ export default function ResellerReferralsPage() {
   const { data: referredUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(referredUsersQuery);
 
   const isLoading = isUserLoading || isProfileLoading || areUsersLoading;
+
+  const totalReferralPoints = (referredUsers?.length || 0) * 5;
 
   const table = useReactTable({
     data: referredUsers || [],
@@ -102,26 +121,32 @@ export default function ResellerReferralsPage() {
                 Users who have signed up using your referral link. You earn 5 AI points for each new user.
             </p>
           </div>
-          <Card>
-            <CardContent className="p-3 flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-md">
-                    <BadgeCent className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                    <p className="text-xs text-muted-foreground">Your Balance</p>
-                    {isLoading ? (
-                        <Skeleton className="h-6 w-24" />
-                    ) : (
-                        <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
-                    )}
-                </div>
-                <Button size="sm" variant="outline" asChild>
-                    <Link href="/dashboard/reseller/wallet">
-                        <Wallet className="mr-2 h-4 w-4" /> Withdraw
-                    </Link>
-                </Button>
-            </CardContent>
-          </Card>
+           <div className="flex items-center space-x-2">
+                <StatCard 
+                    title="Total Referral Earnings"
+                    value={`${totalReferralPoints.toLocaleString()} Points`}
+                    icon={BadgeCent}
+                    isLoading={isLoading}
+                    isPrimary
+                />
+                <Card>
+                    <CardContent className="p-3 flex items-center gap-4">
+                        <div>
+                            <p className="text-xs text-muted-foreground">Your Total Balance</p>
+                            {isLoading ? (
+                                <Skeleton className="h-6 w-24" />
+                            ) : (
+                                <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
+                            )}
+                        </div>
+                        <Button size="sm" variant="outline" asChild>
+                            <Link href="/dashboard/reseller/wallet">
+                                <Wallet className="mr-2 h-4 w-4" /> Withdraw
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
 
         <Card>
