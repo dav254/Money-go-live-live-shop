@@ -11,7 +11,7 @@ service cloud.firestore {
       // Allow user to update their own profile, OR an admin/backend function to update specific fields.
       allow update: if request.auth.uid == userId ||
                       (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole'])) ||
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole', 'referralBonusAwarded'])) ||
                       // Allow backend functions to increment points for referrals
                       (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
       allow create: if request.auth.uid != null;
@@ -128,7 +128,7 @@ service cloud.firestore {
                        ( // Buyer's permissions
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
-                         resource.data.orderStatus == 'delivered'
+                         request.resource.data.orderStatus == 'delivered'
                        )
                      );
 
