@@ -21,12 +21,13 @@ import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { Users } from 'lucide-react';
+import { Users, BadgeCent, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 const columns: ColumnDef<UserProfile>[] = [
   {
@@ -41,7 +42,7 @@ const columns: ColumnDef<UserProfile>[] = [
                     <AvatarFallback>{user.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="font-medium">{user.fullName}</p>
+                    <Link href={`/dashboard/admin/users/buyers?id=${user.id}`} className="font-medium hover:underline">{user.fullName}</Link>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
             </div>
@@ -69,7 +70,8 @@ const columns: ColumnDef<UserProfile>[] = [
 ];
 
 export default function ResellerReferralsPage() {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
 
   const referredUsersQuery = useMemoFirebase(() => {
@@ -77,7 +79,9 @@ export default function ResellerReferralsPage() {
     return query(collection(firestore, 'userProfiles'), where('referredBy', '==', user.uid));
   }, [user, firestore]);
 
-  const { data: referredUsers, isLoading } = useCollection<UserProfile>(referredUsersQuery);
+  const { data: referredUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(referredUsersQuery);
+
+  const isLoading = isUserLoading || isProfileLoading || areUsersLoading;
 
   const table = useReactTable({
     data: referredUsers || [],
@@ -88,17 +92,40 @@ export default function ResellerReferralsPage() {
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div>
+            <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
+                <Users />
+                My Referrals
+            </h1>
+            <p className="text-muted-foreground">
+                Users who have signed up using your referral link. You earn 5 AI points for each new user.
+            </p>
+          </div>
+          <Card>
+            <CardContent className="p-3 flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-md">
+                    <BadgeCent className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground">Your Balance</p>
+                    {isLoading ? (
+                        <Skeleton className="h-6 w-24" />
+                    ) : (
+                        <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
+                    )}
+                </div>
+                <Button size="sm" variant="outline" asChild>
+                    <Link href="/dashboard/reseller/wallet">
+                        <Wallet className="mr-2 h-4 w-4" /> Withdraw
+                    </Link>
+                </Button>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-            <CardHeader>
-                <CardTitle className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
-                    <Users />
-                    My Referrals
-                </CardTitle>
-                <CardDescription>
-                    A list of new users who have signed up using your referral link. You earn 5 AI points for each new user.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <div className="rounded-md border">
                     <Table>
                     <TableHeader>
