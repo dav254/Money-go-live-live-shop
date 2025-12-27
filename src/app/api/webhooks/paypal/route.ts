@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { NextResponse } from 'next/server';
@@ -29,11 +30,8 @@ export async function POST(request: Request) {
             let metadata;
             
             try {
-                // PayPal doesn't have a native metadata object like Paystack,
-                // so we pass a JSON string in the custom_id field.
                 metadata = JSON.parse(customId);
             } catch (e) {
-                 // Fallback for older orders that just had the orderId.
                 const orderId = customId;
                 metadata = { transactionType: 'product-purchase', orderId };
             }
@@ -74,33 +72,12 @@ export async function POST(request: Request) {
                     }
                     const orderData = orderSnap.data() as Order;
                     
-                    // Determine the primary product ID from the order
-                    const primaryProductId = orderData.items?.[0]?.productId || orderData.productId;
-                    if (!primaryProductId) {
-                         throw new Error(`Product ID is missing from order ${orderId}.`);
-                    }
-
-                    const productRef = doc(db, 'products', primaryProductId);
-                    const productSnap = await getDoc(productRef);
-
-                    if (!productSnap.exists()) {
-                        throw new Error(`Product ${primaryProductId} not found for order ${orderId}.`);
-                    }
-
-                    const productData = productSnap.data() as Product;
-                    const subtotal = orderData.subtotal ?? orderData.productPrice ?? 0;
-                    const platformFee = subtotal * PLATFORM_FEE_RATE;
-                    let resellerCommission = 0;
-
-                    if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
-                        resellerCommission = subtotal * (productData.commissionRate / 100);
-                    }
+                    const platformFee = orderData.subtotal ? orderData.subtotal * PLATFORM_FEE_RATE : 0;
                     
                     await updateDoc(orderRef, {
                         orderStatus: 'processing',
                         paymentMethod: 'paypal',
                         platformFee: platformFee,
-                        resellerCommission: resellerCommission > 0 ? resellerCommission : null,
                     });
                      
                     const paymentRef = collection(db, 'payments');

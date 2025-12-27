@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile } from '@/firebase';
-import { collection, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import type { CartItem, Order } from '@/lib/types';
+import { collection, deleteDoc, doc, updateDoc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import type { CartItem, Order, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { Trash2, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
@@ -125,11 +125,27 @@ export default function CartPage() {
 
         const newOrderRef = doc(collection(firestore, 'orders'));
         const firstItem = cartItems[0];
+        
+        const productIds = cartItems.map(item => item.productId);
+        const productsRef = collection(firestore, 'products');
+        const productsQuery = query(productsRef, where('__name__', 'in', productIds));
+        const productsSnapshot = await getDocs(productsQuery);
+        const productsData = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data() as Product]));
 
-        // Check for a reseller ref in localStorage first, then from the buyer's profile.
+        let totalCommission = 0;
         let resellerId = localStorage.getItem('resellerRefId');
         if (!resellerId && userProfile.referredBy) {
             resellerId = userProfile.referredBy;
+        }
+
+        if (resellerId) {
+            totalCommission = cartItems.reduce((acc, item) => {
+                const product = productsData.get(item.productId);
+                if (product?.commissionRate) {
+                    return acc + (item.price * item.quantity * (product.commissionRate / 100));
+                }
+                return acc;
+            }, 0);
         }
 
         const newOrderData: Partial<Order> = {
@@ -150,13 +166,13 @@ export default function CartPage() {
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
+            resellerCommission: totalCommission > 0 ? totalCommission : 0,
             ...(resellerId && { resellerId: resellerId }),
         };
 
         try {
             await setDoc(newOrderRef, newOrderData);
             
-            // Clear the reseller ref from storage after using it for a purchase
             if (resellerId) {
                 localStorage.removeItem('resellerRefId');
             }

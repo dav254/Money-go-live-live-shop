@@ -219,10 +219,14 @@ export default function BuyerProductPage() {
         const newOrderRef = doc(collection(firestore, 'orders'));
         const shippingCost = product.shippingCost || 0;
         
-        // Check for a reseller ref in localStorage first, then from the buyer's profile.
         let resellerId = localStorage.getItem('resellerRefId');
         if (!resellerId && userProfile.referredBy) {
             resellerId = userProfile.referredBy;
+        }
+
+        let resellerCommission = 0;
+        if (resellerId && product.commissionRate && product.commissionRate > 0) {
+            resellerCommission = product.price * (product.commissionRate / 100);
         }
         
         const newOrderData: Partial<Order> = {
@@ -243,17 +247,13 @@ export default function BuyerProductPage() {
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
+            resellerCommission: resellerCommission > 0 ? resellerCommission : 0,
+            ...(resellerId && { resellerId: resellerId }),
         };
-
-        // If a reseller ID exists, add it to the order
-        if (resellerId) {
-            newOrderData.resellerId = resellerId;
-        }
 
         try {
           await setDoc(newOrderRef, newOrderData);
           
-          // Clear the reseller ref from storage after it has been used for a purchase
           if (resellerId) {
              localStorage.removeItem('resellerRefId');
           }
@@ -562,4 +562,5 @@ export default function BuyerProductPage() {
     
 
     
+
 

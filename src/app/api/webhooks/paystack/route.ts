@@ -66,46 +66,24 @@ export async function POST(request: Request) {
           }
           const orderData = orderSnap.data() as Order;
           
-          // Determine the primary product ID from the order
-          const primaryProductId = orderData.items?.[0]?.productId || orderData.productId;
-          if (!primaryProductId) {
-                throw new Error(`Product ID is missing from order ${orderId}.`);
-          }
-
-          const productRef = doc(db, 'products', primaryProductId);
-          const productSnap = await getDoc(productRef);
-
-          if (!productSnap.exists()) {
-              throw new Error(`Product ${primaryProductId} not found for order ${orderId}.`);
-          }
-
-          const productData = productSnap.data() as Product;
-          const subtotal = orderData.subtotal ?? orderData.productPrice ?? 0;
-          const platformFee = subtotal * PLATFORM_FEE_RATE;
-          let resellerCommission = 0;
-
-          if (orderData.resellerId && productData.commissionRate && productData.commissionRate > 0) {
-              resellerCommission = subtotal * (productData.commissionRate / 100);
-          }
-
+          const platformFee = orderData.subtotal ? orderData.subtotal * PLATFORM_FEE_RATE : 0;
+          
           await updateDoc(orderRef, {
             orderStatus: 'processing',
             paymentMethod: `paystack_${event.data.channel}`,
             platformFee: platformFee,
-            resellerCommission: resellerCommission > 0 ? resellerCommission : null,
           });
           
-          // Create a payment log for this transaction, now including buyerId
           const paymentRef = collection(db, 'payments');
           await addDoc(paymentRef, {
               orderId: orderId,
-              userId: orderData.buyerId, // Add the buyer's ID
+              userId: orderData.buyerId, 
               amount: orderData.totalAmount,
               paymentMethod: `paystack_${event.data.channel}`,
               paymentStatus: 'completed',
               paymentDate: serverTimestamp(),
               transactionType: 'product-purchase',
-              transactionId: event.data.id, // Paystack transaction ID
+              transactionId: event.data.id,
           });
           
           console.log(`Order ${orderId} updated to processing and payment logged via Paystack webhook.`);
