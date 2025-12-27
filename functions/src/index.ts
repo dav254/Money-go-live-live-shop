@@ -358,8 +358,15 @@ export const awardReferralPoints = functions.firestore
     const POINTS_PER_REFERRAL = 5;
 
     try {
-      await referrerRef.update({
-        aiPoints: admin.firestore.FieldValue.increment(POINTS_PER_REFERRAL),
+      // Use a transaction to safely update the points
+      await db.runTransaction(async (transaction) => {
+        const referrerDoc = await transaction.get(referrerRef);
+        if (!referrerDoc.exists) {
+          throw new Error("Referrer user profile not found!");
+        }
+        const currentPoints = referrerDoc.data()?.aiPoints || 0;
+        const newPoints = currentPoints + POINTS_PER_REFERRAL;
+        transaction.update(referrerRef, { aiPoints: newPoints });
       });
 
       // Create a notification for the referrer
@@ -383,6 +390,8 @@ export const awardReferralPoints = functions.firestore
   });
 
 
+
+    
 
     
 
