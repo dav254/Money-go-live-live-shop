@@ -133,14 +133,6 @@ export default function CartPage() {
             resellerId = userProfile.referredBy;
         }
 
-        let totalCommission = 0;
-        if (resellerId) {
-            totalCommission = cartItems.reduce((acc, item) => {
-                // Always calculate 10% if a reseller is involved.
-                return acc + (item.price * item.quantity * 0.10);
-            }, 0);
-        }
-
         const newOrderRef = doc(collection(firestore, 'orders'));
         
         const newOrderData: Partial<Order> = {
@@ -155,13 +147,13 @@ export default function CartPage() {
                 imageUrl: item.imageUrl
             })),
             subtotal: subtotal,
+            productPrice: subtotal, // For simplified backend calculation
             shippingCost: shippingCost,
             totalAmount: total,
             orderDate: serverTimestamp() as any,
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            resellerCommission: totalCommission,
             ...(resellerId && { resellerId: resellerId }),
         };
 

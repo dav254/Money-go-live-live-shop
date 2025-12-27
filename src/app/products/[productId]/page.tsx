@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -223,12 +222,6 @@ export default function BuyerProductPage() {
         if (!resellerId && userProfile.referredBy) {
             resellerId = userProfile.referredBy;
         }
-
-        let resellerCommission = 0;
-        // If a reseller is involved, calculate 10% commission.
-        if (resellerId) {
-            resellerCommission = product.price * 0.10;
-        }
         
         const newOrderData: Partial<Order> = {
             id: newOrderRef.id,
@@ -242,13 +235,13 @@ export default function BuyerProductPage() {
                 imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200'
             }],
             subtotal: product.price,
+            productPrice: product.price,
             shippingCost: shippingCost,
             totalAmount: product.price + shippingCost,
             orderDate: serverTimestamp() as any,
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            resellerCommission: resellerCommission,
             ...(resellerId && { resellerId: resellerId }),
         };
 
@@ -561,8 +554,3 @@ export default function BuyerProductPage() {
 }
 
     
-
-    
-
-
-

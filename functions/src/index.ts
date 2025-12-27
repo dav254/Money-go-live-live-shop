@@ -11,6 +11,7 @@ const db = admin.firestore();
 
 /**
  * Processes a delivered order to distribute earnings, taxes, and referral bonuses.
+ * This is the single source of truth for all financial calculations.
  * Triggered when an order's status is updated to 'delivered'.
  */
 export const processOrderAndDistributeEarnings = functions.firestore
@@ -33,21 +34,21 @@ export const processOrderAndDistributeEarnings = functions.firestore
         return null;
       }
 
-      const { sellerId, resellerId, buyerId, productPrice, shippingCost, commissionRate, productName } = afterData;
+      const { sellerId, resellerId, buyerId, productPrice, shippingCost, productName } = afterData;
       
       try {
-        // --- Define Rates (can be moved to Firestore config later) ---
+        // --- Define Rates (Source of Truth) ---
         const VAT_RATE = 0.16; // 16%
-        const PLATFORM_FEE_RATE = 0.10; // 10%
+        const PLATFORM_FEE_RATE = 0.10; // 10% of product price
+        const RESELLER_COMMISSION_RATE = 0.10; // 10% of product price
         const SELLER_REFERRAL_COMMISSION_RATE = 0.01; // 1% of product price for the person who referred the seller
 
         // --- Calculate All Financial Splits ---
         const taxAmount = productPrice * VAT_RATE;
         
         let resellerCommission = 0;
-        // The reseller commission should be based on the stored commission rate on the order.
-        if (resellerId && afterData.resellerCommission && afterData.resellerCommission > 0) {
-            resellerCommission = afterData.resellerCommission;
+        if (resellerId) {
+            resellerCommission = productPrice * RESELLER_COMMISSION_RATE;
         }
         
         // Fetch the seller's profile to check if they were referred
@@ -363,4 +364,3 @@ export const processPayout = functions.firestore
             return null;
         }
     });
-

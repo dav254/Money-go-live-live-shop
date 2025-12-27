@@ -8,7 +8,6 @@ import { db } from '@/firebase/server';
 import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Order, Product } from '@/lib/types';
 
-const PLATFORM_FEE_RATE = 0.10; // 10%
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID!;
@@ -72,20 +71,9 @@ export async function POST(request: Request) {
                     }
                     const orderData = orderSnap.data() as Order;
                     
-                    const subtotal = orderData.subtotal || 0;
-                    const platformFee = subtotal * PLATFORM_FEE_RATE;
-
-                    let resellerCommission = 0;
-                    // If a reseller is involved, calculate 10% commission.
-                    if (orderData.resellerId) {
-                        resellerCommission = subtotal * 0.10;
-                    }
-                    
                     await updateDoc(orderRef, {
                         orderStatus: 'processing',
                         paymentMethod: 'paypal',
-                        platformFee: platformFee,
-                        resellerCommission: resellerCommission,
                     });
                      
                     const paymentRef = collection(db, 'payments');
