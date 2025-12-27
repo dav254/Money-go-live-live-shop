@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -18,33 +19,50 @@ import {
 } from '@/components/ui/table';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-const DataTableSkeleton = () => (
-    <div className="rounded-md border">
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    {Array.from({ length: 4 }).map((_, i) => <TableHead key={i}><Skeleton className="h-5 w-full" /></TableHead>)}
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                        {Array.from({ length: 4 }).map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    </div>
-);
-
+// Mock data for referred users
+const mockReferredUsers: UserProfile[] = [
+    { 
+        id: 'user1', 
+        uid: 'user1', 
+        fullName: 'Alice Johnson', 
+        username: 'alicej', 
+        email: 'alice@example.com', 
+        userRole: 'buyer', 
+        joinDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        aiPoints: 0,
+        createdAt: new Date() as any,
+        status: 'active',
+    },
+    { 
+        id: 'user2', 
+        uid: 'user2', 
+        fullName: 'Bob Williams', 
+        username: 'bobw', 
+        email: 'bob@example.com', 
+        userRole: 'seller', 
+        joinDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        aiPoints: 0,
+        createdAt: new Date() as any,
+        status: 'active',
+    },
+    { 
+        id: 'user3', 
+        uid: 'user3', 
+        fullName: 'Charlie Brown', 
+        username: 'charlieb', 
+        email: 'charlie@example.com', 
+        userRole: 'buyer', 
+        joinDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        aiPoints: 0,
+        createdAt: new Date() as any,
+        status: 'active',
+    },
+];
 
 const columns: ColumnDef<UserProfile>[] = [
   {
@@ -87,18 +105,8 @@ const columns: ColumnDef<UserProfile>[] = [
 ];
 
 export default function ResellerReferralsPage() {
-  const { user } = useUser();
-  const firestore = useFirestore();
-  
-  const referralsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'userProfiles'), where('referredBy', '==', user.uid), orderBy('joinDate', 'desc'));
-  }, [firestore, user]);
-
-  const { data: referrals, isLoading } = useCollection<UserProfile>(referralsQuery);
-  
   const table = useReactTable({
-    data: referrals || [],
+    data: mockReferredUsers,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -117,7 +125,6 @@ export default function ResellerReferralsPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                {isLoading ? <DataTableSkeleton /> : (
                 <div className="rounded-md border">
                     <Table>
                     <TableHeader>
@@ -152,7 +159,6 @@ export default function ResellerReferralsPage() {
                     </TableBody>
                     </Table>
                 </div>
-                )}
             </CardContent>
         </Card>
       </div>
