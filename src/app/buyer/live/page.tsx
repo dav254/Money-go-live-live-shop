@@ -5,7 +5,7 @@ import React, { useMemo } from 'react';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioTower } from 'lucide-react';
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
 import Link from 'next/link';
@@ -62,14 +62,17 @@ const LiveSellerCard = ({ session }: { session: LiveSession }) => {
 
 const LiveSessionsList = () => {
     const firestore = useFirestore();
+    const { user, isLoading: isUserLoading } = useUser();
 
     const liveSessionsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user) return null; // Wait for user to be authenticated
         return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-    }, [firestore]);
+    }, [firestore, user]);
 
-    const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
+    const { data: liveSessions, isLoading: areSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
     
+    const isLoading = isUserLoading || areSessionsLoading;
+
     if (isLoading) {
         return (
             <div className="space-y-3">
