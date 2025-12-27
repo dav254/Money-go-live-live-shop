@@ -21,13 +21,15 @@ import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { Users, BadgeCent, Wallet } from 'lucide-react';
+import { Users, BadgeCent, Wallet, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 const columns: ColumnDef<UserProfile>[] = [
   {
@@ -69,7 +71,7 @@ const columns: ColumnDef<UserProfile>[] = [
 ];
 
 const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary, children }: { title: string, value: string, icon: React.ElementType, isLoading: boolean, isPrimary?: boolean, children?: React.ReactNode }) => (
-    <Card className={isPrimary ? 'bg-primary/10 border-primary flex flex-col' : 'flex flex-col'}>
+    <Card className={cn(isPrimary ? 'bg-primary/10 border-primary flex flex-col' : 'flex flex-col')}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -107,12 +109,10 @@ const DataTableSkeleton = () => (
 
 export default function ResellerReferralsPage() {
   const { user, isLoading: isUserLoading } = useUser();
-  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const [referrals, setReferrals] = React.useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // 1. Fetch all users who have a 'referredBy' field.
   const referredUsersQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'userProfiles'), where('referredBy', '==', user.uid));
@@ -130,6 +130,12 @@ export default function ResellerReferralsPage() {
   }, [referredUsers, areUsersLoading]);
 
   const totalReferralPoints = (referrals?.length || 0) * 5;
+  
+  const tiers = [
+      { name: 'Bronze', points: 350, prize: 'Go Earn T-Shirt', color: 'bg-yellow-700/80' },
+      { name: 'Silver', points: 700, prize: 'KES 1,000 Shopping Voucher', color: 'bg-gray-400/80' },
+      { name: 'Gold', points: 1000, prize: 'KES 2,500 Cash Prize', color: 'bg-yellow-400/80 text-black' },
+  ];
 
   const table = useReactTable({
     data: referrals,
@@ -139,8 +145,8 @@ export default function ResellerReferralsPage() {
 
   return (
     <ResellerLayout>
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+      <div className="flex-1 space-y-8 p-8 pt-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between space-y-4 md:space-y-0">
           <div>
             <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
                 <Users />
@@ -158,16 +164,52 @@ export default function ResellerReferralsPage() {
                     isLoading={isLoading}
                     isPrimary
                 >
-                     <Button size="sm" variant="outline" className="w-full" asChild>
-                        <Link href="/dashboard/reseller/wallet">
-                            <Wallet className="mr-2 h-4 w-4" /> Withdraw
-                        </Link>
+                     <Button size="sm" variant="secondary" className="w-full">
+                        Redeem Points (Coming Soon)
                     </Button>
                 </StatCard>
             </div>
         </div>
 
         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Trophy /> Referral Tiers & Rewards</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-6">
+                {tiers.map(tier => {
+                    const progress = Math.min((totalReferralPoints / tier.points) * 100, 100);
+                    const achieved = totalReferralPoints >= tier.points;
+                    return (
+                        <Card key={tier.name} className={cn(achieved && "bg-primary/10 border-primary")}>
+                            <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Trophy className={cn(achieved ? "text-primary" : "text-muted-foreground")} />
+                                        {tier.name}
+                                    </CardTitle>
+                                    <Badge className={tier.color}>{tier.points} Points</Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <Progress value={progress} />
+                                <p className="text-xs text-muted-foreground text-center">
+                                    {totalReferralPoints} / {tier.points} points
+                                </p>
+                                <p className="font-semibold text-center">{tier.prize}</p>
+                            </CardContent>
+                             <CardFooter>
+                                <Button className="w-full" disabled={!achieved}>Redeem Prize</Button>
+                            </CardFooter>
+                        </Card>
+                    )
+                })}
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Referred Users</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
                 <div className="rounded-md border">
                     <Table>
