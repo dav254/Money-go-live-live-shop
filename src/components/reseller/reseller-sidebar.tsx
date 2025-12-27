@@ -21,6 +21,7 @@ import {
   Bell,
   Info,
   Users as UsersIcon,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -53,6 +54,14 @@ export function ResellerSidebar() {
             <Link href="/dashboard/reseller/referrals">
               <UsersIcon />
               <span>My Referrals</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/leaderboard')}>
+            <Link href="/dashboard/reseller/leaderboard">
+              <Trophy />
+              <span>Leaderboard</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -116,10 +125,13 @@ export function ResellerSidebar() {
             </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/account')}>
+           <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
             <Link href="/dashboard/account">
-              <User />
-              <span>Account</span>
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={userProfile?.profilePictureUrl} />
+                <AvatarFallback>{userProfile?.fullName?.[0]}</AvatarFallback>
+              </Avatar>
+              <span className="truncate">{userProfile?.fullName || "My Account"}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
