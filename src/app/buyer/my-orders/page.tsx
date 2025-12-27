@@ -196,7 +196,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                     )}
                 </div>
                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{order.orderDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : ''}</span>
+                    <span className="text-xs text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : ''}</span>
                     <Badge variant="default" className={getStatusClass(order.orderStatus)}>
                         {order.orderStatus}
                     </Badge>
