@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Users, BadgeCent, Wallet } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,8 +69,8 @@ const columns: ColumnDef<UserProfile>[] = [
   }
 ];
 
-const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary }: { title: string, value: string, icon: React.ElementType, isLoading: boolean, isPrimary?: boolean }) => (
-    <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
+const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary, children }: { title: string, value: string, icon: React.ElementType, isLoading: boolean, isPrimary?: boolean, children?: React.ReactNode }) => (
+    <Card className={isPrimary ? 'bg-primary/10 border-primary flex flex-col' : 'flex flex-col'}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -82,6 +82,7 @@ const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary }: { title: s
             <div className="text-2xl font-bold">{value}</div>
         )}
       </CardContent>
+       {children && <CardFooter className="mt-auto">{children}</CardFooter>}
     </Card>
 );
 
@@ -121,29 +122,31 @@ export default function ResellerReferralsPage() {
                 Users who have signed up using your referral link. You earn 5 AI points for each new user.
             </p>
           </div>
-           <div className="flex items-center space-x-2">
+           <div className="grid grid-cols-2 gap-4">
                 <StatCard 
                     title="Total Referral Earnings"
                     value={`${totalReferralPoints.toLocaleString()} Points`}
                     icon={BadgeCent}
                     isLoading={isLoading}
                     isPrimary
-                />
+                >
+                     <Button size="sm" variant="outline" className="w-full" asChild>
+                        <Link href="/dashboard/reseller/wallet">
+                            <Wallet className="mr-2 h-4 w-4" /> Withdraw
+                        </Link>
+                    </Button>
+                </StatCard>
                 <Card>
-                    <CardContent className="p-3 flex items-center gap-4">
-                        <div>
-                            <p className="text-xs text-muted-foreground">Your Total Balance</p>
-                            {isLoading ? (
-                                <Skeleton className="h-6 w-24" />
-                            ) : (
-                                <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
-                            )}
-                        </div>
-                        <Button size="sm" variant="outline" asChild>
-                            <Link href="/dashboard/reseller/wallet">
-                                <Wallet className="mr-2 h-4 w-4" /> Withdraw
-                            </Link>
-                        </Button>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Your Total Balance</CardTitle>
+                         <Wallet className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        {isLoading ? (
+                            <Skeleton className="h-8 w-24" />
+                        ) : (
+                            <p className="text-2xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
