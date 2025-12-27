@@ -1,14 +1,15 @@
 
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription
+  CardDescription,
+  CardFooter
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link as LinkIcon, TrendingUp, Trophy, Share2, BadgeCent, Loader2, Wallet } from 'lucide-react';
@@ -91,6 +92,22 @@ const TopResellersTable = () => {
     );
 };
 
+const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary, children }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean, isPrimary?: boolean, children?: React.ReactNode }) => (
+    <Card className={isPrimary ? 'bg-primary/10 border-primary flex flex-col' : 'flex flex-col'}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+            <Skeleton className="h-8 w-3/4" />
+        ) : (
+            <div className="text-2xl font-bold">{value}</div>
+        )}
+      </CardContent>
+       {children && <CardFooter className="mt-auto">{children}</CardFooter>}
+    </Card>
+);
 
 function ResellerDashboardPageContent() {
     const { user, isLoading: isUserLoading } = useUser();
@@ -104,7 +121,16 @@ function ResellerDashboardPageContent() {
     
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
-    const isLoading = isUserLoading || areOrdersLoading || isProfileLoading;
+    const referredUsersQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'userProfiles'), where('referredBy', '==', user.uid));
+    }, [user, firestore]);
+    
+    const { data: referredUsers, isLoading: areReferredUsersLoading } = useCollection<UserProfile>(referredUsersQuery);
+
+    const isLoading = isUserLoading || areOrdersLoading || isProfileLoading || areReferredUsersLoading;
+    
+    const totalReferralPoints = (referredUsers?.length || 0) * 5;
     
     const chartData = useMemo(() => {
         const data: { date: string; earnings: number }[] = [];
@@ -139,26 +165,19 @@ function ResellerDashboardPageContent() {
                 </h1>
             </div>
             <div className="flex items-center space-x-2">
-                <Card>
-                    <CardContent className="p-3 flex items-center gap-4">
-                        <div className="p-3 bg-primary/10 rounded-md">
-                            <BadgeCent className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Your Balance</p>
-                            {isLoading ? (
-                                <Skeleton className="h-6 w-24" />
-                            ) : (
-                                <p className="text-xl font-bold">{(userProfile?.aiPoints || 0).toLocaleString()} Points</p>
-                            )}
-                        </div>
-                        <Button size="sm" variant="outline" asChild>
-                            <Link href="/dashboard/reseller/wallet">
-                                <Wallet className="mr-2 h-4 w-4" /> Withdraw
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+                 <StatCard 
+                    title="Total Referral Earnings"
+                    value={`${totalReferralPoints.toLocaleString()} Points`}
+                    icon={BadgeCent}
+                    isLoading={isLoading}
+                    isPrimary
+                >
+                     <Button size="sm" variant="outline" className="w-full" asChild>
+                        <Link href="/dashboard/reseller/wallet">
+                            <Wallet className="mr-2 h-4 w-4" /> Withdraw
+                        </Link>
+                    </Button>
+                </StatCard>
                 <Button asChild>
                     <Link href="/dashboard/reseller/products">
                         <LinkIcon className="mr-2 h-4 w-4" />
@@ -256,5 +275,3 @@ function ResellerDashboardPageContent() {
 export default function ResellerDashboardPage() {
     return <ResellerDashboardPageContent />
 }
-
-    
