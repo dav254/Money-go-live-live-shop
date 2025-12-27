@@ -4,7 +4,7 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile } from '@/firebase';
 import { collection, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { CartItem, Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -92,6 +92,7 @@ const CartSkeleton = () => (
 
 export default function CartPage() {
     const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
@@ -104,7 +105,7 @@ export default function CartPage() {
 
     const { data: cartItems, isLoading: areItemsLoading } = useCollection<CartItem>(cartItemsQuery);
     
-    const isLoading = isUserLoading || areItemsLoading;
+    const isLoading = isUserLoading || areItemsLoading || isProfileLoading;
 
     const subtotal = React.useMemo(() => {
         return cartItems?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
@@ -115,17 +116,21 @@ export default function CartPage() {
     const total = subtotal + shippingCost;
     
     const handleCheckout = async () => {
-        if (!user || !firestore || !cartItems || cartItems.length === 0) {
-            toast({ variant: 'destructive', title: 'Your cart is empty.' });
+        if (!user || !firestore || !cartItems || cartItems.length === 0 || !userProfile) {
+            toast({ variant: 'destructive', title: 'Your cart is empty or you are not logged in.' });
             return;
         }
         
         setIsCheckingOut(true);
 
         const newOrderRef = doc(collection(firestore, 'orders'));
-        const firstItem = cartItems[0]; // For now, we'll simplify and use the first item for info
+        const firstItem = cartItems[0];
 
-        const resellerId = localStorage.getItem('resellerRefId');
+        // Check for a reseller ref in localStorage first, then from the buyer's profile.
+        let resellerId = localStorage.getItem('resellerRefId');
+        if (!resellerId && userProfile.referredBy) {
+            resellerId = userProfile.referredBy;
+        }
 
         const newOrderData: Partial<Order> = {
             id: newOrderRef.id,
@@ -151,7 +156,7 @@ export default function CartPage() {
         try {
             await setDoc(newOrderRef, newOrderData);
             
-            // Clear the reseller ref after using it
+            // Clear the reseller ref from storage after using it for a purchase
             if (resellerId) {
                 localStorage.removeItem('resellerRefId');
             }

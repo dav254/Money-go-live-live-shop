@@ -17,7 +17,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
-import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
+import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile, useCollection } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, writeBatch, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -210,7 +210,7 @@ export default function BuyerProductPage() {
     };
 
     const handleBuyNow = async () => {
-        if (!user) {
+        if (!user || !userProfile) {
           router.push('/signup');
           return;
         }
@@ -219,24 +219,30 @@ export default function BuyerProductPage() {
         const newOrderRef = doc(collection(firestore, 'orders'));
         const shippingCost = product.shippingCost || 0;
         
-        // Check for a reseller ref in localStorage
-        const resellerId = localStorage.getItem('resellerRefId');
+        // Check for a reseller ref in localStorage first, then from the buyer's profile.
+        let resellerId = localStorage.getItem('resellerRefId');
+        if (!resellerId && userProfile.referredBy) {
+            resellerId = userProfile.referredBy;
+        }
         
         const newOrderData: Partial<Order> = {
             id: newOrderRef.id,
             buyerId: user.uid,
             sellerId: product.sellerId,
-            productId: product.id,
-            productName: product.name,
-            productImage: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200',
-            productPrice: product.price,
+            items: [{
+                productId: product.id,
+                name: product.name || '',
+                price: product.price,
+                quantity: 1,
+                imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200'
+            }],
+            subtotal: product.price,
             shippingCost: shippingCost,
             totalAmount: product.price + shippingCost,
             orderDate: serverTimestamp() as any,
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            quantity: 1,
         };
 
         // If a reseller ID exists, add it to the order
@@ -247,6 +253,11 @@ export default function BuyerProductPage() {
         try {
           await setDoc(newOrderRef, newOrderData);
           
+          // Clear the reseller ref from storage after it has been used for a purchase
+          if (resellerId) {
+             localStorage.removeItem('resellerRefId');
+          }
+
           toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
           router.push(`/checkout/${newOrderRef.id}`);
 
@@ -378,8 +389,8 @@ export default function BuyerProductPage() {
     const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || 'https://picsum.photos/seed/shoplogo/200';
     const sellerFollowers = sellerShop?.followers || 0;
     
-    const isReseller = userProfile?.userRole === 'reseller';
-    const LayoutComponent = isReseller ? ResellerLayout : MainLayout;
+    const isResellerPage = userProfile?.userRole === 'reseller';
+    const LayoutComponent = isResellerPage ? ResellerLayout : MainLayout;
 
     return (
         <LayoutComponent>
@@ -466,7 +477,7 @@ export default function BuyerProductPage() {
 
 
                     {/* 6. Seller Shop Info Block */}
-                    {!isReseller && (
+                    {!isResellerPage && (
                         <Card className="bg-[#2a2a2a] border-neutral-800">
                             <CardContent className="p-4 flex items-center gap-4">
                                 <Avatar className="h-12 w-12 border"><AvatarImage src={sellerLogo} /><AvatarFallback>{sellerName?.charAt(0)}</AvatarFallback></Avatar>
@@ -530,7 +541,7 @@ export default function BuyerProductPage() {
             </div>
 
             {/* 12. Bottom Sticky Action Bar */}
-            {!isReseller && (
+            {!isResellerPage && (
                 <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-sm border-t border-neutral-800 p-2 flex items-center gap-2">
                     <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center p-2">
                         <Store className="h-5 w-5 text-neutral-300"/>
