@@ -49,13 +49,13 @@ const columns: ColumnDef<UserProfile>[] = [
     },
   },
   {
-    accessorKey: 'userRole',
     header: 'Role',
+    accessorKey: 'userRole',
     cell: ({ row }) => <Badge variant="outline" className="capitalize">{row.original.userRole}</Badge>,
   },
   {
-    accessorKey: 'joinDate',
     header: 'Registration Date',
+    accessorKey: 'joinDate',
     cell: ({ row }) => {
         const date = row.original.joinDate;
         return date ? new Date(date).toLocaleDateString() : 'N/A';
