@@ -77,8 +77,7 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
         
         let q = query(
             collection(firestore, 'orders'),
-            where('sellerId', '==', user.uid),
-            orderBy('orderDate', 'desc') // Always include orderBy
+            where('sellerId', '==', user.uid)
         );
 
         if (statusFilter && statusFilter.length > 0) {
@@ -88,7 +87,12 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
         return q;
     }, [firestore, user, statusFilter]);
 
-    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+    const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+    const orders = useMemo(() => {
+        if (!data) return [];
+        return [...data].sort((a,b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
+    }, [data]);
 
     const isLoading = isUserLoading || areOrdersLoading;
 
