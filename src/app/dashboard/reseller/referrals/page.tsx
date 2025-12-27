@@ -30,6 +30,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const columns: ColumnDef<UserProfile>[] = [
   {
@@ -112,6 +113,8 @@ export default function ResellerReferralsPage() {
   const firestore = useFirestore();
   const [referrals, setReferrals] = React.useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [claimedTiers, setClaimedTiers] = React.useState<string[]>([]);
+  const { toast } = useToast();
 
   const referredUsersQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -136,6 +139,15 @@ export default function ResellerReferralsPage() {
       { name: 'Silver', points: 700, prize: 'KES 1,000 Shopping Voucher', color: 'bg-gray-400/80' },
       { name: 'Gold', points: 1000, prize: 'KES 2,500 Cash Prize', color: 'bg-yellow-400/80 text-black' },
   ];
+  
+  const handleRedeemPrize = (tierName: string) => {
+    setClaimedTiers(prev => [...prev, tierName]);
+    toast({
+        title: "Prize Claimed!",
+        description: `You've successfully redeemed the ${tierName} prize. Our team will contact you shortly.`
+    });
+    // In a real app, you would also save this to the user's profile in Firestore.
+  };
 
   const table = useReactTable({
     data: referrals,
@@ -164,7 +176,7 @@ export default function ResellerReferralsPage() {
                     isLoading={isLoading}
                     isPrimary
                 >
-                     <Button size="sm" variant="secondary" className="w-full">
+                     <Button size="sm" variant="secondary" className="w-full" disabled>
                         Redeem Points (Coming Soon)
                     </Button>
                 </StatCard>
@@ -179,12 +191,13 @@ export default function ResellerReferralsPage() {
                 {tiers.map(tier => {
                     const progress = Math.min((totalReferralPoints / tier.points) * 100, 100);
                     const achieved = totalReferralPoints >= tier.points;
+                    const isClaimed = claimedTiers.includes(tier.name);
                     return (
-                        <Card key={tier.name} className={cn(achieved && "bg-primary/10 border-primary")}>
+                        <Card key={tier.name} className={cn((achieved || isClaimed) && "bg-primary/10 border-primary")}>
                             <CardHeader>
                                 <div className="flex justify-between items-center">
                                     <CardTitle className="flex items-center gap-2">
-                                        <Trophy className={cn(achieved ? "text-primary" : "text-muted-foreground")} />
+                                        <Trophy className={cn((achieved || isClaimed) ? "text-primary" : "text-muted-foreground")} />
                                         {tier.name}
                                     </CardTitle>
                                     <Badge className={tier.color}>{tier.points} Points</Badge>
@@ -198,7 +211,9 @@ export default function ResellerReferralsPage() {
                                 <p className="font-semibold text-center">{tier.prize}</p>
                             </CardContent>
                              <CardFooter>
-                                <Button className="w-full" disabled={!achieved}>Redeem Prize</Button>
+                                <Button className="w-full" disabled={!achieved || isClaimed} onClick={() => handleRedeemPrize(tier.name)}>
+                                  {isClaimed ? 'Claimed!' : 'Redeem Prize'}
+                                </Button>
                             </CardFooter>
                         </Card>
                     )
