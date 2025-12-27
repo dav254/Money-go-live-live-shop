@@ -132,7 +132,7 @@ service cloud.firestore {
                        )
                      );
 
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow delete: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' || resource.data.sellerId == request.auth.uid);
     }
     
     // Payout requests can only be created by the seller themselves.

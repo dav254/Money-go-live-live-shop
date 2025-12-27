@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 
 const ResellerInfo = ({ order }: { order: Order }) => {
@@ -90,7 +90,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
         }
     };
     
-    const handleDelete = async (orderId: string) => {
+    const handleDelete = useCallback(async (orderId: string) => {
         if (!firestore) return;
         const orderRef = doc(firestore, 'orders', orderId);
         try {
@@ -100,7 +100,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
             console.error('Failed to delete order:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the order.' });
         }
-    };
+    }, [firestore, toast]);
 
     if (isLoading) {
        return (
@@ -255,6 +255,7 @@ export default function SellerOrdersPage() {
 
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
+        // The query is simplified, sorting will be done client-side
         return query(
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
@@ -266,8 +267,12 @@ export default function SellerOrdersPage() {
     const { directSales, resellerSales } = useMemo(() => {
         const direct: Order[] = [];
         const reseller: Order[] = [];
-        if (data) {
-            data.forEach(order => {
+        
+        // Sort the data here
+        const sortedData = data ? [...data].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime()) : [];
+
+        if (sortedData) {
+            sortedData.forEach(order => {
                 if (order.resellerId) {
                     reseller.push(order);
                 } else {
