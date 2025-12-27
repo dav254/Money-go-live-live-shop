@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -323,9 +324,9 @@ export default function ResellerCenterPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                         <BadgePercent />
-                        Set Product Commission Rates
+                        Set Product Commission
                         </CardTitle>
-                        <CardDescription>Set the percentage a reseller will earn for selling each product. A rate of 0% means the product is not available for reselling.</CardDescription>
+                        <CardDescription>Enable reselling for a product to automatically offer a fixed 10% commission. A disabled switch means the product is not available for reselling.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <CommissionSettingsTable />

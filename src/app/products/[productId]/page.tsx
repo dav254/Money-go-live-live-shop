@@ -225,8 +225,9 @@ export default function BuyerProductPage() {
         }
 
         let resellerCommission = 0;
+        // If a reseller is involved and the product is enabled for reselling (fixed 10%)
         if (resellerId && product.commissionRate && product.commissionRate > 0) {
-            resellerCommission = product.price * (product.commissionRate / 100);
+            resellerCommission = product.price * 0.10;
         }
         
         const newOrderData: Partial<Order> = {
@@ -562,5 +563,4 @@ export default function BuyerProductPage() {
     
 
     
-
 

@@ -72,12 +72,20 @@ export async function POST(request: Request) {
                     }
                     const orderData = orderSnap.data() as Order;
                     
-                    const platformFee = orderData.subtotal ? orderData.subtotal * PLATFORM_FEE_RATE : 0;
+                    const subtotal = orderData.subtotal || 0;
+                    const platformFee = subtotal * PLATFORM_FEE_RATE;
+
+                    let resellerCommission = 0;
+                    // If a reseller is involved, calculate a fixed 10% commission
+                    if (orderData.resellerId) {
+                        resellerCommission = subtotal * 0.10;
+                    }
                     
                     await updateDoc(orderRef, {
                         orderStatus: 'processing',
                         paymentMethod: 'paypal',
                         platformFee: platformFee,
+                        resellerCommission: resellerCommission > 0 ? resellerCommission : 0,
                     });
                      
                     const paymentRef = collection(db, 'payments');

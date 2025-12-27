@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile } from '@/firebase';
-import { collection, deleteDoc, doc, updateDoc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, updateDoc, setDoc, serverTimestamp, getDoc, getDocs, where, query } from 'firebase/firestore';
 import type { CartItem, Order, Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
@@ -126,26 +127,15 @@ export default function CartPage() {
         const newOrderRef = doc(collection(firestore, 'orders'));
         const firstItem = cartItems[0];
         
-        const productIds = cartItems.map(item => item.productId);
-        const productsRef = collection(firestore, 'products');
-        const productsQuery = query(productsRef, where('__name__', 'in', productIds));
-        const productsSnapshot = await getDocs(productsQuery);
-        const productsData = new Map(productsSnapshot.docs.map(doc => [doc.id, doc.data() as Product]));
-
-        let totalCommission = 0;
         let resellerId = localStorage.getItem('resellerRefId');
         if (!resellerId && userProfile.referredBy) {
             resellerId = userProfile.referredBy;
         }
 
+        let totalCommission = 0;
         if (resellerId) {
-            totalCommission = cartItems.reduce((acc, item) => {
-                const product = productsData.get(item.productId);
-                if (product?.commissionRate) {
-                    return acc + (item.price * item.quantity * (product.commissionRate / 100));
-                }
-                return acc;
-            }, 0);
+             // Use a fixed 10% commission rate for all items if a reseller is involved
+            totalCommission = subtotal * 0.10;
         }
 
         const newOrderData: Partial<Order> = {
