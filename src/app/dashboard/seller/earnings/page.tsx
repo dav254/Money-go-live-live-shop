@@ -28,7 +28,7 @@ import {
   Package,
   Calculator,
 } from 'lucide-react';
-import { DateRangePicker } from '@/components/dashboard/date-range-picker';
+import { DatePicker } from '@/components/dashboard/date-picker';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
@@ -124,7 +124,7 @@ export default function SellerEarningsPage() {
 
     const payoutsQuery = useMemoFirebase(() => {
         if (!user) return null;
-        return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
+        return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
     }, [firestore, user]);
 
     const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
@@ -186,7 +186,7 @@ export default function SellerEarningsPage() {
             Earnings & Invoices
           </h1>
           <div className="flex items-center space-x-2">
-            <DateRangePicker />
+            <DatePicker date={new Date()} setDate={() => {}} />
             <Button asChild variant="destructive" className="font-bold">
               <Link href="/dashboard/seller/wallet">
                 Go to Wallet <ArrowRight className="ml-2 h-4 w-4" />
