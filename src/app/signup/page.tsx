@@ -77,6 +77,7 @@ export default function SignupPage() {
         email: values.email,
         joinDate: new Date().toISOString(),
         userRole: values.role,
+        aiPoints: 0, // Start with 0 points
       };
 
       // Check for a referral ID in local storage and add it to the profile
@@ -85,13 +86,17 @@ export default function SignupPage() {
           userProfile.referredBy = resellerRefId;
       }
 
-
       await setDoc(userDocRef, userProfile);
 
       toast({
         title: 'Account Created!',
         description: "You've successfully signed up.",
       });
+      
+      // Clear the ref ID from storage after using it
+      if (resellerRefId) {
+        localStorage.removeItem('resellerRefId');
+      }
       
       if (values.role === 'seller') {
         router.push('/dashboard/seller/about');
