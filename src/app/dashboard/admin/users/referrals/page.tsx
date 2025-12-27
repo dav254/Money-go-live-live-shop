@@ -20,7 +20,7 @@ import {
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -134,7 +134,7 @@ export default function AdminReferralsPage() {
         return;
       }
       
-      const referrersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', referrerIds));
+      const referrersQuery = query(collection(firestore, 'userProfiles'), where('id', 'in', referrerIds.slice(0, 30)));
       const querySnapshot = await getDocs(referrersQuery);
       const referrersMap = new Map(querySnapshot.docs.map(doc => [doc.id, doc.data() as UserProfile]));
 
