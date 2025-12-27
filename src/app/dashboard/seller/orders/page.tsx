@@ -62,24 +62,27 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         
-        let q = query(
+        // Simplified query to comply with security rules
+        return query(
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
         );
-
-        if (statusFilter && statusFilter.length > 0) {
-            q = query(q, where('orderStatus', 'in', statusFilter));
-        }
-        
-        return q;
-    }, [firestore, user, statusFilter]);
+    }, [firestore, user]);
 
     const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
-    const orders = useMemo(() => {
+    const filteredAndSortedOrders = useMemo(() => {
         if (!data) return [];
-        return [...data].sort((a,b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
-    }, [data]);
+
+        let filtered = data;
+        // Perform status filtering on the client-side
+        if (statusFilter && statusFilter.length > 0) {
+            filtered = data.filter(order => statusFilter.includes(order.orderStatus));
+        }
+
+        // Perform sorting on the client-side
+        return filtered.sort((a,b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime());
+    }, [data, statusFilter]);
 
     const isLoading = isUserLoading || areOrdersLoading;
 
@@ -138,7 +141,7 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
         );
     }
 
-    if (!orders || orders.length === 0) {
+    if (!filteredAndSortedOrders || filteredAndSortedOrders.length === 0) {
        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
             <h2 className="text-xl font-semibold">No Orders Found</h2>
             <p className="text-muted-foreground">This section is empty. New orders will appear here.</p>
@@ -159,7 +162,7 @@ const AllOrdersTable = ({ statusFilter }: { statusFilter?: Order['orderStatus'][
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {orders.map(order => (
+                    {filteredAndSortedOrders.map(order => (
                         <TableRow key={order.id}>
                             <TableCell>
                                 <div className="flex items-center gap-3">
