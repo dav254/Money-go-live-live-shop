@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { formatDistanceToNow } from 'date-fns';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 
 
 const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
@@ -100,12 +101,12 @@ export default function BuyerProductPage() {
 
     // This effect runs when the component mounts, which is when a video is viewed.
     useEffect(() => {
-        if (firestore && productId) {
+        if (firestore && productId && user) {
         const productRef = doc(firestore, 'products', productId);
         // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
         updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
         }
-    }, [firestore, productId]);
+    }, [firestore, productId, user]);
 
     // Capture reseller ref from URL and store it in localStorage
     useEffect(() => {
@@ -385,12 +386,12 @@ export default function BuyerProductPage() {
     const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Anonymous Seller';
     const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || 'https://picsum.photos/seed/shoplogo/200';
     const sellerFollowers = sellerShop?.followers || 0;
+    
     const isReseller = userProfile?.userRole === 'reseller';
-
-    const filteredRecommendedProducts = recommendedProducts?.filter(p => p.id !== product.id) || [];
+    const LayoutComponent = isReseller ? ResellerLayout : MainLayout;
 
     return (
-        <MainLayout>
+        <LayoutComponent>
             <div className="bg-black text-white pb-24">
                 {/* 1. Product Media Section */}
                 <div className="relative w-full">
@@ -553,7 +554,7 @@ export default function BuyerProductPage() {
                     <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleBuyNow}>Buy Now</Button>
                 </div>
             )}
-        </MainLayout>
+        </LayoutComponent>
     );
 }
 
