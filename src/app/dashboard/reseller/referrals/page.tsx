@@ -23,46 +23,10 @@ import type { UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-
-// Mock data for referred users
-const mockReferredUsers: UserProfile[] = [
-    { 
-        id: 'user1', 
-        uid: 'user1', 
-        fullName: 'Alice Johnson', 
-        username: 'alicej', 
-        email: 'alice@example.com', 
-        userRole: 'buyer', 
-        joinDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        aiPoints: 0,
-        createdAt: new Date() as any,
-        status: 'active',
-    },
-    { 
-        id: 'user2', 
-        uid: 'user2', 
-        fullName: 'Bob Williams', 
-        username: 'bobw', 
-        email: 'bob@example.com', 
-        userRole: 'seller', 
-        joinDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        aiPoints: 0,
-        createdAt: new Date() as any,
-        status: 'active',
-    },
-    { 
-        id: 'user3', 
-        uid: 'user3', 
-        fullName: 'Charlie Brown', 
-        username: 'charlieb', 
-        email: 'charlie@example.com', 
-        userRole: 'buyer', 
-        joinDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        aiPoints: 0,
-        createdAt: new Date() as any,
-        status: 'active',
-    },
-];
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const columns: ColumnDef<UserProfile>[] = [
   {
@@ -105,8 +69,18 @@ const columns: ColumnDef<UserProfile>[] = [
 ];
 
 export default function ResellerReferralsPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const referredUsersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'userProfiles'), where('referredBy', '==', user.uid));
+  }, [user, firestore]);
+
+  const { data: referredUsers, isLoading } = useCollection<UserProfile>(referredUsersQuery);
+
   const table = useReactTable({
-    data: mockReferredUsers,
+    data: referredUsers || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -141,7 +115,13 @@ export default function ResellerReferralsPage() {
                         ))}
                     </TableHeader>
                     <TableBody>
-                        {table.getRowModel().rows?.length ? (
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                    Loading your referrals...
+                                </TableCell>
+                            </TableRow>
+                        ) : table.getRowModel().rows?.length ? (
                         table.getRowModel().rows.map((row) => (
                             <TableRow key={row.id}>
                             {row.getVisibleCells().map((cell) => (
