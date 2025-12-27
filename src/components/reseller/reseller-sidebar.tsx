@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -20,6 +19,7 @@ import {
   Search,
   Bell,
   Info,
+  Users as UsersIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -62,6 +62,14 @@ export function ResellerSidebar() {
             <Link href="/dashboard/reseller/toolkit">
               <FolderKanban />
               <span>AI Toolkit</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+         <SidebarMenuItem>
+          <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/referrals')}>
+            <Link href="/dashboard/reseller/referrals">
+              <UsersIcon />
+              <span>My Referrals</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
