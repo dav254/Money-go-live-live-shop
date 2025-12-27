@@ -73,6 +73,17 @@ export function MyProductsTable() {
 
   const { data: productsData, isLoading: areProductsLoading, error } = useCollection<Product>(productsQuery);
 
+  const sortedProducts = React.useMemo(() => {
+    if (!productsData) return [];
+    // Sort by uploadDate descending. Newer products first.
+    return [...productsData].sort((a, b) => {
+      const dateA = a.uploadDate?.toDate()?.getTime() || 0;
+      const dateB = b.uploadDate?.toDate()?.getTime() || 0;
+      return dateB - dateA;
+    });
+  }, [productsData]);
+
+
   const handleDelete = React.useCallback(async (productId: string) => {
     if (!firestore) return;
     const productRef = doc(firestore, 'products', productId);
@@ -260,7 +271,7 @@ export function MyProductsTable() {
   const isLoading = isUserLoading || areProductsLoading;
 
   const table = useReactTable({
-    data: productsData || [],
+    data: sortedProducts,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
