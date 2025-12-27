@@ -3,10 +3,10 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare } from 'lucide-react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users } from 'lucide-react';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, UserProfile } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,15 @@ interface ManagedOrder extends Order {
     buyerName?: string;
 }
 
+const ResellerCell = ({ resellerId }: { resellerId: string }) => {
+    const firestore = useFirestore();
+    const resellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', resellerId), [firestore, resellerId]);
+    const { data: reseller, isLoading } = useDoc<UserProfile>(resellerProfileRef);
+
+    if (isLoading) return <Skeleton className="h-5 w-24" />;
+    return <span className="font-medium">{reseller?.fullName || 'Unknown Reseller'}</span>;
+};
+
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
     pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
@@ -35,9 +44,9 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
     shipped: { label: 'Shipped', className: 'bg-indigo-500/80 hover:bg-indigo-500/70' },
     delivered: { label: 'Delivered', className: 'bg-green-600/80 hover:bg-green-600/70' },
     cancelled: { label: 'Cancelled', className: 'bg-red-500/80 hover:bg-red-500/70' },
-    'in-cart': { label: 'In Cart', className: 'bg-gray-500/80 hover:bg-gray-500/70' },
+    disputed: { label: 'Disputed', className: 'bg-orange-500/80 hover:bg-orange-500/70' },
   };
-  const config = statusConfig[status] || { label: 'Unknown', className: 'bg-gray-400' };
+  const config = statusConfig[status as keyof typeof statusConfig] || { label: 'Unknown', className: 'bg-gray-400' };
   return <Badge className={`capitalize ${config.className}`}>{config.label}</Badge>;
 };
 
@@ -76,7 +85,7 @@ const AllOrdersTable = () => {
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead>Amount</TableHead>
-                            <TableHead>Buyer ID</TableHead>
+                            <TableHead>Source / Commission</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -111,7 +120,7 @@ const AllOrdersTable = () => {
                     <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Buyer ID</TableHead>
+                        <TableHead>Source / Commission</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -128,8 +137,20 @@ const AllOrdersTable = () => {
                                     <span className="font-medium">{order.productName}</span>
                                 </div>
                             </TableCell>
-                            <TableCell className="font-bold text-primary">{order.totalAmount.toLocaleString()}</TableCell>
-                            <TableCell className="text-muted-foreground text-xs">{order.buyerId}</TableCell>
+                            <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
+                            <TableCell>
+                                {order.resellerId ? (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                        <div>
+                                            <ResellerCell resellerId={order.resellerId} />
+                                            <p className="text-xs text-green-500 font-semibold">${(order.resellerCommission || 0).toFixed(2)} commission</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <span className="text-sm text-muted-foreground">Direct Sale</span>
+                                )}
+                            </TableCell>
                             <TableCell>
                                 <OrderStatusBadge status={order.orderStatus} />
                             </TableCell>
