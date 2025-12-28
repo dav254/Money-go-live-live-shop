@@ -10,10 +10,13 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Processes a delivered order to distribute earnings, taxes, and referral bonuses.
- * This is the single source of truth for all financial calculations.
- * Triggered when an order's status is updated to 'delivered'.
+ * DEACTIVATED: This function is no longer in use.
+ * It was previously used to automatically process earnings when an order was marked as 'delivered'.
+ * This logic is now handled manually by the administrator to ensure security and control over payouts.
+ * 
+ * To re-enable, you would need to deploy this function.
  */
+/*
 export const processOrderAndDistributeEarnings = functions.firestore
     .document("orders/{orderId}")
     .onUpdate(async (change, context) => {
@@ -222,6 +225,8 @@ export const processOrderAndDistributeEarnings = functions.firestore
         return null;
       }
     });
+*/
+
 
 /**
  * Sends a notification to a buyer when their order status changes.
