@@ -1,5 +1,4 @@
 
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -125,7 +124,7 @@ service cloud.firestore {
                            (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
                          )
                        ) ||
-                       ( // Buyer can confirm delivery
+                       ( // Buyer can confirm delivery from shipped -> delivered
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
                          request.resource.data.orderStatus == 'delivered'
