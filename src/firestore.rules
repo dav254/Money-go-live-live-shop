@@ -70,8 +70,8 @@ service cloud.firestore {
       allow update: if request.auth != null &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
                     
-      // Allow delete only by the product owner.
-      allow delete: if resource.data.sellerId == request.auth.uid;
+      // Allow delete only by the product owner or an admin.
+      allow delete: if resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
 
       // Allow authenticated users to list and create comments.
       match /comments/{commentId} {
@@ -118,14 +118,14 @@ service cloud.firestore {
       allow update: if request.auth != null &&
                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                      (
-                       ( // Seller's permissions
+                       ( // Seller's permissions to update status
                          resource.data.sellerId == request.auth.uid &&
                          (
                            (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
                            (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
                          )
                        ) ||
-                       ( // Buyer's permissions
+                       ( // Buyer's permissions to confirm delivery
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
                          request.resource.data.orderStatus == 'delivered'

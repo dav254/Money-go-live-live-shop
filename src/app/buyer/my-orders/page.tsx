@@ -121,7 +121,14 @@ const OrderCard = ({ order }: { order: Order }) => {
     };
 
     const handleConfirmDelivery = async () => {
-        if (!firestore) return;
+        if (!firestore) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not connect to the database. Please try again later.',
+            });
+            return;
+        }
         const orderRef = doc(firestore, 'orders', order.id);
         try {
             await updateDoc(orderRef, { orderStatus: 'delivered' });
@@ -134,7 +141,7 @@ const OrderCard = ({ order }: { order: Order }) => {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'Could not update order status.',
+                description: 'Could not update order status. Please check your permissions.',
             });
         }
     };
