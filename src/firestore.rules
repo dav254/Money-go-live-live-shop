@@ -114,20 +114,24 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
       // Allow seller to update status from pending->processing or processing->shipped
-      allow update: if request.auth != null &&
-                     (resource.data.sellerId == request.auth.uid &&
-                      (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
-                      (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped') &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
-                     );
-      
       // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
-                      (resource.data.buyerId == request.auth.uid &&
-                       resource.data.orderStatus == 'shipped' && 
-                       request.resource.data.orderStatus == 'delivered' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'buyerConfirmed', 'deliveredAt', 'deliveryProof'])
-                      );
+                     (
+                       ( // Seller's permissions
+                         resource.data.sellerId == request.auth.uid &&
+                         (
+                           (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
+                           (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
+                         ) &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
+                       ) ||
+                       ( // Buyer's permissions
+                         resource.data.buyerId == request.auth.uid &&
+                         resource.data.orderStatus == 'shipped' &&
+                         request.resource.data.orderStatus == 'delivered' &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'buyerConfirmed', 'deliveredAt', 'deliveryProof'])
+                       )
+                     );
 
       allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
@@ -156,7 +160,7 @@ service cloud.firestore {
     
     // Homepage slides are publicly readable
     match /homepageSlides/{slideId} {
-        allow read: if true;
+        allow read, list: if true;
         allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
@@ -302,5 +306,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
