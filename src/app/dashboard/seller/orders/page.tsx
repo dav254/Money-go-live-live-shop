@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { format } from 'date-fns';
 
 const ResellerInfo = ({ order }: { order: Order }) => {
@@ -74,16 +74,25 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 
-const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
+const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const [orders, setOrders] = useState(initialOrders);
+
+    useEffect(() => {
+        setOrders(initialOrders);
+    }, [initialOrders]);
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
         const orderRef = doc(firestore, 'orders', orderId);
         try {
+            // Correctly pass only the fields to be updated
             await updateDoc(orderRef, { orderStatus: newStatus });
             toast({ title: 'Success', description: `Order marked as ${newStatus}.` });
+            // Manually update local state for immediate UI feedback
+            setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? { ...o, orderStatus: newStatus } : o));
+            refetch(); // Trigger a re-fetch of the main data
         } catch (error) {
             console.error('Failed to update order status:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
@@ -96,11 +105,12 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
         try {
             await deleteDoc(orderRef);
             toast({ title: 'Order Deleted', description: 'The order has been removed from your list.' });
+            refetch();
         } catch (error) {
             console.error('Failed to delete order:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the order.' });
         }
-    }, [firestore, toast]);
+    }, [firestore, toast, refetch]);
 
     if (isLoading) {
        return (
@@ -220,7 +230,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
     );
 };
 
-const OrderSection = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
+const OrderSection = ({ orders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
     return (
          <Tabs defaultValue="all" className="space-y-4">
             <TabsList>
@@ -231,19 +241,19 @@ const OrderSection = ({ orders, isLoading }: { orders: Order[], isLoading: boole
                 <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
             </TabsList>
             <TabsContent value="all">
-                <AllOrdersTable orders={orders} isLoading={isLoading} />
+                <AllOrdersTable orders={orders} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
              <TabsContent value="pending">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'pending')} isLoading={isLoading} />
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'pending')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
             <TabsContent value="processing">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'processing')} isLoading={isLoading} />
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'processing')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
             <TabsContent value="shipped">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped')} isLoading={isLoading} />
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
             <TabsContent value="delivered">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} />
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
         </Tabs>
     )
@@ -255,20 +265,18 @@ export default function SellerOrdersPage() {
 
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        // The query is simplified, sorting will be done client-side
         return query(
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
         );
     }, [firestore, user]);
 
-    const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+    const { data, isLoading: areOrdersLoading, refetch } = useCollection<Order>(ordersQuery);
 
     const { directSales, resellerSales } = useMemo(() => {
         const direct: Order[] = [];
         const reseller: Order[] = [];
         
-        // Sort the data here
         const sortedData = data ? [...data].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime()) : [];
 
         if (sortedData) {
@@ -297,10 +305,10 @@ export default function SellerOrdersPage() {
                 <TabsTrigger value="reseller">Reseller Sales ({resellerSales.length})</TabsTrigger>
             </TabsList>
              <TabsContent value="direct">
-                <OrderSection orders={directSales} isLoading={isLoading} />
+                <OrderSection orders={directSales} isLoading={isLoading} refetch={refetch || (() => {})} />
             </TabsContent>
              <TabsContent value="reseller">
-                <OrderSection orders={resellerSales} isLoading={isLoading} />
+                <OrderSection orders={resellerSales} isLoading={isLoading} refetch={refetch || (() => {})} />
             </TabsContent>
         </Tabs>
       </div>

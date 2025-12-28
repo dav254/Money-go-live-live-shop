@@ -1,4 +1,5 @@
 
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -113,19 +114,18 @@ service cloud.firestore {
                       get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
-      // Allow seller to update status from pending->processing or processing->shipped
-      // Allow buyer to update status from shipped->delivered
+      // Allow specific, controlled status updates by seller or buyer.
       allow update: if request.auth != null &&
                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                      (
-                       ( // Seller's permissions to update status
+                       ( // Seller can move from pending -> processing -> shipped
                          resource.data.sellerId == request.auth.uid &&
                          (
                            (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
                            (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
                          )
                        ) ||
-                       ( // Buyer's permissions to confirm delivery
+                       ( // Buyer can confirm delivery
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
                          request.resource.data.orderStatus == 'delivered'
