@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import type { Order, Product } from '@/lib/types';
-// CORRECTED: Import server-side admin functions instead of client-side ones
+// CORRECTED: Import server-side admin functions from 'firebase-admin/firestore'
 import { collection, doc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase-admin/firestore';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const orderRef = doc(db, 'orders', orderId);
     const orderSnap = await getDoc(orderRef);
 
-    if (!orderSnap.exists) {
+    if (!orderSnap.exists()) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
@@ -34,13 +34,13 @@ export async function POST(request: Request) {
     // --- Perform the same logic as the payment webhooks ---
     
     // 1. Calculate fees and commissions
-    const subtotal = orderData.subtotal ?? orderData.productPrice ?? 0;
-    const platformFee = subtotal * PLATFORM_FEE_RATE;
+    const productPrice = orderData.productPrice ?? 0;
+    const platformFee = productPrice * PLATFORM_FEE_RATE;
     
     let resellerCommission = 0;
     // If a reseller is involved, calculate 10% commission.
     if (orderData.resellerId) {
-        resellerCommission = subtotal * 0.10;
+        resellerCommission = productPrice * 0.10;
     }
     
     // 2. Update the order to 'processing'
