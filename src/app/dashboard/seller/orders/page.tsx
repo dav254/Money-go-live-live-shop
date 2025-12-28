@@ -63,7 +63,7 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
                     <TableHeader>
                         <TableRow>
                             <TableHead>Product</TableHead>
-                            <TableHead>Amount</TableHead>
+                            <TableHead>Total Amount</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -178,7 +178,7 @@ const OrderSection = ({ orders, isLoading, refetch }: { orders: Order[], isLoadi
                 <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
             <TabsContent value="delivered">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} refetch={refetch} />
+                 <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
         </Tabs>
     )
