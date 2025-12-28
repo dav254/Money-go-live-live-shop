@@ -115,19 +115,29 @@ service cloud.firestore {
       
       // Allow seller to update status from pending->processing or processing->shipped
       allow update: if request.auth != null &&
-                     resource.data.sellerId == request.auth.uid &&
-                     (
-                       (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
-                       (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
+                      (
+                       ( // Seller's permissions
+                         resource.data.sellerId == request.auth.uid &&
+                         (
+                           (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
+                           (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
+                         )
+                       )
                      );
-
+      
       // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
-                     resource.data.buyerId == request.auth.uid &&
-                     resource.data.orderStatus == 'shipped' &&
-                     request.resource.data.orderStatus == 'delivered';
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
+                      (
+                        ( // Buyer's permissions
+                          resource.data.buyerId == request.auth.uid &&
+                          resource.data.orderStatus == 'shipped' &&
+                          request.resource.data.orderStatus == 'delivered'
+                        )
+                      );
 
-      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     
     // Payout requests can only be created by the seller themselves.
@@ -301,3 +311,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
