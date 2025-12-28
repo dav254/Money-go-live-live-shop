@@ -2,7 +2,7 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, getDoc, getDocs, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getDoc, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -15,6 +15,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { doc } from 'firebase/firestore';
 
 function CheckoutSkeleton() {
     return (
@@ -164,37 +165,6 @@ export default function CheckoutPage() {
         }
     };
     
-    const handleSimulatePayment = async () => {
-        if (!orderId) return;
-        
-        setIsLoadingPayment('demo');
-        
-        try {
-            const response = await fetch('/api/checkout/simulate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId }),
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || 'Failed to simulate payment.');
-            }
-            
-            toast({ title: "Payment Simulated!", description: "Order status has been updated to processing." });
-            router.push('/buyer/my-orders');
-            
-        } catch (err: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Simulation Error',
-                description: err.message || 'Could not simulate the payment. Please check the logs.',
-            });
-        } finally {
-            setIsLoadingPayment(null);
-        }
-    }
-
 
     if (isLoading) {
         return (
@@ -291,16 +261,6 @@ export default function CheckoutPage() {
                          >
                             {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : <div className="h-6 w-6 bg-white rounded" />} 
                             Pay with PayPal
-                        </Button>
-                         <Button
-                            size="lg"
-                            variant="secondary"
-                            className="w-full justify-center gap-4 h-16 text-lg"
-                            onClick={handleSimulatePayment}
-                            disabled={!!isLoadingPayment}
-                         >
-                            {isLoadingPayment === 'demo' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Simulate Demo Payment
                         </Button>
                     </div>
                 </div>
