@@ -114,22 +114,18 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
       // Allow seller to update status from pending->processing or processing->shipped
+      allow update: if request.auth != null &&
+                     resource.data.sellerId == request.auth.uid &&
+                     (
+                       (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
+                       (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
+                     );
+
       // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
-                     (
-                       ( // Seller's permissions
-                         resource.data.sellerId == request.auth.uid &&
-                         (
-                           (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
-                           (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
-                         )
-                       ) ||
-                       ( // Buyer's permissions
-                         resource.data.buyerId == request.auth.uid &&
-                         resource.data.orderStatus == 'shipped' &&
-                         request.resource.data.orderStatus == 'delivered'
-                       )
-                     );
+                     resource.data.buyerId == request.auth.uid &&
+                     resource.data.orderStatus == 'shipped' &&
+                     request.resource.data.orderStatus == 'delivered';
 
       allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
     }
