@@ -210,7 +210,7 @@ export interface Order {
   totalAmount: number;
   orderDate: any; // Can be Timestamp or string
   shippingAddress: string;
-  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'disputed';
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivery' | 'delivered' | 'cancelled' | 'disputed';
   paymentMethod: string;
   resellerId?: string;
   platformFee?: number;
@@ -220,6 +220,9 @@ export interface Order {
   buyerConfirmed?: boolean;
   deliveredAt?: any;
   deliveryProof?: string | null;
+  courierName?: string | null;
+  dispatchNote?: string | null;
+  movedToDeliveryAt?: any;
   // Deprecated fields, kept for backward compatibility if needed.
   productId?: string;
   productName?: string;

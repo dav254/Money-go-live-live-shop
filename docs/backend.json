@@ -543,7 +543,7 @@
         "orderStatus": {
           "type": "string",
           "description": "The current status of the order (e.g., pending, shipped, delivered, disputed).",
-          "enum": ["pending", "processing", "shipped", "delivered", "cancelled", "disputed"]
+          "enum": ["pending", "processing", "shipped", "delivery", "delivered", "cancelled", "disputed"]
         },
         "disputeReason": {
           "type": "string",
@@ -560,6 +560,12 @@
         "shippingProvider": {
           "type": "string",
           "description": "The company used for shipping (e.g., DHL, G4S)."
+        },
+        "courierName": {
+            "type": "string"
+        },
+        "dispatchNote": {
+            "type": "string"
         }
       },
       "required": [
