@@ -3,7 +3,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read their own profile, and it is publicly readable.
+    // Users can read and update their own profile.
+    // Public read is now allowed for user profiles.
     match /userProfiles/{userId} {
       allow read: if true;
       allow list: if request.auth != null && request.query.where[0][0] == 'referredBy' && request.query.where[0][2] == request.auth.uid;
