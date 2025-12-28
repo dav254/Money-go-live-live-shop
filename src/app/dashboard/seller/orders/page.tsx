@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -74,24 +73,16 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 
-const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
+const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [orders, setOrders] = useState(initialOrders);
-
-    useEffect(() => {
-        setOrders(initialOrders);
-    }, [initialOrders]);
-
+    
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
         const orderRef = doc(firestore, 'orders', orderId);
         try {
-            // Correctly pass only the fields to be updated
             await updateDoc(orderRef, { orderStatus: newStatus });
             toast({ title: 'Success', description: `Order marked as ${newStatus}.` });
-            // Manually update local state for immediate UI feedback
-            setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? { ...o, orderStatus: newStatus } : o));
             refetch(); // Trigger a re-fetch of the main data
         } catch (error) {
             console.error('Failed to update order status:', error);
