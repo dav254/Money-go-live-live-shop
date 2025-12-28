@@ -3,7 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
-import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
 export async function POST(request: Request) {
@@ -14,10 +14,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
         }
 
-        const orderRef = doc(db, 'orders', orderId);
-        const orderSnap = await getDoc(orderRef);
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderSnap = await orderRef.get();
 
-        if (!orderSnap.exists()) {
+        if (!orderSnap.exists) {
             return NextResponse.json({ message: 'Order not found' }, { status: 404 });
         }
 
@@ -27,24 +27,30 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Order has already been processed' }, { status: 400 });
         }
         
+        // Use a batch to perform atomic operations
+        const batch = db.batch();
+
         // 1. Update order status to 'processing'
-        await updateDoc(orderRef, {
+        batch.update(orderRef, {
             orderStatus: 'processing',
             paymentMethod: 'simulated_demo',
         });
         
         // 2. Create a corresponding payment document
-        const paymentRef = collection(db, 'payments');
-        await addDoc(paymentRef, {
+        const paymentRef = db.collection('payments').doc(); // Auto-generate ID
+        batch.set(paymentRef, {
             orderId: orderId,
             userId: orderData.buyerId,
             amount: orderData.totalAmount,
             paymentMethod: 'simulated_demo',
             paymentStatus: 'completed',
-            paymentDate: serverTimestamp(),
+            paymentDate: FieldValue.serverTimestamp(),
             transactionType: 'product-purchase',
             transactionId: `SIM_${Date.now()}`,
         });
+        
+        // Commit the batch
+        await batch.commit();
         
         return NextResponse.json({ success: true, message: 'Payment simulated successfully.' });
 
