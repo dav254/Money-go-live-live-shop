@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Truck, MessageSquare, CheckCircle, Star, Upload } from 'lucide-react';
+import { MessageSquare, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
-import { collection, doc, query, where, updateDoc, getDocs, setDoc, serverTimestamp, addDoc, getDoc } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, query, where, getDocs, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -21,7 +20,6 @@ import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { Input } from '@/components/ui/input';
 
 const ReviewDialog = ({ order }: { order: Order }) => {
@@ -97,7 +95,7 @@ const ReviewDialog = ({ order }: { order: Order }) => {
     )
 }
 
-const OrderCard = ({ order }: { order: Order }) => {
+const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimisticOrders: React.Dispatch<React.SetStateAction<Order[] | undefined>> }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     const { user } = useUser();
@@ -121,84 +119,56 @@ const OrderCard = ({ order }: { order: Order }) => {
             default: return 'bg-gray-400/80';
         }
     };
-    
-    const uploadProof = async (file: File): Promise<string> => {
-        const timestamp = Math.round((new Date()).getTime() / 1000);
-        const paramsToSign = { timestamp, folder: 'delivery-proofs' };
-
-        const signatureResponse = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(paramsToSign),
-        });
-        const { signature } = await signatureResponse.json();
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
-        formData.append('timestamp', timestamp.toString());
-        formData.append('signature', signature);
-        formData.append('folder', 'delivery-proofs');
-
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-        const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-        
-        const uploadResponse = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-            throw new Error('Cloudinary upload failed.');
-        }
-
-        const uploadedData = await uploadResponse.json();
-        return uploadedData.secure_url;
-    };
 
     const handleConfirmDelivery = async () => {
-        if (!firestore || !user) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to database or user not found.' });
-            return;
-        }
+        // Optimistically update the UI to move the order to the delivered tab
+        setOptimisticOrders(prevOrders =>
+            prevOrders?.map(o =>
+                o.id === order.id ? { ...o, orderStatus: 'delivered' } : o
+            )
+        );
 
-        const orderRef = doc(firestore, 'orders', order.id);
-        
-        let proofUrl = null;
+        const formData = new FormData();
+        formData.append("orderId", order.id);
         if (proofFile) {
-             toast({ title: 'Uploading proof...' });
-             try {
-                proofUrl = await uploadProof(proofFile);
-             } catch (error) {
-                 toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload proof image.' });
-                 return;
-             }
+            formData.append("proof", proofFile);
         }
 
-        const updateData = { 
-            orderStatus: 'delivered',
-            buyerConfirmed: true,
-            deliveredAt: serverTimestamp(),
-            deliveryProof: proofUrl
-        };
-        
-        updateDoc(orderRef, updateData)
-            .then(() => {
+        try {
+            const response = await fetch("/api/orders/confirm-delivery", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                // If the server response is not OK, it's likely an HTML error page.
+                const errorText = await response.text();
+                console.error("Backend Error:", errorText); // Log the HTML error for debugging
+                throw new Error('Server returned an error. See console for details.');
+            }
+
+            const result = await response.json();
+            if (result.success) {
                 toast({
-                    title: 'Order Completed!',
-                    description: 'You have confirmed delivery. Thank you!',
+                    title: "Delivery confirmed ✅",
+                    description: "Your order has been marked as delivered.",
                 });
-            })
-            .catch(error => {
-                errorEmitter.emit(
-                    'permission-error',
-                    new FirestorePermissionError({
-                        path: orderRef.path,
-                        operation: 'update',
-                        requestResourceData: updateData,
-                    })
-                );
-        });
+            } else {
+                throw new Error(result.error || "The server reported a failure.");
+            }
+
+        } catch (error) {
+            console.error("Error confirming delivery:", error);
+            let errorMessage = 'An unknown error occurred.';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+            toast({
+                variant: "destructive",
+                title: "Confirmation Failed",
+                description: `Your order was moved locally, but the backend sync failed: ${errorMessage}`,
+            });
+        }
     };
 
     const handleMessageSeller = async () => {
@@ -336,6 +306,7 @@ const OrdersSkeleton = () => (
 export default function MyOrdersPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
+    const [activeTab, setActiveTab] = useState('active');
 
     const ordersQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
@@ -343,12 +314,17 @@ export default function MyOrdersPage() {
     }, [firestore, user]);
 
     const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
+    const [optimisticOrders, setOptimisticOrders] = useState<Order[] | undefined>(orders);
+
+    useEffect(() => {
+        setOptimisticOrders(orders);
+    }, [orders]);
 
     const isLoading = isUserLoading || isOrdersLoading;
 
     const filteredOrders = (status: Order['orderStatus'] | Order['orderStatus'][]) => {
         const statuses = Array.isArray(status) ? status : [status];
-        return orders?.filter(o => statuses.includes(o.orderStatus)) || [];
+        return optimisticOrders?.filter(o => statuses.includes(o.orderStatus)) || [];
     }
 
   return (
@@ -356,7 +332,7 @@ export default function MyOrdersPage() {
       <div className="container mx-auto max-w-7xl py-8">
         <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
         {isLoading ? <OrdersSkeleton /> : (
-        <Tabs defaultValue="active">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 grid w-full grid-cols-5">
             <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -366,19 +342,19 @@ export default function MyOrdersPage() {
           </TabsList>
           
           <TabsContent value="active" className="space-y-4">
-             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
+             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
           </TabsContent>
           <TabsContent value="pending" className="space-y-4">
-             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No pending orders.</p>}
+             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No pending orders.</p>}
           </TabsContent>
            <TabsContent value="shipped" className="space-y-4">
-             {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">No orders have been shipped yet.</p>}
+             {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No orders have been shipped yet.</p>}
           </TabsContent>
            <TabsContent value="delivered" className="space-y-4">
-             {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no delivered orders.</p>}
+             {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no delivered orders.</p>}
           </TabsContent>
           <TabsContent value="cancelled" className="space-y-4">
-             {filteredOrders('cancelled').length > 0 ? filteredOrders('cancelled').map(order => <OrderCard key={order.id} order={order} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled orders.</p>}
+             {filteredOrders('cancelled').length > 0 ? filteredOrders('cancelled').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled orders.</p>}
           </TabsContent>
         </Tabs>
         )}
