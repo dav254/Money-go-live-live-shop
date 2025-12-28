@@ -28,14 +28,6 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-
-    // Handle health check requests
-    if (body.action === 'health_check') {
-        const health = await healthCheck();
-        return NextResponse.json(health);
-    }
-    
-    // The `paramsToSign` are the body of the request, not nested.
     const paramsToSign = body;
 
     const apiSecret = process.env.CLOUDINARY_API_SECRET;

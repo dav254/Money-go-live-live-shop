@@ -123,12 +123,37 @@ const OrderCard = ({ order }: { order: Order }) => {
     };
     
     const uploadProof = async (file: File): Promise<string> => {
+        const timestamp = Math.round((new Date()).getTime() / 1000);
+        const paramsToSign = { timestamp, folder: 'delivery-proofs' };
+
+        const signatureResponse = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paramsToSign),
+        });
+        const { signature } = await signatureResponse.json();
+
         const formData = new FormData();
-        formData.append("file", file);
-        // In a real app, you would have a dedicated endpoint for uploads.
-        // For now, this is a placeholder. A real implementation would be needed.
-        toast({ title: "Uploading proof...", description: "This is a demo, no file is actually uploaded."});
-        return "https://picsum.photos/seed/proof/400";
+        formData.append('file', file);
+        formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
+        formData.append('timestamp', timestamp.toString());
+        formData.append('signature', signature);
+        formData.append('folder', 'delivery-proofs');
+
+        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+        const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+        
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+            throw new Error('Cloudinary upload failed.');
+        }
+
+        const uploadedData = await uploadResponse.json();
+        return uploadedData.secure_url;
     };
 
     const handleConfirmDelivery = async () => {
@@ -141,7 +166,13 @@ const OrderCard = ({ order }: { order: Order }) => {
         
         let proofUrl = null;
         if (proofFile) {
-            proofUrl = await uploadProof(proofFile);
+             toast({ title: 'Uploading proof...' });
+             try {
+                proofUrl = await uploadProof(proofFile);
+             } catch (error) {
+                 toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload proof image.' });
+                 return;
+             }
         }
 
         const updateData = { 
@@ -355,5 +386,3 @@ export default function MyOrdersPage() {
     </BuyerLayout>
   );
 }
-
-    
