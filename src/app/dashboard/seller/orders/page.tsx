@@ -196,7 +196,7 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                                                 {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
                                                 {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
                                                 <DropdownMenuSeparator />
-                                                {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
+                                                {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && order.orderStatus !== 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
                                                 <AlertDialogTrigger asChild>
                                                     <DropdownMenuItem className="text-destructive">Delete Order</DropdownMenuItem>
                                                 </AlertDialogTrigger>
