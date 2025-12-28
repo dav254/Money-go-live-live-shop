@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Truck, MessageSquare, CheckCircle, Star } from 'lucide-react';
 import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, query, where, updateDoc, getDocs, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, doc, query, where, updateDoc, getDocs, setDoc, serverTimestamp, addDoc, getDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -121,21 +121,37 @@ const OrderCard = ({ order }: { order: Order }) => {
     };
 
     const handleConfirmDelivery = async () => {
-        if (!firestore) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to database.' });
+        if (!firestore || !user) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to database or user not found.' });
             return;
         }
 
         const orderRef = doc(firestore, 'orders', order.id);
+        
         try {
+            const orderSnap = await getDoc(orderRef);
+            if (!orderSnap.exists()) {
+                throw new Error("Order not found.");
+            }
+
+            const currentOrderData = orderSnap.data() as Order;
+            
+            // Security rules require the client to prove it knows the previous state.
+            if (currentOrderData.orderStatus !== 'shipped') {
+                toast({ variant: 'destructive', title: 'Invalid Action', description: 'This order is not currently marked as shipped.' });
+                return;
+            }
+
+            // Perform the update
             await updateDoc(orderRef, { orderStatus: 'delivered' });
+
             toast({
                 title: 'Order Completed!',
-                description: 'You have confirmed delivery.',
+                description: 'You have confirmed delivery. Thank you!',
             });
         } catch (error) {
             console.error('Failed to confirm delivery:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to confirm delivery. Please check your permissions.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to confirm delivery. Please check your permissions or try again later.' });
         }
     };
 
@@ -318,3 +334,5 @@ export default function MyOrdersPage() {
     </BuyerLayout>
   );
 }
+
+    
