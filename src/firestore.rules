@@ -115,26 +115,18 @@ service cloud.firestore {
       
       // Allow seller to update status from pending->processing or processing->shipped
       allow update: if request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
-                      (
-                       ( // Seller's permissions
-                         resource.data.sellerId == request.auth.uid &&
-                         (
-                           (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
-                           (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
-                         )
-                       )
+                     (resource.data.sellerId == request.auth.uid &&
+                      (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
+                      (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped') &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
                      );
       
       // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
-                      (
-                        ( // Buyer's permissions
-                          resource.data.buyerId == request.auth.uid &&
-                          resource.data.orderStatus == 'shipped' &&
-                          request.resource.data.orderStatus == 'delivered'
-                        )
+                      (resource.data.buyerId == request.auth.uid &&
+                       resource.data.orderStatus == 'shipped' && 
+                       request.resource.data.orderStatus == 'delivered' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'buyerConfirmed', 'deliveredAt', 'deliveryProof'])
                       );
 
       allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
@@ -164,7 +156,7 @@ service cloud.firestore {
     
     // Homepage slides are publicly readable
     match /homepageSlides/{slideId} {
-        allow get, list: if true;
+        allow read: if true;
         allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
@@ -216,7 +208,7 @@ service cloud.firestore {
     }
     
     // Resell Activities
-    match /resell_activities/{activityId} {
+    match /resellActivities/{activityId} {
         // Allow a user to list activities if they are filtering by their own ID as seller or reseller.
         allow list: if request.auth != null &&
                      (
@@ -227,8 +219,7 @@ service cloud.firestore {
         allow get: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
         // Allow a reseller to create a 'share' activity.
         allow create: if request.auth != null &&
-                       request.resource.data.resellerId == request.auth.uid &&
-                       request.resource.data.activityType == 'share';
+                       request.resource.data.resellerId == request.auth.uid;
     }
 
     // Reseller Applications
@@ -311,5 +302,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

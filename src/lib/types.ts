@@ -217,6 +217,9 @@ export interface Order {
   resellerCommission?: number;
   commissionEarned?: number;
   disputeReason?: string;
+  buyerConfirmed?: boolean;
+  deliveredAt?: any;
+  deliveryProof?: string | null;
   // Deprecated fields, kept for backward compatibility if needed.
   productId?: string;
   productName?: string;
@@ -456,4 +459,11 @@ export interface Coupon {
     isResellerOnly: boolean;
 }
 
+export interface ResellActivity {
+    id: string;
+    resellerId: string;
+    productId: string;
+    sellerId: string;
+    sharedAt: Timestamp;
+}
     

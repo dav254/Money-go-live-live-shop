@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Truck, MessageSquare, CheckCircle, Star } from 'lucide-react';
+import { Truck, MessageSquare, CheckCircle, Star, Upload } from 'lucide-react';
 import Image from 'next/image';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter } from '@/firebase';
 import { collection, doc, query, where, updateDoc, getDocs, setDoc, serverTimestamp, addDoc, getDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +21,8 @@ import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-
+import { FirestorePermissionError } from '@/firebase/errors';
+import { Input } from '@/components/ui/input';
 
 const ReviewDialog = ({ order }: { order: Order }) => {
     const { toast } = useToast();
@@ -101,6 +102,7 @@ const OrderCard = ({ order }: { order: Order }) => {
     const { toast } = useToast();
     const { user } = useUser();
     const router = useRouter();
+    const [proofFile, setProofFile] = useState<File | null>(null);
 
     const sellerShopRef = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -119,6 +121,15 @@ const OrderCard = ({ order }: { order: Order }) => {
             default: return 'bg-gray-400/80';
         }
     };
+    
+    const uploadProof = async (file: File): Promise<string> => {
+        const formData = new FormData();
+        formData.append("file", file);
+        // In a real app, you would have a dedicated endpoint for uploads.
+        // For now, this is a placeholder. A real implementation would be needed.
+        toast({ title: "Uploading proof...", description: "This is a demo, no file is actually uploaded."});
+        return "https://picsum.photos/seed/proof/400";
+    };
 
     const handleConfirmDelivery = async () => {
         if (!firestore || !user) {
@@ -128,31 +139,35 @@ const OrderCard = ({ order }: { order: Order }) => {
 
         const orderRef = doc(firestore, 'orders', order.id);
         
-        try {
-            const orderSnap = await getDoc(orderRef);
-            if (!orderSnap.exists()) {
-                throw new Error("Order not found.");
-            }
-
-            const currentOrderData = orderSnap.data() as Order;
-            
-            // Security rules require the client to prove it knows the previous state.
-            if (currentOrderData.orderStatus !== 'shipped') {
-                toast({ variant: 'destructive', title: 'Invalid Action', description: 'This order is not currently marked as shipped.' });
-                return;
-            }
-
-            // Perform the update
-            await updateDoc(orderRef, { orderStatus: 'delivered' });
-
-            toast({
-                title: 'Order Completed!',
-                description: 'You have confirmed delivery. Thank you!',
-            });
-        } catch (error) {
-            console.error('Failed to confirm delivery:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to confirm delivery. Please check your permissions or try again later.' });
+        let proofUrl = null;
+        if (proofFile) {
+            proofUrl = await uploadProof(proofFile);
         }
+
+        const updateData = { 
+            orderStatus: 'delivered',
+            buyerConfirmed: true,
+            deliveredAt: serverTimestamp(),
+            deliveryProof: proofUrl
+        };
+        
+        updateDoc(orderRef, updateData)
+            .then(() => {
+                toast({
+                    title: 'Order Completed!',
+                    description: 'You have confirmed delivery. Thank you!',
+                });
+            })
+            .catch(error => {
+                errorEmitter.emit(
+                    'permission-error',
+                    new FirestorePermissionError({
+                        path: orderRef.path,
+                        operation: 'update',
+                        requestResourceData: updateData,
+                    })
+                );
+        });
     };
 
     const handleMessageSeller = async () => {
@@ -230,11 +245,17 @@ const OrderCard = ({ order }: { order: Order }) => {
                         <p className="text-lg font-bold text-primary">${order.totalAmount.toLocaleString()}</p>
                     </div>
                 </div>
+                {order.orderStatus === 'shipped' && (
+                    <div className="mt-4 space-y-2">
+                        <label className="text-sm font-medium">Upload Delivery Proof (Optional)</label>
+                        <Input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} className="text-xs" />
+                    </div>
+                )}
             </CardContent>
             <Separator />
             <div className="flex items-center justify-end p-3 gap-2">
                 <Button variant="ghost" onClick={handleMessageSeller}><MessageSquare className="mr-2 h-4 w-4" /> Chat with Seller</Button>
-                {order.orderStatus === 'shipped' && <Button onClick={handleConfirmDelivery}><CheckCircle className="mr-2 h-4 w-4" /> Confirm Delivery</Button>}
+                {order.orderStatus === 'shipped' && <Button onClick={handleConfirmDelivery}><CheckCircle className="mr-2 h-4 w-4" /> I Have Received My Item</Button>}
                 {order.orderStatus === 'delivered' && 
                     <DialogTrigger asChild>
                         <Button variant="secondary">Leave a Review</Button>
