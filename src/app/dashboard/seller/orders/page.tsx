@@ -266,22 +266,8 @@ export default function SellerOrdersPage() {
 
     const { data, isLoading: areOrdersLoading, refetch } = useCollection<Order>(ordersQuery);
 
-    const { directSales, resellerSales } = useMemo(() => {
-        const direct: Order[] = [];
-        const reseller: Order[] = [];
-        
-        const sortedData = data ? [...data].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime()) : [];
-
-        if (sortedData) {
-            sortedData.forEach(order => {
-                if (order.resellerId) {
-                    reseller.push(order);
-                } else {
-                    direct.push(order);
-                }
-            });
-        }
-        return { directSales: direct, resellerSales: reseller };
+    const sortedData = useMemo(() => {
+        return data ? [...data].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime()) : [];
     }, [data]);
 
     const isLoading = isUserLoading || areOrdersLoading;
@@ -292,10 +278,8 @@ export default function SellerOrdersPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           My Orders
         </h1>
-        <OrderSection orders={data || []} isLoading={isLoading} refetch={refetch || (() => {})} />
+        <OrderSection orders={sortedData} isLoading={isLoading} refetch={refetch || (() => {})} />
       </div>
     </SellerLayout>
   );
 }
-
-    

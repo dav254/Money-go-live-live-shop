@@ -1,0 +1,308 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read and update their own profile.
+    // Public read is now allowed for user profiles.
+    match /userProfiles/{userId} {
+      allow read: if true;
+      allow list: if request.auth != null && request.query.where[0][0] == 'referredBy' && request.query.where[0][2] == request.auth.uid;
+      // Allow user to update their own profile, OR an admin/backend function to update specific fields.
+      allow update: if request.auth.uid == userId ||
+                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole', 'referralBonusAwarded'])) ||
+                      // Allow backend functions to increment points for referrals
+                      (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
+      allow create: if request.auth.uid != null;
+      
+      // A user can only read and write to their own cart.
+      match /cart/{productId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+      
+      // A user can only read and write to their own payment methods.
+      match /paymentMethods/{paymentMethodId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+
+      // A user can only read and write to their own payout methods.
+      match /payoutMethods/{payoutMethodId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+
+    match /boost_requests/{boostId} {
+      allow create: if request.auth.uid == request.resource.data.sellerId;
+      // Allow a user to list requests ONLY if they are filtering by their own sellerId.
+      allow list: if request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid;
+      allow read: if (request.auth.uid == resource.data.sellerId) || 
+                         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    // SellerShops are now publicly readable.
+    // Writes are restricted to the seller or an admin.
+    match /sellerShops/{shopId} {
+      allow read: if true;
+      // Only the shop owner can update the details, EXCEPT for the follower count.
+      // Follower count must be updated by the backend.
+      allow update: if request.auth.uid == shopId && !('followers' in request.resource.data);
+      allow write: if request.auth.uid == shopId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Products are publicly readable.
+    match /products/{productId} {
+      allow read: if true;
+      allow list: if true;
+      // Allow create if the incoming document's sellerId matches the user's UID.
+      allow create: if request.resource.data.sellerId == request.auth.uid;
+      
+      // Allow product owner to update a specific set of fields.
+      allow update: if resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'commissionRate', 'updatedAt']);
+
+      // Allow admin to update commission rate
+      allow update: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commissionRate']);
+
+      // Allow any authenticated user to increment likes or viewCount
+      allow update: if request.auth != null &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
+                    
+      // Allow delete only by the product owner.
+      allow delete: if resource.data.sellerId == request.auth.uid;
+
+      // Allow authenticated users to list and create comments.
+      match /comments/{commentId} {
+        allow list, read: if true;
+        allow create: if request.auth != null;
+      }
+
+      // Allow public read for reviews.
+      // Allow authenticated users to create reviews if the buyerId matches their own UID.
+      match /reviews/{reviewId} {
+          allow read, list: if true;
+          allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
+      }
+    }
+    
+    match /errorLogs/{errorId} {
+      allow create: if request.auth != null;
+      allow list, read, update, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+     match /activityLogs/{logId} {
+      allow list, read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Orders can be read by the buyer, the seller, or an admin.
+    // Admins can list all orders.
+    // Buyers/Sellers/Resellers can list orders if they query by their own UID.
+    match /orders/{orderId} {
+       allow list: if request.auth != null && (
+          (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin') ||
+          (request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid) ||
+          (request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
+          (request.query.where[0][0] == 'buyerId' && request.query.where[0][2] == request.auth.uid)
+      );
+      allow read: if request.auth != null && 
+                     (resource.data.buyerId == request.auth.uid || 
+                      resource.data.sellerId == request.auth.uid ||
+                      resource.data.resellerId == request.auth.uid ||
+                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
+      
+      // Allow seller to update status from pending->processing or processing->shipped
+      // Allow buyer to update status from shipped->delivered
+      allow update: if request.auth != null &&
+                     (
+                       ( // Seller's permissions
+                         resource.data.sellerId == request.auth.uid &&
+                         (
+                           (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
+                           (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
+                         ) &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
+                       ) ||
+                       ( // Buyer's permissions
+                         resource.data.buyerId == request.auth.uid &&
+                         resource.data.orderStatus == 'shipped' &&
+                         request.resource.data.orderStatus == 'delivered' &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'buyerConfirmed', 'deliveredAt', 'deliveryProof'])
+                       )
+                     );
+
+
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    // Payout requests can only be created by the seller themselves.
+    // Admins can read and update them.
+    match /payouts/{payoutId} {
+      allow read: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow update: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /walletTransactions/{transactionId} {
+        // Only backend functions can create transactions.
+        allow create: if false; 
+        // Users can read their own transactions. Admins can read any.
+        allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow list: if request.auth != null && (request.query.where[0][2] == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+    }
+
+    // Categories are publicly readable
+    match /categories/{categoryId} {
+        allow read: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    // Homepage slides are publicly readable
+    match /homepageSlides/{slideId} {
+        allow read, list: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Help articles are publicly readable
+    match /helpArticles/{articleId} {
+        allow read: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Support tickets can be created by authenticated users for themselves
+    match /supportTickets/{ticketId} {
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Complaints can be created by any authenticated user.
+    // Admins can read, update, and delete them.
+    match /complaints/{complaintId} {
+      allow create: if request.auth != null && request.resource.data.complainantId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Live Sessions
+    match /liveSessions/{sessionId} {
+      allow read: if request.auth != null;
+      // Allow seller to create/update their session document
+      allow create: if request.auth.uid == sessionId;
+      allow update: if request.auth.uid == sessionId || 
+                       // Allow any authenticated user to ONLY write the 'answer' field
+                       (request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer']));
+
+      match /offerCandidates/{candidateId} {
+        // Only the seller can write their offer candidates.
+        allow write: if request.auth.uid == sessionId && request.resource.data.sellerId == request.auth.uid;
+        // Any authenticated user can read them to establish a connection.
+        allow read: if request.auth != null;
+      }
+      
+      match /answerCandidates/{candidateId} {
+        // Any authenticated user can write their answer candidates.
+        allow write: if request.auth != null;
+        // Only the seller (session owner) should read the answer candidates.
+        allow read: if request.auth.uid == sessionId;
+      }
+      
+      match /events/{eventId} {
+        allow read, write, list: if request.auth != null;
+      }
+    }
+    
+    // Resell Activities
+    match /resellActivities/{activityId} {
+        // Allow a user to list activities if they are filtering by their own ID as seller or reseller.
+        allow list: if request.auth != null &&
+                     (
+                      (request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
+                      (request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid)
+                     );
+        // Allow read on individual documents if the user is the seller or reseller.
+        allow get: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
+        // Allow a reseller to create a 'share' activity.
+        allow create: if request.auth != null &&
+                       request.resource.data.resellerId == request.auth.uid;
+    }
+
+    // Reseller Applications
+    match /resellerApplications/{applicationId} {
+      allow create: if request.auth != null && request.resource.data.resellerId == request.auth.uid;
+      allow read: if request.auth != null && resource.data.sellerId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.sellerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+    
+    // AI Poster Requests
+    match /aiPosterRequests/{requestId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Ad Campaigns
+    match /adCampaigns/{campaignId} {
+      allow create, read, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow list: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' || (request.query.where.size() > 0 && request.query.where[0][2] == request.auth.uid));
+      allow read, list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    // Allow admins to access all system settings
+    match /systemSettings/{settingId} {
+        allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    // Fraud Alerts
+    match /fraudAlerts/{alertId} {
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    // Content Moderation
+    match /contentModerationQueue/{itemId} {
+      allow list, read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    // Other collections, keeping them restricted.
+    match /payments/{paymentId} {
+      allow read, write: if request.auth != null;
+    }
+    match /aiProductDescriptions/{descId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /notifications/{notificationId} {
+      allow get, update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow list: if request.auth != null && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid;
+      allow create: if request.auth != null;
+    }
+    
+    match /admins/{adminId} {
+      // Allow read/write access to the admins collection if the user has the 'admin' role in their userProfile.
+      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      
+      // Admin Chat subcollection
+      match /adminChat/{messageId} {
+        allow read, write: if request.auth != null && request.auth.uid == adminId;
+      }
+    }
+    match /chats/{chatId} {
+      function isAdmin() {
+        return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      }
+      // Allow a user to list chats ONLY if they are filtering by their own participantId or unread status.
+      allow list: if request.auth != null && 
+                  (
+                    (request.query.where[0][2] == request.auth.uid) ||
+                    (request.query.where[0][0] == 'participantIds' && request.auth.uid in request.query.where[0][2])
+                  );
+      // Allow create if the user is one of the two participants in the new chat.
+      allow create: if request.auth != null && request.resource.data.participantIds.size() == 2 && request.auth.uid in request.resource.data.participantIds;
+      // Allow read/update if the user is a participant OR if the user is an admin.
+      allow read, update: if (request.auth != null && request.auth.uid in resource.data.participantIds) || isAdmin();
+      
+      match /messages/{messageId} {
+        // Allow participants and admins to read/write messages.
+        allow read, write: if (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds) || isAdmin();
+      }
+    }
+  }
+}
