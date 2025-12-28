@@ -70,8 +70,8 @@ service cloud.firestore {
       allow update: if request.auth != null &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
                     
-      // Allow delete only by the product owner or an admin.
-      allow delete: if resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      // Allow delete only by the product owner.
+      allow delete: if resource.data.sellerId == request.auth.uid;
 
       // Allow authenticated users to list and create comments.
       match /comments/{commentId} {
@@ -113,25 +113,26 @@ service cloud.firestore {
                       get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
-      // Allow specific, controlled status updates by seller or buyer.
+      // Allow seller to update status from pending->processing or processing->shipped
+      // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus']) &&
                      (
-                       ( // Seller can move from pending -> processing -> shipped
+                       ( // Seller's permissions
                          resource.data.sellerId == request.auth.uid &&
                          (
                            (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
                            (resource.data.orderStatus == 'processing' && request.resource.data.orderStatus == 'shipped')
                          )
                        ) ||
-                       ( // Buyer can confirm delivery from shipped -> delivered
+                       ( // Buyer's permissions
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
                          request.resource.data.orderStatus == 'delivered'
                        )
                      );
 
-      allow delete: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     
     // Payout requests can only be created by the seller themselves.
