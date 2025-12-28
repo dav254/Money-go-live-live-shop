@@ -120,7 +120,6 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                         <TableRow>
                             <TableHead>Product</TableHead>
                             <TableHead>Amount</TableHead>
-                            <TableHead>Source / Commission</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -131,7 +130,6 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                             <TableRow key={i}>
                                 <TableCell><Skeleton className="h-10 w-48" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                                <TableCell><Skeleton className="h-6 w-32" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                                 <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
@@ -157,7 +155,6 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                     <TableRow>
                         <TableHead>Product</TableHead>
                         <TableHead>Amount</TableHead>
-                        <TableHead>Source / Commission</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -182,9 +179,6 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                                 </TableCell>
                                 <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
                                 <TableCell>
-                                   <ResellerInfo order={order} />
-                                </TableCell>
-                                <TableCell>
                                     {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
                                 </TableCell>
                                 <TableCell>
@@ -201,7 +195,6 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                                                 <DropdownMenuSeparator />
                                                 {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
                                                 {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
-                                                {order.orderStatus === 'shipped' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'delivered')}><CheckCircle className="mr-2 h-4 w-4" />Mark as Delivered</DropdownMenuItem>}
                                                 <DropdownMenuSeparator />
                                                 {order.orderStatus !== 'cancelled' && order.orderStatus !== 'delivered' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'cancelled')} className="text-destructive"><XCircle className="mr-2 h-4 w-4" />Cancel Order</DropdownMenuItem>}
                                                 <AlertDialogTrigger asChild>
@@ -299,18 +292,7 @@ export default function SellerOrdersPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           My Orders
         </h1>
-        <Tabs defaultValue="direct" className="space-y-4">
-            <TabsList>
-                <TabsTrigger value="direct">Direct Sales ({directSales.length})</TabsTrigger>
-                <TabsTrigger value="reseller">Reseller Sales ({resellerSales.length})</TabsTrigger>
-            </TabsList>
-             <TabsContent value="direct">
-                <OrderSection orders={directSales} isLoading={isLoading} refetch={refetch || (() => {})} />
-            </TabsContent>
-             <TabsContent value="reseller">
-                <OrderSection orders={resellerSales} isLoading={isLoading} refetch={refetch || (() => {})} />
-            </TabsContent>
-        </Tabs>
+        <OrderSection orders={directSales} isLoading={isLoading} refetch={refetch || (() => {})} />
       </div>
     </SellerLayout>
   );
