@@ -132,7 +132,7 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
                                         <Badge variant="outline">Awaiting Buyer Confirmation</Badge>
                                     ) : order.orderStatus === 'delivered' ? (
                                          <Badge variant="default" className="bg-green-600/80">Completed</Badge>
-                                    ) : (
+                                    ) : order.orderStatus === 'pending' || order.orderStatus === 'processing' ? (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="outline" size="sm">Manage</Button>
@@ -144,7 +144,7 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
                                                 {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
-                                    )}
+                                    ) : null}
                                 </TableCell>
                             </TableRow>
                         )
@@ -175,7 +175,7 @@ const OrderSection = ({ orders, isLoading, refetch }: { orders: Order[], isLoadi
                 <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'processing')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
             <TabsContent value="shipped">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped' || o.orderStatus === 'delivery')} isLoading={isLoading} refetch={refetch} />
+                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped')} isLoading={isLoading} refetch={refetch} />
             </TabsContent>
             <TabsContent value="delivered">
                 <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} refetch={refetch} />
