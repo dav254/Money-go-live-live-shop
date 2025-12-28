@@ -20,8 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
@@ -29,17 +28,17 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
     pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
     processing: { label: 'Processing', className: 'bg-blue-500/80 hover:bg-blue-500/70' },
     shipped: { label: 'Shipped', className: 'bg-indigo-500/80 hover:bg-indigo-500/70' },
+    delivery: { label: 'In Delivery', className: 'bg-cyan-500/80 hover:bg-cyan-500/70' },
     delivered: { label: 'Delivered', className: 'bg-green-600/80 hover:bg-green-600/70' },
     cancelled: { label: 'Cancelled', className: 'bg-red-500/80 hover:bg-red-500/70' },
     disputed: { label: 'Disputed', className: 'bg-orange-500/80 hover:bg-orange-500/70' },
-    delivery: { label: 'In Delivery', className: 'bg-cyan-500/80 hover:bg-cyan-500/70' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || { label: 'Unknown', className: 'bg-gray-400' };
   return <Badge className={`capitalize ${config.className}`}>{config.label}</Badge>;
 };
 
 
-const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
+const OrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     
@@ -49,14 +48,13 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
         try {
             await updateDoc(orderRef, { orderStatus: newStatus });
             toast({ title: 'Success', description: `Order marked as ${newStatus}.` });
-            refetch(); // Trigger a re-fetch of the main data
         } catch (error) {
             console.error('Failed to update order status:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
         }
     };
 
-    if (isLoading) {
+    if (isLoading && orders.length === 0) {
        return (
             <div className="rounded-md border">
                 <Table>
@@ -85,7 +83,7 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
         );
     }
 
-    if (!orders || orders.length === 0) {
+    if (orders.length === 0) {
        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
             <h2 className="text-xl font-semibold">No Orders in this Category</h2>
             <p className="text-muted-foreground">This section is empty. New orders will appear here as their status changes.</p>
@@ -106,7 +104,7 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
                 </TableHeader>
                 <TableBody>
                     {orders.map(order => {
-                        const productName = order.items?.[0]?.name || order.productName;
+                        const productName = order.items?.[0]?.name || order.productName || 'Unnamed Product';
                         const productImage = order.items?.[0]?.imageUrl || order.productImage;
                         
                         return (
@@ -115,7 +113,7 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10 rounded-md">
                                             <AvatarImage src={productImage} />
-                                            <AvatarFallback>{(productName || 'P').charAt(0)}</AvatarFallback>
+                                            <AvatarFallback>{productName.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <span className="font-medium">{productName}</span>
                                     </div>
@@ -155,34 +153,6 @@ const AllOrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoa
     );
 };
 
-const OrderSection = ({ orders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
-    return (
-         <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-                <TabsTrigger value="all"><ListOrdered className="mr-2 h-4 w-4"/>All</TabsTrigger>
-                <TabsTrigger value="pending"><ShoppingCart className="mr-2 h-4 w-4" />New</TabsTrigger>
-                <TabsTrigger value="processing"><Package className="mr-2 h-4 w-4"/>Processing</TabsTrigger>
-                <TabsTrigger value="shipped"><Truck className="mr-2 h-4 w-4"/>Shipped</TabsTrigger>
-                <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
-            </TabsList>
-            <TabsContent value="all">
-                <AllOrdersTable orders={orders} isLoading={isLoading} refetch={refetch} />
-            </TabsContent>
-             <TabsContent value="pending">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'pending')} isLoading={isLoading} refetch={refetch} />
-            </TabsContent>
-            <TabsContent value="processing">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'processing')} isLoading={isLoading} refetch={refetch} />
-            </TabsContent>
-            <TabsContent value="shipped">
-                <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'shipped')} isLoading={isLoading} refetch={refetch} />
-            </TabsContent>
-            <TabsContent value="delivered">
-                 <AllOrdersTable orders={orders.filter(o => o.orderStatus === 'delivered')} isLoading={isLoading} refetch={refetch} />
-            </TabsContent>
-        </Tabs>
-    )
-}
 
 export default function SellerOrdersPage() {
     const { user, isLoading: isUserLoading } = useUser();
@@ -203,6 +173,12 @@ export default function SellerOrdersPage() {
     }, [data]);
 
     const isLoading = isUserLoading || areOrdersLoading;
+    
+    const filterOrders = useCallback((status: Order['orderStatus'] | Order['orderStatus'][]) => {
+        const statuses = Array.isArray(status) ? status : [status];
+        return sortedData.filter(o => statuses.includes(o.orderStatus));
+    }, [sortedData]);
+
 
   return (
     <SellerLayout>
@@ -210,7 +186,30 @@ export default function SellerOrdersPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           My Orders
         </h1>
-        <OrderSection orders={sortedData} isLoading={isLoading} refetch={refetch || (() => {})} />
+         <Tabs defaultValue="all" className="space-y-4">
+            <TabsList>
+                <TabsTrigger value="all"><ListOrdered className="mr-2 h-4 w-4"/>All</TabsTrigger>
+                <TabsTrigger value="pending"><ShoppingCart className="mr-2 h-4 w-4" />New</TabsTrigger>
+                <TabsTrigger value="processing"><Package className="mr-2 h-4 w-4"/>Processing</TabsTrigger>
+                <TabsTrigger value="shipped"><Truck className="mr-2 h-4 w-4"/>Shipped</TabsTrigger>
+                <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all">
+                <OrdersTable orders={sortedData} isLoading={isLoading} refetch={refetch || (() => {})} />
+            </TabsContent>
+             <TabsContent value="pending">
+                <OrdersTable orders={filterOrders('pending')} isLoading={isLoading} refetch={refetch || (() => {})} />
+            </TabsContent>
+            <TabsContent value="processing">
+                <OrdersTable orders={filterOrders('processing')} isLoading={isLoading} refetch={refetch || (() => {})} />
+            </TabsContent>
+            <TabsContent value="shipped">
+                <OrdersTable orders={filterOrders(['shipped', 'delivery'])} isLoading={isLoading} refetch={refetch || (() => {})} />
+            </TabsContent>
+            <TabsContent value="delivered">
+                 <OrdersTable orders={filterOrders('delivered')} isLoading={isLoading} refetch={refetch || (() => {})} />
+            </TabsContent>
+        </Tabs>
       </div>
     </SellerLayout>
   );
