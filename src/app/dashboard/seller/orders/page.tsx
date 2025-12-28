@@ -3,7 +3,7 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users, Trash2 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import React, { useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
@@ -38,10 +40,10 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 
-const OrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoading: boolean, refetch: () => void }) => {
+const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
-    
+
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
         const orderRef = doc(firestore, 'orders', orderId);
@@ -51,6 +53,18 @@ const OrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoadin
         } catch (error) {
             console.error('Failed to update order status:', error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
+        }
+    };
+    
+    const handleDeleteOrder = async (orderId: string) => {
+        if (!firestore) return;
+        const orderRef = doc(firestore, 'orders', orderId);
+        try {
+            await deleteDoc(orderRef);
+            toast({ title: 'Order Deleted', description: 'The order has been removed.' });
+        } catch (error) {
+            console.error('Failed to delete order:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the order.' });
         }
     };
 
@@ -108,29 +122,25 @@ const OrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoadin
                         const productImage = order.items?.[0]?.imageUrl || order.productImage;
                         
                         return (
-                            <TableRow key={order.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-10 w-10 rounded-md">
-                                            <AvatarImage src={productImage} />
-                                            <AvatarFallback>{productName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <span className="font-medium">{productName}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
-                                <TableCell>
-                                    {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
-                                </TableCell>
-                                <TableCell>
-                                    <OrderStatusBadge status={order.orderStatus} />
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {order.orderStatus === 'shipped' || order.orderStatus === 'delivery' ? (
-                                        <Badge variant="outline">Awaiting Buyer Confirmation</Badge>
-                                    ) : order.orderStatus === 'delivered' ? (
-                                         <Badge variant="default" className="bg-green-600/80">Completed</Badge>
-                                    ) : order.orderStatus === 'pending' || order.orderStatus === 'processing' ? (
+                             <AlertDialog key={order.id}>
+                                <TableRow>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-10 w-10 rounded-md">
+                                                <AvatarImage src={productImage} />
+                                                <AvatarFallback>{productName.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{productName}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
+                                    <TableCell>
+                                        {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
+                                    </TableCell>
+                                    <TableCell>
+                                        <OrderStatusBadge status={order.orderStatus} />
+                                    </TableCell>
+                                    <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="outline" size="sm">Manage</Button>
@@ -140,11 +150,34 @@ const OrdersTable = ({ orders, isLoading, refetch }: { orders: Order[], isLoadin
                                                 <DropdownMenuSeparator />
                                                 {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
                                                 {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
+                                                {order.orderStatus === 'shipped' && (
+                                                    <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem className="text-destructive">
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete Order
+                                                        </DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                )}
+                                                {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && <DropdownMenuItem disabled>No actions available</DropdownMenuItem>}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
-                                    ) : null}
-                                </TableCell>
-                            </TableRow>
+                                    </TableCell>
+                                </TableRow>
+                                 <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will permanently delete this order and cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                                            Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                             </AlertDialog>
                         )
                     })}
                 </TableBody>
@@ -195,22 +228,23 @@ export default function SellerOrdersPage() {
                 <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
             </TabsList>
             <TabsContent value="all">
-                <OrdersTable orders={sortedData} isLoading={isLoading} refetch={refetch || (() => {})} />
+                <AllOrdersTable orders={sortedData} isLoading={isLoading} />
             </TabsContent>
              <TabsContent value="pending">
-                <OrdersTable orders={filterOrders('pending')} isLoading={isLoading} refetch={refetch || (() => {})} />
+                <AllOrdersTable orders={filterOrders('pending')} isLoading={isLoading} />
             </TabsContent>
             <TabsContent value="processing">
-                <OrdersTable orders={filterOrders('processing')} isLoading={isLoading} refetch={refetch || (() => {})} />
+                <AllOrdersTable orders={filterOrders('processing')} isLoading={isLoading} />
             </TabsContent>
             <TabsContent value="shipped">
-                <OrdersTable orders={filterOrders(['shipped', 'delivery'])} isLoading={isLoading} refetch={refetch || (() => {})} />
+                <AllOrdersTable orders={filterOrders(['shipped', 'delivery'])} isLoading={isLoading} />
             </TabsContent>
             <TabsContent value="delivered">
-                 <OrdersTable orders={filterOrders('delivered')} isLoading={isLoading} refetch={refetch || (() => {})} />
+                 <AllOrdersTable orders={filterOrders('delivered')} isLoading={isLoading} />
             </TabsContent>
         </Tabs>
       </div>
     </SellerLayout>
   );
 }
+
