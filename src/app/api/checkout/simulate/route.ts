@@ -5,7 +5,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import type { Order, Product } from '@/lib/types';
-import { collection, doc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+// CORRECTED: Import server-side admin functions instead of client-side ones
+import { collection, doc, getDoc, addDoc, serverTimestamp, updateDoc } from 'firebase-admin/firestore';
 
 const PLATFORM_FEE_RATE = 0.10; // 10%
 
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     const orderRef = doc(db, 'orders', orderId);
     const orderSnap = await getDoc(orderRef);
 
-    if (!orderSnap.exists()) {
+    if (!orderSnap.exists) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
