@@ -2,7 +2,7 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, getDocs, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
