@@ -209,7 +209,7 @@ const AllOrdersTable = ({ orders: initialOrders, isLoading, refetch }: { orders:
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDelete(order.id)}>Delete</AlertDialogAction>
+                                                <AlertDialogAction onClick={() => handleDelete(order.id)}>Delete Order</AlertDialogAction>
                                             </AlertDialogFooter>
                                         </AlertDialogContent>
                                     </AlertDialog>
@@ -292,8 +292,10 @@ export default function SellerOrdersPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           My Orders
         </h1>
-        <OrderSection orders={directSales} isLoading={isLoading} refetch={refetch || (() => {})} />
+        <OrderSection orders={data || []} isLoading={isLoading} refetch={refetch || (() => {})} />
       </div>
     </SellerLayout>
   );
 }
+
+    
