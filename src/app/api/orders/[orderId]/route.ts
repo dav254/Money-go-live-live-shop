@@ -1,11 +1,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
-import { doc, getDoc, deleteDoc } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
 /**
  * DELETE handler to permanently delete an order.
+ * This uses the correct Firebase Admin SDK syntax.
  */
 export async function DELETE(
   request: NextRequest,
@@ -31,12 +31,14 @@ export async function DELETE(
   }
 
   const userId = decodedToken.uid;
-  const orderRef = doc(db, 'orders', orderId);
+  // Correct: Use the Admin SDK's object-oriented syntax
+  const orderRef = db.collection('orders').doc(orderId);
 
   try {
     // 2. Verify the user is the owner of the order
-    const orderSnap = await getDoc(orderRef);
-    if (!orderSnap.exists()) {
+    // Correct: Use orderRef.get()
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) { // Correct: .exists is a property
       return NextResponse.json({ message: 'Order not found' }, { status: 404 });
     }
 
@@ -47,7 +49,8 @@ export async function DELETE(
     }
 
     // 3. Delete the document
-    await deleteDoc(orderRef);
+    // Correct: Use orderRef.delete()
+    await orderRef.delete();
 
     return NextResponse.json({ success: true, message: 'Order successfully deleted' });
   } catch (error: any) {

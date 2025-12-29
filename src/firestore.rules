@@ -10,8 +10,7 @@ service cloud.firestore {
       allow list: if request.auth != null && request.query.where[0][0] == 'referredBy' && request.query.where[0][2] == request.auth.uid;
       // Allow user to update their own profile, OR an admin/backend function to update specific fields.
       allow update: if request.auth.uid == userId ||
-                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aiPoints', 'status', 'verificationStatus', 'userRole', 'referralBonusAwarded'])) ||
+                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin') ||
                       // Allow backend functions to increment points for referrals
                       (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
       allow create: if request.auth.uid != null;
@@ -38,6 +37,7 @@ service cloud.firestore {
       allow list: if request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid;
       allow read: if (request.auth.uid == resource.data.sellerId) || 
                          get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow update, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
     
     // SellerShops are now publicly readable.
@@ -70,8 +70,8 @@ service cloud.firestore {
       allow update: if request.auth != null &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
                     
-      // Allow delete only by the product owner.
-      allow delete: if resource.data.sellerId == request.auth.uid;
+      // Allow delete only by the product owner or admin.
+      allow delete: if resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
 
       // Allow authenticated users to list and create comments.
       match /comments/{commentId} {
@@ -113,11 +113,10 @@ service cloud.firestore {
                       get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
       
-      // Allow seller to update status from pending->processing or processing->shipped
-      // Allow buyer to update status from shipped->delivered
       allow update: if request.auth != null &&
                      (
-                       ( // Seller's permissions
+                       // Seller's permissions
+                       (
                          resource.data.sellerId == request.auth.uid &&
                          (
                            (resource.data.orderStatus == 'pending' && request.resource.data.orderStatus == 'processing') ||
@@ -125,11 +124,17 @@ service cloud.firestore {
                          ) &&
                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
                        ) ||
-                       ( // Buyer's permissions
+                       // Buyer's permissions
+                       (
                          resource.data.buyerId == request.auth.uid &&
                          resource.data.orderStatus == 'shipped' &&
                          request.resource.data.orderStatus == 'delivered' &&
                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus', 'buyerConfirmed', 'deliveredAt', 'deliveryProof'])
+                       ) ||
+                       // Admin permissions
+                       (
+                         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderStatus'])
                        )
                      );
 
