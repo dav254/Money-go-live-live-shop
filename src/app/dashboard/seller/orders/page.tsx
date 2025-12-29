@@ -43,6 +43,7 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const { user } = useUser();
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
@@ -57,14 +58,27 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
     };
     
     const handleDeleteOrder = async (orderId: string) => {
-        if (!firestore) return;
-        const orderRef = doc(firestore, 'orders', orderId);
+        if (!firestore || !user) return;
+        
         try {
-            await deleteDoc(orderRef);
+            const token = await user.getIdToken();
+            const response = await fetch(`/api/orders/${orderId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete the order.');
+            }
+
             toast({ title: 'Order Deleted', description: 'The order has been removed.' });
-        } catch (error) {
+            // The real-time listener will automatically update the UI
+        } catch (error: any) {
             console.error('Failed to delete order:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the order.' });
+            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not delete the order.' });
         }
     };
 
@@ -151,12 +165,15 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                 {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
                                                 {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
                                                 {order.orderStatus === 'shipped' && (
-                                                    <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem className="text-destructive">
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete Order
-                                                        </DropdownMenuItem>
-                                                    </AlertDialogTrigger>
+                                                    <>
+                                                        <DropdownMenuItem disabled>Awaiting Buyer Confirmation</DropdownMenuItem>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem className="text-destructive">
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete Order
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                    </>
                                                 )}
                                                 {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && <DropdownMenuItem disabled>No actions available</DropdownMenuItem>}
                                             </DropdownMenuContent>
@@ -199,7 +216,7 @@ export default function SellerOrdersPage() {
         );
     }, [firestore, user]);
 
-    const { data, isLoading: areOrdersLoading, refetch } = useCollection<Order>(ordersQuery);
+    const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
     const sortedData = useMemo(() => {
         return data ? [...data].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime()) : [];
@@ -247,4 +264,3 @@ export default function SellerOrdersPage() {
     </SellerLayout>
   );
 }
-
