@@ -57,7 +57,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { Truck, Calendar, User, ShoppingCart, DollarSign, Home, Milestone } from 'lucide-react';
+import { Truck, Calendar, User, ShoppingCart, DollarSign, Home, Milestone, Camera } from 'lucide-react';
 import { format } from 'date-fns';
 
 const DataTableSkeleton = () => (
@@ -144,6 +144,23 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
                             <p className="font-medium">{buyer?.fullName}</p>
                             <p className="text-muted-foreground">{order.shippingAddress}</p>
                         </div>
+                        {order.deliveryProof && (
+                        <>
+                            <Separator />
+                            <h4 className="font-semibold flex items-center gap-2">
+                                <Camera /> Proof of Delivery
+                            </h4>
+                            <a href={order.deliveryProof} target="_blank" rel="noopener noreferrer">
+                                <Image
+                                src={order.deliveryProof}
+                                alt="Proof of delivery"
+                                width={300}
+                                height={200}
+                                className="rounded-md border object-cover hover:opacity-90 transition-opacity"
+                                />
+                            </a>
+                        </>
+                        )}
                         <Separator />
                          <h4 className="font-semibold flex items-center gap-2"><Milestone /> Order Timeline</h4>
                          <div className="space-y-3">
