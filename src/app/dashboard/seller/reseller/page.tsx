@@ -168,11 +168,9 @@ const MyResellersTable = () => {
 function CommissionRow({ product: initialProduct }: { product: Product }) {
   const { toast } = useToast();
   const firestore = useFirestore();
-  // The product state is now managed by the parent, we just receive it.
   const product = initialProduct; 
   
   const handleToggleEnabled = (enabled: boolean) => {
-    // When toggling, we immediately prepare the data to be saved.
     const updatedData = {
       isResellable: enabled,
       commissionRate: enabled ? 10 : 0,
@@ -192,13 +190,11 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
             });
         })
         .catch(error => {
-            // Emit a structured error for debugging, which will be caught by the error boundary
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: productDocRef.path,
                 operation: 'update',
                 requestResourceData: dataToSave,
             }));
-            // No need to revert UI, as the parent component's data will trigger a re-render.
         });
   };
   
@@ -301,7 +297,7 @@ export default function ResellerCenterPage() {
     };
 
     return (
-        <ResellerLayout>
+        <SellerLayout>
         <div className="flex-1 space-y-4 p-8 pt-6">
              <div className="flex items-center justify-between space-y-2">
                 <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -362,6 +358,6 @@ export default function ResellerCenterPage() {
                 </TabsContent>
             </Tabs>
         </div>
-        </ResellerLayout>
+        </SellerLayout>
     );
 }
