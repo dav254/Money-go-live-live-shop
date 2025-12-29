@@ -175,27 +175,34 @@ const MyResellersTable = () => {
 
 const CommissionSettingsTable = () => {
     const firestore = useFirestore();
-    const { data: user } = useUser();
+    const { toast } = useToast();
+    const { user } = useUser();
 
     const productsQuery = useMemoFirebase(() => {
         if (!user) return null;
         return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { status, data: products } = useCollection(productsQuery, { idField: 'id' });
+    const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
     const handleCommissionChange = async (productId: string, newCommission: number) => {
-        if (isNaN(newCommission) || newCommission < 0 || newCommission > 90) return;
+        if (isNaN(newCommission) || newCommission < 0 || newCommission > 90) {
+            toast({ variant: 'destructive', title: 'Invalid Rate', description: 'Commission must be between 0 and 90%.' });
+            return;
+        }
         const productDocRef = doc(firestore, 'products', productId);
         await updateDoc(productDocRef, { commissionRate: newCommission });
+        toast({ title: 'Commission Updated', description: 'The new rate has been saved.' });
     };
 
     const handleToggleReselling = async (productId: string, isEnabled: boolean) => {
         const productDocRef = doc(firestore, 'products', productId);
-        await updateDoc(productDocRef, { isResellable: isEnabled });
+        const commissionRate = isEnabled ? 10 : 0; // Set to 10% when enabled, 0 when disabled
+        await updateDoc(productDocRef, { isResellable: isEnabled, commissionRate });
+        toast({ title: `Reselling ${isEnabled ? 'Enabled' : 'Disabled'}`, description: `Commission rate set to ${commissionRate}%.` });
     };
 
-    if (status === 'loading') {
+    if (isLoading) {
         return (
             <div className="space-y-2">
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="w-full h-16" />)}
