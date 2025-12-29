@@ -1,8 +1,15 @@
-
 import { NextApiRequest, NextApiResponse } from 'next';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import formidable from 'formidable';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Disable the default body parser
 export const config = {
@@ -33,39 +40,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    console.log("API route started. Parsing form data...");
-    const { fields } = await formidablePromise(req);
-
+    const { fields, files } = await formidablePromise(req);
     const orderId = Array.isArray(fields.orderId) ? fields.orderId[0] : fields.orderId;
+    const proofFile = Array.isArray(files.proof) ? files.proof[0] : files.proof;
 
     if (!orderId) {
-      console.error("Order ID is missing from the request.");
       return res.status(400).json({ error: "Order ID is required." });
     }
-    console.log(`Processing confirmation for order ID: ${orderId}`);
 
-    console.log("Updating Firestore document...");
     const orderRef = db.doc(`orders/${orderId}`);
     const orderDoc = await orderRef.get();
     const orderData = orderDoc.data();
 
     if (!orderData) {
-      console.error(`Order not found for ID: ${orderId}`);
       return res.status(404).json({ error: 'Order not found' });
     }
-    console.log("Order found. Proceeding with update.");
+
+    let proofUrl = null;
+    if (proofFile) {
+        const uploadResponse = await cloudinary.uploader.upload(proofFile.filepath, {
+            folder: 'delivery_proofs',
+            public_id: orderId,
+        });
+        proofUrl = uploadResponse.secure_url;
+    }
 
     await orderRef.update({
       orderStatus: 'delivered',
       buyerConfirmed: true,
       deliveredAt: FieldValue.serverTimestamp(),
-      deliveryProof: null, // Proof is disabled for now
+      deliveryProof: proofUrl,
     });
-    console.log("Firestore document updated successfully.");
-
+    
     // Auto log to chat (optional)
     const { buyerId, sellerId } = orderData;
-    console.log(`Logging to chat for buyer: ${buyerId} and seller: ${sellerId}`);
     const chatsRef = db.collection('chats');
     const q = chatsRef.where('participantIds', 'array-contains', buyerId);
 
@@ -78,23 +86,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (existingChatId) {
-      console.log(`Found existing chat ID: ${existingChatId}. Adding system message.`);
       const messagesRef = db.collection('chats').doc(existingChatId).collection('messages');
       await messagesRef.add({
         senderId: 'system',
         text: 'Buyer confirmed item delivery ✅',
         timestamp: FieldValue.serverTimestamp(),
       });
-      console.log("System message added to chat.");
-    } else {
-      console.log("No existing chat found between buyer and seller.");
     }
 
-    console.log("API route finished successfully.");
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, proofUrl });
 
   } catch (error) {
-    console.error("!!! TOP-LEVEL API ERROR !!!");
     console.error("A runtime error occurred in confirm-delivery API:", error);
     res.status(500).json({ error: 'Internal server error. Check server logs for details.' });
   }
