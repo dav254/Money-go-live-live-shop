@@ -12,22 +12,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import type { Product } from '@/lib/types';
-import { Loader2, Percent } from 'lucide-react';
+import { Loader2, Pencil, Trash2 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import { Checkbox } from '../ui/checkbox';
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { Input } from '../ui/input';
-import { Switch } from '../ui/switch';
-import { Badge } from '@/components/ui/badge';
 
 const TableSkeleton = () => {
     return (
@@ -54,40 +51,75 @@ const TableSkeleton = () => {
     )
 }
 
-function ResellSwitch({ product }: { product: Product }) {
+function CommissionCell({ product }: { product: Product }) {
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [isEnabled, setIsEnabled] = React.useState((product.commissionRate || 0) > 0);
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [commissionRate, setCommissionRate] = React.useState(product.commissionRate || 0);
     const [isSaving, setIsSaving] = React.useState(false);
-    
-    const handleToggle = async (checked: boolean) => {
+
+    const commissionAmount = (product.price * commissionRate) / 100;
+
+    const handleSave = async () => {
         if (!firestore) return;
         setIsSaving(true);
-        setIsEnabled(checked);
         const productRef = doc(firestore, 'products', product.id);
-        const newRate = checked ? 10 : 0;
         try {
-            await updateDoc(productRef, { commissionRate: newRate });
-            toast({ title: `Reselling ${checked ? 'Enabled' : 'Disabled'}`, description: `Commission for this product is now ${newRate}%.` });
+            await updateDoc(productRef, { commissionRate });
+            toast({ title: 'Commission Updated', description: `Commission for ${product.name} is now ${commissionRate}%.` });
+            setIsEditing(false);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error updating commission' });
-            setIsEnabled(!checked); // Revert on error
         } finally {
             setIsSaving(false);
         }
     };
-    
+
+    if (isEditing) {
+        return (
+            <div className="flex justify-end items-center gap-2">
+                <div className="relative">
+                    <Input
+                        type="number"
+                        value={commissionRate}
+                        onChange={(e) => setCommissionRate(Number(e.target.value))}
+                        className="w-24 text-right pr-7"
+                        autoFocus
+                    />
+                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>
+                    Cancel
+                </Button>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex items-center justify-end gap-2">
-            {isEnabled && <Badge className="bg-primary/80">10%</Badge>}
-            <Switch
-                checked={isEnabled}
-                onCheckedChange={handleToggle}
-                disabled={isSaving}
-                aria-label="Toggle reselling"
-            />
+        <div className="text-right flex justify-end items-center gap-2 group min-h-[40px]">
+            {commissionRate > 0 ? (
+                <span className="font-semibold text-green-500">${commissionAmount.toFixed(2)}
+                    <span className="text-xs text-muted-foreground ml-1">({commissionRate}%)</span>
+                </span>
+            ) : (
+                <span className="text-sm text-muted-foreground">Disabled</span>
+            )}
+             <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100"
+              onClick={() => {
+                setCommissionRate(product.commissionRate || 0);
+                setIsEditing(true);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
         </div>
-    )
+    );
 }
 
 export function CommissionSettingsTable() {
@@ -100,7 +132,6 @@ export function CommissionSettingsTable() {
     }, [firestore, user]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-
     const isLoading = isUserLoading || areProductsLoading;
 
     const columns: ColumnDef<Product>[] = [
@@ -123,8 +154,8 @@ export function CommissionSettingsTable() {
         },
         {
             accessorKey: 'commissionRate',
-            header: () => <div className="text-right">Enable Reselling (10% Rate)</div>,
-            cell: ({ row }) => <ResellSwitch product={row.original} />
+            header: () => <div className="text-right">Reseller Commission</div>,
+            cell: ({ row }) => <CommissionCell product={row.original} />
         },
     ];
 
