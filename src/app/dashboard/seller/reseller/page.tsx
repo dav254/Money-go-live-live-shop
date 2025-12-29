@@ -168,10 +168,11 @@ const MyResellersTable = () => {
 function CommissionRow({ product: initialProduct }: { product: Product }) {
   const { toast } = useToast();
   const firestore = useFirestore();
-
   const [product, setProduct] = React.useState(initialProduct);
 
   const FIXED_COMMISSION_RATE = 10;
+  
+  // Correct calculation based on the current product state
   const resellerEarns = (product.price * (product.isResellable ? FIXED_COMMISSION_RATE : 0)) / 100;
   const youGet = product.price - resellerEarns;
 
@@ -181,16 +182,16 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
       isResellable: enabled,
       commissionRate: enabled ? FIXED_COMMISSION_RATE : 0,
     };
-    setProduct(updatedProduct);
-    handleSave(updatedProduct); // Save immediately on toggle
+    setProduct(updatedProduct); // Update local state for immediate UI feedback
+    handleSave(updatedProduct); // Save the changes to Firestore
   };
 
   const handleSave = useCallback((productToSave: Product) => {
     if (!firestore) return;
     const productDocRef = doc(firestore, 'products', productToSave.id);
     const updatedData = {
-        commissionRate: productToSave.commissionRate,
         isResellable: productToSave.isResellable,
+        commissionRate: productToSave.commissionRate,
     };
     updateDoc(productDocRef, updatedData)
         .then(() => {
@@ -235,9 +236,6 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
           checked={product.isResellable || false}
           onCheckedChange={handleToggleEnabled}
         />
-      </TableCell>
-       <TableCell className="text-right">
-          {/* Save button is no longer needed as toggle saves automatically */}
       </TableCell>
     </TableRow>
   );
@@ -289,7 +287,6 @@ const CommissionSettingsTable = () => {
                     <TableHead>Reseller Earns</TableHead>
                     <TableHead>You Get</TableHead>
                     <TableHead className="text-right">Enable Reselling</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -378,5 +375,3 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
-
-    
