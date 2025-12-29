@@ -10,11 +10,11 @@ import { DiscountedProductsTable } from '@/components/seller/discounted-products
 import { LogisticsTable } from '@/components/seller/logistics-table';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus, ShoppingBag } from 'lucide-react';
 import type { SellerShop, Product, Order, Payout, UserProfile } from '@/lib/types';
-import { collection, doc, query, where, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useToast } from '@/hooks/use-toast';
@@ -167,39 +167,21 @@ const MyResellersTable = () => {
 
 function CommissionRow({ product: initialProduct }: { product: Product }) {
     const { toast } = useToast();
-    const firestore = useFirestore();
     const [product, setProduct] = useState(initialProduct);
 
-    const handleSave = useCallback((dataToSave: { isResellable: boolean; commissionRate: number; updatedAt: any }) => {
-        if (!firestore) return;
-        const productDocRef = doc(firestore, 'products', product.id);
-        
-        updateDoc(productDocRef, dataToSave)
-            .then(() => {
-                setProduct(prev => ({...prev, ...dataToSave}));
-                toast({
-                    title: "Settings Saved!",
-                    description: `Reselling for "${product.name}" is now ${dataToSave.isResellable ? 'enabled' : 'disabled'}.`
-                });
-            })
-            .catch(error => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: productDocRef.path,
-                    operation: 'update',
-                    requestResourceData: dataToSave,
-                }));
-            });
-    }, [firestore, product.id, product.name, toast]);
-
     const handleToggleEnabled = useCallback((enabled: boolean) => {
-        handleSave({
+        setProduct(prev => ({
+            ...prev,
             isResellable: enabled,
-            commissionRate: enabled ? 10 : 0,
-            updatedAt: serverTimestamp()
+            commissionRate: enabled ? 10 : 0
+        }));
+        toast({
+            title: "Settings Updated!",
+            description: `Reselling for "${product.name}" is now ${enabled ? 'enabled' : 'disabled'}. Note: This change is local and won't be saved.`
         });
-    }, [handleSave]);
+    }, [product.name, toast]);
     
-    const commissionRate = product.isResellable ? 10 : 0;
+    const commissionRate = product.isResellable ? product.commissionRate || 10 : 0;
     const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
 
@@ -212,7 +194,9 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
                 </div>
             </TableCell>
             <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
-            <TableCell className="text-center font-semibold">10%</TableCell>
+            <TableCell className="text-center font-semibold">
+                {product.isResellable ? '10%' : '0%'}
+            </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
             <TableCell className="text-right">
