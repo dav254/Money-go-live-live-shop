@@ -170,22 +170,17 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
   const firestore = useFirestore();
   const [product, setProduct] = React.useState(initialProduct);
 
-  const FIXED_COMMISSION_RATE = 10;
-  
-  // Correct calculation based on the current product state
-  const resellerEarns = (product.price * (product.isResellable ? FIXED_COMMISSION_RATE : 0)) / 100;
-  const youGet = product.price - resellerEarns;
-
   const handleToggleEnabled = (enabled: boolean) => {
     const updatedProduct = {
       ...product,
       isResellable: enabled,
-      commissionRate: enabled ? FIXED_COMMISSION_RATE : 0,
+      // Always set commissionRate to 10 when enabling, 0 when disabling.
+      commissionRate: enabled ? 10 : 0,
     };
-    setProduct(updatedProduct); // Update local state for immediate UI feedback
-    handleSave(updatedProduct); // Save the changes to Firestore
+    setProduct(updatedProduct); // Optimistically update UI
+    handleSave(updatedProduct);
   };
-
+  
   const handleSave = useCallback((productToSave: Product) => {
     if (!firestore) return;
     const productDocRef = doc(firestore, 'products', productToSave.id);
@@ -206,8 +201,13 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
                 operation: 'update',
                 requestResourceData: updatedData,
             }));
+            // Revert optimistic update on failure
+            setProduct(initialProduct);
         });
-  }, [firestore, toast]);
+  }, [firestore, toast, initialProduct]);
+  
+  const resellerEarns = (product.price * (product.isResellable ? 10 : 0)) / 100;
+  const youGet = product.price - resellerEarns;
 
   return (
     <TableRow>
@@ -222,7 +222,7 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
         <div className="flex items-center gap-2">
             <Input
                 type="number"
-                value={FIXED_COMMISSION_RATE}
+                value={10} // Always display 10
                 className="w-20 h-8"
                 disabled // The input is now for display only
             />
