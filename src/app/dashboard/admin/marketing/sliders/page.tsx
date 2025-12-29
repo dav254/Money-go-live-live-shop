@@ -7,8 +7,6 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-  getSortedRowModel,
-  SortingState,
 } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Button } from '@/components/ui/button';
@@ -36,58 +34,18 @@ import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Pencil, Trash2, GripVertical } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { Switch } from '@/components/ui/switch';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import type { HomepageSlide } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-
-// Using a simplified type for the frontend mock
-interface Slide {
-  id: string;
-  order: number;
-  title: string;
-  imageUrl: string;
-  href: string;
-  description?: string;
-  status: 'published' | 'draft';
-}
-
-const mockSlides: Slide[] = [
-  {
-    id: 'slide-1',
-    order: 1,
-    title: 'Summer Fashion Drop',
-    description: 'Discover the latest trends for the summer season.',
-    imageUrl: 'https://picsum.photos/seed/slide1/150/100',
-    href: '/category/summer-fashion',
-    status: 'published',
-  },
-  {
-    id: 'slide-2',
-    order: 2,
-    title: 'Tech Gadgets Sale',
-    description: 'Up to 30% off on smartphones and accessories.',
-    imageUrl: 'https://picsum.photos/seed/slide2/150/100',
-    href: '/sales/tech',
-    status: 'published',
-  },
-  {
-    id: 'slide-3',
-    order: 3,
-    title: 'New Home Decor',
-    description: 'Transform your living space.',
-    imageUrl: 'https://picsum.photos/seed/slide3/150/100',
-    href: '/category/home-decor',
-    status: 'draft',
-  },
-];
-
-
-const SlideForm = ({ slide, onSave, onCancel }: { slide?: Slide | null, onSave: (slide: Slide) => void, onCancel: () => void }) => {
+const SlideForm = ({ slide, onSave, onCancel }: { slide?: HomepageSlide | null, onSave: (slide: Partial<HomepageSlide>) => void, onCancel: () => void }) => {
     const [title, setTitle] = React.useState(slide?.title || '');
     const [description, setDescription] = React.useState(slide?.description || '');
     const [imageUrl, setImageUrl] = React.useState(slide?.imageUrl || '');
+    const [imageHint, setImageHint] = React.useState(slide?.imageHint || '');
     const [href, setHref] = React.useState(slide?.href || '');
     const [order, setOrder] = React.useState(slide?.order || 0);
-    const [status, setStatus] = React.useState(slide?.status === 'published' || false);
     const { toast } = useToast();
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -97,13 +55,13 @@ const SlideForm = ({ slide, onSave, onCancel }: { slide?: Slide | null, onSave: 
             return;
         }
         onSave({
-            id: slide?.id || `slide-${Date.now()}`,
+            id: slide?.id,
             title,
             description,
             imageUrl,
+            imageHint,
             href,
             order,
-            status: status ? 'published' : 'draft',
         });
     };
     
@@ -119,23 +77,22 @@ const SlideForm = ({ slide, onSave, onCancel }: { slide?: Slide | null, onSave: 
             </div>
             <div className="space-y-2">
                 <Label htmlFor="imageUrl">Image URL</Label>
-                <Input id="imageUrl" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" />
+                <Input id="imageUrl" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://picsum.photos/seed/slide/1600/700" />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="imageHint">Image Hint (for AI)</Label>
+                <Input id="imageHint" value={imageHint} onChange={e => setImageHint(e.target.value)} placeholder="e.g., summer fashion" />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="href">Link URL</Label>
                 <Input id="href" value={href} onChange={e => setHref(e.target.value)} placeholder="/category/sales" />
             </div>
-             <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label htmlFor="status-switch" className="flex flex-col space-y-1">
-                    <span>Published</span>
-                    <span className="font-normal leading-snug text-muted-foreground">
-                        Make this slide visible on the homepage.
-                    </span>
-                </Label>
-                <Switch id="status-switch" checked={status} onCheckedChange={setStatus} />
+             <div className="space-y-2">
+                <Label htmlFor="order">Display Order</Label>
+                <Input id="order" type="number" value={order} onChange={e => setOrder(Number(e.target.value))} />
             </div>
             <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                <DialogClose asChild><Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button></DialogClose>
                 <Button type="submit">Save Slide</Button>
             </DialogFooter>
         </form>
@@ -144,41 +101,55 @@ const SlideForm = ({ slide, onSave, onCancel }: { slide?: Slide | null, onSave: 
 
 
 export default function AdminSlidersPage() {
-  const [slides, setSlides] = React.useState<Slide[]>(mockSlides);
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'order', desc: false }]);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [editingSlide, setEditingSlide] = React.useState<Slide | null>(null);
+  const [editingSlide, setEditingSlide] = React.useState<HomepageSlide | null>(null);
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const handleSave = (slide: Slide) => {
-    setSlides(prev => {
-        const exists = prev.find(s => s.id === slide.id);
-        let updatedSlides;
-        if (exists) {
-            updatedSlides = prev.map(s => s.id === slide.id ? slide : s);
+  const slidesQuery = useMemoFirebase(() => query(collection(firestore, 'homepageSlides'), orderBy('order')), [firestore]);
+  const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
+
+  const handleSave = async (slideData: Partial<HomepageSlide>) => {
+      if (!firestore) return;
+      
+      const { id, ...data } = slideData;
+
+      try {
+        if (id) {
+          const slideRef = doc(firestore, 'homepageSlides', id);
+          await updateDoc(slideRef, data);
+          toast({ title: 'Success', description: `Slide "${data.title}" has been updated.` });
         } else {
-            updatedSlides = [...prev, slide];
+          await addDoc(collection(firestore, 'homepageSlides'), data);
+          toast({ title: 'Success', description: `Slide "${data.title}" has been created.` });
         }
-        return updatedSlides.sort((a, b) => a.order - b.order);
-    });
-    toast({ title: 'Success', description: `Slide "${slide.title}" has been saved.` });
-    setIsFormOpen(false);
-    setEditingSlide(null);
+        setIsFormOpen(false);
+        setEditingSlide(null);
+      } catch (error) {
+        console.error("Error saving slide:", error);
+        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the slide.' });
+      }
   };
   
-  const handleDelete = (slideId: string) => {
-    setSlides(prev => prev.filter(s => s.id !== slideId));
-    toast({ title: 'Slide Deleted' });
+  const handleDelete = async (slideId: string) => {
+    if (!firestore) return;
+    const slideRef = doc(firestore, 'homepageSlides', slideId);
+    try {
+        await deleteDoc(slideRef);
+        toast({ title: 'Slide Deleted' });
+    } catch (error) {
+        console.error("Error deleting slide:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the slide.' });
+    }
   };
   
-  const handleEdit = (slide: Slide) => {
+  const handleEdit = (slide: HomepageSlide) => {
     setEditingSlide(slide);
     setIsFormOpen(true);
   }
 
-  const columns: ColumnDef<Slide>[] = [
+  const columns: ColumnDef<HomepageSlide>[] = [
     {
-      id: 'order',
       accessorKey: 'order',
       header: 'Order',
        cell: ({ row }) => <div className="flex items-center gap-2"><GripVertical className="h-4 w-4 text-muted-foreground" /> {row.original.order}</div>
@@ -199,11 +170,6 @@ export default function AdminSlidersPage() {
       cell: ({ row }) => <p className="text-sm text-muted-foreground truncate">{row.original.href}</p>,
     },
     {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => <Badge variant={row.original.status === 'published' ? 'default' : 'secondary'} className={`capitalize ${row.original.status === 'published' ? 'bg-green-600/80' : ''}`}>{row.original.status}</Badge>,
-    },
-    {
       id: 'actions',
       cell: ({ row }) => (
         <div className="text-right">
@@ -219,12 +185,9 @@ export default function AdminSlidersPage() {
   ];
 
   const table = useReactTable({
-    data: slides,
+    data: slides || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
   });
 
   return (
@@ -268,7 +231,13 @@ export default function AdminSlidersPage() {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
+              {isLoading ? (
+                 <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                        Loading sliders...
+                    </TableCell>
+                  </TableRow>
+              ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
@@ -292,4 +261,3 @@ export default function AdminSlidersPage() {
     </AdminLayout>
   );
 }
-

@@ -32,115 +32,107 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import type { AdCampaign } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, BarChart2, Zap, XCircle } from 'lucide-react';
+import { PlusCircle, Zap, XCircle, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-
-// --- Mock Data ---
-const mockCampaigns: AdCampaign[] = [
-  {
-    id: 'camp-1',
-    sellerId: 'seller-123',
-    productId: 'prod-1',
-    productName: 'Classic Leather Handbag',
-    productImageUrl: 'https://picsum.photos/seed/handbag/100',
-    status: 'active',
-    budget: 500,
-    spend: 275.50,
-    clicks: 1240,
-    conversions: 35,
-    startDate: new Date().toISOString(),
-    endDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString(),
-  },
-  {
-    id: 'camp-2',
-    sellerId: 'seller-456',
-    productId: 'prod-2',
-    productName: 'NextGen Smartphone',
-    productImageUrl: 'https://picsum.photos/seed/phone/100',
-    status: 'paused',
-    budget: 1000,
-    spend: 450.00,
-    clicks: 2300,
-    conversions: 80,
-    startDate: new Date(new Date().setDate(new Date().getDate() - 10)).toISOString(),
-    endDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString(),
-  },
-   {
-    id: 'camp-3',
-    sellerId: 'seller-789',
-    productId: 'prod-3',
-    productName: 'Gourmet Pasta Kit',
-    productImageUrl: 'https://picsum.photos/seed/pasta/100',
-    status: 'completed',
-    budget: 300,
-    spend: 300.00,
-    clicks: 850,
-    conversions: 102,
-    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString(),
-    endDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
-  },
-];
-// --- End Mock Data ---
-
-
-const CreateCampaignDialog = () => {
-    const { toast } = useToast();
-    const handleCreate = () => {
-        // In a real app, this would submit to the backend
-        toast({
-            title: 'Campaign Created (Mock)',
-            description: 'A new ad campaign has been successfully created.',
-        });
-    }
-
-    return (
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Create New Ad Campaign</DialogTitle>
-                <DialogDescription>Set up a new promotional campaign for a seller's product.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="seller-id">Seller ID</Label>
-                    <Input id="seller-id" placeholder="Enter seller's user ID" />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="product-id">Product ID</Label>
-                    <Input id="product-id" placeholder="Enter the product ID to promote" />
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="budget">Budget (USD)</Label>
-                    <Input id="budget" type="number" placeholder="e.g., 500" />
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="ghost">Cancel</Button>
-                </DialogClose>
-                <DialogClose asChild>
-                    <Button type="button" onClick={handleCreate}>Create Campaign</Button>
-                </DialogClose>
-            </DialogFooter>
-        </DialogContent>
-    )
-}
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const statusConfig = {
-    active: { variant: 'default', icon: Zap, className: 'bg-green-600/80' },
-    paused: { variant: 'secondary', icon: BarChart2, className: 'bg-yellow-500/80' },
-    completed: { variant: 'outline', icon: CheckCircle, className: '' },
-    draft: { variant: 'outline', icon: XCircle, className: '' },
+    active: { variant: 'default' as 'default', icon: Zap, className: 'bg-green-600/80' },
+    paused: { variant: 'secondary' as 'secondary', icon: Zap, className: 'bg-yellow-500/80' },
+    completed: { variant: 'outline' as 'outline', icon: CheckCircle, className: '' },
+    draft: { variant: 'outline' as 'outline', icon: XCircle, className: '' },
 };
 
-const columns: ColumnDef<AdCampaign>[] = [
+
+const CampaignForm = ({ campaign, onSave, onCancel }: { campaign?: AdCampaign | null, onSave: (data: Partial<AdCampaign>) => void, onCancel: () => void }) => {
+    const [sellerId, setSellerId] = React.useState(campaign?.sellerId || '');
+    const [productId, setProductId] = React.useState(campaign?.productId || '');
+    const [budget, setBudget] = React.useState(campaign?.budget || 0);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave({
+            id: campaign?.id,
+            sellerId,
+            productId,
+            budget,
+            status: campaign?.status || 'draft',
+        });
+    };
+
+    return (
+         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+            <div className="space-y-2">
+                <Label htmlFor="seller-id">Seller ID</Label>
+                <Input id="seller-id" value={sellerId} onChange={e => setSellerId(e.target.value)} placeholder="Enter seller's user ID" />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="product-id">Product ID</Label>
+                <Input id="product-id" value={productId} onChange={e => setProductId(e.target.value)} placeholder="Enter the product ID to promote" />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="budget">Budget (USD)</Label>
+                <Input id="budget" type="number" value={budget} onChange={e => setBudget(Number(e.target.value))} placeholder="e.g., 500" />
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button></DialogClose>
+                <Button type="submit">Save Campaign</Button>
+            </DialogFooter>
+        </form>
+    );
+};
+
+export default function AdminAdsPage() {
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingCampaign, setEditingCampaign] = React.useState<AdCampaign | null>(null);
+  const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const campaignsQuery = useMemoFirebase(() => query(collection(firestore, 'adCampaigns'), orderBy('startDate', 'desc')), [firestore]);
+  const { data: campaigns, isLoading } = useCollection<AdCampaign>(campaignsQuery);
+
+  const handleSave = async (data: Partial<AdCampaign>) => {
+      if (!firestore) return;
+      const { id, ...campaignData } = data;
+
+      try {
+          if (id) {
+              await updateDoc(doc(firestore, 'adCampaigns', id), campaignData);
+              toast({ title: 'Campaign Updated' });
+          } else {
+              await addDoc(collection(firestore, 'adCampaigns'), { ...campaignData, startDate: new Date().toISOString(), spend: 0, clicks: 0, conversions: 0 });
+              toast({ title: 'Campaign Created' });
+          }
+          setIsFormOpen(false);
+          setEditingCampaign(null);
+      } catch (error) {
+          console.error("Error saving campaign:", error);
+          toast({ variant: 'destructive', title: 'Save Failed' });
+      }
+  };
+  
+  const handleDelete = async (id: string) => {
+      if(!firestore) return;
+      await deleteDoc(doc(firestore, 'adCampaigns', id));
+      toast({ title: 'Campaign Deleted' });
+  };
+  
+  const handleEdit = (campaign: AdCampaign) => {
+    setEditingCampaign(campaign);
+    setIsFormOpen(true);
+  };
+
+
+  const columns: ColumnDef<AdCampaign>[] = [
     {
         accessorKey: 'productName',
         header: 'Product',
         cell: ({ row }) => (
             <div className="flex items-center gap-3">
-                <Image src={row.original.productImageUrl} alt={row.original.productName} width={40} height={40} className="rounded-md object-cover" />
+                <Image src={row.original.productImageUrl || '/placeholder.svg'} alt={row.original.productName} width={40} height={40} className="rounded-md object-cover" />
                 <div>
                     <div className="font-medium">{row.original.productName}</div>
                     <div className="text-xs text-muted-foreground">Seller: {row.original.sellerId.substring(0, 8)}...</div>
@@ -180,16 +172,18 @@ const columns: ColumnDef<AdCampaign>[] = [
     },
     {
         id: 'actions',
-        cell: () => <Button size="sm" variant="outline">Manage</Button>
+        cell: ({ row }) => (
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" variant="ghost" onClick={() => handleEdit(row.original)}>Edit</Button>
+            <Button size="sm" variant="destructive" onClick={() => handleDelete(row.original.id)}>Delete</Button>
+          </div>
+        )
     }
 ];
 
-export default function AdminAdsPage() {
-  const [campaigns, setCampaigns] = React.useState<AdCampaign[]>(mockCampaigns);
-  const [isLoading, setIsLoading] = React.useState(false); // For future API calls
 
   const table = useReactTable({
-    data: campaigns,
+    data: campaigns || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -201,13 +195,19 @@ export default function AdminAdsPage() {
             <h1 className="font-headline text-3xl font-bold tracking-tight">
                 Marketing: Ads Manager
             </h1>
-             <Dialog>
+             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                 <DialogTrigger asChild>
-                    <Button>
+                    <Button onClick={() => setEditingCampaign(null)}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Create Campaign
                     </Button>
                 </DialogTrigger>
-                <CreateCampaignDialog />
+                 <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{editingCampaign ? 'Edit Ad Campaign' : 'Create New Ad Campaign'}</DialogTitle>
+                        <DialogDescription>Set up a new promotional campaign for a seller's product.</DialogDescription>
+                    </DialogHeader>
+                    <CampaignForm campaign={editingCampaign} onSave={handleSave} onCancel={() => setIsFormOpen(false)} />
+                </DialogContent>
             </Dialog>
         </div>
 
@@ -221,7 +221,13 @@ export default function AdminAdsPage() {
                     ))}
                 </TableHeader>
                 <TableBody>
-                    {table.getRowModel().rows.length > 0 ? (
+                    {isLoading ? (
+                       <TableRow>
+                            <TableCell colSpan={columns.length} className="h-24 text-center">
+                                Loading campaigns...
+                            </TableCell>
+                        </TableRow>
+                    ) : table.getRowModel().rows.length > 0 ? (
                         table.getRowModel().rows.map(row => (
                             <TableRow key={row.id}>
                                 {row.getVisibleCells().map(cell => <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>)}

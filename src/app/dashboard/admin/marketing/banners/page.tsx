@@ -31,55 +31,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Pencil, Trash2, UploadCloud } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { Switch } from '@/components/ui/switch';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import type { HomepageSlide } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Using a simplified type for the frontend mock, based on HomepageSlide
-interface Banner {
-  id: string;
-  title: string;
-  imageUrl: string;
-  href: string;
-  description?: string;
-  status: 'published' | 'draft';
-}
-
-const mockBanners: Banner[] = [
-  {
-    id: 'banner-1',
-    title: 'Summer Fashion Drop',
-    description: 'Discover the latest trends for the summer season.',
-    imageUrl: 'https://picsum.photos/seed/banner1/150/100',
-    href: '/category/summer-fashion',
-    status: 'published',
-  },
-  {
-    id: 'banner-2',
-    title: 'Tech Gadgets Sale',
-    description: 'Up to 30% off on smartphones and accessories.',
-    imageUrl: 'https://picsum.photos/seed/banner2/150/100',
-    href: '/sales/tech',
-    status: 'published',
-  },
-  {
-    id: 'banner-3',
-    title: 'New Home Decor',
-    description: 'Transform your living space.',
-    imageUrl: 'https://picsum.photos/seed/banner3/150/100',
-    href: '/category/home-decor',
-    status: 'draft',
-  },
-];
+// Using HomepageSlide as the type for a banner
+type Banner = HomepageSlide & { status: 'published' | 'draft' };
 
 
-const BannerForm = ({ banner, onSave, onCancel }: { banner?: Banner | null, onSave: (banner: Banner) => void, onCancel: () => void }) => {
+const BannerForm = ({ banner, onSave, onCancel }: { banner?: Banner | null, onSave: (banner: Partial<Banner>) => void, onCancel: () => void }) => {
     const [title, setTitle] = React.useState(banner?.title || '');
     const [description, setDescription] = React.useState(banner?.description || '');
     const [imageUrl, setImageUrl] = React.useState(banner?.imageUrl || '');
     const [href, setHref] = React.useState(banner?.href || '');
-    const [status, setStatus] = React.useState(banner?.status === 'published' || false);
     const { toast } = useToast();
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -89,12 +57,13 @@ const BannerForm = ({ banner, onSave, onCancel }: { banner?: Banner | null, onSa
             return;
         }
         onSave({
-            id: banner?.id || `banner-${Date.now()}`,
+            id: banner?.id, // Pass ID for updates
             title,
             description,
             imageUrl,
             href,
-            status: status ? 'published' : 'draft',
+            // Assuming default order if not provided. In a real app, you'd manage this.
+            order: banner?.order || 0,
         });
     };
     
@@ -116,17 +85,8 @@ const BannerForm = ({ banner, onSave, onCancel }: { banner?: Banner | null, onSa
                 <Label htmlFor="href">Link URL</Label>
                 <Input id="href" value={href} onChange={e => setHref(e.target.value)} placeholder="/category/sales" />
             </div>
-             <div className="flex items-center justify-between rounded-lg border p-3">
-                <Label htmlFor="status-switch" className="flex flex-col space-y-1">
-                    <span>Published</span>
-                    <span className="font-normal leading-snug text-muted-foreground">
-                        Make this banner visible.
-                    </span>
-                </Label>
-                <Switch id="status-switch" checked={status} onCheckedChange={setStatus} />
-            </div>
             <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                <DialogClose asChild><Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button></DialogClose>
                 <Button type="submit">Save Banner</Button>
             </DialogFooter>
         </form>
@@ -135,27 +95,50 @@ const BannerForm = ({ banner, onSave, onCancel }: { banner?: Banner | null, onSa
 
 
 export default function AdminBannersPage() {
-  const [banners, setBanners] = React.useState<Banner[]>(mockBanners);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingBanner, setEditingBanner] = React.useState<Banner | null>(null);
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const handleSave = (banner: Banner) => {
-    setBanners(prev => {
-        const exists = prev.find(s => s.id === banner.id);
-        if (exists) {
-            return prev.map(s => s.id === banner.id ? banner : s);
+  const slidesQuery = useMemoFirebase(() => query(collection(firestore, 'homepageSlides'), orderBy('order')), [firestore]);
+  const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
+
+  const banners = (slides as Banner[]) || [];
+
+  const handleSave = async (bannerData: Partial<Banner>) => {
+      if (!firestore) return;
+      
+      const { id, ...data } = bannerData;
+
+      try {
+        if (id) {
+          // Update existing banner
+          const bannerRef = doc(firestore, 'homepageSlides', id);
+          await updateDoc(bannerRef, data);
+          toast({ title: 'Success', description: `Banner "${data.title}" has been updated.` });
+        } else {
+          // Create new banner
+          await addDoc(collection(firestore, 'homepageSlides'), data);
+          toast({ title: 'Success', description: `Banner "${data.title}" has been created.` });
         }
-        return [...prev, banner];
-    });
-    toast({ title: 'Success', description: `Banner "${banner.title}" has been saved.` });
-    setIsFormOpen(false);
-    setEditingBanner(null);
+        setIsFormOpen(false);
+        setEditingBanner(null);
+      } catch (error) {
+        console.error("Error saving banner:", error);
+        toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save the banner.' });
+      }
   };
   
-  const handleDelete = (bannerId: string) => {
-    setBanners(prev => prev.filter(s => s.id !== bannerId));
-    toast({ title: 'Banner Deleted' });
+  const handleDelete = async (bannerId: string) => {
+    if (!firestore) return;
+    const bannerRef = doc(firestore, 'homepageSlides', bannerId);
+    try {
+        await deleteDoc(bannerRef);
+        toast({ title: 'Banner Deleted' });
+    } catch (error) {
+        console.error("Error deleting banner:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the banner.' });
+    }
   };
   
   const handleEdit = (banner: Banner) => {
@@ -178,11 +161,6 @@ export default function AdminBannersPage() {
       accessorKey: 'href',
       header: 'Link',
       cell: ({ row }) => <p className="text-sm text-muted-foreground truncate">{row.original.href}</p>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => <Badge variant={row.original.status === 'published' ? 'default' : 'secondary'} className={`capitalize ${row.original.status === 'published' ? 'bg-green-600/80' : ''}`}>{row.original.status}</Badge>,
     },
     {
       id: 'actions',
@@ -246,7 +224,13 @@ export default function AdminBannersPage() {
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
+              {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                        Loading banners...
+                    </TableCell>
+                  </TableRow>
+              ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
