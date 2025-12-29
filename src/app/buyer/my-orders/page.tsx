@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,10 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, CheckCircle, Star } from 'lucide-react';
+import { MessageSquare, CheckCircle, Star, ShieldAlert } from 'lucide-react';
 import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, query, where, getDocs, setDoc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, setDoc, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
 import type { Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
@@ -36,7 +37,7 @@ const ReviewDialog = ({ order }: { order: Order }) => {
         }
         if (!user || !firestore) return;
 
-        const reviewRef = collection(firestore, 'products', order.productId, 'reviews');
+        const reviewRef = collection(firestore, 'products', order.productId!, 'reviews');
         
         try {
             await addDoc(reviewRef, {
@@ -95,6 +96,64 @@ const ReviewDialog = ({ order }: { order: Order }) => {
     )
 }
 
+const DisputeDialog = ({ order }: { order: Order }) => {
+    const { toast } = useToast();
+    const [reason, setReason] = useState('');
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const handleSubmitDispute = async () => {
+        if (!reason.trim()) {
+            toast({ variant: 'destructive', title: 'Please provide a reason for the dispute.' });
+            return;
+        }
+        if (!user || !firestore) return;
+
+        const orderRef = doc(firestore, 'orders', order.id);
+        
+        try {
+            await updateDoc(orderRef, {
+                orderStatus: 'disputed',
+                disputeReason: reason,
+            });
+            toast({
+                title: 'Dispute Submitted',
+                description: 'Our team will review your case and get back to you.',
+            });
+        } catch (error) {
+            console.error("Error submitting dispute:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your dispute.' });
+        }
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Report a Problem with Order #{order.id.substring(0,6)}</DialogTitle>
+                <DialogDescription>
+                    Please describe the issue you are having with this order. Our team will review the case.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <Textarea 
+                    placeholder="Describe the issue... (e.g., item not as described, item not delivered, etc.)"
+                    rows={6}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                />
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="ghost">Cancel</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                    <Button variant="destructive" onClick={handleSubmitDispute}>Submit Dispute</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    )
+}
+
 const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimisticOrders: React.Dispatch<React.SetStateAction<Order[] | undefined>> }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -116,12 +175,12 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
             case 'processing': return 'bg-blue-500/80';
             case 'pending': return 'bg-yellow-500/80';
             case 'cancelled': return 'bg-red-500/80';
+            case 'disputed': return 'bg-orange-600/80';
             default: return 'bg-gray-400/80';
         }
     };
 
     const handleConfirmDelivery = async () => {
-        // Optimistically update the UI to move the order to the delivered tab
         setOptimisticOrders(prevOrders =>
             prevOrders?.map(o =>
                 o.id === order.id ? { ...o, orderStatus: 'delivered' } : o
@@ -141,9 +200,8 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
             });
 
             if (!response.ok) {
-                // If the server response is not OK, it's likely an HTML error page.
                 const errorText = await response.text();
-                console.error("Backend Error:", errorText); // Log the HTML error for debugging
+                console.error("Backend Error:", errorText);
                 throw new Error('Server returned an error. See console for details.');
             }
 
@@ -209,63 +267,80 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
 
     return (
         <Dialog>
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                    {isLoading ? (
-                        <>
-                            <Skeleton className="h-6 w-6 rounded-full" />
-                            <Skeleton className="h-4 w-24" />
-                        </>
-                    ) : (
-                        <Link href={`/sellers/${order.sellerId}`} className="flex items-center gap-3 hover:underline">
-                            <Avatar className="h-6 w-6">
-                                <AvatarImage src={seller?.logoUrl} />
-                                <AvatarFallback>{seller?.shopName?.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-semibold">{seller?.shopName}</span>
-                        </Link>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                        {isLoading ? (
+                            <>
+                                <Skeleton className="h-6 w-6 rounded-full" />
+                                <Skeleton className="h-4 w-24" />
+                            </>
+                        ) : (
+                            <Link href={`/sellers/${order.sellerId}`} className="flex items-center gap-3 hover:underline">
+                                <Avatar className="h-6 w-6">
+                                    <AvatarImage src={seller?.logoUrl} />
+                                    <AvatarFallback>{seller?.shopName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <span className="font-semibold">{seller?.shopName}</span>
+                            </Link>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : ''}</span>
+                        <Badge variant="default" className={getStatusClass(order.orderStatus)}>
+                            {order.orderStatus}
+                        </Badge>
+                    </div>
+                </CardHeader>
+                <Separator />
+                <CardContent className="p-4">
+                    <div className="flex gap-4">
+                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
+                            <Image src={order.productImage || 'https://picsum.photos/seed/product/200'} alt={order.productName || 'product image'} fill className="object-cover" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="font-semibold">{order.productName}</p>
+                            <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
+                            <p className="text-lg font-bold text-primary">${order.totalAmount.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    {order.orderStatus === 'shipped' && (
+                        <div className="mt-4 space-y-2">
+                            <label className="text-sm font-medium">Upload Delivery Proof (Optional)</label>
+                            <Input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} className="text-xs" />
+                        </div>
                     )}
+                </CardContent>
+                <Separator />
+                <div className="flex flex-wrap items-center justify-end p-3 gap-2">
+                    <Button variant="ghost" onClick={handleMessageSeller}><MessageSquare className="mr-2 h-4 w-4" /> Chat with Seller</Button>
+                    
+                    {order.orderStatus === 'delivered' && 
+                        <DialogTrigger asChild>
+                            <Button variant="secondary">Leave a Review</Button>
+                        </DialogTrigger>
+                    }
+                    {order.orderStatus === 'shipped' && 
+                        <>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <ShieldAlert className="mr-2 h-4 w-4" /> Report Problem
+                                </Button>
+                            </DialogTrigger>
+                            <Button onClick={handleConfirmDelivery}><CheckCircle className="mr-2 h-4 w-4" /> I Have Received My Item</Button>
+                        </>
+                    }
+                    {order.orderStatus === 'processing' && 
+                        <DialogTrigger asChild>
+                             <Button variant="destructive" size="sm">
+                                <ShieldAlert className="mr-2 h-4 w-4" /> Report Problem
+                            </Button>
+                        </DialogTrigger>
+                    }
+                    {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
                 </div>
-                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : ''}</span>
-                    <Badge variant="default" className={getStatusClass(order.orderStatus)}>
-                        {order.orderStatus}
-                    </Badge>
-                </div>
-            </CardHeader>
-            <Separator />
-            <CardContent className="p-4">
-                <div className="flex gap-4">
-                    <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
-                         <Image src={order.productImage || 'https://picsum.photos/seed/product/200'} alt={order.productName || 'product image'} fill className="object-cover" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="font-semibold">{order.productName}</p>
-                        <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
-                        <p className="text-lg font-bold text-primary">${order.totalAmount.toLocaleString()}</p>
-                    </div>
-                </div>
-                {order.orderStatus === 'shipped' && (
-                    <div className="mt-4 space-y-2">
-                        <label className="text-sm font-medium">Upload Delivery Proof (Optional)</label>
-                        <Input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} className="text-xs" />
-                    </div>
-                )}
-            </CardContent>
-            <Separator />
-            <div className="flex items-center justify-end p-3 gap-2">
-                <Button variant="ghost" onClick={handleMessageSeller}><MessageSquare className="mr-2 h-4 w-4" /> Chat with Seller</Button>
-                {order.orderStatus === 'shipped' && <Button onClick={handleConfirmDelivery}><CheckCircle className="mr-2 h-4 w-4" /> I Have Received My Item</Button>}
-                {order.orderStatus === 'delivered' && 
-                    <DialogTrigger asChild>
-                        <Button variant="secondary">Leave a Review</Button>
-                    </DialogTrigger>
-                }
-                {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
-            </div>
-        </Card>
-        <ReviewDialog order={order} />
+            </Card>
+            {order.orderStatus === 'delivered' ? <ReviewDialog order={order} /> : <DisputeDialog order={order} />}
         </Dialog>
     );
 };
@@ -354,7 +429,7 @@ export default function MyOrdersPage() {
              {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no delivered orders.</p>}
           </TabsContent>
           <TabsContent value="cancelled" className="space-y-4">
-             {filteredOrders('cancelled').length > 0 ? filteredOrders('cancelled').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled orders.</p>}
+             {filteredOrders(['cancelled', 'disputed']).length > 0 ? filteredOrders(['cancelled', 'disputed']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled or disputed orders.</p>}
           </TabsContent>
         </Tabs>
         )}
