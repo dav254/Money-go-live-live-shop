@@ -84,7 +84,7 @@ function CommissionRow({ product: initialProduct }: { product: typeof staticProd
           onCheckedChange={handleToggleEnabled}
         />
       </TableCell>
-      <TableCell className="text-right">
+       <TableCell className="text-right">
           <Button size="sm" variant="outline" onClick={handleSave}>Save</Button>
       </TableCell>
     </TableRow>
