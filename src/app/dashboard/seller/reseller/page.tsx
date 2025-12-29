@@ -30,6 +30,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, doc, updateDoc, where, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 
 // --- Static Components (unchanged) ---
@@ -201,7 +202,7 @@ const CommissionSettingsTable = () => {
         );
     }
     
-    if (products.length === 0) {
+    if (!products || products.length === 0) {
         return (
              <div className="text-center py-10 border-2 border-dashed rounded-lg">
                 <PackagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -238,7 +239,7 @@ const CommissionSettingsTable = () => {
                         <TableRow key={product.id}>
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-3">
-                                    <Image src={product.imageUrls?.[0] || 'https://picsum.photos/seed/product/40'} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
+                                    <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
                                     <span className="truncate">{product.name}</span>
                                 </div>
                             </TableCell>
