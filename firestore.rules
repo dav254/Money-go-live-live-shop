@@ -182,9 +182,9 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
-    // Live Sessions
+    // Live Sessions are now publicly readable
     match /liveSessions/{sessionId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       // Allow seller to create/update their session document
       allow create: if request.auth.uid == sessionId;
       allow update: if request.auth.uid == sessionId || 
@@ -211,7 +211,7 @@ service cloud.firestore {
     }
     
     // Resell Activities
-    match /resell_activities/{activityId} {
+    match /resellActivities/{activityId} {
         // Allow a user to list activities if they are filtering by their own ID as seller or reseller.
         allow list: if request.auth != null &&
                      (
