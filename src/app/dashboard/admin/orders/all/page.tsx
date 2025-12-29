@@ -50,7 +50,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc, useUserProfile } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import type { Order, UserProfile, Product, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -194,13 +194,18 @@ export default function AdminAllOrdersPage() {
   
   const firestore = useFirestore();
   const { user } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const isAdmin = userProfile?.userRole === 'admin';
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Only fetch if the user is a confirmed admin
+    if (!firestore || !isAdmin) return null;
     return query(collection(firestore, 'orders'));
-  }, [firestore]);
+  }, [firestore, isAdmin]);
 
-  const { data: ordersData, isLoading } = useCollection<Order>(ordersQuery);
+  const { data: ordersData, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
+
+  const isLoading = isProfileLoading || areOrdersLoading;
 
   const handleStatusUpdate = async (orderId: string, status: Order['orderStatus']) => {
     if (!user) return;
