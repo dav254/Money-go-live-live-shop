@@ -60,13 +60,14 @@ service cloud.firestore {
       // Allow product owner to update a specific set of fields.
       allow update: if resource.data.sellerId == request.auth.uid &&
                       request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'commissionRate', 'isResellable', 'updatedAt']);
+                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt']);
 
-      // Allow admin to update commission rate
-      allow update: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commissionRate']) &&
-                      // Enforce commission rate between 0 and 90
-                      (request.resource.data.commissionRate >= 0 && request.resource.data.commissionRate <= 90);
+      // Allow owner to update commission rate and isResellable status
+      allow update: if resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isResellable', 'commissionRate']) &&
+                      // Enforce that if isResellable is true, commissionRate must be 10. If false, it must be 0.
+                      ( (request.resource.data.isResellable == true && request.resource.data.commissionRate == 10) ||
+                        (request.resource.data.isResellable == false && request.resource.data.commissionRate == 0) );
 
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
@@ -322,5 +323,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

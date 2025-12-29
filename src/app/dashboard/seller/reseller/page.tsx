@@ -168,43 +168,39 @@ const MyResellersTable = () => {
 function CommissionRow({ product: initialProduct }: { product: Product }) {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [product, setProduct] = React.useState(initialProduct);
-
+  // The product state is now managed by the parent, we just receive it.
+  const product = initialProduct; 
+  
   const handleToggleEnabled = (enabled: boolean) => {
-    const updatedProduct = {
-      ...product,
+    // When toggling, we immediately prepare the data to be saved.
+    const updatedData = {
       isResellable: enabled,
-      // Always set commissionRate to 10 when enabling, 0 when disabling.
       commissionRate: enabled ? 10 : 0,
     };
-    setProduct(updatedProduct); // Optimistically update UI
-    handleSave(updatedProduct);
+    handleSave(updatedData);
   };
   
-  const handleSave = useCallback((productToSave: Product) => {
+  const handleSave = (dataToSave: { isResellable: boolean; commissionRate: number; }) => {
     if (!firestore) return;
-    const productDocRef = doc(firestore, 'products', productToSave.id);
-    const updatedData = {
-        isResellable: productToSave.isResellable,
-        commissionRate: productToSave.commissionRate,
-    };
-    updateDoc(productDocRef, updatedData)
+    const productDocRef = doc(firestore, 'products', product.id);
+    
+    updateDoc(productDocRef, dataToSave)
         .then(() => {
             toast({
                 title: "Settings Saved!",
-                description: `Reselling for "${productToSave.name}" is now ${updatedData.isResellable ? 'enabled' : 'disabled'}.`
+                description: `Reselling for "${product.name}" is now ${dataToSave.isResellable ? 'enabled' : 'disabled'}.`
             });
         })
         .catch(error => {
+            // Emit a structured error for debugging, which will be caught by the error boundary
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: productDocRef.path,
                 operation: 'update',
-                requestResourceData: updatedData,
+                requestResourceData: dataToSave,
             }));
-            // Revert optimistic update on failure
-            setProduct(initialProduct);
+            // No need to revert UI, as the parent component's data will trigger a re-render.
         });
-  }, [firestore, toast, initialProduct]);
+  };
   
   const resellerEarns = (product.price * (product.isResellable ? 10 : 0)) / 100;
   const youGet = product.price - resellerEarns;
@@ -219,14 +215,8 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
       </TableCell>
       <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-            <Input
-                type="number"
-                value={10} // Always display 10
-                className="w-20 h-8"
-                disabled // The input is now for display only
-            />
-            <span>%</span>
+        <div className="flex items-center justify-center font-semibold">
+           10%
         </div>
       </TableCell>
       <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
@@ -283,7 +273,7 @@ const CommissionSettingsTable = () => {
                  <TableRow>
                     <TableHead className="w-[250px]">Product</TableHead>
                     <TableHead>Product Price</TableHead>
-                    <TableHead className="w-[150px]">Commission Rate (%)</TableHead>
+                    <TableHead className="text-center w-[150px]">Commission Rate</TableHead>
                     <TableHead>Reseller Earns</TableHead>
                     <TableHead>You Get</TableHead>
                     <TableHead className="text-right">Enable Reselling</TableHead>
@@ -311,7 +301,7 @@ export default function ResellerCenterPage() {
     };
 
     return (
-        <SellerLayout>
+        <ResellerLayout>
         <div className="flex-1 space-y-4 p-8 pt-6">
              <div className="flex items-center justify-between space-y-2">
                 <h1 className="font-headline text-3xl font-bold tracking-tight">
@@ -372,6 +362,6 @@ export default function ResellerCenterPage() {
                 </TabsContent>
             </Tabs>
         </div>
-        </SellerLayout>
+        </ResellerLayout>
     );
 }
