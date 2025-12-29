@@ -30,10 +30,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
@@ -91,9 +87,10 @@ const getStatusBadge = (status: Order['orderStatus']) => {
         pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
         cancelled: { label: 'Cancelled', variant: 'destructive' as 'destructive' },
         disputed: { label: 'Disputed', variant: 'destructive' as 'destructive', className: 'bg-orange-500/80' },
-    }[status] || { label: 'Unknown', className: 'bg-gray-400' };
+    };
+    const currentConfig = config[status] || { label: 'Unknown', className: 'bg-gray-400' };
 
-    return <Badge variant={config.variant || 'default'} className={`capitalize ${config.className}`}>{config.label}</Badge>;
+    return <Badge variant={currentConfig.variant || 'default'} className={`capitalize ${currentConfig.className}`}>{currentConfig.label}</Badge>;
 }
 
 const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | null; isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
@@ -105,6 +102,10 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
     const { data: seller } = useDoc<UserProfile>(sellerProfileRef);
 
     if (!order) return null;
+    
+    // Ensure timeline exists and is an array before mapping
+    const timeline = Array.isArray(order.timeline) ? order.timeline : [{ status: order.orderStatus, date: order.orderDate }];
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -131,8 +132,8 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
                          <Separator />
                          <h4 className="font-semibold flex items-center gap-2"><DollarSign /> Financials</h4>
                          <div className="text-sm space-y-1">
-                             <div className="flex justify-between"><span>Subtotal:</span><span>${order.subtotal?.toFixed(2)}</span></div>
-                             <div className="flex justify-between"><span>Shipping:</span><span>${order.shippingCost?.toFixed(2)}</span></div>
+                             <div className="flex justify-between"><span>Subtotal:</span><span>${(order.subtotal || order.productPrice || 0).toFixed(2)}</span></div>
+                             <div className="flex justify-between"><span>Shipping:</span><span>${(order.shippingCost || 0).toFixed(2)}</span></div>
                              <div className="flex justify-between font-bold"><span>Total:</span><span>${order.totalAmount?.toFixed(2)}</span></div>
                          </div>
                     </div>
@@ -146,7 +147,7 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
                         <Separator />
                          <h4 className="font-semibold flex items-center gap-2"><Milestone /> Order Timeline</h4>
                          <div className="space-y-3">
-                            {(order.timeline || [{ status: order.orderStatus, date: order.orderDate }]).map((event: any, index: number) => (
+                            {timeline.map((event: any, index: number) => (
                                 <div key={index} className="flex items-center gap-3">
                                     <div className="h-6 w-6 flex items-center justify-center rounded-full bg-muted">
                                         <Calendar className="h-3 w-3"/>
@@ -262,18 +263,13 @@ export default function AdminAllOrdersPage() {
                     <DropdownMenuItem asChild><Link href={`/dashboard/admin/users/buyers?userId=${row.original.buyerId}`}>View Buyer Profile</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href={`/dashboard/admin/users/sellers?userId=${row.original.sellerId}`}>View Seller Profile</Link></DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>Update Status</DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                            <DropdownMenuSubContent>
-                                {['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'disputed'].map(status => (
-                                    <DropdownMenuItem key={status} onSelect={() => handleStatusUpdate(row.original.id, status as Order['orderStatus'])}>
-                                        Mark as {status.charAt(0).toUpperCase() + status.slice(1)}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                    </DropdownMenuSub>
+                    <DropdownMenuLabel>Update Status</DropdownMenuLabel>
+                     {['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'disputed'].map(status => (
+                        <DropdownMenuItem key={status} onSelect={() => handleStatusUpdate(row.original.id, status as Order['orderStatus'])}>
+                            Mark as {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive">Issue Refund</DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
