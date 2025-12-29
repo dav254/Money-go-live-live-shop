@@ -171,32 +171,32 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
 
   const [product, setProduct] = React.useState(initialProduct);
 
-  const resellerEarns = (product.price * (product.commissionRate || 0)) / 100;
+  const FIXED_COMMISSION_RATE = 10;
+  const resellerEarns = (product.price * (product.isResellable ? FIXED_COMMISSION_RATE : 0)) / 100;
   const youGet = product.price - resellerEarns;
 
-  const handleCommissionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newRate = parseFloat(e.target.value);
-    if (isNaN(newRate) || newRate < 0) newRate = 0;
-    if (newRate > 90) newRate = 90;
-    setProduct(p => ({ ...p, commissionRate: newRate }));
-  };
-
   const handleToggleEnabled = (enabled: boolean) => {
-    setProduct(p => ({ ...p, isResellable: enabled, commissionRate: enabled ? 10 : 0 }));
+    const updatedProduct = {
+      ...product,
+      isResellable: enabled,
+      commissionRate: enabled ? FIXED_COMMISSION_RATE : 0,
+    };
+    setProduct(updatedProduct);
+    handleSave(updatedProduct); // Save immediately on toggle
   };
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback((productToSave: Product) => {
     if (!firestore) return;
-    const productDocRef = doc(firestore, 'products', product.id);
+    const productDocRef = doc(firestore, 'products', productToSave.id);
     const updatedData = {
-        commissionRate: product.commissionRate,
-        isResellable: product.isResellable,
+        commissionRate: productToSave.commissionRate,
+        isResellable: productToSave.isResellable,
     };
     updateDoc(productDocRef, updatedData)
         .then(() => {
             toast({
-                title: "Action Saved!",
-                description: "The new reseller settings have been saved."
+                title: "Settings Saved!",
+                description: `Reselling for "${productToSave.name}" is now ${updatedData.isResellable ? 'enabled' : 'disabled'}.`
             });
         })
         .catch(error => {
@@ -206,7 +206,7 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
                 requestResourceData: updatedData,
             }));
         });
-  }, [firestore, product, toast]);
+  }, [firestore, toast]);
 
   return (
     <TableRow>
@@ -221,10 +221,9 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
         <div className="flex items-center gap-2">
             <Input
                 type="number"
-                value={product.commissionRate || 0}
-                onChange={handleCommissionChange}
+                value={FIXED_COMMISSION_RATE}
                 className="w-20 h-8"
-                max={90} min={0}
+                disabled // The input is now for display only
             />
             <span>%</span>
         </div>
@@ -238,11 +237,12 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
         />
       </TableCell>
        <TableCell className="text-right">
-          <Button size="sm" variant="outline" onClick={handleSave}>Save</Button>
+          {/* Save button is no longer needed as toggle saves automatically */}
       </TableCell>
     </TableRow>
   );
 }
+
 
 const CommissionSettingsTable = () => {
     const firestore = useFirestore();
@@ -318,11 +318,11 @@ export default function ResellerCenterPage() {
         <div className="flex-1 space-y-4 p-8 pt-6">
              <div className="flex items-center justify-between space-y-2">
                 <h1 className="font-headline text-3xl font-bold tracking-tight">
-                Seller Dashboard
+                Reseller Center
                 </h1>
             </div>
             
-            <Tabs defaultValue="analytics" className="space-y-4">
+            <Tabs defaultValue="commissions" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="analytics">Analytics</TabsTrigger>
                     <TabsTrigger value="commissions">Commission Rules</TabsTrigger>
@@ -378,3 +378,5 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
+
+    
