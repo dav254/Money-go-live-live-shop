@@ -70,7 +70,16 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
+                // Check if the response is JSON before parsing
+                const contentType = response.headers.get("content-type");
+                let errorData;
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    errorData = await response.json();
+                } else {
+                    const errorText = await response.text();
+                    console.error("Non-JSON error response:", errorText);
+                    throw new Error(response.statusText || 'An unexpected server error occurred.');
+                }
                 throw new Error(errorData.message || 'Failed to delete the order.');
             }
 
@@ -167,7 +176,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                 {order.orderStatus === 'shipped' && (
                                                     <>
                                                         <DropdownMenuItem disabled>Awaiting Buyer Confirmation</DropdownMenuItem>
-                                                        <AlertDialogTrigger asChild>
+                                                         <AlertDialogTrigger asChild>
                                                             <DropdownMenuItem className="text-destructive">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Delete Order
@@ -175,7 +184,14 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                         </AlertDialogTrigger>
                                                     </>
                                                 )}
-                                                {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && <DropdownMenuItem disabled>No actions available</DropdownMenuItem>}
+                                                {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && (
+                                                     <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem className="text-destructive">
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete Order
+                                                        </DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
