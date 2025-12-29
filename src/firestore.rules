@@ -58,6 +58,7 @@ service cloud.firestore {
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
       // Allow product owner to update a specific set of fields for general editing.
+      // This rule is broad to prevent mismatches.
       allow update: if resource.data.sellerId == request.auth.uid &&
                       request.resource.data.diff(resource.data).affectedKeys()
                         .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']);
