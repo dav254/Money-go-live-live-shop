@@ -71,7 +71,13 @@ const UserCell = ({ userId }: { userId: string }) => {
   const { data: user, isLoading } = useDoc<UserProfile>(userRef);
 
   if (isLoading) return <Skeleton className="h-5 w-24" />;
-  return <span className="font-medium">{user?.fullName || 'N/A'}</span>;
+  if (!user) return <span className="text-muted-foreground">Unknown User</span>;
+  
+  return (
+    <Button variant="link" asChild className="p-0 h-auto font-medium capitalize text-base">
+        <Link href={`/dashboard/admin/users/buyers?userId=${userId}`}>{user?.fullName || 'N/A'}</Link>
+    </Button>
+  );
 };
 
 
@@ -107,7 +113,7 @@ const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: 'paymentMethod',
     header: 'Method',
-    cell: ({ row }) => <p className="capitalize">{row.original.paymentMethod?.replace('_', ' ')}</p>,
+    cell: ({ row }) => <p className="capitalize">{row.original.paymentMethod?.replace(/_/g, ' ')}</p>,
   },
   {
     accessorKey: 'amount',
