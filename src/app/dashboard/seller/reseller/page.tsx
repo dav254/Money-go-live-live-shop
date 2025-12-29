@@ -10,7 +10,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Users, ShoppingBag, CircleDollarSign } from 'lucide-react';
+import { BadgePercent, Users, ShoppingBag, CircleDollarSign, BarChart3, PackagePlus } from 'lucide-react';
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,10 +25,16 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
+import { Input } from '@/components/ui/input';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, updateDoc, where, query } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
-// --- Static Components with Placeholder Data ---
 
-const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
+// --- Static Components (unchanged) ---
+
+const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -36,26 +42,111 @@ const StatCard = ({ title, value, icon: Icon }: { title: string, value: string |
         </CardHeader>
         <CardContent>
             <div className="text-2xl font-bold">{value}</div>
+            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        </CardContent>
+    </Card>
+);
+
+const SalesOverTimeChart = () => (
+    <Card>
+        <CardHeader>
+            <CardTitle>Sales Over Time</CardTitle>
+            <CardDescription>Your gross revenue over the last 30 days.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="h-80 w-full bg-muted rounded-md flex items-center justify-center">
+                <div className="flex flex-col items-center text-center">
+                    <BarChart3 className="h-12 w-12 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground mt-2">[Chart Placeholder]</p>
+                </div>
+            </div>
+        </CardContent>
+    </Card>
+);
+
+const TopPerformingProductsTable = () => {
+    const staticProducts = [
+        { id: 'prod1', name: 'Vintage Leather Jacket', imageUrl: 'https://picsum.photos/seed/jacket/40', views: 2500, sales: 15, revenue: 2250.00 },
+        { id: 'prod4', name: 'Designer Handbag', imageUrl: 'https://picsum.photos/seed/bag/40', views: 1200, sales: 12, revenue: 5400.00 },
+        { id: 'prod3', name: 'Retro Sunglasses', imageUrl: 'https://picsum.photos/seed/glasses/40', views: 3100, sales: 8, revenue: 600.00 },
+    ];
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Top Performing Products</CardTitle>
+                <CardDescription>Your best-selling products by revenue.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-center">Views</TableHead>
+                            <TableHead className="text-center">Sales</TableHead>
+                            <TableHead className="text-center">Conversion</TableHead>
+                            <TableHead className="text-right">Revenue</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {staticProducts.map(product => {
+                            const conversionRate = product.views > 0 ? (product.sales / product.views) * 100 : 0;
+                            return (
+                                <TableRow key={product.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Image src={product.imageUrl || 'https://picsum.photos/seed/placeholder/40'} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
+                                            <span className="font-medium">{product.name}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">{product.views.toLocaleString()}</TableCell>
+                                    <TableCell className="text-center">{product.sales}</TableCell>
+                                    <TableCell className="text-center text-muted-foreground">{conversionRate.toFixed(1)}%</TableCell>
+                                    <TableCell className="text-right font-semibold">${product.revenue.toFixed(2)}</TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+};
+
+const CustomerAnalytics = () => (
+     <Card>
+        <CardHeader>
+            <CardTitle>Customer Snapshot</CardTitle>
+             <CardDescription>An overview of your customer loyalty.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium text-muted-foreground">New Customers</p>
+                <p className="text-3xl font-bold">38</p>
+                 <p className="text-xs text-muted-foreground">in the last 30 days</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium text-muted-foreground">Returning Customers</p>
+                <p className="text-3xl font-bold">12</p>
+                 <p className="text-xs text-muted-foreground">made a repeat purchase</p>
+            </div>
         </CardContent>
     </Card>
 );
 
 const MyResellersTable = () => {
     const staticResellers = [
-        { id: 'reseller1', fullName: 'Alice Johnson', profilePictureUrl: 'https://picsum.photos/seed/alice/40', salesCount: 15, totalEarnings: 450.75, status: 'Active' },
-        { id: 'reseller2', fullName: 'Bob Williams', profilePictureUrl: 'https://picsum.photos/seed/bob/40', salesCount: 8, totalEarnings: 210.50, status: 'Active' },
-        { id: 'reseller3', fullName: 'Charlie Brown', profilePictureUrl: 'https://picsum.photos/seed/charlie/40', salesCount: 2, totalEarnings: 35.00, status: 'Active' },
+        { id: 'reseller1', fullName: 'Alice Johnson', profilePictureUrl: 'https://picsum.photos/seed/alice/40', salesCount: 15, totalEarnings: 450.75 },
+        { id: 'reseller2', fullName: 'Bob Williams', profilePictureUrl: 'https://picsum.photos/seed/bob/40', salesCount: 8, totalEarnings: 210.50 },
     ];
 
     return (
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead>Reseller</TableHead>
-                    <TableHead className="text-center">Sales</TableHead>
-                    <TableHead className="text-right">Commission Paid (USD)</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Top Resellers</TableHead>
+                    <TableHead className="text-center">Sales Generated</TableHead>
+                    <TableHead className="text-right">Commission Paid</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -66,19 +157,10 @@ const MyResellersTable = () => {
                                 <AvatarImage src={reseller.profilePictureUrl} />
                                 <AvatarFallback>{reseller.fullName?.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <div>
-                                <span>{reseller.fullName}</span>
-                                <p className="text-xs font-mono text-muted-foreground">ID: #{reseller.id.substring(0,6)}</p>
-                            </div>
+                            <span>{reseller.fullName}</span>
                         </TableCell>
-                        <TableCell className="text-center">{reseller.salesCount}</TableCell>
-                        <TableCell className="text-right">${reseller.totalEarnings.toFixed(2)}</TableCell>
-                        <TableCell className="text-center">
-                            <Badge variant="default" className="bg-green-600/80">{reseller.status}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button variant="outline" size="sm">View Sales</Button>
-                        </TableCell>
+                        <TableCell className="text-center font-semibold">{reseller.salesCount}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">${reseller.totalEarnings.toFixed(2)}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -86,95 +168,130 @@ const MyResellersTable = () => {
     );
 };
 
-const SellerTopSharedProductsTable = () => {
-    const staticProducts = [
-        { id: 'prod1', name: 'Vintage Leather Jacket', imageUrl: 'https://picsum.photos/seed/jacket/40', shareCount: 128, salesCount: 12 },
-        { id: 'prod2', name: 'Handmade Ceramic Mug', imageUrl: 'https://picsum.photos/seed/mug/40', shareCount: 95, salesCount: 8 },
-        { id: 'prod3', name: 'Retro Sunglasses', imageUrl: 'https://picsum.photos/seed/glasses/40', shareCount: 72, salesCount: 5 },
-    ];
-    
-    return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-center">Total Shares</TableHead>
-                    <TableHead className="text-center">Sales from Shares</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {staticProducts.map(product => (
-                    <TableRow key={product.id}>
-                        <TableCell>
-                            <div className="flex items-center gap-3">
-                                <Image src={product.imageUrl} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
-                                <span className="font-medium">{product.name}</span>
-                            </div>
-                        </TableCell>
-                        <TableCell className="text-center font-semibold">{product.shareCount}</TableCell>
-                        <TableCell className="text-center font-semibold">{product.salesCount}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    );
-};
+
+// --- DYNAMIC CommissionSettingsTable Component ---
 
 const CommissionSettingsTable = () => {
-    const staticProducts = [
-        { id: 'prod1', name: 'Vintage Leather Jacket', imageUrl: 'https://picsum.photos/seed/jacket/40', commission: 10, enabled: true },
-        { id: 'prod2', name: 'Handmade Ceramic Mug', imageUrl: 'https://picsum.photos/seed/mug/40', commission: 10, enabled: false },
-        { id: 'prod3', name: 'Retro Sunglasses', imageUrl: 'https://picsum.photos/seed/glasses/40', commission: 10, enabled: true },
-        { id: 'prod4', name: 'Designer Handbag', imageUrl: 'https://picsum.photos/seed/bag/40', commission: 10, enabled: true },
-    ];
+    const firestore = useFirestore();
+    const { data: user } = useUser();
+
+    const productsQuery = useMemoFirebase(() => {
+        if (!user) return null;
+        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { status, data: products } = useCollection(productsQuery, { idField: 'id' });
+
+    const handleCommissionChange = async (productId: string, newCommission: number) => {
+        if (isNaN(newCommission) || newCommission < 0 || newCommission > 90) return;
+        const productDocRef = doc(firestore, 'products', productId);
+        await updateDoc(productDocRef, { commissionRate: newCommission });
+    };
+
+    const handleToggleReselling = async (productId: string, isEnabled: boolean) => {
+        const productDocRef = doc(firestore, 'products', productId);
+        await updateDoc(productDocRef, { isResellable: isEnabled });
+    };
+
+    if (status === 'loading') {
+        return (
+            <div className="space-y-2">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="w-full h-16" />)}
+            </div>
+        );
+    }
+    
+    if (products.length === 0) {
+        return (
+             <div className="text-center py-10 border-2 border-dashed rounded-lg">
+                <PackagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-2 text-sm font-medium">No products found</h3>
+                <p className="mt-1 text-sm text-muted-foreground">You haven't added any products yet. Add one to get started!</p>
+                <div className="mt-6">
+                    <Button asChild>
+                        <Link href="/dashboard/seller/products/new">Add Product</Link>
+                    </Button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <Table>
             <TableHeader>
-                <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Commission</TableHead>
+                 <TableRow>
+                    <TableHead className="w-[250px]">Product</TableHead>
+                    <TableHead>Product Price</TableHead>
+                    <TableHead className="w-[150px]">Commission Rate (%)</TableHead>
+                    <TableHead>Reseller Earns</TableHead>
+                    <TableHead>You Get</TableHead>
                     <TableHead className="text-right">Enable Reselling</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {staticProducts.map((product) => (
-                    <TableRow key={product.id}>
-                        <TableCell className="font-medium">
-                            <div className="flex items-center gap-3">
-                                <Image src={product.imageUrl} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
-                                <span>{product.name}</span>
-                            </div>
-                        </TableCell>
-                        <TableCell>
-                            <Badge variant="secondary">{product.commission}%</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Switch checked={product.enabled} aria-label={`Enable reselling for ${product.name}`}/>
-                        </TableCell>
-                    </TableRow>
-                ))}
+                {products.map((product) => {
+                    const commissionRate = product.commissionRate || 0;
+                    const resellerEarns = product.price * (commissionRate / 100);
+                    const youGet = product.price - resellerEarns;
+
+                    return (
+                        <TableRow key={product.id}>
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-3">
+                                    <Image src={product.imageUrls?.[0] || 'https://picsum.photos/seed/product/40'} alt={product.name} width={40} height={40} className="rounded-md object-cover" />
+                                    <span className="truncate">{product.name}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
+                            <TableCell>
+                               <div className="flex items-center gap-2">
+                                    <Input
+                                        type="number"
+                                        defaultValue={commissionRate}
+                                        onBlur={(e) => handleCommissionChange(product.id, parseInt(e.target.value, 10))}
+                                        className="w-20 h-8"
+                                        max={90} min={0}
+                                    />
+                                    <span>%</span>
+                               </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
+                            <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                                <Switch 
+                                    checked={product.isResellable || false}
+                                    onCheckedChange={(isEnabled) => handleToggleReselling(product.id, isEnabled)}
+                                    aria-label={`Enable reselling for ${product.name}`}
+                                />
+                            </TableCell>
+                        </TableRow>
+                    );
+                })}
             </TableBody>
         </Table>
     );
 };
+
 
 // --- Main Page Component ---
 
 export default function ResellerCenterPage() {
 
     const staticStats = {
+        totalRevenue: 28450.50,
+        totalSales: 249,
         totalResellers: 12,
-        totalSales: 47,
-        totalCommissionPaid: 1255.80
+        avgOrderValue: 114.26,
     };
 
     return (
         <SellerLayout>
         <div className="flex-1 space-y-4 p-8 pt-6">
-            <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Reseller Center
-            </h1>
+             <div className="flex items-center justify-between space-y-2">
+                <h1 className="font-headline text-3xl font-bold tracking-tight">
+                Seller Dashboard
+                </h1>
+            </div>
             
             <Tabs defaultValue="analytics" className="space-y-4">
                 <TabsList>
@@ -183,32 +300,34 @@ export default function ResellerCenterPage() {
                 </TabsList>
 
                 <TabsContent value="analytics" className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <StatCard title="Total Resellers" value={staticStats.totalResellers.toString()} icon={Users} />
-                        <StatCard title="Total Reseller Sales" value={staticStats.totalSales.toString()} icon={ShoppingBag} />
-                        <StatCard title="Total Commission Paid" value={`$${staticStats.totalCommissionPaid.toLocaleString()}`} icon={CircleDollarSign} />
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <StatCard title="Total Revenue" value={`$${staticStats.totalRevenue.toLocaleString()}`} icon={CircleDollarSign} description="+20.1% from last month" />
+                        <StatCard title="Total Sales" value={`+${staticStats.totalSales.toString()}`} icon={ShoppingBag} description="+18.1% from last month" />
+                        <StatCard title="Active Resellers" value={staticStats.totalResellers.toString()} icon={Users} description="+2 since last month" />
+                        <StatCard title="Average Order Value" value={`$${staticStats.avgOrderValue.toFixed(2)}`} icon={BadgePercent} description="+5.2% from last month" />
                     </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>My Resellers</CardTitle>
-                            <CardDescription>Manage and view the performance of your resellers.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                           <MyResellersTable />
-                        </CardContent>
-                    </Card>
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="lg:col-span-2">
+                            <SalesOverTimeChart />
+                        </div>
+                        <div className="space-y-4">
+                            <CustomerAnalytics />
+                        </div>
+                    </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Top Shared Products</CardTitle>
-                            <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                           {/* This is the component that was causing the error */}
-                           <SellerTopSharedProductsTable />
-                        </CardContent>
-                    </Card>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        <TopPerformingProductsTable />
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Reseller Channel</CardTitle>
+                                <CardDescription>Your top partners driving sales.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <MyResellersTable />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="commissions" className="space-y-4">
@@ -216,9 +335,9 @@ export default function ResellerCenterPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                         <BadgePercent />
-                        Set Product Commission
+                        Set Product Commission Rules
                         </CardTitle>
-                        <CardDescription>Enable reselling for a product to automatically offer a fixed 10% commission. A disabled switch means the product is not available for reselling.</CardDescription>
+                        <CardDescription>Review and set the commission for each of your products. The table below shows a clear breakdown of earnings for you and your resellers. Use the toggle to enable or disable reselling for specific items.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <CommissionSettingsTable />
