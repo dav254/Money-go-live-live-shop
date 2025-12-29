@@ -74,6 +74,7 @@ export function SellerTopSharedProductsTable() {
                 return;
             }
 
+            // FIX: The query now correctly filters for the seller's own ID, matching the security rules.
             const activitiesQuery = query(collection(firestore, 'resellActivities'), where('sellerId', '==', sellerId));
             
             activitiesUnsubscribe = onSnapshot(activitiesQuery, (activitiesSnapshot) => {
@@ -95,7 +96,7 @@ export function SellerTopSharedProductsTable() {
                 setTopShared(combinedData);
                 setIsLoading(false);
             }, (error) => {
-                console.error("FirebaseError in resellActivities subscription:", error);
+                console.error("Error fetching resell activities:", error);
                 const permissionError = new FirestorePermissionError({
                     path: 'resellActivities',
                     operation: 'list',
@@ -104,7 +105,7 @@ export function SellerTopSharedProductsTable() {
                 setIsLoading(false);
             });
         }, (error) => {
-            console.error("FirebaseError in products subscription:", error);
+            console.error("Error fetching products:", error);
              const permissionError = new FirestorePermissionError({
                 path: 'products',
                 operation: 'list',
