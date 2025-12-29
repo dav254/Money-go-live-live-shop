@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { Suspense, useMemo, useState, useEffect, useCallback } from 'react';
@@ -15,7 +14,7 @@ import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, errorEmi
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus, ShoppingBag } from 'lucide-react';
 import type { SellerShop, Product, Order, Payout, UserProfile } from '@/lib/types';
-import { collection, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, query, where, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useToast } from '@/hooks/use-toast';
@@ -171,13 +170,12 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
     const firestore = useFirestore();
     const [product, setProduct] = useState(initialProduct);
 
-    const handleSave = useCallback((dataToSave: { isResellable: boolean; commissionRate: number; }) => {
+    const handleSave = useCallback((dataToSave: { isResellable: boolean; commissionRate: number; updatedAt: any }) => {
         if (!firestore) return;
         const productDocRef = doc(firestore, 'products', product.id);
         
         updateDoc(productDocRef, dataToSave)
             .then(() => {
-                // Update local state on success
                 setProduct(prev => ({...prev, ...dataToSave}));
                 toast({
                     title: "Settings Saved!",
@@ -197,10 +195,12 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
         handleSave({
             isResellable: enabled,
             commissionRate: enabled ? 10 : 0,
+            updatedAt: serverTimestamp()
         });
     }, [handleSave]);
     
-    const resellerEarns = (product.price * (product.commissionRate || 0)) / 100;
+    const commissionRate = product.isResellable ? 10 : 0;
+    const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
 
     return (
