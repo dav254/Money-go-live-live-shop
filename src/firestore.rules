@@ -65,7 +65,7 @@ service cloud.firestore {
       // Allow a product owner to specifically toggle reselling settings.
       allow update: if resource.data.sellerId == request.auth.uid &&
                       request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['isResellable', 'commissionRate', 'updatedAt']);
+                        .hasAll(['isResellable', 'commissionRate']);
                         
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
@@ -321,5 +321,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
