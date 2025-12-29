@@ -31,6 +31,7 @@ import { collection, doc, updateDoc, where, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import type { Product } from '@/lib/types';
 
 
 // --- Static Components (unchanged) ---
@@ -210,7 +211,7 @@ const CommissionSettingsTable = () => {
                 <p className="mt-1 text-sm text-muted-foreground">You haven't added any products yet. Add one to get started!</p>
                 <div className="mt-6">
                     <Button asChild>
-                        <Link href="/dashboard/seller/products/new">Add Product</Link>
+                        <Link href="/dashboard/products?tab=add-new">Add Product</Link>
                     </Button>
                 </div>
             </div>
