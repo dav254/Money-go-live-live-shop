@@ -44,7 +44,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -236,6 +236,7 @@ const WithdrawFundsDialog = ({ balance, payoutMethods, onWithdrawal }: { balance
                     requestResourceData: newPayoutData,
                 });
                 errorEmitter.emit('permission-error', permissionError);
+                throw permissionError; // Rethrow to be caught by the outer catch block
             });
 
             toast({ title: 'Success', description: 'Your withdrawal request has been submitted for processing.' });
@@ -337,27 +338,30 @@ export default function SellerWalletPage() {
   const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
-  // Fetching data
-  const ordersQuery = useMemoFirebase(() => {
-      if (!user) return null;
-      return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('orderStatus', 'in', ['delivered', 'shipped']));
-  }, [firestore, user]);
-
-  const payoutsQuery = useMemoFirebase(() => {
-      if (!user) return null;
-      return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
-  }, [firestore, user]);
-  
+  // Fetch Payout Methods
   const payoutMethodsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
   }, [firestore, user]);
-
-  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-  const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
   const { data: payoutMethods, isLoading: isLoadingMethods } = useCollection<PayoutMethod>(payoutMethodsQuery);
 
-  const isLoading = isUserLoading || areOrdersLoading || arePayoutsLoading;
+  // Fetch Orders to calculate commissions
+  const sellerOrdersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid), where('orderStatus', 'in', ['delivered', 'shipped']));
+  }, [firestore, user]);
+  
+  const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(sellerOrdersQuery);
+
+  // Fetch Payouts to calculate what has been paid
+  const payoutsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
+  
+  const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
+  
+  const isLoading = isUserLoading || isLoadingMethods || arePayoutsLoading || areOrdersLoading;
 
   // Memoized calculations
   const { totalRevenue, totalPaidOut, platformFees, availableBalance } = useMemo(() => {
@@ -459,9 +463,7 @@ export default function SellerWalletPage() {
                       <TableBody>
                         {arePayoutsLoading ? (
                              [...Array(3)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell colSpan={5}><Skeleton className="h-6" /></TableCell>
-                                </TableRow>
+                                <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-6" /></TableCell></TableRow>
                             ))
                         ) : payouts && payouts.length > 0 ? (
                           payouts.map((payout) => (
