@@ -11,9 +11,9 @@ import { LogisticsTable } from '@/components/seller/logistics-table';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus } from 'lucide-react';
-import type { SellerShop, Product, Order, Payout } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus, ShoppingBag } from 'lucide-react';
+import type { SellerShop, Product, Order, Payout, UserProfile } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -388,5 +388,3 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
-
-    
