@@ -138,7 +138,7 @@ export function AdminSidebar() {
             { href: 'all', label: 'All Orders' },
             { href: 'seller-orders', label: 'Seller Orders' },
             { href: 'reseller-orders', label: 'Reseller Orders' },
-            { href: 'disputes', label: 'Refunds &amp; Disputes' },
+            { href: 'disputes', label: 'Refunds & Disputes' },
             { href: 'tracking', label: 'Delivery Tracking' },
           ]}
         />
