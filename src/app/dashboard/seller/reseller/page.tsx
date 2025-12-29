@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { Suspense, useMemo, useState, useEffect } from 'react';
+import React, { Suspense, useMemo, useState, useEffect, useCallback } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import { MyProductsTable } from '@/components/seller/my-products-table';
@@ -185,7 +185,7 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
     setProduct(p => ({ ...p, isResellable: enabled, commissionRate: enabled ? 10 : 0 }));
   };
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!firestore) return;
     const productDocRef = doc(firestore, 'products', product.id);
     const updatedData = {
@@ -206,7 +206,7 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
                 requestResourceData: updatedData,
             }));
         });
-  };
+  }, [firestore, product, toast]);
 
   return (
     <TableRow>
