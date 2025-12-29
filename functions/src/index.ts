@@ -10,13 +10,11 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * DEACTIVATED: This function is no longer in use.
- * It was previously used to automatically process earnings when an order was marked as 'delivered'.
- * This logic is now handled manually by the administrator to ensure security and control over payouts.
- * 
- * To re-enable, you would need to deploy this function.
+ * Automatically processes an order when its status is updated to 'delivered'.
+ * It calculates and distributes earnings to the seller, reseller (if any),
+ * the person who referred the seller, and the platform. It also creates
+ * notifications for each party.
  */
-/*
 export const processOrderAndDistributeEarnings = functions.firestore
     .document("orders/{orderId}")
     .onUpdate(async (change, context) => {
@@ -65,10 +63,10 @@ export const processOrderAndDistributeEarnings = functions.firestore
             sellerReferralCommission = productPrice * SELLER_REFERRAL_COMMISSION_RATE;
         }
         
-        // The platform fee is now reduced by any commissions paid out from it.
-        const platformFee = (productPrice * PLATFORM_FEE_RATE) - sellerReferralCommission;
+        const platformFee = (productPrice * PLATFORM_FEE_RATE);
 
-        const sellerNetEarnings = productPrice - (productPrice * PLATFORM_FEE_RATE) - resellerCommission;
+        // Correctly calculate seller's earnings AFTER all commissions and fees
+        const sellerNetEarnings = productPrice - platformFee - resellerCommission - sellerReferralCommission;
 
         const batch = db.batch();
         const timestamp = admin.firestore.FieldValue.serverTimestamp();
@@ -225,7 +223,7 @@ export const processOrderAndDistributeEarnings = functions.firestore
         return null;
       }
     });
-*/
+
 
 
 /**
