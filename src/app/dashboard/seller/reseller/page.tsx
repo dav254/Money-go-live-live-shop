@@ -16,23 +16,7 @@ import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleD
 import type { SellerShop, Product, Order, Payout, UserProfile } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -181,9 +165,87 @@ const MyResellersTable = () => {
 
 // --- DYNAMIC CommissionSettingsTable Component ---
 
+function CommissionRow({ product: initialProduct }: { product: Product }) {
+  const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const [product, setProduct] = React.useState(initialProduct);
+
+  const resellerEarns = (product.price * (product.commissionRate || 0)) / 100;
+  const youGet = product.price - resellerEarns;
+
+  const handleCommissionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newRate = parseFloat(e.target.value);
+    if (isNaN(newRate) || newRate < 0) newRate = 0;
+    if (newRate > 90) newRate = 90;
+    setProduct(p => ({ ...p, commissionRate: newRate }));
+  };
+
+  const handleToggleEnabled = (enabled: boolean) => {
+    setProduct(p => ({ ...p, isResellable: enabled, commissionRate: enabled ? 10 : 0 }));
+  };
+
+  const handleSave = () => {
+    if (!firestore) return;
+    const productDocRef = doc(firestore, 'products', product.id);
+    const updatedData = {
+        commissionRate: product.commissionRate,
+        isResellable: product.isResellable,
+    };
+    updateDoc(productDocRef, updatedData)
+        .then(() => {
+            toast({
+                title: "Action Saved!",
+                description: "The new reseller settings have been saved."
+            });
+        })
+        .catch(error => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: productDocRef.path,
+                operation: 'update',
+                requestResourceData: updatedData,
+            }));
+        });
+  };
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-3">
+          <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'Product Image'} width={40} height={40} className="rounded-md object-cover" />
+          <span className="truncate">{product.name}</span>
+        </div>
+      </TableCell>
+      <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+            <Input
+                type="number"
+                value={product.commissionRate || 0}
+                onChange={handleCommissionChange}
+                className="w-20 h-8"
+                max={90} min={0}
+            />
+            <span>%</span>
+        </div>
+      </TableCell>
+      <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
+      <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
+      <TableCell className="text-right">
+        <Switch
+          checked={product.isResellable || false}
+          onCheckedChange={handleToggleEnabled}
+        />
+      </TableCell>
+       <TableCell className="text-right">
+          <Button size="sm" variant="outline" onClick={handleSave}>Save</Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 const CommissionSettingsTable = () => {
     const firestore = useFirestore();
-    const { toast } = useToast();
     const { user } = useUser();
 
     const productsQuery = useMemoFirebase(() => {
@@ -193,44 +255,6 @@ const CommissionSettingsTable = () => {
 
     const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
-    const handleCommissionChange = (productId: string, newCommission: number) => {
-        if (isNaN(newCommission) || newCommission < 0 || newCommission > 90) {
-            toast({ variant: 'destructive', title: 'Invalid Rate', description: 'Commission must be between 0 and 90%.' });
-            return;
-        }
-        const productDocRef = doc(firestore, 'products', productId);
-        const updatedData = { commissionRate: newCommission };
-
-        updateDoc(productDocRef, updatedData)
-            .then(() => {
-                toast({ title: 'Commission Updated', description: 'The new rate has been saved.' });
-            })
-            .catch(error => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: productDocRef.path,
-                    operation: 'update',
-                    requestResourceData: updatedData,
-                }));
-            });
-    };
-
-    const handleToggleReselling = (productId: string, isEnabled: boolean) => {
-        const productDocRef = doc(firestore, 'products', productId);
-        const commissionRate = isEnabled ? 10 : 0;
-        const updatedData = { isResellable: isEnabled, commissionRate };
-
-        updateDoc(productDocRef, updatedData)
-            .then(() => {
-                toast({ title: `Reselling ${isEnabled ? 'Enabled' : 'Disabled'}`, description: `Commission rate set to ${commissionRate}%.` });
-            })
-            .catch(error => {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: productDocRef.path,
-                    operation: 'update',
-                    requestResourceData: updatedData,
-                }));
-            });
-    };
 
     if (isLoading) {
         return (
@@ -265,47 +289,13 @@ const CommissionSettingsTable = () => {
                     <TableHead>Reseller Earns</TableHead>
                     <TableHead>You Get</TableHead>
                     <TableHead className="text-right">Enable Reselling</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {products.map((product) => {
-                    const commissionRate = product.commissionRate || 0;
-                    const resellerEarns = product.price * (commissionRate / 100);
-                    const youGet = product.price - resellerEarns;
-
-                    return (
-                        <TableRow key={product.id}>
-                            <TableCell className="font-medium">
-                                <div className="flex items-center gap-3">
-                                    <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'Product Image'} width={40} height={40} className="rounded-md object-cover" />
-                                    <span className="truncate">{product.name}</span>
-                                </div>
-                            </TableCell>
-                            <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
-                            <TableCell>
-                               <div className="flex items-center gap-2">
-                                    <Input
-                                        type="number"
-                                        defaultValue={commissionRate}
-                                        onBlur={(e) => handleCommissionChange(product.id, parseInt(e.target.value, 10))}
-                                        className="w-20 h-8"
-                                        max={90} min={0}
-                                    />
-                                    <span>%</span>
-                               </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
-                            <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">
-                                <Switch 
-                                    checked={product.isResellable || false}
-                                    onCheckedChange={(isEnabled) => handleToggleReselling(product.id, isEnabled)}
-                                    aria-label={`Enable reselling for ${product.name}`}
-                                />
-                            </TableCell>
-                        </TableRow>
-                    );
-                })}
+                {products.map((product) => (
+                  <CommissionRow key={product.id} product={product} />
+                ))}
             </TableBody>
         </Table>
     );
