@@ -24,10 +24,11 @@ import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase
 import { collection, query, where, doc } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Truck } from 'lucide-react';
+import { CheckCircle, Truck } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
-const UserCell = ({ userId, label }: { userId: string, label: string }) => {
+const UserCell = ({ userId }: { userId: string }) => {
     const firestore = useFirestore();
     const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
     const { data: user, isLoading } = useDoc<UserProfile>(userRef);
@@ -43,22 +44,49 @@ const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'buyerId',
     header: 'Buyer',
-    cell: ({ row }) => <UserCell userId={row.original.buyerId} label="Buyer" />
+    cell: ({ row }) => <UserCell userId={row.original.buyerId} />
   },
   {
     accessorKey: 'sellerId',
     header: 'Seller',
-    cell: ({ row }) => <UserCell userId={row.original.sellerId} label="Seller" />
-  },
-  {
-    accessorKey: 'shippingProvider',
-    header: 'Carrier',
-    cell: ({ row }) => <Badge variant="secondary">{row.original.shippingProvider || 'Not Specified'}</Badge>
+    cell: ({ row }) => <UserCell userId={row.original.sellerId} />
   },
   {
     accessorKey: 'trackingNumber',
-    header: 'Tracking #',
-    cell: ({ row }) => <p className="font-mono text-xs">{row.original.trackingNumber || 'N/A'}</p>
+    header: 'Tracking Info',
+    cell: ({ row }) => (
+        <div>
+            <Badge variant="secondary">{row.original.shippingProvider || 'Not Specified'}</Badge>
+            <p className="font-mono text-xs mt-1">{row.original.trackingNumber || 'N/A'}</p>
+        </div>
+    )
+  },
+  {
+    id: 'deliveryStatus',
+    header: 'Delivery Status & Proof',
+    cell: ({ row }) => {
+        const { orderStatus, deliveryProof, buyerConfirmed } = row.original;
+        if (orderStatus === 'delivered' && buyerConfirmed && deliveryProof) {
+            return (
+                <div className="flex items-center gap-2">
+                    <Badge className="bg-green-600/80 hover:bg-green-600/70">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Delivered
+                    </Badge>
+                    <a href={deliveryProof} target="_blank" rel="noopener noreferrer" title="View Delivery Proof">
+                        <Image 
+                            src={deliveryProof} 
+                            alt="Delivery Proof" 
+                            width={40} 
+                            height={40} 
+                            className="rounded-md object-cover hover:scale-110 transition-transform cursor-pointer"
+                        />
+                    </a>
+                </div>
+            )
+        }
+        return <span className="text-xs text-muted-foreground">Awaiting Confirmation</span>
+    }
   },
   {
       id: 'actions',
@@ -66,7 +94,7 @@ const columns: ColumnDef<Order>[] = [
           <div className="text-right">
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/dashboard/admin/orders/all?orderId=${row.original.id}`} passHref>
-                    View Order
+                    View Details
                 </Link>
               </Button>
           </div>
@@ -91,7 +119,7 @@ const DataTableSkeleton = () => (
             <TableRow key={i}>
                {Array.from({ length: columns.length }).map((_, j) => (
                 <TableCell key={j}>
-                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-8 w-full" />
                 </TableCell>
             ))}
             </TableRow>
@@ -105,18 +133,19 @@ const DataTableSkeleton = () => (
 export default function AdminTrackingPage() {
   const firestore = useFirestore();
 
-  const shippedOrdersQuery = useMemoFirebase(() => {
+  // Updated query to include both 'shipped' and 'delivered' orders
+  const relevantOrdersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
       collection(firestore, 'orders'),
-      where('orderStatus', '==', 'shipped')
+      where('orderStatus', 'in', ['shipped', 'delivered'])
     );
   }, [firestore]);
 
-  const { data: shippedOrders, isLoading } = useCollection<Order>(shippedOrdersQuery);
+  const { data: relevantOrders, isLoading } = useCollection<Order>(relevantOrdersQuery);
 
   const table = useReactTable({
-    data: shippedOrders || [],
+    data: relevantOrders || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -128,6 +157,9 @@ export default function AdminTrackingPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Orders & Transactions: Delivery Tracking
         </h1>
+        <p className="text-muted-foreground">
+            Monitor items in transit and verify recent deliveries.
+        </p>
         {isLoading ? <DataTableSkeleton /> : (
         <div className="rounded-md border">
           <Table>
@@ -166,7 +198,7 @@ export default function AdminTrackingPage() {
                   <TableCell colSpan={columns.length} className="h-24 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                         <Truck className="h-8 w-8" />
-                        <p className="font-semibold">No orders are currently being shipped.</p>
+                        <p className="font-semibold">No orders are currently in shipment or recently delivered.</p>
                     </div>
                   </TableCell>
                 </TableRow>
