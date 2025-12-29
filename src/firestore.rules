@@ -57,11 +57,16 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // Allow product owner to update a specific set of fields.
+      // Allow product owner to update a specific set of fields for general editing.
       allow update: if resource.data.sellerId == request.auth.uid &&
                       request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']);
+                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt']);
 
+      // Allow a product owner to specifically toggle reselling settings.
+      allow update: if resource.data.sellerId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['isResellable', 'commissionRate', 'updatedAt']);
+                        
       // Allow any authenticated user to increment likes or viewCount
       allow update: if request.auth != null &&
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
@@ -316,3 +321,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
