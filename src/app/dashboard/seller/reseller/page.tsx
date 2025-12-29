@@ -1,37 +1,45 @@
 
 'use client';
 
+import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BadgePercent, Users, ShoppingBag, CircleDollarSign, BarChart3, PackagePlus } from 'lucide-react';
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+import { ProductUploadForm } from '@/components/seller/product-upload-form';
+import { MyProductsTable } from '@/components/seller/my-products-table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
+import { LogisticsTable } from '@/components/seller/logistics-table';
 import Image from 'next/image';
-import { Input } from '@/components/ui/input';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc, where, query } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus } from 'lucide-react';
+import type { SellerShop, Product, Order, Payout } from '@/lib/types';
+import { collection, doc, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { Product } from '@/lib/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 
 // --- Static Components (unchanged) ---
@@ -185,21 +193,43 @@ const CommissionSettingsTable = () => {
 
     const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
-    const handleCommissionChange = async (productId: string, newCommission: number) => {
+    const handleCommissionChange = (productId: string, newCommission: number) => {
         if (isNaN(newCommission) || newCommission < 0 || newCommission > 90) {
             toast({ variant: 'destructive', title: 'Invalid Rate', description: 'Commission must be between 0 and 90%.' });
             return;
         }
         const productDocRef = doc(firestore, 'products', productId);
-        await updateDoc(productDocRef, { commissionRate: newCommission });
-        toast({ title: 'Commission Updated', description: 'The new rate has been saved.' });
+        const updatedData = { commissionRate: newCommission };
+
+        updateDoc(productDocRef, updatedData)
+            .then(() => {
+                toast({ title: 'Commission Updated', description: 'The new rate has been saved.' });
+            })
+            .catch(error => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: productDocRef.path,
+                    operation: 'update',
+                    requestResourceData: updatedData,
+                }));
+            });
     };
 
-    const handleToggleReselling = async (productId: string, isEnabled: boolean) => {
+    const handleToggleReselling = (productId: string, isEnabled: boolean) => {
         const productDocRef = doc(firestore, 'products', productId);
-        const commissionRate = isEnabled ? 10 : 0; // Set to 10% when enabled, 0 when disabled
-        await updateDoc(productDocRef, { isResellable: isEnabled, commissionRate });
-        toast({ title: `Reselling ${isEnabled ? 'Enabled' : 'Disabled'}`, description: `Commission rate set to ${commissionRate}%.` });
+        const commissionRate = isEnabled ? 10 : 0;
+        const updatedData = { isResellable: isEnabled, commissionRate };
+
+        updateDoc(productDocRef, updatedData)
+            .then(() => {
+                toast({ title: `Reselling ${isEnabled ? 'Enabled' : 'Disabled'}`, description: `Commission rate set to ${commissionRate}%.` });
+            })
+            .catch(error => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: productDocRef.path,
+                    operation: 'update',
+                    requestResourceData: updatedData,
+                }));
+            });
     };
 
     if (isLoading) {
@@ -358,3 +388,5 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
+
+    
