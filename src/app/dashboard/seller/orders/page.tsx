@@ -3,7 +3,7 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users, Trash2 } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users, Trash2, Loader2 } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -20,9 +20,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { format } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
@@ -40,10 +44,50 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
 };
 
 
+const DispatchDialog = ({ order, onDispatch }: { order: Order, onDispatch: (shippingProvider: string, dispatchNote: string) => Promise<void> }) => {
+    const [courierName, setCourierName] = useState('');
+    const [dispatchNote, setDispatchNote] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleDispatch = async () => {
+        setIsSaving(true);
+        await onDispatch(courierName, dispatchNote);
+        setIsSaving(false);
+    };
+    
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Dispatch Order #{order.id.substring(0,6)}</DialogTitle>
+                <DialogDescription>Enter the shipping details for this order.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="courierName">Courier/Shipping Provider</Label>
+                    <Input id="courierName" placeholder="e.g., G4S, Wells Fargo, DHL" value={courierName} onChange={e => setCourierName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="dispatchNote">Dispatch Note (Tracking #, etc.)</Label>
+                    <Textarea id="dispatchNote" placeholder="Add tracking number or any other relevant delivery info here." value={dispatchNote} onChange={e => setDispatchNote(e.target.value)} />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => {}}>Cancel</Button>
+                <Button onClick={handleDispatch} disabled={isSaving || !courierName}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Mark as Shipped
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    )
+}
+
 const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boolean }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     const { user } = useUser();
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [isDispatching, setIsDispatching] = useState(false);
 
     const handleStatusUpdate = async (orderId: string, newStatus: Order['orderStatus']) => {
         if (!firestore) return;
@@ -57,6 +101,23 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
         }
     };
     
+    const handleDispatch = async (orderId: string, shippingProvider: string, dispatchNote: string) => {
+        if (!firestore) return;
+        const orderRef = doc(firestore, 'orders', orderId);
+        try {
+            await updateDoc(orderRef, { 
+                orderStatus: 'shipped',
+                shippingProvider: shippingProvider,
+                courierName: shippingProvider,
+                dispatchNote: dispatchNote,
+             });
+            toast({ title: 'Success', description: `Order marked as shipped.` });
+        } catch (error) {
+            console.error('Failed to update order status:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not update order status.' });
+        }
+    };
+
     const handleDeleteOrder = async (orderId: string) => {
         if (!firestore || !user) return;
         
@@ -69,9 +130,8 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                 }
             });
 
+             const contentType = response.headers.get("content-type");
             if (!response.ok) {
-                // Check if the response is JSON before parsing
-                const contentType = response.headers.get("content-type");
                 let errorData;
                 if (contentType && contentType.indexOf("application/json") !== -1) {
                     errorData = await response.json();
@@ -84,7 +144,6 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
             }
 
             toast({ title: 'Order Deleted', description: 'The order has been removed.' });
-            // The real-time listener will automatically update the UI
         } catch (error: any) {
             console.error('Failed to delete order:', error);
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not delete the order.' });
@@ -128,94 +187,96 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
     }
 
     return (
-        <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Total Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {orders.map(order => {
-                        const productName = order.items?.[0]?.name || order.productName || 'Unnamed Product';
-                        const productImage = order.items?.[0]?.imageUrl || order.productImage;
-                        
-                        return (
-                             <AlertDialog key={order.id}>
-                                <TableRow>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="h-10 w-10 rounded-md">
-                                                <AvatarImage src={productImage} />
-                                                <AvatarFallback>{productName.charAt(0)}</AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium">{productName}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
-                                    <TableCell>
-                                        {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <OrderStatusBadge status={order.orderStatus} />
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="sm">Manage</Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
-                                                {order.orderStatus === 'processing' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'shipped')}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>}
-                                                {order.orderStatus === 'shipped' && (
-                                                    <>
-                                                        <DropdownMenuItem disabled>Awaiting Buyer Confirmation</DropdownMenuItem>
-                                                         <AlertDialogTrigger asChild>
+        <Dialog open={isDispatching} onOpenChange={setIsDispatching}>
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Total Amount</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {orders.map(order => {
+                            const productName = order.items?.[0]?.name || order.productName || 'Unnamed Product';
+                            const productImage = order.items?.[0]?.imageUrl || order.productImage;
+                            
+                            return (
+                                <AlertDialog key={order.id}>
+                                    <TableRow>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-10 w-10 rounded-md">
+                                                    <AvatarImage src={productImage} />
+                                                    <AvatarFallback>{productName?.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium">{productName}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
+                                        <TableCell>
+                                            {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <OrderStatusBadge status={order.orderStatus} />
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="outline" size="sm">Manage</Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
+                                                    {order.orderStatus === 'processing' && 
+                                                        <DialogTrigger asChild>
+                                                            <DropdownMenuItem onSelect={() => setSelectedOrder(order)}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>
+                                                        </DialogTrigger>
+                                                    }
+                                                    {order.orderStatus === 'shipped' && <DropdownMenuItem disabled>Awaiting Buyer Confirmation</DropdownMenuItem>}
+                                                     {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && (
+                                                        <AlertDialogTrigger asChild>
                                                             <DropdownMenuItem className="text-destructive">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Delete Order
                                                             </DropdownMenuItem>
                                                         </AlertDialogTrigger>
-                                                    </>
-                                                )}
-                                                {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && (
-                                                     <AlertDialogTrigger asChild>
-                                                        <DropdownMenuItem className="text-destructive">
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Delete Order
-                                                        </DropdownMenuItem>
-                                                    </AlertDialogTrigger>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                                 <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action will permanently delete this order and cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
-                                            Delete
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                             </AlertDialog>
-                        )
-                    })}
-                </TableBody>
-            </Table>
-        </div>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action will permanently delete this order and cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
+                                                Delete
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </div>
+             {selectedOrder && (
+                <DispatchDialog order={selectedOrder} onDispatch={async (provider, note) => {
+                    await handleDispatch(selectedOrder.id, provider, note);
+                    setIsDispatching(false);
+                }}/>
+            )}
+        </Dialog>
     );
 };
 
