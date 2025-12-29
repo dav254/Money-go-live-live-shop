@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -307,6 +308,20 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
                         <div className="mt-4 space-y-2">
                             <label className="text-sm font-medium">Upload Delivery Proof (Optional)</label>
                             <Input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} className="text-xs" />
+                        </div>
+                    )}
+                    {order.orderStatus === 'delivered' && order.deliveryProof && (
+                        <div className="mt-4 space-y-2">
+                            <p className="text-sm font-medium">Your Delivery Proof</p>
+                            <a href={order.deliveryProof} target="_blank" rel="noopener noreferrer">
+                                <Image
+                                src={order.deliveryProof}
+                                alt="Your delivery proof"
+                                width={150}
+                                height={100}
+                                className="rounded-md border object-cover hover:opacity-90 transition-opacity"
+                                />
+                            </a>
                         </div>
                     )}
                 </CardContent>
