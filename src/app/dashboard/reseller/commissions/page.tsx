@@ -1,13 +1,13 @@
 
-'use client';
-import { ResellerLayout } from '@/components/layout/reseller-layout';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+"use client";
+
+import React, { useEffect, useState } from 'react';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/firebase/firebase';
+import { ResellActivity } from '@/lib/types';
+import ResellerLayout from '@/components/ResellerLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -15,340 +15,118 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  ArrowRight,
-  Download,
-  Wallet,
-  Loader2,
-  Bell
-} from 'lucide-react';
-import React, { useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Order, Payout, UserProfile } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
-import Link from 'next/link';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateRange } from 'react-day-picker';
-import { addDays, format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import { Calendar } from '@/components/ui/calendar';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+} from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Lightbulb } from 'lucide-react';
 
-const StatCard = ({ title, value, icon: Icon, description, isLoading, isPrimary }: { title: string, value: string, icon: React.ElementType, description?: string, isLoading: boolean, isPrimary?: boolean }) => (
-    <Card className={isPrimary ? 'bg-primary/10 border-primary' : ''}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-            <>
-                <Skeleton className="h-8 w-3/4 mb-2" />
-                <Skeleton className="h-3 w-full" />
-            </>
-        ) : (
-            <>
-                <div className="text-2xl font-bold">{value}</div>
-                {description && <p className="text-xs text-muted-foreground">{description}</p>}
-            </>
-        )}
-      </CardContent>
-    </Card>
-);
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+};
 
-const DownloadReportDialog = ({ orders, resellerName }: { orders: Order[], resellerName?: string }) => {
-    const [date, setDate] = React.useState<DateRange | undefined>({
-      from: addDays(new Date(), -30),
-      to: new Date(),
-    });
-    const [formatType, setFormatType] = useState('csv');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const { toast } = useToast();
+// Helper to format dates
+const formatDate = (timestamp: any) => {
+  if (!timestamp || !timestamp.toDate) {
+    return 'Invalid Date';
+  }
+  return timestamp.toDate().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric'
+  });
+};
 
-    const handleGenerate = () => {
-        setIsGenerating(true);
-        toast({
-            title: 'Generating Report...',
-            description: `Your ${formatType.toUpperCase()} report is being prepared.`,
-        });
+const ResellerCommissionsPage = () => {
+  const { currentUser } = useAuth();
+  const [activities, setActivities] = useState<ResellActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-        // This is now real data processing, not a simulation.
-        setTimeout(() => {
-            const filteredOrders = orders.filter(order => {
-                const orderDate = order.orderDate.toDate();
-                const from = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : new Date(0);
-                const to = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : new Date();
-                return orderDate >= from && orderDate <= to && order.resellerCommission && order.resellerCommission > 0;
-            });
-            
-            if (filteredOrders.length === 0) {
-                toast({
-                    variant: 'destructive',
-                    title: 'No Data',
-                    description: 'There are no commissions in the selected date range.',
-                });
-                setIsGenerating(false);
-                return;
-            }
-
-            const fromDate = date?.from ? format(date.from, 'yyyy-MM-dd') : 'start';
-            const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
-            const fileName = `commission_report_${fromDate}_to_${toDate}`;
-
-            if (formatType === 'csv') {
-                const headers = "Date,Product,Commission,Status";
-                const rows = filteredOrders.map(order => {
-                    const status = order.orderStatus === 'delivered' ? 'Cleared' : 'Pending';
-                    return `${format(order.orderDate.toDate(), 'yyyy-MM-dd')},"${order.productName}",${order.resellerCommission?.toFixed(2)},${status}`;
-                });
-                const csvContent = [headers, ...rows].join("\n");
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.setAttribute("href", url);
-                link.setAttribute("download", `${fileName}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            } else if (formatType === 'pdf') {
-                const doc = new jsPDF();
-                doc.text(`Commission Report for ${resellerName || 'Reseller'}`, 14, 16);
-                doc.text(`From: ${fromDate} To: ${toDate}`, 14, 22);
-
-                autoTable(doc, {
-                    startY: 30,
-                    head: [['Date', 'Product', 'Commission', 'Status']],
-                    body: filteredOrders.map(order => [
-                        format(order.orderDate.toDate(), 'yyyy-MM-dd'),
-                        order.productName,
-                        `$${order.resellerCommission?.toFixed(2)}`,
-                        order.orderStatus === 'delivered' ? 'Cleared' : 'Pending'
-                    ]),
-                });
-
-                doc.save(`${fileName}.pdf`);
-            }
-            
-            setIsGenerating(false);
-            toast({
-                title: 'Download Started!',
-                description: 'Your commission report has been downloaded.',
-            });
-        }, 1000); // Short delay to allow UI to update
+  useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
     }
 
-    return (
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Download Commission Report</DialogTitle>
-                <DialogDescription>Select a date range and format for your report.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label>Date Range</Label>
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={date?.from}
-                        selected={date}
-                        onSelect={setDate}
-                        numberOfMonths={1}
-                    />
-                </div>
-                 <div className="space-y-2">
-                    <Label>Format</Label>
-                    <Select defaultValue={formatType} onValueChange={setFormatType}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a format" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="csv">CSV (Comma-Separated Values)</SelectItem>
-                            <SelectItem value="pdf">PDF (Portable Document Format)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-            <DialogFooter>
-                 <DialogClose asChild>
-                    <Button variant="ghost">Cancel</Button>
-                </DialogClose>
-                <Button onClick={handleGenerate} disabled={isGenerating}>
-                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                    {isGenerating ? 'Generating...' : 'Generate & Download'}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    )
-}
+    const fetchCommissions = async () => {
+      try {
+        setLoading(true);
+        // Query to get all sales activities where the current user is the reseller
+        const q = query(
+          collection(db, 'resellActivities'), 
+          where('resellerId', '==', currentUser.uid),
+          where('type', '==', 'sale'),
+          orderBy('createdAt', 'desc')
+        );
 
-export default function ResellerCommissionsPage() {
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
+        const querySnapshot = await getDocs(q);
+        const commissionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResellActivity));
+        setActivities(commissionsData);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching commission activities:", err);
+        setError('Failed to load your commission history. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const ordersQuery = useMemoFirebase(() => {
-        if (!user?.uid || !firestore) return null;
-        return query(collection(firestore, 'orders'), where('resellerId', '==', user.uid));
-    }, [firestore, user?.uid]);
-
-    const payoutsQuery = useMemoFirebase(() => {
-        if (!user?.uid || !firestore) return null;
-        return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
-    }, [firestore, user?.uid]);
-    
-    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-    const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
-
-    const isLoading = isUserLoading || areOrdersLoading || arePayoutsLoading;
-
-    const commissionStats = React.useMemo(() => {
-        if (!orders || !payouts) {
-            return { total: 0, pending: 0, withdrawable: 0, paidOut: 0 };
-        }
-        
-        let total = 0;
-        let pending = 0;
-        let cleared = 0;
-
-        orders.forEach(order => {
-            const commission = order.resellerCommission || 0;
-            if (commission > 0) {
-                total += commission;
-                if (order.orderStatus === 'delivered') {
-                    cleared += commission;
-                } else if (order.orderStatus === 'processing' || order.orderStatus === 'shipped') {
-                    pending += commission;
-                }
-            }
-        });
-        
-        const paidOut = payouts.reduce((acc, p) => acc + p.amount, 0);
-        const withdrawable = cleared - paidOut;
-
-
-        return { total, pending, withdrawable, paidOut };
-
-    }, [orders, payouts]);
-    
-    const recentHistory = React.useMemo(() => {
-        if (!orders) return [];
-        return [...orders]
-            .filter(o => o.resellerCommission && o.resellerCommission > 0)
-            .sort((a,b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime())
-            .slice(0, 5);
-    }, [orders]);
-
+    fetchCommissions();
+  }, [currentUser]);
 
   return (
     <ResellerLayout>
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Commissions & Earnings
-          </h1>
-          <div className="flex items-center space-x-2">
-            <Dialog>
-                <DialogTrigger asChild>
-                     <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Report
-                    </Button>
-                </DialogTrigger>
-                <DownloadReportDialog orders={orders || []} resellerName={user?.displayName || ''} />
-            </Dialog>
-            <Button asChild variant="destructive" className="font-bold">
-              <Link href="/dashboard/reseller/wallet">
-                Request Payout <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Your Commissions</h1>
+        <p className="text-muted-foreground">
+          Here is a detailed history of the commissions you've earned from your sales.
+        </p>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Commission Earned" value={`$${commissionStats.total.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={Wallet} description="Lifetime earnings from all sales." isLoading={isLoading} />
-            <StatCard title="Pending Commission" value={`$${commissionStats.pending.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={Wallet} description="From orders not yet delivered." isLoading={isLoading} />
-            <StatCard title="Paid Out Commission" value={`$${commissionStats.paidOut.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={Wallet} description="Successfully sent to your account." isLoading={isLoading} />
-            <StatCard title="Ready for Payout" value={`$${commissionStats.withdrawable.toLocaleString(undefined, {minimumFractionDigits: 2})}`} icon={Wallet} description="Available for withdrawal now." isLoading={isLoading} isPrimary />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="md:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Recent Commission History</CardTitle>
-                    <CardDescription>Commissions are marked as 'pending' until the order is delivered.</CardDescription>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <Table>
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Commission Ledger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p>Loading your commission history...</p>
+            ) : error ? (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : activities.length === 0 ? (
+              <Alert>
+                <Lightbulb className="h-4 w-4" />
+                <AlertTitle>No Commissions Yet</AlertTitle>
+                <AlertDescription>
+                  You haven't earned any commissions yet. Start sharing product links to see your earnings grow!
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Table>
                 <TableHeader>
-                    <TableRow>
-                    <TableHead>Order ID</TableHead>
+                  <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead>Commission</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
-                    </TableRow>
+                    <TableHead className="text-right">Your Commission</TableHead>
+                    <TableHead>Order ID</TableHead>
+                  </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {isLoading ? (
-                        [...Array(3)].map((_, i) => (
-                            <TableRow key={i}>
-                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                                <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                                <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                            </TableRow>
-                        ))
-                    ) : recentHistory.length > 0 ? (
-                    recentHistory.map((item) => (
-                    <TableRow key={item.id}>
-                        <TableCell className="font-medium text-xs text-muted-foreground">#{item.id.substring(0, 6)}...</TableCell>
-                        <TableCell>{item.productName}</TableCell>
-                        <TableCell className="font-semibold text-green-500">${item.resellerCommission?.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                        <TableCell>
-                        <Badge variant={item.orderStatus === 'delivered' ? 'default' : 'secondary'} className={item.orderStatus === 'delivered' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>
-                            {item.orderStatus === 'delivered' ? 'Cleared' : 'Pending'}
-                        </Badge>
-                        </TableCell>
-                        <TableCell>{item.orderDate.toDate().toLocaleDateString()}</TableCell>
+                  {activities.map((activity) => (
+                    <TableRow key={activity.id}>
+                      <TableCell>{activity.productName}</TableCell>
+                      <TableCell>{formatDate(activity.createdAt)}</TableCell>
+                      <TableCell className="text-right font-medium text-green-500">{formatCurrency(activity.resellerEarns)}</TableCell>
+                      <TableCell className="text-muted-foreground">{activity.orderId.substring(0, 8)}...</TableCell>
                     </TableRow>
-                    ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No commission history found.</TableCell>
-                        </TableRow>
-                    )}
+                  ))}
                 </TableBody>
-                </Table>
-                <Button variant="link" className="mt-4 px-0">View all commission history</Button>
-            </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Notifications</CardTitle>
-                    <CardDescription>Check for important updates and alerts.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col items-center justify-center text-center p-6 bg-gray-50 rounded-lg">
-                        <Bell className="w-12 h-12 text-gray-400 mb-4" />
-                        <p className="text-sm text-gray-600 mb-4">You have 3 unread notifications.</p>
-                        <Button asChild>
-                            <Link href="/dashboard/reseller/notifications">View Notifications</Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </ResellerLayout>
   );
-}
+};
+
+export default ResellerCommissionsPage;

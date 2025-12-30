@@ -11,10 +11,10 @@ import { LogisticsTable } from '@/components/seller/logistics-table';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus, ShoppingBag } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus, ShoppingBag, Loader2 } from 'lucide-react';
 import type { SellerShop, Product, Order, Payout, UserProfile } from '@/lib/types';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-
 
 // --- Static Components (unchanged) ---
 
@@ -165,22 +164,7 @@ const MyResellersTable = () => {
 
 // --- DYNAMIC CommissionSettingsTable Component ---
 
-function CommissionRow({ product: initialProduct }: { product: Product }) {
-    const { toast } = useToast();
-    const [product, setProduct] = useState(initialProduct);
-
-    const handleToggleEnabled = useCallback((enabled: boolean) => {
-        setProduct(prev => ({
-            ...prev,
-            isResellable: enabled,
-            commissionRate: enabled ? 10 : 0
-        }));
-        toast({
-            title: "Settings Updated!",
-            description: `Reselling for "${product.name}" is now ${enabled ? 'enabled' : 'disabled'}. Note: This change is local and won't be saved.`
-        });
-    }, [product.name, toast]);
-    
+function CommissionRow({ product, onToggle }: { product: Product; onToggle: (productId: string, enabled: boolean) => void; }) {
     const commissionRate = product.isResellable ? product.commissionRate || 10 : 0;
     const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
@@ -202,7 +186,7 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
             <TableCell className="text-right">
                 <Switch
                     checked={product.isResellable || false}
-                    onCheckedChange={handleToggleEnabled}
+                    onCheckedChange={(enabled) => onToggle(product.id, enabled)}
                 />
             </TableCell>
         </TableRow>
@@ -212,13 +196,72 @@ function CommissionRow({ product: initialProduct }: { product: Product }) {
 const CommissionSettingsTable = () => {
     const firestore = useFirestore();
     const { user } = useUser();
+    const { toast } = useToast();
+    const [isSaving, setIsSaving] = useState(false);
+    
+    const [managedProducts, setManagedProducts] = useState<Product[]>([]);
+    const [changedIds, setChangedIds] = useState<Set<string>>(new Set());
 
     const productsQuery = useMemoFirebase(() => {
         if (!user) return null;
         return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { data: products, isLoading } = useCollection<Product>(productsQuery);
+    const { data: initialProducts, isLoading } = useCollection<Product>(productsQuery);
+
+    useEffect(() => {
+        if (initialProducts) {
+            setManagedProducts(initialProducts);
+        }
+    }, [initialProducts]);
+
+    const handleToggleProduct = (productId: string, enabled: boolean) => {
+        setManagedProducts(currentProducts => 
+            currentProducts.map(p => {
+                if (p.id === productId) {
+                    return { ...p, isResellable: enabled, commissionRate: enabled ? 10 : 0 };
+                }
+                return p;
+            })
+        );
+        setChangedIds(currentIds => new Set(currentIds).add(productId));
+    };
+
+    const handleSaveChanges = async () => {
+        if (changedIds.size === 0) return;
+        setIsSaving(true);
+
+        const batch = writeBatch(firestore);
+        
+        changedIds.forEach(id => {
+            const product = managedProducts.find(p => p.id === id);
+            if (product) {
+                const productRef = doc(firestore, 'products', id);
+                batch.update(productRef, {
+                    isResellable: product.isResellable,
+                    commissionRate: product.commissionRate
+                });
+            }
+        });
+
+        try {
+            await batch.commit();
+            toast({
+                title: "Settings Saved!",
+                description: `Successfully updated ${changedIds.size} product(s).`
+            });
+            setChangedIds(new Set());
+        } catch (error) {
+            console.error("Failed to save product settings:", error);
+            toast({
+                title: "Save Failed",
+                description: "An error occurred while saving. Please try again.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -228,7 +271,7 @@ const CommissionSettingsTable = () => {
         );
     }
     
-    if (!products || products.length === 0) {
+    if (!managedProducts || managedProducts.length === 0) {
         return (
              <div className="text-center py-10 border-2 border-dashed rounded-lg">
                 <PackagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -244,23 +287,48 @@ const CommissionSettingsTable = () => {
     }
 
     return (
-        <Table>
-            <TableHeader>
-                 <TableRow>
-                    <TableHead className="w-[250px]">Product</TableHead>
-                    <TableHead>Product Price</TableHead>
-                    <TableHead className="text-center w-[150px]">Commission Rate (%)</TableHead>
-                    <TableHead>Reseller Earns</TableHead>
-                    <TableHead>You Get</TableHead>
-                    <TableHead className="text-right">Enable Reselling</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {products.map((product) => (
-                  <CommissionRow key={product.id} product={product} />
-                ))}
-            </TableBody>
-        </Table>
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                <BadgePercent />
+                Set Product Commission Rules
+                </CardTitle>
+                <CardDescription>Review and set the commission for each of your products. The table below shows a clear breakdown of earnings for you and your resellers. Use the toggle to enable or disable reselling for specific items.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[250px]">Product</TableHead>
+                            <TableHead>Product Price</TableHead>
+                            <TableHead className="text-center w-[150px]">Commission Rate (%)</TableHead>
+                            <TableHead>Reseller Earns</TableHead>
+                            <TableHead>You Get</TableHead>
+                            <TableHead className="text-right">Enable Reselling</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {managedProducts.map((product) => (
+                        <CommissionRow key={product.id} product={product} onToggle={handleToggleProduct} />
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+                <div className="flex justify-end w-full">
+                    <Button 
+                        onClick={handleSaveChanges} 
+                        disabled={changedIds.size === 0 || isSaving}
+                    >
+                        {isSaving ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                        ) : (
+                            `Save ${changedIds.size > 0 ? changedIds.size : ''} Change(s)`
+                        )}
+                    </Button>
+                </div>
+            </CardFooter>
+        </Card>
     );
 };
 
@@ -323,18 +391,7 @@ export default function ResellerCenterPage() {
                 </TabsContent>
 
                 <TabsContent value="commissions" className="space-y-4">
-                    <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                        <BadgePercent />
-                        Set Product Commission Rules
-                        </CardTitle>
-                        <CardDescription>Review and set the commission for each of your products. The table below shows a clear breakdown of earnings for you and your resellers. Use the toggle to enable or disable reselling for specific items.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <CommissionSettingsTable />
-                    </CardContent>
-                    </Card>
+                   <CommissionSettingsTable />
                 </TabsContent>
             </Tabs>
         </div>

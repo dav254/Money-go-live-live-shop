@@ -9,6 +9,9 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+// Import the new commission recording function
+export { recordCommissionOnOrder } from './commissions';
+
 /**
  * Automatically processes an order when its status is updated to 'delivered'.
  * It calculates and distributes earnings to the seller, reseller (if any),

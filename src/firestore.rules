@@ -57,16 +57,17 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // Allow product owner to update a specific set of fields for general editing.
-      // This rule is broad to prevent mismatches.
-      allow update: if resource.data.sellerId == request.auth.uid &&
-                      request.resource.data.diff(resource.data).affectedKeys()
-                        .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']);
-                        
-      // Allow any authenticated user to increment likes or viewCount
-      allow update: if request.auth != null &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']);
-                    
+      // MERGED UPDATE RULE
+      allow update: if 
+        // Condition 1: Product owner can edit their product details including resell settings.
+        (resource.data.sellerId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']))
+        ||
+        // Condition 2: Any authenticated user can like, view, or update cart count.
+        (request.auth != null &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
+
       // Allow delete only by the product owner or admin.
       allow delete: if resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
 
@@ -222,19 +223,20 @@ service cloud.firestore {
       }
     }
     
-    // Resell Activities
+    // Resell Activities - IMMUTABLE LEDGER
     match /resellActivities/{activityId} {
-        // Allow a user to list activities if they are filtering by their own ID as seller or reseller.
+        // LIST: Allow users to list activities if they are the seller or reseller in the query.
         allow list: if request.auth != null &&
                      (
                       (request.query.where[0][0] == 'sellerId' && request.query.where[0][2] == request.auth.uid) ||
                       (request.query.where[0][0] == 'resellerId' && request.query.where[0][2] == request.auth.uid)
                      );
-        // Allow read on individual documents if the user is the seller or reseller.
+        // GET: Allow the seller or reseller to read an individual activity record.
         allow get: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
-        // Allow a reseller to create a 'share' activity.
-        allow create: if request.auth != null &&
-                       request.resource.data.resellerId == request.auth.uid;
+        
+        // DENY ALL CLIENT-SIDE WRITES to ensure data integrity.
+        // All ledger entries must be created by secure backend functions.
+        allow write: if false;
     }
 
     // Reseller Applications
@@ -317,5 +319,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

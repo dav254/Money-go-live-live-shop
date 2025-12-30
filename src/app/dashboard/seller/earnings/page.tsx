@@ -1,15 +1,13 @@
 
-'use client';
+"use client";
 
-import React from 'react';
-import { SellerLayout } from '@/components/layout/seller-layout';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/firebase/firebase';
+import { ResellActivity } from '@/lib/types';
+import SellerLayout from '@/components/SellerLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -17,301 +15,123 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  ArrowRight,
-  Banknote,
-  CircleDollarSign,
-  DollarSign,
-  Package,
-  Calculator,
-} from 'lucide-react';
-import { DatePicker } from '@/components/dashboard/date-picker';
-import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
-import type { Order, Payout } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Lightbulb } from 'lucide-react';
 
-const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string, icon: React.ElementType, description?: string }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          {title}
-        </CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">${value}</div>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      </CardContent>
-    </Card>
-);
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+};
 
-const StatCardSkeleton = () => (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-             <Skeleton className="h-4 w-2/4" />
-             <Skeleton className="h-4 w-4" />
-        </CardHeader>
-        <CardContent>
-            <Skeleton className="h-8 w-3/4 mb-2" />
-            <Skeleton className="h-3 w-full" />
-        </CardContent>
-    </Card>
-)
+// Helper to format dates
+const formatDate = (timestamp: any) => {
+  if (!timestamp || !timestamp.toDate) {
+    return 'Invalid Date';
+  }
+  return timestamp.toDate().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric'
+  });
+};
 
-const EarningsCalculator = () => {
-    const [price, setPrice] = React.useState(100);
-    const platformFee = price * 0.10;
-    const resellerCommission = price * 0.10;
-    const sellerEarnings = price - platformFee - resellerCommission;
+const SellerEarningsPage = () => {
+  const { currentUser } = useAuth();
+  const [activities, setActivities] = useState<ResellActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Calculator />
-                    Earnings Calculator
-                </CardTitle>
-                <CardDescription>
-                    See how much you earn from a sale after fees.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="sale-price">Product Sale Price (USD)</Label>
-                    <Input
-                        id="sale-price"
-                        type="number"
-                        value={price}
-                        onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                        placeholder="Enter sale price"
-                    />
-                </div>
-                <div className="space-y-2 rounded-lg border p-4">
-                    <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Platform Fee (10%)</span>
-                        <span className="font-medium text-red-500">-${platformFee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Reseller Commission (10%)</span>
-                        <span className="font-medium text-orange-400">-${resellerCommission.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
-                        <span>Your Net Earnings</span>
-                        <span className="text-green-500">${sellerEarnings.toFixed(2)}</span>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
+  useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
 
+    const fetchEarnings = async () => {
+      try {
+        setLoading(true);
+        // Query to get all sales activities where the current user is the seller
+        const q = query(
+          collection(db, 'resellActivities'), 
+          where('sellerId', '==', currentUser.uid),
+          where('type', '==', 'sale'),
+          orderBy('createdAt', 'desc')
+        );
 
-export default function SellerEarningsPage() {
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
+        const querySnapshot = await getDocs(q);
+        const earningsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResellActivity));
+        setActivities(earningsData);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching earnings activities:", err);
+        setError('Failed to load your earnings history. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
-    }, [firestore, user]);
-
-    const payoutsQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
-    }, [firestore, user]);
-
-    const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
-    const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
-
-    const isLoading = isUserLoading || areOrdersLoading || arePayoutsLoading;
-
-    const stats = React.useMemo(() => {
-        if (!orders || !payouts) {
-            return {
-                totalRevenue: 0,
-                salesToday: 0,
-                platformFees: 0,
-                totalPayouts: 0,
-            };
-        }
-
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        const completedOrders = orders
-            .filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped');
-
-        const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-
-        const salesToday = orders
-             .filter(o => o.orderDate && o.orderDate.toDate() >= today)
-             .reduce((sum, o) => sum + o.totalAmount, 0);
-        
-        const platformFees = completedOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
-
-        const totalPayouts = payouts
-            .filter(p => p.status === 'completed')
-            .reduce((sum, p) => sum + p.amount, 0);
-
-        return {
-            totalRevenue,
-            salesToday,
-            platformFees,
-            totalPayouts,
-        };
-
-    }, [orders, payouts]);
-
-    const recentTransactions = React.useMemo(() => {
-        if (!orders) return [];
-        // Sort by date descending before slicing
-        return [...orders]
-            .sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime())
-            .slice(0, 5);
-    }, [orders]);
-
+    fetchEarnings();
+  }, [currentUser]);
 
   return (
     <SellerLayout>
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Earnings & Invoices
-          </h1>
-          <div className="flex items-center space-x-2">
-            <DatePicker date={new Date()} setDate={() => {}} />
-            <Button asChild variant="destructive" className="font-bold">
-              <Link href="/dashboard/seller/wallet">
-                Go to Wallet <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Reseller Earnings</h1>
+        <p className="text-muted-foreground">
+          Here is a detailed history of the earnings you've received from reseller sales.
+        </p>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {isLoading ? (
-            <>
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-            </>
-          ) : (
-            <>
-                <StatCard 
-                    title="Total Revenue"
-                    value={stats.totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                    icon={DollarSign}
-                    description="From completed sales"
-                />
-                 <StatCard 
-                    title="Total Payouts"
-                    value={stats.totalPayouts.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                    icon={Banknote}
-                    description="Successfully sent to your account"
-                />
-                 <StatCard 
-                    title="Sales Today"
-                    value={stats.salesToday.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                    icon={Package}
-                    description="Live sales from today"
-                />
-                 <StatCard 
-                    title="Platform Fees"
-                    value={stats.platformFees.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                    icon={CircleDollarSign}
-                    description="Total commission paid to Go Earn"
-                />
-            </>
-          )}
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-                <Card>
-                <CardHeader>
-                    <CardTitle>Sales Ledger &amp; Invoice History</CardTitle>
-                    <CardDescription>A real-time breakdown of every sale you've made.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Order</TableHead>
-                        <TableHead className="text-right">Total Amount</TableHead>
-                        <TableHead className="text-right">Platform Fee</TableHead>
-                        <TableHead className="text-right">Reseller Fee</TableHead>
-                        <TableHead className="text-right">Your Net</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Invoice</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            [...Array(5)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                                    <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
-                                </TableRow>
-                            ))
-                        ) : recentTransactions.length > 0 ? (
-                            recentTransactions.map((order) => {
-                            const platformFee = order.platformFee || 0;
-                            const resellerCommission = order.resellerCommission || 0;
-                            const netEarning = order.totalAmount - platformFee - resellerCommission;
-
-                            return (
-                                    <TableRow key={order.id}>
-                                        <TableCell>
-                                            <div className="font-medium">{order.productName}</div>
-                                            <div className="text-xs text-muted-foreground">#{order.id.substring(0,6)}...</div>
-                                        </TableCell>
-                                        <TableCell className="text-right font-semibold">${order.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell className="text-right text-red-500">-${platformFee.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell className="text-right text-orange-400">-${resellerCommission.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell className="text-right font-bold text-green-500">${netEarning.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                        <TableCell>
-                                        <Badge variant={order.orderStatus === 'delivered' ? 'default' : 'secondary'} className={order.orderStatus === 'delivered' ? 'bg-green-600/80' : ''}>
-                                            {order.orderStatus}
-                                        </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button asChild variant="outline" size="sm">
-                                                <Link href={`/invoice/${order.id}`}>View</Link>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                            );
-                            })
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
-                                    No transactions yet.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
-                </CardContent>
-                </Card>
-            </div>
-            <div className="space-y-6">
-                <EarningsCalculator />
-            </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Earnings Ledger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p>Loading your earnings history...</p>
+            ) : error ? (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : activities.length === 0 ? (
+              <Alert>
+                <Lightbulb className="h-4 w-4" />
+                <AlertTitle>No Earnings Yet</AlertTitle>
+                <AlertDescription>
+                  You haven't received any earnings from reseller sales yet. Once a reseller sells one of your enabled products, the details will appear here.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Your Earnings</TableHead>
+                    <TableHead>Commission Paid</TableHead>
+                    <TableHead>Reseller ID</TableHead>
+                     <TableHead>Order ID</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activities.map((activity) => (
+                    <TableRow key={activity.id}>
+                      <TableCell>{activity.productName}</TableCell>
+                      <TableCell>{formatDate(activity.createdAt)}</TableCell>
+                      <TableCell className="text-right font-medium text-green-500">{formatCurrency(activity.sellerGets)}</TableCell>
+                      <TableCell className="text-red-500">{formatCurrency(activity.resellerEarns)}</TableCell>
+                      <TableCell><Badge variant="outline">{activity.resellerId.substring(0, 8)}...</Badge></TableCell>
+                      <TableCell className="text-muted-foreground">{activity.orderId.substring(0, 8)}...</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </SellerLayout>
   );
-}
+};
+
+export default SellerEarningsPage;
