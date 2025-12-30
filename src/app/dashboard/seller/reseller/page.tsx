@@ -36,8 +36,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
-import { collection, doc, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
-import type { Product, UserProfile } from '@/lib/types';
+import { collection, doc, query, where, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
+import type { Product, UserProfile, Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -179,7 +179,7 @@ const MyResellersTable = () => {
 };
 
 
-function CommissionRow({ product, onUpdate, isChanged }: { product: Product; onUpdate: (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => void; isChanged: boolean; }) {
+function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { product: Product; onUpdate: (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => void; isChanged: boolean; onSave: (productId: string) => void; isSaving: boolean; }) {
     const isEnabled = product.isResellable || false;
     const commissionRate = isEnabled ? (product.commissionRate ?? 10) : 0;
     const resellerEarns = (product.price * commissionRate) / 100;
@@ -205,11 +205,14 @@ function CommissionRow({ product, onUpdate, isChanged }: { product: Product; onU
             </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right flex items-center justify-end gap-2">
                 <Switch
                     checked={isEnabled}
                     onCheckedChange={(enabled) => onUpdate(product.id, 'isResellable', enabled)}
                 />
+                <Button size="sm" onClick={() => onSave(product.id)} disabled={!isChanged || isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </Button>
             </TableCell>
         </TableRow>
     );
@@ -219,10 +222,10 @@ const CommissionSettingsTable = () => {
     const firestore = useFirestore();
     const { user } = useUser();
     const { toast } = useToast();
-    const [isSaving, setIsSaving] = useState(false);
     
     const [managedProducts, setManagedProducts] = useState<Product[]>([]);
-    const [changedIds, setChangedIds] = useState<Set<string>>(new Set());
+    const [changedProducts, setChangedProducts] = useState<Record<string, Partial<Product>>>({});
+    const [savingId, setSavingId] = useState<string | null>(null);
 
     const productsQuery = useMemoFirebase(() => {
         if (!user) return null;
@@ -246,44 +249,51 @@ const CommissionSettingsTable = () => {
                 return p;
             })
         );
-        setChangedIds(currentIds => new Set(currentIds).add(productId));
+        setChangedProducts(currentChanges => ({
+            ...currentChanges,
+            [productId]: {
+                ...currentChanges[productId],
+                [field]: value
+            }
+        }));
     };
 
-    const handleSaveChanges = async () => {
-        if (changedIds.size === 0 || !firestore) return;
-        setIsSaving(true);
-
-        const batch = writeBatch(firestore);
+    const handleSaveChange = async (productId: string) => {
+        if (!changedProducts[productId] || !firestore) return;
+        setSavingId(productId);
         
-        changedIds.forEach(id => {
-            const product = managedProducts.find(p => p.id === id);
-            if (product) {
-                const productDocRef = doc(firestore, 'products', id);
-                const dataToSave = {
-                    isResellable: product.isResellable,
-                    commissionRate: product.isResellable ? (product.commissionRate || 10) : 0,
-                    updatedAt: serverTimestamp(),
-                };
-                batch.update(productDocRef, dataToSave);
-            }
-        });
+        const product = managedProducts.find(p => p.id === productId);
+        if (!product) return;
+
+        const productRef = doc(firestore, 'products', productId);
+        
+        const dataToSave = {
+            isResellable: product.isResellable,
+            commissionRate: product.isResellable ? (product.commissionRate || 10) : 0,
+            updatedAt: serverTimestamp(),
+        };
 
         try {
-            await batch.commit();
+            await updateDoc(productRef, dataToSave);
             toast({
-                title: "Settings Saved!",
-                description: `Successfully updated ${changedIds.size} product(s).`
+                title: "Setting Saved!",
+                description: `Changes for ${product.name} have been saved.`
             });
-            setChangedIds(new Set());
+            // Remove from changed products after successful save
+            setChangedProducts(currentChanges => {
+                const newChanges = { ...currentChanges };
+                delete newChanges[productId];
+                return newChanges;
+            });
         } catch (error) {
-            const permissionError = new FirestorePermissionError({
-                path: 'products/[productId]',
+            console.error("Failed to save product setting:", error);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: productRef.path,
                 operation: 'update',
-                requestResourceData: { isResellable: '...', commissionRate: '...', updatedAt: '...' },
-            });
-            errorEmitter.emit('permission-error', permissionError);
+                requestResourceData: dataToSave,
+            }));
         } finally {
-            setIsSaving(false);
+            setSavingId(null);
         }
     };
 
@@ -328,30 +338,23 @@ const CommissionSettingsTable = () => {
                             <TableHead className="text-center">Commission Rate (%)</TableHead>
                             <TableHead>Reseller Earns</TableHead>
                             <TableHead>You Get</TableHead>
-                            <TableHead className="text-right">Enable Reselling</TableHead>
+                            <TableHead className="text-right">Enable Reselling & Save</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {managedProducts.map((product) => (
-                            <CommissionRow key={product.id} product={product} onUpdate={handleProductUpdate} isChanged={changedIds.has(product.id)} />
+                            <CommissionRow 
+                                key={product.id} 
+                                product={product} 
+                                onUpdate={handleProductUpdate} 
+                                isChanged={!!changedProducts[product.id]}
+                                onSave={handleSaveChange}
+                                isSaving={savingId === product.id}
+                            />
                         ))}
                     </TableBody>
                 </Table>
             </CardContent>
-            <CardFooter className="border-t px-6 py-4">
-                <div className="flex justify-end w-full">
-                    <Button 
-                        onClick={handleSaveChanges} 
-                        disabled={changedIds.size === 0 || isSaving}
-                    >
-                        {isSaving ? (
-                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                        ) : (
-                            `Save ${changedIds.size > 0 ? changedIds.size : ''} Change(s)`
-                        )}
-                    </Button>
-                </div>
-            </CardFooter>
         </Card>
     );
 };
