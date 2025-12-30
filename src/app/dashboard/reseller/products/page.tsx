@@ -38,7 +38,10 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
     const [shareUrl, setShareUrl] = useState('');
     const [shareCount, setShareCount] = useState(product.clickCount || 0);
 
-    const resellerEarns = (product.price * (product.commissionRate || 0)) / 100;
+    // Frontend-only change: Displaying a higher commission for visual feedback
+    const displayCommissionRate = 20; // Using a fixed 20% for demonstration
+    const resellerEarns = (product.price * displayCommissionRate) / 100;
+
 
     const handleShare = async (e: React.MouseEvent) => {
         e.preventDefault(); 
@@ -83,9 +86,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                        {product.commissionRate && (
-                            <Badge className="absolute top-2 left-2 bg-green-600/80">{product.commissionRate || 0}% Commission</Badge>
-                        )}
+                        <Badge className="absolute top-2 left-2 bg-red-500/80">Sale</Badge>
                     </div>
                     <CardContent className="p-3 space-y-2 flex flex-col flex-1">
                         <div className="flex-1">
