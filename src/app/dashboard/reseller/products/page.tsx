@@ -205,7 +205,7 @@ export default function ResellerProductsPage() {
                     </div>
                 ) : (
                     <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                        <p className="text-muted-foreground">No products found for "{searchQuery}".</p>
+                        <p className="text-muted-foreground">No products are currently available for reselling.</p>
                     </div>
                 )}
             </TabsContent>
