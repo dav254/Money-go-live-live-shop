@@ -41,6 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
@@ -194,13 +195,20 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
             </TableCell>
             <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
             <TableCell className="w-[150px]">
-                <Input
-                    type="number"
-                    value={product.commissionRate ?? 10}
-                    onChange={(e) => onUpdate(product.id, 'commissionRate', parseInt(e.target.value))}
-                    className="w-24 text-center mx-auto"
+                <Select
+                    value={String(product.commissionRate ?? 10)}
+                    onValueChange={(value) => onUpdate(product.id, 'commissionRate', parseInt(value))}
                     disabled={!isEnabled}
-                />
+                >
+                    <SelectTrigger className="w-28 mx-auto">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {[5, 10, 15, 20, 25].map(rate => (
+                            <SelectItem key={rate} value={String(rate)}>{rate}%</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
