@@ -7,15 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Copy, DollarSign } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import React, { useState, useMemo } from 'react';
-import { logResellerShare } from '@/app/actions/reseller-actions';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -28,12 +26,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { products as placeholderProducts } from '@/lib/placeholder-data';
+
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
     const { user } = useUser();
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
-    const firestore = useFirestore();
     const [showCopyFallback, setShowCopyFallback] = useState(false);
     const [shareUrl, setShareUrl] = useState('');
     const [shareCount, setShareCount] = useState(product.clickCount || 0);
@@ -65,7 +64,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                 description: 'Your unique reseller link is ready to be shared.',
             });
 
-            logResellerShare(user.uid, product.id, product.sellerId);
+            // logResellerShare(user.uid, product.id, product.sellerId);
             setShareCount(prev => prev + 1);
 
         } catch (err) {
@@ -142,19 +141,17 @@ const ProductGridSkeleton = () => (
 )
 
 export default function ResellerProductsPage() {
-  const firestore = useFirestore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const productsQuery = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return query(
-          collection(firestore, 'products'),
-          where('isResellable', '==', true),
-          orderBy('commissionRate', 'desc')
-      );
-  }, [firestore]);
+  // Using static placeholder data
+  const products = placeholderProducts.filter(p => p.isResellable !== false);
 
-  const { data: products, isLoading } = useCollection<Product>(productsQuery);
+  useEffect(() => {
+    // Simulate loading for demonstration
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
