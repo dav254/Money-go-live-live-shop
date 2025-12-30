@@ -13,7 +13,7 @@ import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Co
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   AlertDialog,
