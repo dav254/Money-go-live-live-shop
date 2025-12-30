@@ -262,7 +262,10 @@ const CommissionSettingsTable = () => {
         setSavingId(productId);
         
         const product = managedProducts.find(p => p.id === productId);
-        if (!product) return;
+        if (!product) {
+            setSavingId(null);
+            return;
+        }
 
         const productRef = doc(firestore, 'products', productId);
         
@@ -278,14 +281,13 @@ const CommissionSettingsTable = () => {
                 title: "Setting Saved!",
                 description: `Changes for ${product.name} have been saved.`
             });
-            // Remove from changed products after successful save
             setChangedProducts(currentChanges => {
                 const newChanges = { ...currentChanges };
                 delete newChanges[productId];
                 return newChanges;
             });
         } catch (error) {
-            console.error("Failed to save product setting:", error);
+            // Emit a contextual error instead of just logging to console
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: productRef.path,
                 operation: 'update',
