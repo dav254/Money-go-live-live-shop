@@ -3,29 +3,46 @@
 
 import React, { Suspense, useMemo, useState, useEffect, useCallback } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { ProductUploadForm } from '@/components/seller/product-upload-form';
-import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
-import { LogisticsTable } from '@/components/seller/logistics-table';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet, Clock, Package, Truck, BadgePercent, CircleDollarSign, BarChart3, PackagePlus, ShoppingBag, Loader2 } from 'lucide-react';
-import type { SellerShop, Product, Order, Payout, UserProfile } from '@/lib/types';
-import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
-import { Skeleton } from '@/components/ui/skeleton';
-
-import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
+import {
+  BadgePercent,
+  CircleDollarSign,
+  BarChart3,
+  PackagePlus,
+  ShoppingBag,
+  Loader2,
+  Users,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
+import { collection, doc, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
+import type { Product, UserProfile } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-// --- Static Components (unchanged) ---
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
     <Card>
@@ -162,10 +179,9 @@ const MyResellersTable = () => {
 };
 
 
-// --- DYNAMIC CommissionSettingsTable Component ---
-
-function CommissionRow({ product, onToggle }: { product: Product; onToggle: (productId: string, enabled: boolean) => void; }) {
-    const commissionRate = product.isResellable ? product.commissionRate || 10 : 0;
+function CommissionRow({ product, onUpdate, isChanged }: { product: Product; onUpdate: (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => void; isChanged: boolean; }) {
+    const isEnabled = product.isResellable || false;
+    const commissionRate = isEnabled ? (product.commissionRate ?? 10) : 0;
     const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
 
@@ -173,20 +189,26 @@ function CommissionRow({ product, onToggle }: { product: Product; onToggle: (pro
         <TableRow>
             <TableCell className="font-medium">
                 <div className="flex items-center gap-3">
-                <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'Product Image'} width={40} height={40} className="rounded-md object-cover" />
-                <span className="truncate">{product.name}</span>
+                    <Image src={product.imageUrl || 'https://picsum.photos/seed/product/40'} alt={product.name || 'Product Image'} width={40} height={40} className="rounded-md object-cover" />
+                    <span className="truncate">{product.name}</span>
                 </div>
             </TableCell>
             <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
-            <TableCell className="text-center font-semibold">
-                {product.isResellable ? '10%' : '0%'}
+            <TableCell className="w-[150px]">
+                <Input
+                    type="number"
+                    value={product.commissionRate ?? 10}
+                    onChange={(e) => onUpdate(product.id, 'commissionRate', parseInt(e.target.value))}
+                    className="w-24 text-center mx-auto"
+                    disabled={!isEnabled}
+                />
             </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
             <TableCell className="text-right">
                 <Switch
-                    checked={product.isResellable || false}
-                    onCheckedChange={(enabled) => onToggle(product.id, enabled)}
+                    checked={isEnabled}
+                    onCheckedChange={(enabled) => onUpdate(product.id, 'isResellable', enabled)}
                 />
             </TableCell>
         </TableRow>
@@ -215,11 +237,11 @@ const CommissionSettingsTable = () => {
         }
     }, [initialProducts]);
 
-    const handleToggleProduct = (productId: string, enabled: boolean) => {
+    const handleProductUpdate = (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => {
         setManagedProducts(currentProducts => 
             currentProducts.map(p => {
                 if (p.id === productId) {
-                    return { ...p, isResellable: enabled, commissionRate: enabled ? 10 : 0 };
+                    return { ...p, [field]: value };
                 }
                 return p;
             })
@@ -228,7 +250,7 @@ const CommissionSettingsTable = () => {
     };
 
     const handleSaveChanges = async () => {
-        if (changedIds.size === 0) return;
+        if (changedIds.size === 0 || !firestore) return;
         setIsSaving(true);
 
         const batch = writeBatch(firestore);
@@ -236,11 +258,13 @@ const CommissionSettingsTable = () => {
         changedIds.forEach(id => {
             const product = managedProducts.find(p => p.id === id);
             if (product) {
-                const productRef = doc(firestore, 'products', id);
-                batch.update(productRef, {
+                const productDocRef = doc(firestore, 'products', id);
+                const dataToSave = {
                     isResellable: product.isResellable,
-                    commissionRate: product.commissionRate
-                });
+                    commissionRate: product.isResellable ? (product.commissionRate || 10) : 0,
+                    updatedAt: serverTimestamp(),
+                };
+                batch.update(productDocRef, dataToSave);
             }
         });
 
@@ -252,12 +276,12 @@ const CommissionSettingsTable = () => {
             });
             setChangedIds(new Set());
         } catch (error) {
-            console.error("Failed to save product settings:", error);
-            toast({
-                title: "Save Failed",
-                description: "An error occurred while saving. Please try again.",
-                variant: "destructive"
+            const permissionError = new FirestorePermissionError({
+                path: 'products/[productId]',
+                operation: 'update',
+                requestResourceData: { isResellable: '...', commissionRate: '...', updatedAt: '...' },
             });
+            errorEmitter.emit('permission-error', permissionError);
         } finally {
             setIsSaving(false);
         }
@@ -301,7 +325,7 @@ const CommissionSettingsTable = () => {
                         <TableRow>
                             <TableHead className="w-[250px]">Product</TableHead>
                             <TableHead>Product Price</TableHead>
-                            <TableHead className="text-center w-[150px]">Commission Rate (%)</TableHead>
+                            <TableHead className="text-center">Commission Rate (%)</TableHead>
                             <TableHead>Reseller Earns</TableHead>
                             <TableHead>You Get</TableHead>
                             <TableHead className="text-right">Enable Reselling</TableHead>
@@ -309,7 +333,7 @@ const CommissionSettingsTable = () => {
                     </TableHeader>
                     <TableBody>
                         {managedProducts.map((product) => (
-                        <CommissionRow key={product.id} product={product} onToggle={handleToggleProduct} />
+                            <CommissionRow key={product.id} product={product} onUpdate={handleProductUpdate} isChanged={changedIds.has(product.id)} />
                         ))}
                     </TableBody>
                 </Table>
@@ -332,11 +356,7 @@ const CommissionSettingsTable = () => {
     );
 };
 
-
-// --- Main Page Component ---
-
 export default function ResellerCenterPage() {
-
     const staticStats = {
         totalRevenue: 28450.50,
         totalSales: 249,

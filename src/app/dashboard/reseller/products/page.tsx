@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Copy } from 'lucide-react';
+import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Copy, DollarSign } from 'lucide-react';
 import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -36,8 +36,9 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
     const firestore = useFirestore();
     const [showCopyFallback, setShowCopyFallback] = useState(false);
     const [shareUrl, setShareUrl] = useState('');
-    const [shareCount, setShareCount] = useState(product.clickCount || 0); // Local state for immediate feedback
+    const [shareCount, setShareCount] = useState(product.clickCount || 0);
 
+    const resellerEarns = (product.price * (product.commissionRate || 0)) / 100;
 
     const handleShare = async (e: React.MouseEvent) => {
         e.preventDefault(); 
@@ -61,12 +62,10 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                 description: 'Your unique reseller link is ready to be shared.',
             });
 
-            // Log the share event to the backend and update UI optimistically
             logResellerShare(user.uid, product.id, product.sellerId);
             setShareCount(prev => prev + 1);
 
         } catch (err) {
-            // If clipboard fails, show the manual copy dialog
             setShowCopyFallback(true);
         } finally {
             setIsSharing(false);
@@ -91,14 +90,15 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                     <CardContent className="p-3 space-y-2 flex flex-col flex-1">
                         <div className="flex-1">
                             <p className="text-sm font-semibold truncate group-hover:text-primary">{product.name || 'Unnamed Product'}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1"><Share2 className="h-3 w-3" /> {shareCount || 0} Shares</span>
+                            <p className="text-lg font-bold text-primary mt-1">${product.price.toLocaleString()}</p>
+                            <div className="flex items-center gap-1 text-sm font-semibold text-green-500 mt-1">
+                                <DollarSign className="h-4 w-4" />
+                                <span>Earn ${resellerEarns.toFixed(2)}</span>
                             </div>
-                            <p className="text-primary font-bold mt-1">${product.price.toLocaleString()}</p>
                         </div>
                         <Button size="sm" className="w-full mt-2" onClick={handleShare} disabled={isSharing}>
                             {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
-                            Share
+                            Share & Earn
                         </Button>
                     </CardContent>
                 </Card>
@@ -148,7 +148,7 @@ export default function ResellerProductsPage() {
       if (!firestore) return null;
       return query(
           collection(firestore, 'products'),
-          where('commissionRate', '>', 0),
+          where('isResellable', '==', true),
           orderBy('commissionRate', 'desc')
       );
   }, [firestore]);
@@ -214,7 +214,7 @@ export default function ResellerProductsPage() {
                     <ProductGridSkeleton />
                 ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                         {filteredProducts.map(p => (
+                         {filteredProducts.filter(p => (p.commissionRate || 0) >= 15).map(p => (
                             <ResellerProductCard 
                                 key={p.id} 
                                 product={p} 
