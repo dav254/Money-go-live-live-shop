@@ -178,11 +178,12 @@ const MyResellersTable = () => {
 };
 
 
-function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { product: Product; onUpdate: (productId: string, field: 'isResellable', value: boolean) => void; isChanged: boolean; onSave: (productId: string) => void; isSaving: boolean; }) {
+function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { product: Product; onUpdate: (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => void; isChanged: boolean; onSave: (productId: string) => void; isSaving: boolean; }) {
     const isEnabled = product.isResellable || false;
-    const commissionRate = 10;
+    const commissionRate = product.commissionRate || 10;
     const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
+    const commissionRates = [5, 10, 15, 20, 25];
 
     return (
         <TableRow>
@@ -194,12 +195,19 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
             </TableCell>
             <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
             <TableCell className="w-[150px]">
-                <Input
-                    type="text"
-                    value={`${commissionRate}%`}
-                    readOnly
-                    className="w-24 text-center mx-auto bg-muted border-none font-semibold"
-                />
+                 <Select
+                    value={String(commissionRate)}
+                    onValueChange={(value) => onUpdate(product.id, 'commissionRate', Number(value))}
+                >
+                    <SelectTrigger className="w-24 mx-auto">
+                        <SelectValue placeholder="Rate" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {commissionRates.map(rate => (
+                            <SelectItem key={rate} value={String(rate)}>{rate}%</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
@@ -240,7 +248,7 @@ const CommissionSettingsTable = () => {
         }
     }, [initialProducts]);
 
-    const handleProductUpdate = (productId: string, field: 'isResellable', value: boolean) => {
+    const handleProductUpdate = (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => {
         setManagedProducts(currentProducts => 
             currentProducts.map(p => {
                 if (p.id === productId) {
@@ -272,7 +280,7 @@ const CommissionSettingsTable = () => {
         
         const dataToSave = {
             isResellable: product.isResellable,
-            commissionRate: 10, // Always set to 10
+            commissionRate: product.commissionRate || 10,
         };
 
         try {
