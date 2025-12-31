@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Copy, DollarSign } from 'lucide-react';
 import Image from 'next/image';
@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { products as placeholderProducts } from '@/lib/placeholder-data';
+import { collection, query, where } from 'firebase/firestore';
 
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
@@ -37,9 +37,9 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
     const [shareUrl, setShareUrl] = useState('');
     const [shareCount, setShareCount] = useState(product.clickCount || 0);
 
-    // Frontend-only change: Displaying a higher commission for visual feedback
-    const displayCommissionRate = 20; // Using a fixed 20% for demonstration
-    const resellerEarns = (product.price * displayCommissionRate) / 100;
+    // This now uses the real commission rate from the product data
+    const commissionRate = product.commissionRate || 10; // Default to 10% if not set
+    const resellerEarns = (product.price * commissionRate) / 100;
 
 
     const handleShare = async (e: React.MouseEvent) => {
@@ -85,7 +85,7 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
                             fill
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                        <Badge className="absolute top-2 left-2 bg-red-500/80">Sale</Badge>
+                         {/* Removed static "Sale" badge */}
                     </div>
                     <CardContent className="p-3 space-y-2 flex flex-col flex-1">
                         <div className="flex-1">
@@ -142,16 +142,16 @@ const ProductGridSkeleton = () => (
 
 export default function ResellerProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const firestore = useFirestore();
 
-  // Using static placeholder data
-  const products = placeholderProducts.filter(p => p.isResellable !== false);
+  const productsQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      // Fetch only products that are enabled for reselling
+      return query(collection(firestore, 'products'), where('isResellable', '==', true));
+  }, [firestore]);
 
-  useEffect(() => {
-    // Simulate loading for demonstration
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: products, isLoading } = useCollection<Product>(productsQuery);
+  
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
