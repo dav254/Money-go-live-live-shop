@@ -288,7 +288,6 @@ const CommissionSettingsTable = () => {
                 return newChanges;
             });
         } catch (error) {
-            console.error("Failed to save product setting:", error);
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: productRef.path,
                 operation: 'update',
@@ -424,3 +423,5 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
+
+    
