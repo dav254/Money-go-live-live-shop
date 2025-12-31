@@ -43,7 +43,6 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -181,7 +180,7 @@ const MyResellersTable = () => {
 
 function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { product: Product; onUpdate: (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => void; isChanged: boolean; onSave: (productId: string) => void; isSaving: boolean; }) {
     const isEnabled = product.isResellable || false;
-    const commissionRate = isEnabled ? (product.commissionRate ?? 10) : 0;
+    const commissionRate = 10; // Fixed at 10%
     const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
 
@@ -195,19 +194,12 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
             </TableCell>
             <TableCell className="font-semibold">${product.price.toFixed(2)}</TableCell>
             <TableCell className="w-[150px]">
-                <Select
-                    value={String(product.commissionRate ?? 10)}
-                    onValueChange={(value) => onUpdate(product.id, 'commissionRate', parseInt(value))}
-                >
-                    <SelectTrigger className="w-28 mx-auto">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {[5, 10, 15, 20, 25].map(rate => (
-                            <SelectItem key={rate} value={String(rate)}>{rate}%</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Input
+                    type="text"
+                    value="10%"
+                    readOnly
+                    className="w-24 text-center mx-auto bg-muted border-none font-semibold"
+                />
             </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
@@ -278,7 +270,7 @@ const CommissionSettingsTable = () => {
         
         const dataToSave = {
             isResellable: product.isResellable,
-            commissionRate: product.isResellable ? (product.commissionRate || 10) : 0,
+            commissionRate: product.isResellable ? 10 : 0, // Always save 10% if enabled
             updatedAt: serverTimestamp(),
         };
 
