@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { Suspense, useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -178,9 +178,9 @@ const MyResellersTable = () => {
 };
 
 
-function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { product: Product; onUpdate: (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => void; isChanged: boolean; onSave: (productId: string) => void; isSaving: boolean; }) {
+function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { product: Product; onUpdate: (productId: string, field: 'isResellable', value: boolean) => void; isChanged: boolean; onSave: (productId: string) => void; isSaving: boolean; }) {
     const isEnabled = product.isResellable || false;
-    const commissionRate = 10; // Fixed at 10%
+    const commissionRate = 10;
     const resellerEarns = (product.price * commissionRate) / 100;
     const youGet = product.price - resellerEarns;
 
@@ -196,7 +196,7 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
             <TableCell className="w-[150px]">
                 <Input
                     type="text"
-                    value="10%"
+                    value={`${commissionRate}%`}
                     readOnly
                     className="w-24 text-center mx-auto bg-muted border-none font-semibold"
                 />
@@ -240,7 +240,7 @@ const CommissionSettingsTable = () => {
         }
     }, [initialProducts]);
 
-    const handleProductUpdate = (productId: string, field: 'isResellable' | 'commissionRate', value: boolean | number) => {
+    const handleProductUpdate = (productId: string, field: 'isResellable', value: boolean) => {
         setManagedProducts(currentProducts => 
             currentProducts.map(p => {
                 if (p.id === productId) {
@@ -258,7 +258,7 @@ const CommissionSettingsTable = () => {
         }));
     };
 
-    const handleSaveChange = async (productId: string) => {
+    const handleSaveChange = useCallback(async (productId: string) => {
         if (!changedProducts[productId] || !firestore) return;
         setSavingId(productId);
         
@@ -272,7 +272,7 @@ const CommissionSettingsTable = () => {
         
         const dataToSave = {
             isResellable: product.isResellable,
-            commissionRate: product.isResellable ? 10 : 0,
+            commissionRate: 10, // Always set to 10
         };
 
         try {
@@ -295,7 +295,7 @@ const CommissionSettingsTable = () => {
         } finally {
             setSavingId(null);
         }
-    };
+    }, [changedProducts, firestore, managedProducts, toast]);
 
     if (isLoading) {
         return (
