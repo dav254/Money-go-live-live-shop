@@ -272,8 +272,7 @@ const CommissionSettingsTable = () => {
         
         const dataToSave = {
             isResellable: product.isResellable,
-            commissionRate: product.isResellable ? 10 : 0, // Always save 10% if enabled
-            updatedAt: serverTimestamp(),
+            commissionRate: product.isResellable ? 10 : 0,
         };
 
         try {
@@ -423,5 +422,3 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
-
-    
