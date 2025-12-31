@@ -203,11 +203,13 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
             </TableCell>
             <TableCell className="font-semibold text-green-600">+ ${resellerEarns.toFixed(2)}</TableCell>
             <TableCell className="font-semibold text-primary">+ ${youGet.toFixed(2)}</TableCell>
-            <TableCell className="text-right flex items-center justify-end gap-2">
+            <TableCell className="text-center">
                 <Switch
                     checked={isEnabled}
                     onCheckedChange={(enabled) => onUpdate(product.id, 'isResellable', enabled)}
                 />
+            </TableCell>
+            <TableCell className="text-right">
                 <Button size="sm" onClick={() => onSave(product.id)} disabled={!isChanged || isSaving}>
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                 </Button>
@@ -338,7 +340,8 @@ const CommissionSettingsTable = () => {
                             <TableHead className="text-center">Commission Rate (%)</TableHead>
                             <TableHead>Reseller Earns</TableHead>
                             <TableHead>You Get</TableHead>
-                            <TableHead className="text-right">Enable Reselling & Save</TableHead>
+                            <TableHead className="text-center">Enable Reselling</TableHead>
+                            <TableHead className="text-right">Save</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

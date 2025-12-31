@@ -57,14 +57,15 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // MERGED UPDATE RULE
+      // --- FINAL, CORRECTED UPDATE RULE ---
       allow update: if 
-        // Condition 1: Product owner can edit their product details including resell settings.
+        // Condition 1: The product owner can update any of their product's editable fields.
+        // This single rule covers both general product edits and resell setting changes.
         (resource.data.sellerId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']))
         ||
-        // Condition 2: Any authenticated user can like, view, or update cart count.
+        // Condition 2: Any authenticated user can interact with a product (like, view, etc.).
         (request.auth != null &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
 
