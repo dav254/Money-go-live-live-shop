@@ -198,7 +198,6 @@ function CommissionRow({ product, onUpdate, isChanged, onSave, isSaving }: { pro
                 <Select
                     value={String(product.commissionRate ?? 10)}
                     onValueChange={(value) => onUpdate(product.id, 'commissionRate', parseInt(value))}
-                    disabled={!isEnabled}
                 >
                     <SelectTrigger className="w-28 mx-auto">
                         <SelectValue />
@@ -295,7 +294,7 @@ const CommissionSettingsTable = () => {
                 return newChanges;
             });
         } catch (error) {
-            // Emit a contextual error instead of just logging to console
+            console.error("Failed to save product setting:", error);
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: productRef.path,
                 operation: 'update',
