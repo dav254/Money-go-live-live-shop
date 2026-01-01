@@ -1,12 +1,11 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { useAuth } from '@/context/AuthContext';
-import { db } from '@/firebase/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { ResellActivity } from '@/lib/types';
-import ResellerLayout from '@/components/ResellerLayout';
+import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -35,46 +34,25 @@ const formatDate = (timestamp: any) => {
 };
 
 const ResellerCommissionsPage = () => {
-  const { currentUser } = useAuth();
-  const [activities, setActivities] = useState<ResellActivity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user, isLoading: isUserLoading } = useUser();
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    if (!currentUser) {
-      setLoading(false);
-      return;
-    }
+  const activitiesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, 'resellActivities'), 
+      where('resellerId', '==', user.uid),
+      where('type', '==', 'sale'),
+      orderBy('createdAt', 'desc')
+    );
+  }, [user, firestore]);
 
-    const fetchCommissions = async () => {
-      try {
-        setLoading(true);
-        // Query to get all sales activities where the current user is the reseller
-        const q = query(
-          collection(db, 'resellActivities'), 
-          where('resellerId', '==', currentUser.uid),
-          where('type', '==', 'sale'),
-          orderBy('createdAt', 'desc')
-        );
-
-        const querySnapshot = await getDocs(q);
-        const commissionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ResellActivity));
-        setActivities(commissionsData);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching commission activities:", err);
-        setError('Failed to load your commission history. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCommissions();
-  }, [currentUser]);
-
+  const { data: activities, isLoading: areActivitiesLoading } = useCollection<ResellActivity>(activitiesQuery);
+  const isLoading = isUserLoading || areActivitiesLoading;
+  
   return (
     <ResellerLayout>
-      <div className="space-y-4">
+      <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="text-2xl font-bold">Your Commissions</h1>
         <p className="text-muted-foreground">
           Here is a detailed history of the commissions you've earned from your sales.
@@ -85,14 +63,9 @@ const ResellerCommissionsPage = () => {
             <CardTitle>Your Commission Ledger</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <p>Loading your commission history...</p>
-            ) : error ? (
-              <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : activities.length === 0 ? (
+            ) : !activities || activities.length === 0 ? (
               <Alert>
                 <Lightbulb className="h-4 w-4" />
                 <AlertTitle>No Commissions Yet</AlertTitle>
