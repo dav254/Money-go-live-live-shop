@@ -61,7 +61,7 @@ service cloud.firestore {
       allow update: if 
         // Condition 1: The product owner can update their product's editable fields.
         (resource.data.sellerId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasAll(['isResellable', 'commissionRate']))
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt']))
         ||
         // Condition 2: Any authenticated user can interact with a product (like, view, etc.).
         (request.auth != null &&
