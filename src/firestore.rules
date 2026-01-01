@@ -57,12 +57,11 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // --- CORRECTED UPDATE RULE ---
+      // CORRECTED, DEFINITIVE UPDATE RULE
       allow update: if 
-        // Condition 1: The product owner can update any of their product's editable fields.
+        // Condition 1: The product owner can update their product's editable fields.
         (resource.data.sellerId == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']))
+         request.resource.data.diff(resource.data).affectedKeys().hasAll(['isResellable', 'commissionRate']))
         ||
         // Condition 2: Any authenticated user can interact with a product (like, view, etc.).
         (request.auth != null &&
