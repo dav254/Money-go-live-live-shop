@@ -57,9 +57,7 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // THIS IS THE FIX: A simplified and corrected update rule.
-      // It allows the product owner to update a list of specific fields,
-      // including the reseller settings.
+      // THE FIX: Simplified and corrected update rule.
       allow update: if 
         (resource.data.sellerId == request.auth.uid &&
          request.resource.data.diff(resource.data).affectedKeys()

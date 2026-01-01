@@ -42,6 +42,8 @@ import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { updateResellerSettings } from '@/app/actions/product-actions';
+
 
 const StatCard = ({ title, value, icon: Icon, description }: { title: string, value: string | number, icon: React.ElementType, description?: string }) => (
     <Card>
@@ -267,34 +269,43 @@ const CommissionSettingsTable = () => {
     };
 
     const handleSaveChange = useCallback(async (productId: string) => {
+        if (!user) return;
+
         const changes = changedProducts[productId];
-        if (!changes || !firestore) return;
+        if (!changes) return;
+        
         setSavingId(productId);
 
-        const productRef = doc(firestore, 'products', productId);
+        const payload = {
+            productId,
+            isResellable: managedProducts.find(p => p.id === productId)?.isResellable || false,
+            commissionRate: managedProducts.find(p => p.id === productId)?.commissionRate || 0,
+            ...changes
+        };
 
         try {
-            await updateDoc(productRef, changes);
-            toast({
-                title: "Setting Saved!",
-                description: `Changes have been saved.`
-            });
-            setChangedProducts(currentChanges => {
-                const newChanges = { ...currentChanges };
-                delete newChanges[productId];
-                return newChanges;
-            });
-        } catch (error) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: productRef.path,
-                operation: 'update',
-                requestResourceData: changes,
-            }));
-            toast({ variant: 'destructive', title: 'Error Saving', description: 'You do not have permission to perform this action.' });
+            const token = await user.getIdToken();
+            const result = await updateResellerSettings(payload, token);
+            
+            if (result.success) {
+                 toast({
+                    title: "Setting Saved!",
+                    description: `Changes for the product have been saved.`
+                });
+                setChangedProducts(currentChanges => {
+                    const newChanges = { ...currentChanges };
+                    delete newChanges[productId];
+                    return newChanges;
+                });
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error Saving', description: error.message || 'You do not have permission to perform this action.' });
         } finally {
             setSavingId(null);
         }
-    }, [changedProducts, firestore, toast]);
+    }, [changedProducts, firestore, toast, user, managedProducts]);
 
     if (isLoading) {
         return (
@@ -421,5 +432,3 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
-
-    
