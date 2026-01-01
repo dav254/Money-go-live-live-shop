@@ -60,7 +60,6 @@ service cloud.firestore {
       // --- FINAL, CORRECTED UPDATE RULE ---
       allow update: if 
         // Condition 1: The product owner can update any of their product's editable fields.
-        // This single rule covers both general product edits and resell setting changes.
         (resource.data.sellerId == request.auth.uid &&
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['name', 'description', 'price', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'wasPrice', 'updatedAt', 'isResellable', 'commissionRate']))
@@ -320,3 +319,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

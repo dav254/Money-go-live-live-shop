@@ -267,27 +267,17 @@ const CommissionSettingsTable = () => {
     };
 
     const handleSaveChange = useCallback(async (productId: string) => {
-        if (!changedProducts[productId] || !firestore) return;
+        const changes = changedProducts[productId];
+        if (!changes || !firestore) return;
         setSavingId(productId);
-        
-        const product = managedProducts.find(p => p.id === productId);
-        if (!product) {
-            setSavingId(null);
-            return;
-        }
 
         const productRef = doc(firestore, 'products', productId);
-        
-        const dataToSave = {
-            isResellable: product.isResellable,
-            commissionRate: product.commissionRate || 10,
-        };
 
         try {
-            await updateDoc(productRef, dataToSave);
+            await updateDoc(productRef, changes);
             toast({
                 title: "Setting Saved!",
-                description: `Changes for ${product.name} have been saved.`
+                description: `Changes have been saved.`
             });
             setChangedProducts(currentChanges => {
                 const newChanges = { ...currentChanges };
@@ -298,12 +288,12 @@ const CommissionSettingsTable = () => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 path: productRef.path,
                 operation: 'update',
-                requestResourceData: dataToSave,
+                requestResourceData: changes,
             }));
         } finally {
             setSavingId(null);
         }
-    }, [changedProducts, firestore, managedProducts, toast]);
+    }, [changedProducts, firestore, toast]);
 
     if (isLoading) {
         return (
@@ -430,3 +420,5 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
+
+    
