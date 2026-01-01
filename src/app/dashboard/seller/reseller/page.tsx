@@ -290,6 +290,7 @@ const CommissionSettingsTable = () => {
                 operation: 'update',
                 requestResourceData: changes,
             }));
+            toast({ variant: 'destructive', title: 'Error Saving', description: 'You do not have permission to perform this action.' });
         } finally {
             setSavingId(null);
         }
@@ -420,5 +421,3 @@ export default function ResellerCenterPage() {
         </SellerLayout>
     );
 }
-
-    

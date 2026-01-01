@@ -57,7 +57,7 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // --- FINAL, CORRECTED UPDATE RULE ---
+      // --- CORRECTED UPDATE RULE ---
       allow update: if 
         // Condition 1: The product owner can update any of their product's editable fields.
         (resource.data.sellerId == request.auth.uid &&
@@ -319,5 +319,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
