@@ -57,13 +57,14 @@ service cloud.firestore {
       // Allow create if the incoming document's sellerId matches the user's UID.
       allow create: if request.resource.data.sellerId == request.auth.uid;
       
-      // CORRECTED, DEFINITIVE UPDATE RULE
+      // Allow product owner to update their product's editable fields.
+      // This is the definitive rule to fix the reseller settings save issue.
       allow update: if 
-        // Condition 1: The product owner can update their product's editable fields.
         (resource.data.sellerId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt']))
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt']))
         ||
-        // Condition 2: Any authenticated user can interact with a product (like, view, etc.).
+        // Allow any authenticated user to interact with likes, views etc.
         (request.auth != null &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
 
@@ -318,3 +319,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
