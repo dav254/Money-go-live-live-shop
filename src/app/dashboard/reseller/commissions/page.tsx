@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import React, { useMemo } from 'react';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { ResellActivity } from '@/lib/types';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Lightbulb } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
@@ -40,10 +41,10 @@ const ResellerCommissionsPage = () => {
   const activitiesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
-      collection(firestore, 'resellActivities'), 
-      where('resellerId', '==', user.uid),
-      where('type', '==', 'sale'),
-      orderBy('createdAt', 'desc')
+      collection(firestore, 'walletTransactions'), 
+      where('userId', '==', user.uid),
+      where('type', '==', 'COMMISSION'),
+      orderBy('timestamp', 'desc')
     );
   }, [user, firestore]);
 
@@ -64,7 +65,11 @@ const ResellerCommissionsPage = () => {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p>Loading your commission history...</p>
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+              </div>
             ) : !activities || activities.length === 0 ? (
               <Alert>
                 <Lightbulb className="h-4 w-4" />
@@ -77,18 +82,18 @@ const ResellerCommissionsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Product</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Your Commission</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Commission</TableHead>
                     <TableHead>Order ID</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activities.map((activity) => (
                     <TableRow key={activity.id}>
-                      <TableCell>{activity.productName}</TableCell>
-                      <TableCell>{formatDate(activity.createdAt)}</TableCell>
-                      <TableCell className="text-right font-medium text-green-500">{formatCurrency(activity.resellerEarns)}</TableCell>
+                      <TableCell>{formatDate(activity.timestamp)}</TableCell>
+                      <TableCell>{activity.description}</TableCell>
+                      <TableCell className="text-right font-medium text-green-500">{formatCurrency(activity.amount)}</TableCell>
                       <TableCell className="text-muted-foreground">{activity.orderId.substring(0, 8)}...</TableCell>
                     </TableRow>
                   ))}
