@@ -37,6 +37,60 @@ import { useUser } from '@/firebase/auth/use-user';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUserProfile } from '@/firebase';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
+import { ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import React from 'react';
+
+
+const NavCollapsible = ({
+  title,
+  icon: Icon,
+  items,
+  basePath,
+}: {
+  title: string;
+  icon: React.ElementType;
+  items: { href: string; label: string }[];
+  basePath: string;
+}) => {
+  const pathname = usePathname();
+  const isBaseActive = pathname.startsWith(`/dashboard/seller/${basePath}`);
+
+  return (
+    <Collapsible defaultOpen={isBaseActive}>
+      <CollapsibleTrigger
+        className={cn(
+          'group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
+          isBaseActive && 'bg-accent text-accent-foreground'
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4" />
+          <span>{title}</span>
+        </div>
+        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="flex flex-col gap-1 py-1 pl-8">
+          {items.map((item) => (
+            <Link
+              key={item.href}
+              href={`/dashboard/seller/${basePath}/${item.href}`}
+              className={cn(
+                'rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                pathname === `/dashboard/seller/${basePath}/${item.href}` && 'bg-accent font-semibold text-accent-foreground'
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 
 export function SellerSidebar() {
   const pathname = usePathname();
@@ -115,19 +169,20 @@ export function SellerSidebar() {
       <SidebarGroup>
         <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
+           <NavCollapsible 
+            title="Reseller Center"
+            icon={Users}
+            basePath="reseller"
+            items={[
+                { href: 'rules', label: 'Commission Rules' },
+                { href: 'analytics', label: 'Reseller Analytics' },
+            ]}
+           />
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/studio')}>
               <Link href="/dashboard/seller/live/start">
                 <RadioTower />
                 <span>Live Studio</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
-              <Link href="/dashboard/seller/reseller">
-                <Users />
-                <span>Reseller Center</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
