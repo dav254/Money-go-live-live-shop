@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -77,8 +76,8 @@ export function LiveActivityFeed({ liveSessionId }: LiveActivityFeedProps) {
             ))}
             </AnimatePresence>
             {(isLoading || !events || events.length === 0) && (
-                <div className="text-center text-sm text-neutral-500 pt-8">
-                    {isLoading ? "Loading activity..." : "Waiting for activity..."}
+                <div className="flex items-center justify-center h-full text-center text-sm text-neutral-500 pt-8">
+                    <p>{isLoading ? "Loading activity..." : "Waiting for activity..."}</p>
                 </div>
             )}
         </ScrollArea>
