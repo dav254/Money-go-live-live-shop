@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -135,20 +136,23 @@ export default function SellerLiveStudio() {
                         </Button>
                     </CardContent>
                 </Card>
-            </div>
-            
-            {/* Sidebar: Chat, Products, Events */}
-            <div className="space-y-4 lg:sticky lg:top-24">
-                <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><Users />Product Shelf</CardTitle></CardHeader>
-                    <CardContent className="max-h-60">
-                        {user && <LiveProductShelf sellerId={user.uid} onPinProduct={setPinnedProduct} onUnpinProduct={() => setPinnedProduct(null)} />}
+                 <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare />Live Activity</CardTitle></CardHeader>
+                    <CardContent className="h-60">
+                        <LiveActivityFeed liveSessionId={liveSession?.id || null} />
                     </CardContent>
                 </Card>
+            </div>
+            
+            {/* Sidebar: Products */}
+            <div className="space-y-4 lg:sticky lg:top-24">
                 <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare />Live Activity</CardTitle></CardHeader>
-                    <CardContent className="max-h-60">
-                        <LiveActivityFeed liveSessionId={liveSession?.id || null} />
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Users />Product Shelf</CardTitle>
+                        <CardDescription>Pin a product to feature it on your stream.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="max-h-[60vh] overflow-y-auto">
+                        {user && <LiveProductShelf sellerId={user.uid} onPinProduct={setPinnedProduct} onUnpinProduct={() => setPinnedProduct(null)} />}
                     </CardContent>
                 </Card>
             </div>
