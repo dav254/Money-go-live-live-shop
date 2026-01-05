@@ -19,80 +19,48 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CircleDollarSign, ShoppingBag, Users } from 'lucide-react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
-import type { Order, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+// --- MOCK DATA ---
+const mockResellerStats = [
+    { id: 'reseller-1', name: 'Alice', avatarUrl: 'https://picsum.photos/seed/alice/40', sales: 42, commission: 315.50 },
+    { id: 'reseller-2', name: 'Ben', avatarUrl: 'https://picsum.photos/seed/ben/40', sales: 35, commission: 280.00 },
+    { id: 'reseller-3', name: 'Clara', avatarUrl: 'https://picsum.photos/seed/clara/40', sales: 28, commission: 210.75 },
+    { id: 'reseller-4', name: 'David', avatarUrl: 'https://picsum.photos/seed/david/40', sales: 15, commission: 115.25 },
+];
+// --- END MOCK DATA ---
 
-const StatCard = ({ title, value, icon: Icon, description, isLoading }: { title: string, value: string | number, icon: React.ElementType, description?: string, isLoading?: boolean }) => (
+const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
     <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{title}</CardTitle>
             <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{value}</div>}
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
+            <div className="text-2xl font-bold">{value}</div>
         </CardContent>
     </Card>
 );
 
-const UserCell = ({ userId }: { userId: string }) => {
-    const firestore = useFirestore();
-    const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', userId), [firestore, userId]);
-    const { data: user, isLoading } = useDoc<UserProfile>(userRef);
-
-    if (isLoading) return <Skeleton className="h-6 w-24" />;
-
+const UserCell = ({ name, avatarUrl }: { name: string, avatarUrl: string }) => {
     return (
         <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.profilePictureUrl} alt={user?.fullName} />
-                <AvatarFallback>{user?.fullName?.[0]}</AvatarFallback>
+                <AvatarImage src={avatarUrl} alt={name} />
+                <AvatarFallback>{name?.[0]}</AvatarFallback>
             </Avatar>
-            <span className="font-medium">{user?.fullName}</span>
+            <span className="font-medium">{name}</span>
         </div>
     );
 };
 
 
 export default function ResellerAnalyticsPage() {
-    const { user } = useUser();
-    const firestore = useFirestore();
-
-    const resellerOrdersQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(
-            collection(firestore, 'orders'),
-            where('sellerId', '==', user.uid),
-            where('resellerId', '!=', null)
-        );
-    }, [firestore, user]);
-
-    const { data: orders, isLoading } = useCollection<Order>(resellerOrdersQuery);
     
-    const resellerStats = useMemo(() => {
-        if (!orders) return [];
-
-        const statsMap = new Map<string, { id: string; sales: number; commission: number }>();
-        
-        orders.forEach(order => {
-            if (order.resellerId) {
-                const existing = statsMap.get(order.resellerId) || { id: order.resellerId, sales: 0, commission: 0 };
-                existing.sales += 1;
-                existing.commission += order.resellerCommission || 0;
-                statsMap.set(order.resellerId, existing);
-            }
-        });
-        
-        return Array.from(statsMap.values()).sort((a,b) => b.commission - a.commission);
-
-    }, [orders]);
-
-    const totalResellerSales = resellerStats.reduce((sum, r) => sum + r.sales, 0);
-    const totalCommission = resellerStats.reduce((sum, r) => sum + r.commission, 0);
+    // Calculations are now based on the mock data
+    const totalResellerSales = mockResellerStats.reduce((sum, r) => sum + r.sales, 0);
+    const totalCommission = mockResellerStats.reduce((sum, r) => sum + r.commission, 0);
 
     return (
         <SellerLayout>
@@ -100,9 +68,9 @@ export default function ResellerAnalyticsPage() {
                 <h1 className="font-headline text-3xl font-bold tracking-tight">Reseller Analytics</h1>
                 
                 <div className="grid gap-4 md:grid-cols-3">
-                    <StatCard title="Total Reseller Sales" value={totalResellerSales.toLocaleString()} icon={ShoppingBag} isLoading={isLoading} />
-                    <StatCard title="Total Commissions Paid" value={`$${totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} icon={CircleDollarSign} isLoading={isLoading} />
-                    <StatCard title="Active Resellers" value={resellerStats.length.toLocaleString()} icon={Users} isLoading={isLoading} />
+                    <StatCard title="Total Reseller Sales" value={totalResellerSales.toLocaleString()} icon={ShoppingBag} />
+                    <StatCard title="Total Commissions Paid" value={`$${totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} icon={CircleDollarSign} />
+                    <StatCard title="Active Resellers" value={mockResellerStats.length.toLocaleString()} icon={Users} />
                 </div>
                 
                 <Card>
@@ -120,14 +88,10 @@ export default function ResellerAnalyticsPage() {
                                 </TableRow>
                             </TableHeader>
                              <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center">Loading reseller data...</TableCell>
-                                    </TableRow>
-                                ) : resellerStats.length > 0 ? (
-                                    resellerStats.map(reseller => (
+                                {mockResellerStats.length > 0 ? (
+                                    mockResellerStats.map(reseller => (
                                         <TableRow key={reseller.id}>
-                                            <TableCell><UserCell userId={reseller.id} /></TableCell>
+                                            <TableCell><UserCell name={reseller.name} avatarUrl={reseller.avatarUrl} /></TableCell>
                                             <TableCell className="text-center font-medium">{reseller.sales}</TableCell>
                                             <TableCell className="text-right font-bold text-primary">${reseller.commission.toFixed(2)}</TableCell>
                                         </TableRow>
