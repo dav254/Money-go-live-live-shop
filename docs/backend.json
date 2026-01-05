@@ -1416,6 +1416,19 @@
               "name": "liveSessionId",
               "description": "The unique identifier for the live session."
             }
+          ],
+          "subcollections": [
+            {
+              "path": "chat/{messageId}",
+              "definition": {
+                "entityName": "ChatMessage",
+                "schema": { "$ref": "#/backend/entities/ChatMessage" },
+                "description": "Stores the real-time chat messages for this live session.",
+                "params": [
+                  { "name": "messageId", "description": "The unique ID for a chat message." }
+                ]
+              }
+            }
           ]
         }
       },

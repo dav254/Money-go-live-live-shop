@@ -50,7 +50,7 @@ export default function BuyerLiveViewPage() {
 
     if (isLoading) {
         return (
-            <BuyerLayout>
+            <BuyerLayout fullWidth>
                 <div className="flex-1 space-y-4 p-8 pt-6">
                     <p>Loading live stream...</p>
                 </div>
@@ -60,7 +60,7 @@ export default function BuyerLiveViewPage() {
     
     if (!liveSession || liveSession.status !== 'live') {
         return (
-             <BuyerLayout>
+             <BuyerLayout fullWidth>
                 <div className="flex-1 space-y-4 p-8 pt-6">
                     <Alert variant="destructive">
                         <RadioTower className="h-4 w-4" />
@@ -75,7 +75,7 @@ export default function BuyerLiveViewPage() {
     }
 
     return (
-        <BuyerLayout>
+        <BuyerLayout fullWidth>
             <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)]">
                 {/* Main Video Content */}
                 <div className="lg:col-span-3 bg-black flex flex-col relative">
@@ -121,7 +121,7 @@ export default function BuyerLiveViewPage() {
                 </div>
 
                 {/* Chat Section */}
-                <div className="hidden lg:block">
+                <div className="hidden lg:flex lg:flex-col">
                     <LiveChat streamId={streamId} />
                 </div>
             </div>

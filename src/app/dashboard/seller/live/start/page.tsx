@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -13,7 +12,7 @@ import type { LiveSession, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { LiveActivityFeed, emitLocalEvent } from '@/components/studio/LiveActivityFeed';
+import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
@@ -88,11 +87,6 @@ export default function SellerLiveStudio() {
     setPinnedProduct(null);
     toast({ title: "Stream Ended" });
   };
-  
-  // Simulated chat messages for demo
-  const handleSimulateChat = (text: string, type: string) => {
-      emitLocalEvent({ type, text });
-  }
 
   return (
     <SellerLayout>
@@ -137,7 +131,7 @@ export default function SellerLiveStudio() {
                     </CardContent>
                 </Card>
                  <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare />Live Activity</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare />Live Chat</CardTitle></CardHeader>
                     <CardContent className="h-60">
                         <LiveActivityFeed liveSessionId={liveSession?.id || null} />
                     </CardContent>
