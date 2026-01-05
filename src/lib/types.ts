@@ -211,7 +211,7 @@ export interface Order {
   totalAmount: number;
   orderDate: any; // Can be Timestamp or string
   shippingAddress: string;
-  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'disputed';
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivery' | 'delivered' | 'cancelled' | 'disputed';
   paymentMethod: string;
   resellerId?: string;
   platformFee?: number;
@@ -323,6 +323,8 @@ export interface LiveSession {
     viewerCount?: number;
     startTime: any;
     endTime?: any;
+    muxStreamKey?: string;
+    muxPlaybackId?: string;
 }
 
 export interface SupportTicket {

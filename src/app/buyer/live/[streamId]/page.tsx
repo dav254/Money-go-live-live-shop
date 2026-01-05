@@ -13,15 +13,12 @@ import type { LiveSession } from '@/lib/types';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
-import type { Peer } from 'peerjs';
+import MuxPlayer from "@mux/mux-player-react";
 
 export default function BuyerLiveViewPage() {
     const params = useParams();
     const sellerId = params.streamId as string;
     const firestore = useFirestore();
-    const { user } = useUser();
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const peerRef = useRef<Peer | null>(null);
 
     const [pinnedProduct, setPinnedProduct] = React.useState<any>(null);
 
@@ -31,56 +28,6 @@ export default function BuyerLiveViewPage() {
     }, [firestore, sellerId]);
 
     const { data: liveSession, isLoading, error } = useDoc<LiveSession>(liveSessionRef);
-
-    useEffect(() => {
-        if (!liveSession || liveSession.status !== 'live' || !user || !sellerId) {
-            return;
-        }
-
-        async function initPeer() {
-            // Dynamically import PeerJS on the client-side
-            const { default: Peer } = await import('peerjs');
-            
-            // Let PeerJS assign an ID for the buyer
-            const peer = new Peer(); 
-            peerRef.current = peer;
-
-            peer.on('open', id => {
-                console.log('My peer ID is: ' + id);
-                // The buyer calls the seller's ID.
-                const call = peer.call(sellerId, undefined as any);
-
-                // IMPORTANT: Check if the call object was created successfully.
-                if (call) {
-                    // When the seller answers and sends back their stream, this event is triggered.
-                    call.on('stream', (remoteStream) => {
-                        if (videoRef.current) {
-                            videoRef.current.srcObject = remoteStream;
-                            videoRef.current.play().catch(e => console.error("Video play failed:", e));
-                        }
-                    });
-
-                    call.on('error', (err) => {
-                        console.error('PeerJS call error:', err);
-                    });
-                } else {
-                    console.error('Failed to create call object. Seller may be offline or an error occurred.');
-                }
-            });
-
-            peer.on('error', (err) => {
-                console.error('PeerJS main error:', err);
-            });
-        }
-
-        initPeer();
-
-        // Cleanup on component unmount
-        return () => {
-            peerRef.current?.destroy();
-        };
-
-    }, [liveSession, user, sellerId]);
 
     const handlePinProduct = (product: any) => {
         setPinnedProduct(product);
@@ -100,7 +47,7 @@ export default function BuyerLiveViewPage() {
         )
     }
     
-    if (error || !liveSession || liveSession.status !== 'live') {
+    if (error || !liveSession || liveSession.status !== 'live' || !liveSession.muxPlaybackId) {
         return (
              <BuyerLayout>
                 <div className="flex-1 space-y-4 p-8 pt-6">
@@ -120,7 +67,13 @@ export default function BuyerLiveViewPage() {
         <BuyerLayout>
             <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)]">
                 <div className="lg:col-span-3 h-full w-full bg-black relative">
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
+                    <MuxPlayer
+                      playbackId={liveSession.muxPlaybackId}
+                      streamType="live"
+                      className="w-full h-full"
+                      autoPlay
+                      muted
+                    />
                      {pinnedProduct && (
                         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
                             <PinnedProduct product={pinnedProduct} />

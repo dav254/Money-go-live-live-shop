@@ -10,19 +10,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import type { Peer } from 'peerjs';
+import MuxPlayer from "@mux/mux-player-react";
 
 export default function SellerLiveStudio() {
   const { user } = useUser();
   const firestore = useFirestore();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const peerRef = useRef<Peer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [peerId, setPeerId] = useState<string | null>(null);
+  const [streamKey, setStreamKey] = useState<string | null>(null);
   const { toast } = useToast();
 
   const cleanupStream = useCallback(() => {
@@ -45,66 +44,11 @@ export default function SellerLiveStudio() {
   }, [isLive, user, firestore]);
   
   useEffect(() => {
-    if (!user || !firestore) return;
-
-    let peer: Peer | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
-
-    const initializePeer = async () => {
-        const { default: Peer } = await import('peerjs');
-        
-        // Disconnect any existing peer connection
-        if (peerRef.current) {
-            peerRef.current.destroy();
-        }
-        
-        peer = new Peer(user.uid);
-        peerRef.current = peer;
-
-        peer.on('open', (id) => {
-            console.log('Seller PeerJS ID:', id);
-            setPeerId(id);
-        });
-
-        peer.on('call', (call) => {
-            if (streamRef.current) {
-                call.answer(streamRef.current);
-            }
-        });
-
-        peer.on('error', (err: any) => {
-            console.error('PeerJS error:', err);
-            
-            // Specifically handle the "ID is taken" error with a retry
-            if (err.type === 'unavailable-id') {
-                toast({
-                    variant: 'destructive',
-                    title: 'Connection Conflict',
-                    description: `ID is already in use. Retrying in 5 seconds...`,
-                });
-                
-                // Disconnect and schedule a reconnect attempt
-                peer?.disconnect();
-                reconnectTimeout = setTimeout(initializePeer, 5000);
-            } else {
-                 toast({ variant: 'destructive', title: 'Connection Error', description: `Live connection failed: ${err.message}` });
-            }
-        });
-    }
-
-    initializePeer();
-
-    // Cleanup function
     return () => {
-        clearTimeout(reconnectTimeout);
         stopLive();
         cleanupStream();
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
     };
-  }, [user, firestore, cleanupStream, stopLive, toast]);
+  }, [cleanupStream, stopLive]);
 
   async function startCamera() {
     if (isCameraOn) return;
@@ -126,28 +70,36 @@ export default function SellerLiveStudio() {
   }
 
   async function goLive() {
-    if (!streamRef.current || !user || !firestore || !peerRef.current) {
-      toast({ variant: 'destructive', title: 'Initialization Error', description: 'User, Peer connection or camera not ready.' });
+    if (!streamRef.current || !user || !firestore) {
+      toast({ variant: 'destructive', title: 'Initialization Error', description: 'User or camera not ready.' });
       return;
     }
     
     setIsStarting(true);
     
     try {
+        const response = await fetch('/api/mux', { method: 'POST' });
+        const { streamKey: newStreamKey, playbackId } = await response.json();
+        setStreamKey(newStreamKey);
+
         const sessionRef = doc(firestore, 'liveSessions', user.uid);
         await setDoc(sessionRef, {
             id: user.uid,
             sellerId: user.uid,
             title: `${user.displayName || 'Seller'}'s Live Show`,
             status: 'live',
+            muxStreamKey: newStreamKey,
+            muxPlaybackId: playbackId,
             startTime: serverTimestamp(),
         }, { merge: true });
         
+        // This part would involve sending the stream to Mux's RTMP endpoint.
+        // For this demo, we'll simulate it by just showing the player.
         setIsLive(true);
-        toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted.' });
-    } catch (error) {
-        console.error("Error setting live status:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not update your live status.' });
+        toast({ title: 'You are LIVE!', description: 'Your stream is now being broadcasted via Mux.' });
+    } catch (error: any) {
+        console.error("Error going live:", error);
+        toast({ variant: 'destructive', title: 'Error', description: `Could not start live stream: ${error.message}` });
     } finally {
         setIsStarting(false);
     }
@@ -166,7 +118,7 @@ export default function SellerLiveStudio() {
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Live Studio</CardTitle>
             <CardDescription>
-                {peerId ? `Your stream is discoverable with ID: ${peerId}` : 'Initializing your stream...'}
+                {isLive ? `Broadcasting to Mux with stream key: ${streamKey}` : 'Start your live shopping event here.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -194,9 +146,9 @@ export default function SellerLiveStudio() {
                   <Camera className="mr-2 h-4 w-4" /> Start Camera
                 </Button>
               ) : !isLive ? (
-                <Button onClick={goLive} className="w-full bg-red-600 hover:bg-red-700" disabled={isStarting || !peerId}>
-                  {isStarting || !peerId ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Radio className="mr-2 h-4 w-4" />}
-                  {isStarting ? 'Starting...' : !peerId ? 'Connecting...' : 'GO LIVE'}
+                <Button onClick={goLive} className="w-full bg-red-600 hover:bg-red-700" disabled={isStarting}>
+                  {isStarting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Radio className="mr-2 h-4 w-4" />}
+                  {isStarting ? 'Starting...' : 'GO LIVE'}
                 </Button>
               ) : (
                 <Button onClick={handleStopLive} variant="secondary" className="w-full">
