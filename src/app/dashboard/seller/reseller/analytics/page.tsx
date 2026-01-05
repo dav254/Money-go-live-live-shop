@@ -1,15 +1,13 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
-import { SellerLayout } from '@/components/layout/seller-layout';
+import * as React from 'react';
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import {
   Table,
   TableBody,
@@ -18,95 +16,171 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { CircleDollarSign, ShoppingBag, Users } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { SellerLayout } from '@/components/layout/seller-layout';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import type { ResellerApplication, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
-// --- MOCK DATA ---
-const mockResellerStats = [
-    { id: 'reseller-1', name: 'Alice', avatarUrl: 'https://picsum.photos/seed/alice/40', sales: 42, commission: 315.50 },
-    { id: 'reseller-2', name: 'Ben', avatarUrl: 'https://picsum.photos/seed/ben/40', sales: 35, commission: 280.00 },
-    { id: 'reseller-3', name: 'Clara', avatarUrl: 'https://picsum.photos/seed/clara/40', sales: 28, commission: 210.75 },
-    { id: 'reseller-4', name: 'David', avatarUrl: 'https://picsum.photos/seed/david/40', sales: 15, commission: 115.25 },
-];
-// --- END MOCK DATA ---
+const ResellerCell = ({ resellerId }: { resellerId: string }) => {
+    const firestore = useFirestore();
+    const resellerProfileRef = useMemoFirebase(() => {
+        if (!firestore || !resellerId) return null;
+        return doc(firestore, 'userProfiles', resellerId);
+    }, [firestore, resellerId]);
+    
+    const { data: reseller, isLoading } = useDoc<UserProfile>(resellerProfileRef);
 
-const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            <Icon className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-            <div className="text-2xl font-bold">{value}</div>
-        </CardContent>
-    </Card>
-);
+    if (isLoading) {
+        return (
+            <div className="flex items-center gap-3">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                </div>
+            </div>
+        );
+    }
 
-const UserCell = ({ name, avatarUrl }: { name: string, avatarUrl: string }) => {
+    if (!reseller) return <span className="text-xs text-muted-foreground">Unknown Reseller</span>;
+
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
-                <AvatarImage src={avatarUrl} alt={name} />
-                <AvatarFallback>{name?.[0]}</AvatarFallback>
+                <AvatarImage src={reseller.profilePictureUrl} />
+                <AvatarFallback>{reseller.fullName?.charAt(0)}</AvatarFallback>
             </Avatar>
-            <span className="font-medium">{name}</span>
+            <div>
+                <p className="font-semibold">{reseller.fullName}</p>
+                <p className="text-xs text-muted-foreground">{reseller.email}</p>
+            </div>
         </div>
     );
 };
 
+export default function ResellerApplicationsPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const { toast } = useToast();
 
-export default function ResellerAnalyticsPage() {
+    const applicationsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(collection(firestore, 'resellerApplications'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
+
+    const { data: applications, isLoading } = useCollection<ResellerApplication>(applicationsQuery);
     
-    // Calculations are now based on the mock data
-    const totalResellerSales = mockResellerStats.reduce((sum, r) => sum + r.sales, 0);
-    const totalCommission = mockResellerStats.reduce((sum, r) => sum + r.commission, 0);
+    const handleStatusUpdate = async (applicationId: string, status: 'approved' | 'rejected') => {
+        if (!firestore) return;
+        const appRef = doc(firestore, 'resellerApplications', applicationId);
+        try {
+            await updateDoc(appRef, { status });
+            toast({
+                title: 'Application Updated',
+                description: `The application has been ${status}.`
+            });
+        } catch(error) {
+            console.error("Error updating application status:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not update the application status.' });
+        }
+    };
+
+    const columns: ColumnDef<ResellerApplication>[] = [
+        {
+            accessorKey: 'resellerId',
+            header: 'Reseller Applicant',
+            cell: ({ row }) => <ResellerCell resellerId={row.original.resellerId} />,
+        },
+        {
+            accessorKey: 'applicationDate',
+            header: 'Date Applied',
+            cell: ({ row }) => row.original.applicationDate ? new Date(row.original.applicationDate.toDate()).toLocaleDateString() : 'N/A'
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => {
+                const status = row.original.status;
+                return (
+                    <Badge variant={status === 'approved' ? 'default' : status === 'rejected' ? 'destructive' : 'secondary'} className={`capitalize ${status === 'approved' ? 'bg-green-600/80' : ''}`}>
+                        {status}
+                    </Badge>
+                );
+            }
+        },
+        {
+            id: 'actions',
+            cell: ({ row }) => {
+                const application = row.original;
+                if (application.status !== 'pending') {
+                    return <span className="text-xs text-muted-foreground">Actioned</span>
+                }
+                return (
+                    <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(application.id, 'rejected')}>Reject</Button>
+                        <Button size="sm" onClick={() => handleStatusUpdate(application.id, 'approved')}>Approve</Button>
+                    </div>
+                );
+            },
+        },
+    ];
+
+    const table = useReactTable({
+        data: applications || [],
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+    });
 
     return (
         <SellerLayout>
             <div className="flex-1 space-y-4 p-8 pt-6">
-                <h1 className="font-headline text-3xl font-bold tracking-tight">Reseller Analytics</h1>
+                <h1 className="font-headline text-3xl font-bold tracking-tight">Reseller Applications</h1>
+                <p className="text-muted-foreground">
+                    Approve or reject resellers who want to sell your products. Approved resellers will be able to share your product links.
+                </p>
                 
-                <div className="grid gap-4 md:grid-cols-3">
-                    <StatCard title="Total Reseller Sales" value={totalResellerSales.toLocaleString()} icon={ShoppingBag} />
-                    <StatCard title="Total Commissions Paid" value={`$${totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} icon={CircleDollarSign} />
-                    <StatCard title="Active Resellers" value={mockResellerStats.length.toLocaleString()} icon={Users} />
-                </div>
-                
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Top Performing Resellers</CardTitle>
-                        <CardDescription>Your resellers ranked by total commission earned.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map((header) => (
+                                <TableHead key={header.id}>
+                                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                                </TableHead>
+                                ))}
+                            </TableRow>
+                            ))}
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
                                 <TableRow>
-                                    <TableHead>Reseller</TableHead>
-                                    <TableHead className="text-center">Sales</TableHead>
-                                    <TableHead className="text-right">Commission Earned</TableHead>
+                                    <TableCell colSpan={columns.length} className="h-24 text-center">Loading applications...</TableCell>
                                 </TableRow>
-                            </TableHeader>
-                             <TableBody>
-                                {mockResellerStats.length > 0 ? (
-                                    mockResellerStats.map(reseller => (
-                                        <TableRow key={reseller.id}>
-                                            <TableCell><UserCell name={reseller.name} avatarUrl={reseller.avatarUrl} /></TableCell>
-                                            <TableCell className="text-center font-medium">{reseller.sales}</TableCell>
-                                            <TableCell className="text-right font-bold text-primary">${reseller.commission.toFixed(2)}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                                            No sales from resellers yet.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                            ) : table.getRowModel().rows?.length ? (
+                                table.getRowModel().rows.map((row) => (
+                                <TableRow key={row.id}>
+                                    {row.getVisibleCells().map((cell) => (
+                                    <TableCell key={cell.id}>
+                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                    </TableCell>
+                                    ))}
+                                </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                    No reseller applications found.
+                                </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
         </SellerLayout>
     );
