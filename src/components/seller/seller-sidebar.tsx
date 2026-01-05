@@ -175,7 +175,6 @@ export function SellerSidebar() {
             basePath="reseller"
             items={[
                 { href: 'rules', label: 'Commission Rules' },
-                { href: 'analytics', label: 'Reseller Analytics' },
             ]}
            />
           <SidebarMenuItem>
