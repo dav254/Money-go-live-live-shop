@@ -76,7 +76,7 @@ export function LiveActivityFeed({ liveSessionId }: LiveActivityFeedProps) {
             ))}
             </AnimatePresence>
             {(isLoading || !events || events.length === 0) && (
-                <div className="flex items-center justify-center h-full text-center text-sm text-neutral-500 pt-8">
+                <div className="flex items-center justify-center h-full text-center text-sm text-neutral-500">
                     <p>{isLoading ? "Loading activity..." : "Waiting for activity..."}</p>
                 </div>
             )}

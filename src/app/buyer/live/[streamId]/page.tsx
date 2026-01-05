@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import type { LiveSession, Product, Seller, SellerShop, UserProfile } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -12,7 +11,6 @@ import { RadioTower, AlertCircle, ShoppingCart } from 'lucide-react';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
 
 export default function BuyerLiveViewPage() {

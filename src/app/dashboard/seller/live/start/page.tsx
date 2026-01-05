@@ -131,7 +131,7 @@ export default function SellerLiveStudio() {
                             </Button>
                         )}
                         <Button variant="outline" className="w-full" asChild>
-                            <Link href="/seller/studio/recordings"><Video className="mr-2 h-4 w-4"/> My Recordings</Link>
+                            <Link href="/dashboard/seller/studio/recordings"><Video className="mr-2 h-4 w-4"/> My Recordings</Link>
                         </Button>
                     </CardContent>
                 </Card>
