@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Radio, StopCircle, Video, Loader2, Link as LinkIcon, Users, MessageSquare } from "lucide-react";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
@@ -59,7 +59,6 @@ export default function SellerLiveStudio() {
             status: 'live',
             startTime: serverTimestamp(),
         };
-        // Use setDoc with merge to ensure it overwrites any stale 'ended' session
         await setDoc(sessionRef, sessionData, { merge: true });
         setLiveSession(sessionData);
 
@@ -83,7 +82,10 @@ export default function SellerLiveStudio() {
 
     if (user && firestore && liveSession) {
         const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
-        await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
+        await updateDoc(sessionRef, {
+            status: 'ended',
+            endTime: serverTimestamp()
+        });
     }
 
     setIsLive(false);
@@ -120,16 +122,18 @@ export default function SellerLiveStudio() {
                     onGoLive={startStream} 
                     onEndLive={endStream} 
                 />
-                 <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare />Live Chat</CardTitle></CardHeader>
+            </div>
+            
+            {/* Sidebar: Products and Activity */}
+            <div className="space-y-4 lg:sticky lg:top-24">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><MessageSquare />Live Chat</CardTitle>
+                    </CardHeader>
                     <CardContent className="h-60">
                         <LiveChat streamId={liveSession?.id || null} />
                     </CardContent>
                 </Card>
-            </div>
-            
-            {/* Sidebar: Products */}
-            <div className="space-y-4 lg:sticky lg:top-24">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Users />Product Shelf</CardTitle>

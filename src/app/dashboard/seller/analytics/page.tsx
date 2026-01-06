@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -25,26 +26,25 @@ import {
   Package,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
-import { Bar, BarChart as RechartsBarChart, XAxis, YAxis } from 'recharts';
 import { DatePicker } from '@/components/dashboard/date-picker';
 import Image from 'next/image';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, orderBy } from 'firebase/firestore';
 import type { Order, Product, SellerShop } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { ChartConfig } from '@/components/ui/chart';
 
+const SalesChart = dynamic(() =>
+  import('@/components/seller/sales-chart').then((mod) => mod.SalesChart),
+  { ssr: false, loading: () => <Skeleton className="h-80 w-full" /> }
+);
 
 const chartConfig = {
   revenue: {
     label: 'Revenue',
     color: 'hsl(var(--primary))',
   },
-};
+} as ChartConfig;
 
 const StatCard = ({
   title,
@@ -226,16 +226,7 @@ export default function SellerAnalyticsPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="pl-2">
-                    {isLoading ? <Skeleton className="h-80 w-full" /> : (
-                        <ChartContainer config={chartConfig} className="h-80 w-full">
-                            <RechartsBarChart data={chartData}>
-                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}/>
-                                <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
-                                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                                <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                            </RechartsBarChart>
-                        </ChartContainer>
-                    )}
+                    <SalesChart chartData={chartData} chartConfig={chartConfig} />
                 </CardContent>
             </Card>
             <Card className="lg:col-span-3">
