@@ -174,6 +174,7 @@ export function AdminSidebar() {
           icon={Megaphone}
           basePath="marketing"
           items={[
+            { href: 'ads', label: 'Ads Manager' },
             { href: 'boosts', label: 'TikTok Boosts' },
             { href: 'banners', label: 'Promo Banners' },
             { href: 'posters', label: 'AI Poster Requests' },

@@ -29,15 +29,14 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import type { AdCampaign } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Zap, XCircle, CheckCircle } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Zap, CheckCircle, XCircle } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import type { AdCampaign } from '@/lib/types';
 
 const statusConfig = {
     active: { variant: 'default' as 'default', icon: Zap, className: 'bg-green-600/80' },
@@ -51,9 +50,14 @@ const CampaignForm = ({ campaign, onSave, onCancel }: { campaign?: AdCampaign | 
     const [sellerId, setSellerId] = React.useState(campaign?.sellerId || '');
     const [productId, setProductId] = React.useState(campaign?.productId || '');
     const [budget, setBudget] = React.useState(campaign?.budget || 0);
+    const { toast } = useToast();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!sellerId || !productId || budget <= 0) {
+            toast({ variant: 'destructive', title: 'Missing Fields', description: 'Seller ID, Product ID, and a valid budget are required.' });
+            return;
+        }
         onSave({
             id: campaign?.id,
             sellerId,
@@ -132,7 +136,7 @@ export default function AdminAdsPage() {
         header: 'Product',
         cell: ({ row }) => (
             <div className="flex items-center gap-3">
-                <Image src={row.original.productImageUrl || '/placeholder.svg'} alt={row.original.productName} width={40} height={40} className="rounded-md object-cover" />
+                <Image src={row.original.productImageUrl || 'https://picsum.photos/seed/ad-product/40'} alt={row.original.productName} width={40} height={40} className="rounded-md object-cover" />
                 <div>
                     <div className="font-medium">{row.original.productName}</div>
                     <div className="text-xs text-muted-foreground">Seller: {row.original.sellerId.substring(0, 8)}...</div>
@@ -163,12 +167,12 @@ export default function AdminAdsPage() {
     {
         accessorKey: 'clicks',
         header: 'Clicks',
-        cell: ({ row }) => row.original.clicks.toLocaleString()
+        cell: ({ row }) => (row.original.clicks || 0).toLocaleString()
     },
      {
         accessorKey: 'conversions',
         header: 'Conversions',
-        cell: ({ row }) => row.original.conversions.toLocaleString()
+        cell: ({ row }) => (row.original.conversions || 0).toLocaleString()
     },
     {
         id: 'actions',
