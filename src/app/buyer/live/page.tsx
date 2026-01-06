@@ -65,9 +65,9 @@ const LiveSessionsList = () => {
     const { user, isLoading: isUserLoading } = useUser();
 
     const liveSessionsQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null; // Wait for user to be authenticated
+        if (!firestore) return null; 
         return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-    }, [firestore, user]);
+    }, [firestore]);
 
     const { data: liveSessions, isLoading: areSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
     
