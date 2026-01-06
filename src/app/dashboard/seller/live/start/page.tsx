@@ -16,6 +16,8 @@ import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { LiveChat } from '@/components/buyer/LiveChat';
+import { StreamControls } from '@/components/studio/StreamControls';
 
 export default function SellerLiveStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -57,6 +59,7 @@ export default function SellerLiveStudio() {
             status: 'live',
             startTime: serverTimestamp(),
         };
+        // Use setDoc with merge to ensure it overwrites any stale 'ended' session
         await setDoc(sessionRef, sessionData, { merge: true });
         setLiveSession(sessionData);
 
@@ -111,30 +114,16 @@ export default function SellerLiveStudio() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Stream Controls</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col sm:flex-row gap-2">
-                        {!isLive ? (
-                            <Button className="w-full" onClick={startStream} disabled={isStarting}>
-                                {isStarting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Radio className="mr-2 h-4 w-4" />}
-                                {isStarting ? "Starting Stream..." : "Go Live"}
-                            </Button>
-                        ) : (
-                            <Button variant="destructive" className="w-full" onClick={endStream}>
-                                <StopCircle className="mr-2 h-4 w-4" /> End Live Stream
-                            </Button>
-                        )}
-                        <Button variant="outline" className="w-full" asChild>
-                            <Link href="/dashboard/seller/studio/recordings"><Video className="mr-2 h-4 w-4"/> My Recordings</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+                <StreamControls 
+                    isLive={isLive} 
+                    isStarting={isStarting} 
+                    onGoLive={startStream} 
+                    onEndLive={endStream} 
+                />
                  <Card>
                     <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare />Live Chat</CardTitle></CardHeader>
                     <CardContent className="h-60">
-                        <LiveActivityFeed liveSessionId={liveSession?.id || null} />
+                        <LiveChat streamId={liveSession?.id || null} />
                     </CardContent>
                 </Card>
             </div>
