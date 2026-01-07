@@ -30,6 +30,7 @@ import {
   Megaphone,
   Bell,
   Tag,
+  Calculator,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -210,6 +211,20 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+      </SidebarGroup>
+
+      <SidebarGroup>
+          <SidebarGroupLabel>Tools</SidebarGroupLabel>
+          <SidebarMenu>
+              <SidebarMenuItem>
+                  <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/tools/currency-converter')}>
+                      <Link href="/dashboard/seller/tools/currency-converter">
+                          <Calculator />
+                          <span>Currency Converter</span>
+                      </Link>
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
+          </SidebarMenu>
       </SidebarGroup>
       
       <SidebarGroup>
