@@ -13,6 +13,7 @@ import { ResellerSidebar } from './reseller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
 import type { UserProfile } from '@/lib/types';
+import { CurrencySelector } from '../currency-selector';
 
 interface ResellerHeaderProps {
     userProfile: UserProfile | null;
@@ -62,6 +63,9 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
         </div>
       </div>
       <div className="flex items-center gap-2">
+        <div className="hidden md:block">
+          <CurrencySelector />
+        </div>
         <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/reseller/notifications">

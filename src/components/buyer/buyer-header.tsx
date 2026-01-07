@@ -16,6 +16,7 @@ import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useUser, useUserProfile } from '@/firebase';
+import { CurrencySelector } from '../currency-selector';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -102,6 +103,9 @@ export function BuyerHeader() {
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
         </Button>
+        <div className="hidden md:block">
+          <CurrencySelector />
+        </div>
         <ThemeToggle />
         <Button variant="ghost" size="icon" className="hidden md:inline-flex relative" asChild>
           <Link href="/buyer/notifications">
