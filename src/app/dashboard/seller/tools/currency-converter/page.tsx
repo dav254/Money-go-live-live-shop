@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, AlertTriangle, BookOpen, Search, Check, ChevronsUpDown } from 'lucide-react';
+import { Calculator, AlertTriangle, BookOpen, Search, Check, ChevronsUpDown, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,7 +24,6 @@ import { useCurrency } from '@/context/currency-context';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { DollarSign } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
@@ -141,7 +140,6 @@ export default function CurrencyConverterPage() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
   const { exchangeRates, getConvertedPrice, ratesLastFetched } = useCurrency();
-  const [detectedCountry, setDetectedCountry] = React.useState({ code: 'TZ', name: 'Tanzania', currency: 'TZS' });
   const [lastUpdatedText, setLastUpdatedText] = useState('just now');
 
   const { user } = useUser();
@@ -191,15 +189,6 @@ export default function CurrencyConverterPage() {
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Global Pricing Tool
         </h1>
-        
-         <Alert className="bg-primary/10 border-primary/50">
-            <AlertTriangle className="h-4 w-4 !text-primary" />
-            <AlertTitle className="font-semibold !text-primary">Detected Country: {detectedCountry.name} {currencyInfo[detectedCountry.currency as keyof typeof currencyInfo].flag}</AlertTitle>
-            <AlertDescription>
-                Your default currency has been set to {currencyInfo[detectedCountry.currency as keyof typeof currencyInfo].name} ({detectedCountry.currency}). You can change this at any time.
-                <Button variant="link" className="p-0 ml-2 h-auto">Change</Button>
-            </AlertDescription>
-        </Alert>
         
         <Card>
           <CardHeader>
