@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, AlertTriangle, Briefcase, BookOpen, Search, Check, ChevronsUpDown } from 'lucide-react';
+import { Calculator, AlertTriangle, BookOpen, Search, Check, ChevronsUpDown, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -139,7 +139,7 @@ export default function CurrencyConverterPage() {
   const [lastUpdated, setLastUpdated] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
-  const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+  const { exchangeRates, getConvertedPrice } = useCurrency();
   const [detectedCountry, setDetectedCountry] = React.useState({ code: 'TZ', name: 'Tanzania', currency: 'TZS' });
 
   const { user } = useUser();
@@ -197,7 +197,7 @@ export default function CurrencyConverterPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <BookOpen className="text-primary" />
+                    <DollarSign className="text-primary" />
                     Check Your Product's Price
                 </div>
             </CardTitle>
@@ -286,3 +286,5 @@ export default function CurrencyConverterPage() {
     </SellerLayout>
   );
 }
+
+    
