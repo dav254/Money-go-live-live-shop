@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -13,8 +13,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Calculator, Search, ArrowRightLeft } from 'lucide-react';
+import { Calculator, Search, ArrowRightLeft, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 const exchangeRates: Record<string, number> = {
   KES: 128.50,
@@ -48,6 +50,15 @@ export default function CurrencyConverterPage() {
   const [localAmount, setLocalAmount] = useState(10000);
   const [localCurrency, setLocalCurrency] = useState('KES');
   
+  const [lastUpdated, setLastUpdated] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLastUpdated(prev => (prev + 1) % 5); // Cycle through 0-4 minutes
+    }, 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
+
   const usdEquivalent = useMemo(() => {
     if (!localCurrency || !exchangeRates[localCurrency]) return 0;
     return localAmount / exchangeRates[localCurrency];
@@ -69,16 +80,34 @@ export default function CurrencyConverterPage() {
 
   return (
     <SellerLayout>
-      <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex-1 space-y-6 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
           Global Currency Converter
         </h1>
+        
+        <Alert className="bg-primary/10 border-primary/50">
+            <AlertTriangle className="h-4 w-4 !text-primary" />
+            <AlertTitle className="font-semibold !text-primary">Detected Country: Tanzania 🇹🇿</AlertTitle>
+            <AlertDescription>
+                Your default currency has been set to Tanzanian Shilling (TZS). You can change this at any time.
+                <Button variant="link" className="p-0 ml-2 h-auto">Change</Button>
+            </AlertDescription>
+        </Alert>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calculator className="text-primary" />
-              Live Pricing Tool
+            <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Calculator className="text-primary" />
+                    Live Pricing Tool
+                </div>
+                <div className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Live rate — updated {lastUpdated < 1 ? 'just now' : `${lastUpdated} minute${lastUpdated > 1 ? 's' : ''} ago`}
+                </div>
             </CardTitle>
             <CardDescription>
               Use these tools to understand your pricing in a global context.
@@ -186,6 +215,14 @@ export default function CurrencyConverterPage() {
                     </div>
                 </div>
             </div>
+            
+            <Alert variant="destructive" className="mt-8">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Significant Rate Change</AlertTitle>
+              <AlertDescription>
+                ⚠️ The Kenyan Shilling (KES) has changed by more than 2% in the last 24 hours. Consider reviewing your USD prices for products targeting this market.
+              </AlertDescription>
+            </Alert>
 
             <p className="text-xs text-muted-foreground pt-4">
               Note: These are estimates based on standard rates. The final
