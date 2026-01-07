@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, Search, AlertTriangle, Briefcase, DollarSign, BookOpen } from 'lucide-react';
+import { Calculator, Search, AlertTriangle, Briefcase, DollarSign, BookOpen, ArrowRightLeft } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 
 const exchangeRates: Record<string, number> = {
+  USD: 1,
   KES: 128.50,
   NGN: 1480.00,
   GHS: 14.90,
@@ -35,6 +36,7 @@ const exchangeRates: Record<string, number> = {
 };
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
+    USD: { name: 'US Dollar', flag: '🇺🇸' },
     KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
     NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
     GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
@@ -48,9 +50,9 @@ const currencyInfo: Record<string, { name: string; flag: string }> = {
 
 
 export default function CurrencyConverterPage() {
-  const [amountUSD, setAmountUSD] = useState(100);
-  const [localAmount, setLocalAmount] = useState(10000);
-  const [localCurrency, setLocalCurrency] = useState('KES');
+  const [amount, setAmount] = useState(100);
+  const [fromCurrency, setFromCurrency] = useState('USD');
+  const [toCurrency, setToCurrency] = useState('KES');
   const [lastUpdated, setLastUpdated] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -89,11 +91,18 @@ export default function CurrencyConverterPage() {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
+  
+  const convertedAmount = useMemo(() => {
+    const rateFrom = exchangeRates[fromCurrency] || 1;
+    const rateTo = exchangeRates[toCurrency] || 1;
+    const amountInUSD = amount / rateFrom;
+    return (amountInUSD * rateTo).toFixed(2);
+  }, [amount, fromCurrency, toCurrency]);
 
-  const usdToLocalAmount = useMemo(() => {
-    const rate = exchangeRates[localCurrency] || 1;
-    return (localAmount / rate).toFixed(2);
-  }, [localAmount, localCurrency]);
+  const handleSwapCurrencies = () => {
+    setFromCurrency(toCurrency);
+    setToCurrency(fromCurrency);
+  }
 
   return (
     <SellerLayout>
@@ -190,92 +199,50 @@ export default function CurrencyConverterPage() {
               Check how your USD product prices convert into local currencies for your customers around the world.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-end gap-4">
               
-              {/* Left Side: Local to USD */}
-               <div className="space-y-4">
-                 <h3 className="font-semibold text-lg">Convert Local Currency to USD</h3>
-                 <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <Label htmlFor="local-amount">Amount</Label>
-                        <Input
-                            id="local-amount"
-                            type="number"
-                            value={localAmount}
-                            onChange={(e) => setLocalAmount(Number(e.target.value))}
-                            placeholder="10000"
-                        />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="local-currency">From Currency</Label>
-                        <Select value={localCurrency} onValueChange={setLocalCurrency}>
-                            <SelectTrigger id="local-currency">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Object.keys(currencyInfo).map(code => (
-                                    <SelectItem key={code} value={code}>{code}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                 </div>
-                 <div className="text-center bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Is Equal To</p>
-                    <p className="text-2xl font-bold text-primary">${usdToLocalAmount}</p>
-                    <p className="text-xs text-muted-foreground">United States Dollar (USD)</p>
-                 </div>
+              <div className="space-y-2">
+                <Label htmlFor="from-amount">Amount</Label>
+                <Input
+                  id="from-amount"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  placeholder="Enter amount"
+                />
               </div>
 
+              <div className="flex flex-col items-center gap-2">
+                <Select value={fromCurrency} onValueChange={setFromCurrency}>
+                  <SelectTrigger id="from-currency" className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(currencyInfo).map(code => (
+                      <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" onClick={handleSwapCurrencies}>
+                    <ArrowRightLeft className="h-4 w-4" />
+                </Button>
+                 <Select value={toCurrency} onValueChange={setToCurrency}>
+                  <SelectTrigger id="to-currency" className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(currencyInfo).map(code => (
+                      <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              {/* Right Side: USD to Local */}
-              <div className="space-y-4">
-                 <div className="space-y-2">
-                  <Label htmlFor="usd-amount" className="font-semibold text-lg">
-                    USD to Any Currency
-                  </Label>
-                  <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                         <Input
-                            id="usd-amount"
-                            type="number"
-                            value={amountUSD}
-                            onChange={(e) => setAmountUSD(Number(e.target.value))}
-                            className="text-lg font-bold h-12 pl-9"
-                            placeholder="100"
-                        />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Search for a currency or country..." 
-                            className="pl-9"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                    {searchQuery && filteredCurrencies.length > 0 ? (
-                        filteredCurrencies.map(([code, rate]) => {
-                            const info = currencyInfo[code as keyof typeof currencyInfo];
-                            const convertedAmount = amountUSD * rate;
-                            return (
-                                 <div key={code} className="flex flex-col items-start p-3 rounded-md bg-muted/50">
-                                    <span className="font-medium text-xs text-muted-foreground">{info.flag} {code}</span>
-                                    <span className="font-mono text-lg">{convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <div className="col-span-full text-center text-muted-foreground py-10">
-                            {searchQuery ? 'No currency found.' : 'Start typing to see conversions.'}
-                        </div>
-                    )}
+              <div className="space-y-2">
+                <Label>Converted Amount</Label>
+                <div className="h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-lg font-bold text-primary">
+                  {convertedAmount}
                 </div>
               </div>
             </div>
