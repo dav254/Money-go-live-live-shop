@@ -216,14 +216,6 @@ export default function CurrencyConverterPage() {
                 </div>
             </div>
             
-            <Alert variant="destructive" className="mt-8">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Significant Rate Change</AlertTitle>
-              <AlertDescription>
-                ⚠️ The Kenyan Shilling (KES) has changed by more than 2% in the last 24 hours. Consider reviewing your USD prices for products targeting this market.
-              </AlertDescription>
-            </Alert>
-
             <p className="text-xs text-muted-foreground pt-4">
               Note: These are estimates based on standard rates. The final
               amount charged to the customer may vary slightly based on their
