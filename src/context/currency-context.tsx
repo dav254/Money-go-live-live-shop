@@ -9,6 +9,7 @@ interface CurrencyContextType {
   setCurrency: (currency: string) => void;
   getConvertedPrice: (priceInUsd: number) => string;
   rate: number;
+  exchangeRates: Record<string, number> | null;
 }
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
@@ -69,7 +70,7 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined
 // Create the provider component
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [currency, setCurrency] = useState<string>('USD');
-  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({ USD: 1 });
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     const fetchRates = async () => {
@@ -89,7 +90,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     fetchRates();
   }, []);
 
-  const rate = exchangeRates[currency] || 1;
+  const rate = exchangeRates ? exchangeRates[currency] || 1 : 1;
 
   const getConvertedPrice = (priceInUsd: number): string => {
     const convertedAmount = priceInUsd * rate;
@@ -104,8 +105,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     currency,
     setCurrency,
     rate,
+    exchangeRates,
     getConvertedPrice,
-  }), [currency, rate, getConvertedPrice]);
+  }), [currency, rate, exchangeRates]);
 
   return (
     <CurrencyContext.Provider value={value}>

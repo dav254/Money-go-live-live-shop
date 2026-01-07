@@ -171,6 +171,7 @@ export default function CurrencyConverterPage() {
   }, []);
   
   const convertedAmount = useMemo(() => {
+    if (!exchangeRates) return '...'; // Add this check
     const rateFrom = exchangeRates[fromCurrency] || 1;
     const rateTo = exchangeRates[toCurrency] || 1;
     const amountInUSD = amount / rateFrom;
@@ -286,5 +287,3 @@ export default function CurrencyConverterPage() {
     </SellerLayout>
   );
 }
-
-    
