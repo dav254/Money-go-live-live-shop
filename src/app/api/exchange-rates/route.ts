@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import placeholderData from '@/lib/placeholder-images.json';
 
 export async function GET() {
   try {
@@ -7,32 +8,45 @@ export async function GET() {
     );
 
     if (!res.ok) {
-      throw new Error('Failed to fetch exchange rates from external provider');
+      // If the API call fails, log it but fall back to placeholder data.
+      console.error(`External exchange rate API failed with status: ${res.status}`);
+      return NextResponse.json({
+        base: 'USD',
+        rates: placeholderData.exchangeRates,
+        updated: new Date().toISOString(),
+        source: 'placeholder'
+      });
     }
 
     const data = await res.json();
 
-    // HARD validation to ensure the data structure is what we expect.
+    // Validate the live data.
     if (!data || data.success === false || !data.rates) {
-      console.error('Invalid exchange API response:', data);
-      return NextResponse.json(
-        { error: 'Invalid or failed response from exchange rate service' },
-        { status: 502 } // Bad Gateway
-      );
+      console.warn('Invalid live exchange rate data, falling back to placeholders.', data);
+      return NextResponse.json({
+        base: 'USD',
+        rates: placeholderData.exchangeRates,
+        updated: new Date().toISOString(),
+        source: 'placeholder'
+      });
     }
 
-    // Return the data in a consistent format for our client.
+    // If live data is valid, return it.
     return NextResponse.json({
       base: data.base || 'USD',
       rates: data.rates,
       updated: data.date || new Date().toISOString(),
+      source: 'live'
     });
 
   } catch (error: any) {
-    console.error('Error in /api/exchange-rates:', error.message);
-    return NextResponse.json(
-      { error: 'Unable to fetch exchange rates', details: error.message },
-      { status: 500 }
-    );
+    // If any other error occurs (e.g., network issue), fall back to placeholders.
+    console.error('Error in /api/exchange-rates, falling back to placeholders:', error.message);
+    return NextResponse.json({
+      base: 'USD',
+      rates: placeholderData.exchangeRates,
+      updated: new Date().toISOString(),
+      source: 'placeholder'
+    });
   }
 }
