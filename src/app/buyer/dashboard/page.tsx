@@ -148,7 +148,7 @@ export default function BuyerDashboardPage() {
   const { data: sellers, isLoading: isLoadingSellers } = useCollection<SellerShop>(sellerShopsQuery);
 
   return (
-    <BuyerLayout fullWidth={true}>
+    <BuyerLayout>
         <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
             <HomepageCarousel />
 
