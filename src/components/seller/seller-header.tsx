@@ -18,7 +18,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../u
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
-import { CurrencySelector } from '../currency-selector';
 
 
 export function SellerHeader() {
@@ -86,9 +85,6 @@ export function SellerHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <div className="hidden md:block">
-          <CurrencySelector />
-        </div>
         <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/seller/notifications">
