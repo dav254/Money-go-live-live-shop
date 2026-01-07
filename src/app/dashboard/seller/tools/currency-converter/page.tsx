@@ -182,6 +182,9 @@ export default function CurrencyConverterPage() {
                         ))}
                     </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground pt-2">
+                  Note: These are estimates based on standard rates. The final amount charged to the customer may vary slightly based on their bank or payment provider's exchange rates.
+                </p>
             </div>
              <div className="space-y-4">
                  <h3 className="font-semibold text-lg">Live Global Pricing</h3>
