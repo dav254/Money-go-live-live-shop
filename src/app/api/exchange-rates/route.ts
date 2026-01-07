@@ -14,7 +14,7 @@ import axios from 'axios';
  */
 export async function GET() {
   try {
-    // 1. Fetch REAL, LIVE data from the external exchange rate service.
+    // 1. Fetch REAL, LIVE data from the external exchange rate service using axios.
     const response = await axios.get(
       'https://api.exchangerate.host/latest?base=USD'
     );
