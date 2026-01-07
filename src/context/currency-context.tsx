@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useState, useContext, useMemo, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useMemo, ReactNode, useEffect } from 'react';
 
 // Define the shape of the currency context
 interface CurrencyContextType {
@@ -11,63 +11,56 @@ interface CurrencyContextType {
   rate: number;
 }
 
-const exchangeRates: Record<string, number> = {
-    // North America
-    USD: 1,
-    CAD: 1.37,
-    MXN: 17.00,
-    // Europe
-    EUR: 0.92,
-    GBP: 0.79,
-    CHF: 0.90,
-    SEK: 10.50,
-    NOK: 10.60,
-    DKK: 6.85,
-    PLN: 3.95,
-    CZK: 23.00,
-    HUF: 360.00,
-    RUB: 90.00,
-    TRY: 32.50,
-    // Asia
-    CNY: 7.25,
-    JPY: 157.00,
-    INR: 83.50,
-    KRW: 1375.00,
-    SGD: 1.35,
-    HKD: 7.80,
-    AED: 3.67,
-    SAR: 3.75,
-    QAR: 3.64,
-    IDR: 16200.00,
-    MYR: 4.70,
-    PHP: 58.70,
-    THB: 36.70,
-    VND: 25400.00,
-    // South America
-    BRL: 5.25,
-    ARS: 900.00,
-    CLP: 925.00,
-    COP: 3900.00,
-    PEN: 3.75,
-    // Africa
-    NGN: 1480.00,
-    KES: 128.50,
-    GHS: 14.90,
-    ZAR: 18.25,
-    EGP: 47.50,
-    UGX: 3750.00,
-    TZS: 2580.00,
-    ETB: 57.00,
-    RWF: 1300.00,
-    BWP: 13.50,
-    ZMW: 25.00,
-    CFA: 605.00, // West African CFA Franc
-    // Oceania
-    AUD: 1.50,
-    NZD: 1.63,
-    // Other
-    ILS: 3.70,
-    UAH: 39.50,
+const currencyInfo: Record<string, { name: string; flag: string }> = {
+    USD: { name: 'US Dollar', flag: '🇺🇸' },
+    EUR: { name: 'Euro', flag: '🇪🇺' },
+    JPY: { name: 'Japanese Yen', flag: '🇯🇵' },
+    GBP: { name: 'British Pound', flag: '🇬🇧' },
+    AUD: { name: 'Australian Dollar', flag: '🇦🇺' },
+    CAD: { name: 'Canadian Dollar', flag: '🇨🇦' },
+    CHF: { name: 'Swiss Franc', flag: '🇨🇭' },
+    CNY: { name: 'Chinese Yuan', flag: '🇨🇳' },
+    INR: { name: 'Indian Rupee', flag: '🇮🇳' },
+    BRL: { name: 'Brazilian Real', flag: '🇧🇷' },
+    RUB: { name: 'Russian Ruble', flag: '🇷🇺' },
+    ZAR: { name: 'South African Rand', flag: '🇿🇦' },
+    NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
+    KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
+    GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
+    UGX: { name: 'Ugandan Shilling', flag: '🇺🇬' },
+    TZS: { name: 'Tanzanian Shilling', flag: '🇹🇿' },
+    EGP: { name: 'Egyptian Pound', flag: '🇪🇬' },
+    AED: { name: 'UAE Dirham', flag: '🇦🇪' },
+    SAR: { name: 'Saudi Riyal', flag: '🇸🇦' },
+    QAR: { name: 'Qatari Riyal', flag: '🇶🇦' },
+    ETB: { name: 'Ethiopian Birr', flag: '🇪🇹' },
+    RWF: { name: 'Rwandan Franc', flag: '🇷🇼' },
+    BWP: { name: 'Botswana Pula', flag: '🇧🇼' },
+    ZMW: { name: 'Zambian Kwacha', flag: '🇿🇲' },
+    MXN: { name: 'Mexican Peso', flag: '🇲🇽' },
+    SGD: { name: 'Singapore Dollar', flag: '🇸🇬' },
+    HKD: { name: 'Hong Kong Dollar', flag: '🇭🇰' },
+    SEK: { name: 'Swedish Krona', flag: '🇸🇪' },
+    NOK: { name: 'Norwegian Krone', flag: '🇳🇴' },
+    DKK: { name: 'Danish Krone', flag: '🇩🇰' },
+    PLN: { name: 'Polish Złoty', flag: '🇵🇱' },
+    CZK: { name: 'Czech Koruna', flag: '🇨🇿' },
+    HUF: { name: 'Hungarian Forint', flag: '🇭🇺' },
+    TRY: { name: 'Turkish Lira', flag: '🇹🇷' },
+    KRW: { name: 'South Korean Won', flag: '🇰🇷' },
+    IDR: { name: 'Indonesian Rupiah', flag: '🇮🇩' },
+    MYR: { name: 'Malaysian Ringgit', flag: '🇲🇾' },
+    PHP: { name: 'Philippine Peso', flag: '🇵🇭' },
+    THB: { name: 'Thai Baht', flag: '🇹🇭' },
+    VND: { name: 'Vietnamese Đồng', flag: '🇻🇳' },
+    ARS: { name: 'Argentine Peso', flag: '🇦🇷' },
+    CLP: { name: 'Chilean Peso', flag: '🇨🇱' },
+    COP: { name: 'Colombian Peso', flag: '🇨🇴' },
+    PEN: { name: 'Peruvian Sol', flag: '🇵🇪' },
+    NZD: { name: 'New Zealand Dollar', flag: '🇳🇿' },
+    ILS: { name: 'Israeli New Shekel', flag: '🇮🇱' },
+    UAH: { name: 'Ukrainian Hryvnia', flag: '🇺🇦' },
+    CFA: { name: 'CFA Franc', flag: '🇨🇫' }
 };
 
 // Create the context
@@ -76,6 +69,25 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined
 // Create the provider component
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [currency, setCurrency] = useState<string>('USD');
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({ USD: 1 });
+
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const response = await fetch('/api/rates');
+        const data = await response.json();
+        if (data.result === 'success') {
+          setExchangeRates(data.conversion_rates);
+        } else {
+          console.error("Failed to fetch exchange rates:", data);
+        }
+      } catch (error) {
+        console.error("Error fetching exchange rates API:", error);
+      }
+    };
+
+    fetchRates();
+  }, []);
 
   const rate = exchangeRates[currency] || 1;
 
