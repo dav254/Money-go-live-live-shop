@@ -13,30 +13,41 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { useCurrency } from '@/context/currency-context';
 import { Calculator } from 'lucide-react';
 
 const exchangeRates = {
-  USD: 1,
   KES: 128.50,
   NGN: 1480.00,
   GHS: 14.90,
+  ZAR: 18.25,
+  UGX: 3750.00,
+  TZS: 2580.00,
+  EGP: 47.50,
+  EUR: 0.92,
+  GBP: 0.79,
 };
+
+const currencyInfo = {
+    KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
+    NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
+    GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
+    ZAR: { name: 'South African Rand', flag: '🇿🇦' },
+    UGX: { name: 'Ugandan Shilling', flag: '🇺🇬' },
+    TZS: { name: 'Tanzanian Shilling', flag: '🇹🇿' },
+    EGP: { name: 'Egyptian Pound', flag: '🇪🇬' },
+    EUR: { name: 'Euro', flag: '🇪🇺' },
+    GBP: { name: 'British Pound', flag: '🇬🇧' },
+}
+
 
 export default function CurrencyConverterPage() {
   const [amountUSD, setAmountUSD] = useState(100);
-
-  const convertedAmounts = {
-    KES: amountUSD * exchangeRates.KES,
-    NGN: amountUSD * exchangeRates.NGN,
-    GHS: amountUSD * exchangeRates.GHS,
-  };
 
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Currency Converter
+          Global Currency Converter
         </h1>
 
         <Card>
@@ -54,7 +65,7 @@ export default function CurrencyConverterPage() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="usd-amount" className="text-lg font-semibold">
-                Amount in USD
+                Enter Amount in USD ($)
               </Label>
               <Input
                 id="usd-amount"
@@ -68,46 +79,26 @@ export default function CurrencyConverterPage() {
 
             <Separator />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>🇰🇪 Kenyan Shilling (KES)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {convertedAmounts.KES.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>🇳🇬 Nigerian Naira (NGN)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {convertedAmounts.NGN.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>🇬🇭 Ghanaian Cedi (GHS)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {convertedAmounts.GHS.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(exchangeRates).map(([code, rate]) => {
+                    const info = currencyInfo[code as keyof typeof currencyInfo];
+                    const convertedAmount = amountUSD * rate;
+                    return (
+                        <Card key={code}>
+                            <CardHeader>
+                            <CardTitle className="text-base">{info.flag} {info.name} ({code})</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                            <p className="text-2xl font-bold">
+                                {convertedAmount.toLocaleString(undefined, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                                })}
+                            </p>
+                            </CardContent>
+                        </Card>
+                    )
+                })}
             </div>
             <p className="text-xs text-muted-foreground pt-4">
               Note: These are estimates based on standard rates. The final

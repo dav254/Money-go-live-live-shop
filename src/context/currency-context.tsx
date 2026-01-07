@@ -11,12 +11,18 @@ interface CurrencyContextType {
   rate: number;
 }
 
-// Mock exchange rates relative to USD
+// Mock exchange rates relative to USD - EXPANDED LIST
 const exchangeRates: { [key: string]: number } = {
-  USD: 1,
+  USD: 1,      // United States Dollar
   KES: 128.50, // Kenyan Shilling
   NGN: 1480.00, // Nigerian Naira
   GHS: 14.90,  // Ghanaian Cedi
+  ZAR: 18.25,  // South African Rand
+  UGX: 3750.00, // Ugandan Shilling
+  TZS: 2580.00, // Tanzanian Shilling
+  EGP: 47.50,  // Egyptian Pound
+  EUR: 0.92,   // Euro
+  GBP: 0.79,   // British Pound
 };
 
 // Create the context
@@ -42,7 +48,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     setCurrency,
     rate,
     getConvertedPrice,
-  }), [currency, rate]);
+  }), [currency, rate, getConvertedPrice]);
 
   return (
     <CurrencyContext.Provider value={value}>
