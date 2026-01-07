@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -11,13 +12,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Image as ImageIcon, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Loader2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { generatePoster } from '@/ai/flows/generate-poster-flow';
+import Image from 'next/image';
 
 export default function AIPosterGeneratorPage() {
   const { user } = useUser();
@@ -25,7 +27,8 @@ export default function AIPosterGeneratorPage() {
   const { toast } = useToast();
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
   const productsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -34,37 +37,40 @@ export default function AIPosterGeneratorPage() {
 
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
-  const handleSubmitRequest = async () => {
+  const selectedProduct = useMemo(() => {
+    return products?.find(p => p.id === selectedProductId);
+  }, [products, selectedProductId]);
+
+  const handleGeneratePoster = async () => {
     if (!user) {
         toast({ variant: 'destructive', title: 'You must be logged in.' });
         return;
     }
-    if (!selectedProductId || !prompt) {
+    if (!selectedProduct || !prompt) {
         toast({ variant: 'destructive', title: 'Missing fields', description: 'Please select a product and provide a prompt.' });
         return;
     }
 
-    setIsSubmitting(true);
+    setIsGenerating(true);
+    setGeneratedImageUrl(null);
+    toast({ title: 'Generating Poster...', description: 'The AI is creating your image. This might take a moment.' });
+    
     try {
-        const requestsCollectionRef = collection(firestore, 'aiPosterRequests');
-        await addDoc(requestsCollectionRef, {
+        const result = await generatePoster({
             userId: user.uid,
-            productId: selectedProductId,
+            productName: selectedProduct.name,
+            productDescription: selectedProduct.description || '',
+            productImageUrl: selectedProduct.imageUrl || '',
             prompt: prompt,
-            status: 'pending',
-            requestedAt: serverTimestamp(),
         });
-        toast({
-            title: 'Request Submitted!',
-            description: 'Your poster request has been sent to the admin for approval.'
-        });
-        setSelectedProductId(null);
-        setPrompt('');
-    } catch (error) {
-        console.error("Error submitting poster request:", error);
-        toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not submit your request.' });
+
+        setGeneratedImageUrl(result.imageUrl);
+        toast({ title: 'Poster Generated!', description: 'Your new promotional poster is ready.' });
+    } catch (error: any) {
+        console.error("Error generating poster:", error);
+        toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'Could not generate the poster.' });
     } finally {
-        setIsSubmitting(false);
+        setIsGenerating(false);
     }
   };
 
@@ -78,50 +84,60 @@ export default function AIPosterGeneratorPage() {
               <ImageIcon className="text-primary" /> AI Poster Generator
             </CardTitle>
             <CardDescription>
-              Request a unique, AI-generated promotional poster for your product. Requests will be reviewed by an admin.
+              Select a product and describe the poster you want. The AI will generate a promotional image for you.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">1. Select a Product</label>
-              <Select
-                onValueChange={setSelectedProductId}
-                value={selectedProductId || ''}
-                disabled={areProductsLoading}
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">1. Select a Product</label>
+                <Select
+                  onValueChange={setSelectedProductId}
+                  value={selectedProductId || ''}
+                  disabled={areProductsLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Select a product to feature"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">2. Describe Your Poster</label>
+                <Textarea
+                  rows={8}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Be descriptive! For example: 'A vibrant, cartoon-style poster showing the handbag on a sunny beach, with the text 'Summer Sale!' at the top. Use bright yellows and blues.'"
+                />
+              </div>
+              <Button
+                onClick={handleGeneratePoster}
+                disabled={isSubmitting || !selectedProductId || !prompt}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Select a product to feature"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {products?.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Poster (150 Points)
+              </Button>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">2. Describe Your Poster</label>
-              <Textarea
-                rows={5}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Be descriptive! For example: 'A vibrant, cartoon-style poster showing the handbag on a sunny beach, with the text 'Summer Sale!' at the top. Use bright yellows and blues.'"
-              />
+            <div className="space-y-4">
+                <Label>Generated Image</Label>
+                 <div className="aspect-square w-full bg-muted rounded-lg flex items-center justify-center border-dashed border-2">
+                    {isGenerating ? (
+                        <div className="text-center text-muted-foreground">
+                            <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                            <p className="mt-2">Generating...</p>
+                        </div>
+                    ) : generatedImageUrl ? (
+                        <Image src={generatedImageUrl} alt="Generated poster" fill className="object-contain rounded-lg" />
+                    ) : (
+                        <p className="text-muted-foreground">Your poster will appear here</p>
+                    )}
+                 </div>
             </div>
-            <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>How it Works</AlertTitle>
-                <AlertDescription>
-                    Your request will be sent to an administrator for review. Once approved, our AI will generate the image, and it will be available in your product gallery. This process may take some time.
-                </AlertDescription>
-            </Alert>
-            <Button
-              onClick={handleSubmitRequest}
-              disabled={isSubmitting || !selectedProductId || !prompt}
-            >
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-              Submit Request (150 Points)
-            </Button>
           </CardContent>
         </Card>
       </div>

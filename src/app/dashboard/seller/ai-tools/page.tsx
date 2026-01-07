@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -46,7 +47,7 @@ const tools = [
     description: 'Create a unique, AI-generated promotional poster for your product.',
     icon: ImageGeneratorIcon,
     href: '/dashboard/seller/ai-tools/poster-generator',
-    cta: 'Request Poster',
+    cta: 'Generate Poster',
     points: 150,
   },
   {
