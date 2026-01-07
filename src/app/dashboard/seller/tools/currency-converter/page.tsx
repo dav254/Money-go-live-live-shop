@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, AlertTriangle, BookOpen, Search, Check, ChevronsUpDown, DollarSign } from 'lucide-react';
+import { Calculator, AlertTriangle, BookOpen, Search, Check, ChevronsUpDown } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +24,8 @@ import { useCurrency } from '@/context/currency-context';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { DollarSign } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
     USD: { name: 'US Dollar', flag: '🇺🇸' },
@@ -136,11 +138,11 @@ export default function CurrencyConverterPage() {
   const [amount, setAmount] = useState(100);
   const [fromCurrency, setFromCurrency] = useState('USD');
   const [toCurrency, setToCurrency] = useState('KES');
-  const [lastUpdated, setLastUpdated] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
-  const { exchangeRates, getConvertedPrice } = useCurrency();
+  const { exchangeRates, getConvertedPrice, ratesLastFetched } = useCurrency();
   const [detectedCountry, setDetectedCountry] = React.useState({ code: 'TZ', name: 'Tanzania', currency: 'TZS' });
+  const [lastUpdatedText, setLastUpdatedText] = useState('just now');
 
   const { user } = useUser();
   const firestore = useFirestore();
@@ -164,14 +166,19 @@ export default function CurrencyConverterPage() {
     }, [selectedProduct]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setLastUpdated(prev => (prev + 1) % 5);
-    }, 60000);
+    const updateText = () => {
+        if (ratesLastFetched) {
+            const text = formatDistanceToNow(ratesLastFetched, { addSuffix: true });
+            setLastUpdatedText(text);
+        }
+    }
+    updateText();
+    const timer = setInterval(updateText, 60000); // Update every minute
     return () => clearInterval(timer);
-  }, []);
+  }, [ratesLastFetched]);
   
   const convertedAmount = useMemo(() => {
-    if (!exchangeRates) return '...'; // Add this check
+    if (!exchangeRates) return '...'; 
     const rateFrom = exchangeRates[fromCurrency] || 1;
     const rateTo = exchangeRates[toCurrency] || 1;
     const amountInUSD = amount / rateFrom;
@@ -198,8 +205,7 @@ export default function CurrencyConverterPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <DollarSign className="text-primary" />
-                    Check Your Product's Price
+                    <DollarSign /> Check Your Product's Price
                 </div>
             </CardTitle>
             <CardDescription>
@@ -239,7 +245,7 @@ export default function CurrencyConverterPage() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     </span>
-                    Live rate — updated {lastUpdated < 1 ? 'just now' : `${lastUpdated} minute${lastUpdated > 1 ? 's' : ''} ago`}
+                    Live rate — updated {lastUpdatedText}
                 </div>
             </CardTitle>
             <CardDescription>

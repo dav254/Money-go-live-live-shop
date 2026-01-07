@@ -10,6 +10,7 @@ interface CurrencyContextType {
   getConvertedPrice: (priceInUsd: number) => string;
   rate: number;
   exchangeRates: Record<string, number> | null;
+  ratesLastFetched: Date | null;
 }
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
@@ -71,6 +72,7 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [currency, setCurrency] = useState<string>('USD');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
+  const [ratesLastFetched, setRatesLastFetched] = useState<Date | null>(null);
 
   useEffect(() => {
     const fetchRates = async () => {
@@ -79,6 +81,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         if (data.result === 'success') {
           setExchangeRates(data.conversion_rates);
+          setRatesLastFetched(new Date());
         } else {
           console.error("Failed to fetch exchange rates:", data);
         }
@@ -107,7 +110,8 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     rate,
     exchangeRates,
     getConvertedPrice,
-  }), [currency, rate, exchangeRates]);
+    ratesLastFetched,
+  }), [currency, rate, exchangeRates, ratesLastFetched]);
 
   return (
     <CurrencyContext.Provider value={value}>
