@@ -15,57 +15,6 @@ interface CurrencyContextType {
   ratesError: boolean;
 }
 
-const currencyInfo: Record<string, { name: string; flag: string }> = {
-    USD: { name: 'US Dollar', flag: '🇺🇸' },
-    EUR: { name: 'Euro', flag: '🇪🇺' },
-    JPY: { name: 'Japanese Yen', flag: '🇯🇵' },
-    GBP: { name: 'British Pound', flag: '🇬🇧' },
-    AUD: { name: 'Australian Dollar', flag: '🇦🇺' },
-    CAD: { name: 'Canadian Dollar', flag: '🇨🇦' },
-    CHF: { name: 'Swiss Franc', flag: '🇨🇭' },
-    CNY: { name: 'Chinese Yuan', flag: '🇨🇳' },
-    INR: { name: 'Indian Rupee', flag: '🇮🇳' },
-    BRL: { name: 'Brazilian Real', flag: '🇧🇷' },
-    RUB: { name: 'Russian Ruble', flag: '🇷🇺' },
-    ZAR: { name: 'South African Rand', flag: '🇿🇦' },
-    NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
-    KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
-    GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
-    UGX: { name: 'Ugandan Shilling', flag: '🇺🇬' },
-    TZS: { name: 'Tanzanian Shilling', flag: '🇹🇿' },
-    EGP: { name: 'Egyptian Pound', flag: '🇪🇬' },
-    AED: { name: 'UAE Dirham', flag: '🇦🇪' },
-    SAR: { name: 'Saudi Riyal', flag: '🇸🇦' },
-    QAR: { name: 'Qatari Riyal', flag: '🇶🇦' },
-    ETB: { name: 'Ethiopian Birr', flag: '🇪🇹' },
-    RWF: { name: 'Rwandan Franc', flag: '🇷🇼' },
-    BWP: { name: 'Botswana Pula', flag: '🇧🇼' },
-    ZMW: { name: 'Zambian Kwacha', flag: '🇿🇲' },
-    MXN: { name: 'Mexican Peso', flag: '🇲🇽' },
-    SGD: { name: 'Singapore Dollar', flag: '🇸🇬' },
-    HKD: { name: 'Hong Kong Dollar', flag: '🇭🇰' },
-    SEK: { name: 'Swedish Krona', flag: '🇸🇪' },
-    NOK: { name: 'Norwegian Krone', flag: '🇳🇴' },
-    DKK: { name: 'Danish Krone', flag: '🇩🇰' },
-    PLN: { name: 'Polish Złoty', flag: '🇵🇱' },
-    CZK: { name: 'Czech Koruna', flag: '🇨🇿' },
-    HUF: { name: 'Hungarian Forint', flag: '🇭🇺' },
-    TRY: { name: 'Turkish Lira', flag: '🇹🇷' },
-    KRW: { name: 'South Korean Won', flag: '🇰🇷' },
-    IDR: { name: 'Indonesian Rupiah', flag: '🇮🇩' },
-    MYR: { name: 'Malaysian Ringgit', flag: '🇲🇾' },
-    PHP: { name: 'Philippine Peso', flag: '🇵🇭' },
-    THB: { name: 'Thai Baht', flag: '🇹🇭' },
-    VND: { name: 'Vietnamese Đồng', flag: '🇻🇳' },
-    ARS: { name: 'Argentine Peso', flag: '🇦🇷' },
-    CLP: { name: 'Chilean Peso', flag: '🇨🇱' },
-    COP: { name: 'Colombian Peso', flag: '🇨🇴' },
-    PEN: { name: 'Peruvian Sol', flag: '🇵🇪' },
-    NZD: { name: 'New Zealand Dollar', flag: '🇳🇿' },
-    ILS: { name: 'Israeli New Shekel', flag: '🇮🇱' },
-    UAH: { name: 'Ukrainian Hryvnia', flag: '🇺🇦' },
-};
-
 // Create the context
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
 
@@ -92,6 +41,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
           setRatesLastFetched(new Date(data.updated || Date.now()));
           setRatesError(false);
         } else {
+          // This case should ideally not be hit now that the API route has a fallback
           console.error('Malformed API payload:', data);
           throw new Error('API response did not contain valid rates.');
         }
@@ -109,7 +59,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const rate = exchangeRates && exchangeRates[currency] ? exchangeRates[currency] : 1;
+  const rate = useMemo(() => {
+    return exchangeRates && exchangeRates[currency] ? exchangeRates[currency] : 1;
+  }, [exchangeRates, currency]);
 
   const getConvertedPrice = (priceInUsd: number): string => {
     if (!exchangeRates || isLoadingRates || ratesError) return '...';
@@ -130,7 +82,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     ratesLastFetched,
     isLoadingRates,
     ratesError,
-  }), [currency, rate, exchangeRates, ratesLastFetched, isLoadingRates, ratesError]);
+  }), [currency, rate, exchangeRates, getConvertedPrice, ratesLastFetched, isLoadingRates, ratesError]);
 
   return (
     <CurrencyContext.Provider value={value}>
