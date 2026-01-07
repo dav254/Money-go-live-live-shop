@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -13,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Calculator } from 'lucide-react';
+import { Calculator, Search } from 'lucide-react';
 
 const exchangeRates = {
   KES: 128.50,
@@ -27,7 +26,7 @@ const exchangeRates = {
   GBP: 0.79,
 };
 
-const currencyInfo = {
+const currencyInfo: Record<string, { name: string; flag: string }> = {
     KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
     NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
     GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
@@ -37,11 +36,26 @@ const currencyInfo = {
     EGP: { name: 'Egyptian Pound', flag: '🇪🇬' },
     EUR: { name: 'Euro', flag: '🇪🇺' },
     GBP: { name: 'British Pound', flag: '🇬🇧' },
-}
+};
 
 
 export default function CurrencyConverterPage() {
   const [amountUSD, setAmountUSD] = useState(100);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredCurrencies = useMemo(() => {
+    if (!searchTerm) {
+      return Object.entries(exchangeRates);
+    }
+    return Object.entries(exchangeRates).filter(([code, rate]) => {
+      const info = currencyInfo[code as keyof typeof currencyInfo];
+      const searchTermLower = searchTerm.toLowerCase();
+      return (
+        code.toLowerCase().includes(searchTermLower) ||
+        info.name.toLowerCase().includes(searchTermLower)
+      );
+    });
+  }, [searchTerm]);
 
   return (
     <SellerLayout>
@@ -63,24 +77,42 @@ export default function CurrencyConverterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="usd-amount" className="text-lg font-semibold">
-                Enter Amount in USD ($)
-              </Label>
-              <Input
-                id="usd-amount"
-                type="number"
-                value={amountUSD}
-                onChange={(e) => setAmountUSD(Number(e.target.value))}
-                className="text-2xl font-bold h-14"
-                placeholder="100"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="usd-amount" className="text-lg font-semibold">
+                    Enter Amount in USD ($)
+                  </Label>
+                  <Input
+                    id="usd-amount"
+                    type="number"
+                    value={amountUSD}
+                    onChange={(e) => setAmountUSD(Number(e.target.value))}
+                    className="text-2xl font-bold h-14"
+                    placeholder="100"
+                  />
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="search-currency" className="text-lg font-semibold">
+                    Search Currency or Country
+                  </Label>
+                   <div className="relative">
+                     <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                     <Input
+                        id="search-currency"
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="text-lg h-14 pl-10"
+                        placeholder="e.g., Kenya or KES"
+                      />
+                   </div>
+                </div>
             </div>
 
             <Separator />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(exchangeRates).map(([code, rate]) => {
+                {filteredCurrencies.map(([code, rate]) => {
                     const info = currencyInfo[code as keyof typeof currencyInfo];
                     const convertedAmount = amountUSD * rate;
                     return (
@@ -99,6 +131,11 @@ export default function CurrencyConverterPage() {
                         </Card>
                     )
                 })}
+                 {filteredCurrencies.length === 0 && (
+                    <p className="text-muted-foreground col-span-full text-center py-8">
+                        No currencies found for "{searchTerm}".
+                    </p>
+                )}
             </div>
             <p className="text-xs text-muted-foreground pt-4">
               Note: These are estimates based on standard rates. The final
