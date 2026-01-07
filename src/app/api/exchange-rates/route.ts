@@ -1,28 +1,19 @@
+
 import { NextResponse } from 'next/server';
 import placeholderData from '@/lib/placeholder-images.json';
+import axios from 'axios';
 
 export async function GET() {
   try {
-    const res = await fetch(
+    const response = await axios.get(
       'https://api.exchangerate.host/latest?base=USD'
     );
 
-    if (!res.ok) {
-      // If the API call fails, log it but fall back to placeholder data.
-      console.error(`External exchange rate API failed with status: ${res.status}`);
-      return NextResponse.json({
-        base: 'USD',
-        rates: placeholderData.exchangeRates,
-        updated: new Date().toISOString(),
-        source: 'placeholder'
-      });
-    }
+    const data = response.data;
 
-    const data = await res.json();
-
-    // Validate the live data.
+    // HARD validation
     if (!data || data.success === false || !data.rates) {
-      console.warn('Invalid live exchange rate data, falling back to placeholders.', data);
+      console.error('Invalid exchange API response, falling back to placeholder:', data);
       return NextResponse.json({
         base: 'USD',
         rates: placeholderData.exchangeRates,
@@ -31,7 +22,6 @@ export async function GET() {
       });
     }
 
-    // If live data is valid, return it.
     return NextResponse.json({
       base: data.base || 'USD',
       rates: data.rates,
@@ -40,8 +30,7 @@ export async function GET() {
     });
 
   } catch (error: any) {
-    // If any other error occurs (e.g., network issue), fall back to placeholders.
-    console.error('Error in /api/exchange-rates, falling back to placeholders:', error.message);
+    console.error('Error fetching from exchangerate.host, falling back to placeholder:', error.message);
     return NextResponse.json({
       base: 'USD',
       rates: placeholderData.exchangeRates,
