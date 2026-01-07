@@ -75,7 +75,6 @@ const currencyInfo: Record<string, { name: string; flag: string }> = {
     NZD: { name: 'New Zealand Dollar', flag: '🇳🇿' },
     ILS: { name: 'Israeli New Shekel', flag: '🇮🇱' },
     UAH: { name: 'Ukrainian Hryvnia', flag: '🇺🇦' },
-    CFA: { name: 'CFA Franc', flag: '🇨🇫' }
 };
 
 const currencies = Object.keys(currencyInfo).map(code => ({
@@ -236,7 +235,7 @@ export default function CurrencyConverterPage() {
                       <span className="text-xs text-red-500">Rate service unavailable</span>
                     ) : (
                       <span className="text-xs text-green-600 flex items-center gap-1">
-                        ● Live market rates
+                        ● Live rate — updated {lastUpdatedText}
                       </span>
                     )}
                 </div>
@@ -277,7 +276,7 @@ export default function CurrencyConverterPage() {
                 <div className="text-4xl font-bold text-primary mt-2">
                   {convertedAmount}
                 </div>
-                 <p className="text-sm text-muted-foreground">{currencyInfo[toCurrency as keyof typeof currencyInfo]?.name || ''}</p>
+                 <p className="text-sm text-muted-foreground">{currencyInfo[toCurrency]?.name || ''}</p>
               </div>
             
           </CardContent>

@@ -83,16 +83,17 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       try {
         const response = await fetch('/api/exchange-rates');
         if (!response.ok) {
-          throw new Error('Failed to fetch from API route');
+          throw new Error(`Failed to fetch from API route. Status: ${response.status}`);
         }
         const data = await response.json();
 
-        if (data && data.rates) {
+        if (data?.rates && typeof data.rates === 'object') {
           setExchangeRates(data.rates);
-          setRatesLastFetched(new Date(data.updated));
+          setRatesLastFetched(new Date(data.updated || Date.now()));
           setRatesError(false);
         } else {
-          throw new Error('API response did not contain rates.');
+          console.error('Malformed API payload:', data);
+          throw new Error('API response did not contain valid rates.');
         }
       } catch (error) {
         console.error("Error fetching exchange rates:", error);
@@ -108,7 +109,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const rate = exchangeRates ? exchangeRates[currency] || 1 : 1;
+  const rate = exchangeRates && exchangeRates[currency] ? exchangeRates[currency] : 1;
 
   const getConvertedPrice = (priceInUsd: number): string => {
     if (!exchangeRates || isLoadingRates || ratesError) return '...';
