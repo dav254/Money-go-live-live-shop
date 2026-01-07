@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import {
   Card,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, AlertTriangle, Briefcase, DollarSign, BookOpen } from 'lucide-react';
+import { Calculator, AlertTriangle, Briefcase, BookOpen, Search, Check, ChevronsUpDown } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,38 +21,9 @@ import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrency } from '@/context/currency-context';
-
-
-const exchangeRates: Record<string, number> = {
-    USD: 1,
-    EUR: 0.92,
-    JPY: 157.00,
-    GBP: 0.79,
-    AUD: 1.50,
-    CAD: 1.37,
-    CHF: 0.90,
-    CNY: 7.25,
-    INR: 83.50,
-    BRL: 5.25,
-    RUB: 90.00,
-    ZAR: 18.25,
-    NGN: 1480.00,
-    KES: 128.50,
-    GHS: 14.90,
-    UGX: 3750.00,
-    TZS: 2580.00,
-    EGP: 47.50,
-    AED: 3.67,
-    SAR: 3.75,
-    QAR: 3.64,
-    ETB: 57.00,
-    RWF: 1300.00,
-    BWP: 13.50,
-    ZMW: 25.00,
-    MXN: 17.00,
-    SGD: 1.35,
-    HKD: 7.80
-};
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
     USD: { name: 'US Dollar', flag: '🇺🇸' },
@@ -83,8 +54,83 @@ const currencyInfo: Record<string, { name: string; flag: string }> = {
     MXN: { name: 'Mexican Peso', flag: '🇲🇽' },
     SGD: { name: 'Singapore Dollar', flag: '🇸🇬' },
     HKD: { name: 'Hong Kong Dollar', flag: '🇭🇰' },
+    SEK: { name: 'Swedish Krona', flag: '🇸🇪' },
+    NOK: { name: 'Norwegian Krone', flag: '🇳🇴' },
+    DKK: { name: 'Danish Krone', flag: '🇩🇰' },
+    PLN: { name: 'Polish Złoty', flag: '🇵🇱' },
+    CZK: { name: 'Czech Koruna', flag: '🇨🇿' },
+    HUF: { name: 'Hungarian Forint', flag: '🇭🇺' },
+    TRY: { name: 'Turkish Lira', flag: '🇹🇷' },
+    KRW: { name: 'South Korean Won', flag: '🇰🇷' },
+    IDR: { name: 'Indonesian Rupiah', flag: '🇮🇩' },
+    MYR: { name: 'Malaysian Ringgit', flag: '🇲🇾' },
+    PHP: { name: 'Philippine Peso', flag: '🇵🇭' },
+    THB: { name: 'Thai Baht', flag: '🇹🇭' },
+    VND: { name: 'Vietnamese Đồng', flag: '🇻🇳' },
+    ARS: { name: 'Argentine Peso', flag: '🇦🇷' },
+    CLP: { name: 'Chilean Peso', flag: '🇨🇱' },
+    COP: { name: 'Colombian Peso', flag: '🇨🇴' },
+    PEN: { name: 'Peruvian Sol', flag: '🇵🇪' },
+    NZD: { name: 'New Zealand Dollar', flag: '🇳🇿' },
+    ILS: { name: 'Israeli New Shekel', flag: '🇮🇱' },
+    UAH: { name: 'Ukrainian Hryvnia', flag: '🇺🇦' },
+    CFA: { name: 'CFA Franc', flag: '🇨🇫' }
 };
 
+const currencies = Object.keys(currencyInfo).map(code => ({
+    value: code,
+    label: `${currencyInfo[code].flag} ${code} - ${currencyInfo[code].name}`
+}));
+
+const CurrencyCombobox = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+    const [open, setOpen] = React.useState(false);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between"
+                >
+                    {value
+                        ? currencies.find((currency) => currency.value === value)?.label
+                        : "Select currency..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                    <CommandInput placeholder="Search currency..." />
+                    <CommandList>
+                        <CommandEmpty>No currency found.</CommandEmpty>
+                        <CommandGroup>
+                            {currencies.map((currency) => (
+                                <CommandItem
+                                    key={currency.value}
+                                    value={currency.value}
+                                    onSelect={(currentValue) => {
+                                        onChange(currentValue.toUpperCase());
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            value === currency.value ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {currency.label}
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+};
 
 export default function CurrencyConverterPage() {
   const [amount, setAmount] = useState(100);
@@ -92,6 +138,9 @@ export default function CurrencyConverterPage() {
   const [toCurrency, setToCurrency] = useState('KES');
   const [lastUpdated, setLastUpdated] = useState(0);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  
+  const [exchangeRates, setExchangeRates] = React.useState<Record<string, number>>({});
+  const [detectedCountry, setDetectedCountry] = React.useState({ code: 'TZ', name: 'Tanzania', currency: 'TZS' });
 
   const { user } = useUser();
   const firestore = useFirestore();
@@ -107,6 +156,13 @@ export default function CurrencyConverterPage() {
       return products?.find(p => p.id === selectedProductId);
   }, [products, selectedProductId]);
   
+    useEffect(() => {
+        if(selectedProduct) {
+            setAmount(selectedProduct.price);
+            setFromCurrency('USD');
+        }
+    }, [selectedProduct]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setLastUpdated(prev => (prev + 1) % 5);
@@ -119,7 +175,7 @@ export default function CurrencyConverterPage() {
     const rateTo = exchangeRates[toCurrency] || 1;
     const amountInUSD = amount / rateFrom;
     return (amountInUSD * rateTo).toFixed(2);
-  }, [amount, fromCurrency, toCurrency]);
+  }, [amount, fromCurrency, toCurrency, exchangeRates]);
 
   return (
     <SellerLayout>
@@ -128,11 +184,11 @@ export default function CurrencyConverterPage() {
           Global Pricing Tool
         </h1>
         
-        <Alert className="bg-primary/10 border-primary/50">
+         <Alert className="bg-primary/10 border-primary/50">
             <AlertTriangle className="h-4 w-4 !text-primary" />
-            <AlertTitle className="font-semibold !text-primary">Detected Country: Tanzania 🇹🇿</AlertTitle>
+            <AlertTitle className="font-semibold !text-primary">Detected Country: {detectedCountry.name} {currencyInfo[detectedCountry.currency as keyof typeof currencyInfo].flag}</AlertTitle>
             <AlertDescription>
-                Your default currency has been set to Tanzanian Shilling (TZS). You can change this at any time.
+                Your default currency has been set to {currencyInfo[detectedCountry.currency as keyof typeof currencyInfo].name} ({detectedCountry.currency}). You can change this at any time.
                 <Button variant="link" className="p-0 ml-2 h-auto">Change</Button>
             </AlertDescription>
         </Alert>
@@ -162,7 +218,7 @@ export default function CurrencyConverterPage() {
                         ))}
                     </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground pt-2">
+                 <p className="text-xs text-muted-foreground pt-2">
                   Note: These are estimates based on standard rates. The final amount charged to the customer may vary slightly based on their bank or payment provider's exchange rates.
                 </p>
             </div>
@@ -206,29 +262,11 @@ export default function CurrencyConverterPage() {
                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>From</Label>
-                        <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                        <SelectTrigger id="from-currency">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.keys(currencyInfo).map(code => (
-                            <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
-                            ))}
-                        </SelectContent>
-                        </Select>
+                        <CurrencyCombobox value={fromCurrency} onChange={setFromCurrency} />
                     </div>
                      <div className="space-y-2">
                         <Label>To</Label>
-                        <Select value={toCurrency} onValueChange={setToCurrency}>
-                        <SelectTrigger id="to-currency">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.keys(currencyInfo).map(code => (
-                            <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
-                            ))}
-                        </SelectContent>
-                        </Select>
+                        <CurrencyCombobox value={toCurrency} onChange={setToCurrency} />
                     </div>
                </div>
 
@@ -239,18 +277,12 @@ export default function CurrencyConverterPage() {
                 <div className="text-4xl font-bold text-primary mt-2">
                   {convertedAmount}
                 </div>
-                 <p className="text-sm text-muted-foreground">{currencyInfo[toCurrency as keyof typeof currencyInfo].name}</p>
+                 <p className="text-sm text-muted-foreground">{currencyInfo[toCurrency as keyof typeof currencyInfo]?.name || ''}</p>
               </div>
             
-            <p className="text-xs text-muted-foreground pt-4 text-center">
-              Note: These are estimates based on standard rates. The final
-              amount charged to the customer may vary slightly based on their
-              bank or payment provider's exchange rates.
-            </p>
           </CardContent>
         </Card>
       </div>
     </SellerLayout>
   );
 }
-
