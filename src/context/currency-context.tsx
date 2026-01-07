@@ -88,7 +88,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
         }
         const data = await response.json();
 
-        if (data.rates) {
+        if (data) {
           setExchangeRates(data.rates);
           setRatesLastFetched(new Date());
           setRatesError(false);
