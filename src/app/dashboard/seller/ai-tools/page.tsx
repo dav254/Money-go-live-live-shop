@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -13,6 +14,7 @@ import { useUser, useUserProfile } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const tools = [
   {
@@ -71,6 +73,7 @@ const tools = [
     href: "/dashboard/seller/ai-tools/video-enhancer",
     cta: "Enhance Video",
     points: 250,
+    isComingSoon: true,
   },
   {
     title: 'AI Caption Generator',
@@ -240,6 +243,7 @@ export default function SellerAIToolsPage() {
                                 <CardTitle className="flex items-center gap-3">
                                     <tool.icon className="h-6 w-6 text-primary" />
                                     <span>{tool.title}</span>
+                                    {tool.isComingSoon && <Badge variant="outline">Coming Soon</Badge>}
                                 </CardTitle>
                                 <CardDescription>{tool.description}</CardDescription>
                             </CardHeader>
@@ -247,7 +251,7 @@ export default function SellerAIToolsPage() {
                                 <div className="text-center font-bold text-lg my-2">
                                     {tool.points} Points
                                 </div>
-                                 <Button className="w-full" asChild>
+                                 <Button className="w-full" asChild disabled={tool.isComingSoon}>
                                     <Link href={tool.href} className="flex items-center">
                                         {tool.cta}
                                     </Link>
