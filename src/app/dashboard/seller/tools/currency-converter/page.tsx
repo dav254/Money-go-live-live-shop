@@ -23,29 +23,65 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 
 const exchangeRates: Record<string, number> = {
-  USD: 1,
-  KES: 128.50,
-  NGN: 1480.00,
-  GHS: 14.90,
-  ZAR: 18.25,
-  UGX: 3750.00,
-  TZS: 2580.00,
-  EGP: 47.50,
-  EUR: 0.92,
-  GBP: 0.79,
+    USD: 1,
+    EUR: 0.92,
+    JPY: 157.00,
+    GBP: 0.79,
+    AUD: 1.50,
+    CAD: 1.37,
+    CHF: 0.90,
+    CNY: 7.25,
+    INR: 83.50,
+    BRL: 5.25,
+    RUB: 90.00,
+    ZAR: 18.25,
+    NGN: 1480.00,
+    KES: 128.50,
+    GHS: 14.90,
+    UGX: 3750.00,
+    TZS: 2580.00,
+    EGP: 47.50,
+    AED: 3.67,
+    SAR: 3.75,
+    QAR: 3.64,
+    ETB: 57.00,
+    RWF: 1300.00,
+    BWP: 13.50,
+    ZMW: 25.00,
+    MXN: 17.00,
+    SGD: 1.35,
+    HKD: 7.80
 };
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
     USD: { name: 'US Dollar', flag: '🇺🇸' },
-    KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
-    NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
-    GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
+    EUR: { name: 'Euro', flag: '🇪🇺' },
+    JPY: { name: 'Japanese Yen', flag: '🇯🇵' },
+    GBP: { name: 'British Pound', flag: '🇬🇧' },
+    AUD: { name: 'Australian Dollar', flag: '🇦🇺' },
+    CAD: { name: 'Canadian Dollar', flag: '🇨🇦' },
+    CHF: { name: 'Swiss Franc', flag: '🇨🇭' },
+    CNY: { name: 'Chinese Yuan', flag: '🇨🇳' },
+    INR: { name: 'Indian Rupee', flag: '🇮🇳' },
+    BRL: { name: 'Brazilian Real', flag: '🇧🇷' },
+    RUB: { name: 'Russian Ruble', flag: '🇷🇺' },
     ZAR: { name: 'South African Rand', flag: '🇿🇦' },
+    NGN: { name: 'Nigerian Naira', flag: '🇳🇬' },
+    KES: { name: 'Kenyan Shilling', flag: '🇰🇪' },
+    GHS: { name: 'Ghanaian Cedi', flag: '🇬🇭' },
     UGX: { name: 'Ugandan Shilling', flag: '🇺🇬' },
     TZS: { name: 'Tanzanian Shilling', flag: '🇹🇿' },
     EGP: { name: 'Egyptian Pound', flag: '🇪🇬' },
-    EUR: { name: 'Euro', flag: '🇪🇺' },
-    GBP: { name: 'British Pound', flag: '🇬🇧' },
+    AED: { name: 'UAE Dirham', flag: '🇦🇪' },
+    SAR: { name: 'Saudi Riyal', flag: '🇸🇦' },
+    QAR: { name: 'Qatari Riyal', flag: '🇶🇦' },
+    ETB: { name: 'Ethiopian Birr', flag: '🇪🇹' },
+    RWF: { name: 'Rwandan Franc', flag: '🇷🇼' },
+    BWP: { name: 'Botswana Pula', flag: '🇧🇼' },
+    ZMW: { name: 'Zambian Kwacha', flag: '🇿🇲' },
+    MXN: { name: 'Mexican Peso', flag: '🇲🇽' },
+    SGD: { name: 'Singapore Dollar', flag: '🇸🇬' },
+    HKD: { name: 'Hong Kong Dollar', flag: '🇭🇰' },
 };
 
 
@@ -200,7 +236,7 @@ export default function CurrencyConverterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-end gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
               
               <div className="space-y-2">
                 <Label htmlFor="from-amount">Amount</Label>
@@ -213,9 +249,10 @@ export default function CurrencyConverterPage() {
                 />
               </div>
 
-              <div className="flex flex-col items-center gap-2">
+               <div className="space-y-2">
+                 <Label>From</Label>
                 <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                  <SelectTrigger id="from-currency" className="w-[150px]">
+                  <SelectTrigger id="from-currency">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -224,11 +261,12 @@ export default function CurrencyConverterPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="ghost" size="icon" onClick={handleSwapCurrencies}>
-                    <ArrowRightLeft className="h-4 w-4" />
-                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>To</Label>
                  <Select value={toCurrency} onValueChange={setToCurrency}>
-                  <SelectTrigger id="to-currency" className="w-[150px]">
+                  <SelectTrigger id="to-currency">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -239,15 +277,17 @@ export default function CurrencyConverterPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
+            </div>
+
+             <div className="pt-6 text-center">
                 <Label>Converted Amount</Label>
-                <div className="h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-lg font-bold text-primary">
+                <div className="text-4xl font-bold text-primary mt-2">
                   {convertedAmount}
                 </div>
+                 <p className="text-sm text-muted-foreground">{currencyInfo[toCurrency as keyof typeof currencyInfo].name}</p>
               </div>
-            </div>
             
-            <p className="text-xs text-muted-foreground pt-4">
+            <p className="text-xs text-muted-foreground pt-4 text-center">
               Note: These are estimates based on standard rates. The final
               amount charged to the customer may vary slightly based on their
               bank or payment provider's exchange rates.
@@ -258,4 +298,3 @@ export default function CurrencyConverterPage() {
     </SellerLayout>
   );
 }
-

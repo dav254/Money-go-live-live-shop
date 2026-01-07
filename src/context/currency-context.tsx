@@ -11,18 +11,35 @@ interface CurrencyContextType {
   rate: number;
 }
 
-// Mock exchange rates relative to USD - EXPANDED LIST
-const exchangeRates: { [key: string]: number } = {
-  USD: 1,      // United States Dollar
-  KES: 128.50, // Kenyan Shilling
-  NGN: 1480.00, // Nigerian Naira
-  GHS: 14.90,  // Ghanaian Cedi
-  ZAR: 18.25,  // South African Rand
-  UGX: 3750.00, // Ugandan Shilling
-  TZS: 2580.00, // Tanzanian Shilling
-  EGP: 47.50,  // Egyptian Pound
-  EUR: 0.92,   // Euro
-  GBP: 0.79,   // British Pound
+const exchangeRates: Record<string, number> = {
+    USD: 1,
+    EUR: 0.92,
+    JPY: 157.00,
+    GBP: 0.79,
+    AUD: 1.50,
+    CAD: 1.37,
+    CHF: 0.90,
+    CNY: 7.25,
+    INR: 83.50,
+    BRL: 5.25,
+    RUB: 90.00,
+    ZAR: 18.25,
+    NGN: 1480.00,
+    KES: 128.50,
+    GHS: 14.90,
+    UGX: 3750.00,
+    TZS: 2580.00,
+    EGP: 47.50,
+    AED: 3.67,
+    SAR: 3.75,
+    QAR: 3.64,
+    ETB: 57.00,
+    RWF: 1300.00,
+    BWP: 13.50,
+    ZMW: 25.00,
+    MXN: 17.00,
+    SGD: 1.35,
+    HKD: 7.80
 };
 
 // Create the context
