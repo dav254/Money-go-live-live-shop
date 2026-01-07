@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -6,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, ExternalLink, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon } from 'lucide-react';
+import { Bot, Film, Sparkles, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -44,7 +43,7 @@ const tools = [
   },
   {
     title: 'AI Poster Generator',
-    description: 'Request a unique, AI-generated promotional poster for your product, approved by admin.',
+    description: 'Create a unique, AI-generated promotional poster for your product.',
     icon: ImageGeneratorIcon,
     href: '/dashboard/seller/ai-tools/poster-generator',
     cta: 'Request Poster',
@@ -73,7 +72,6 @@ const tools = [
     href: "/dashboard/seller/ai-tools/video-enhancer",
     cta: "Enhance Video",
     points: 250,
-    isComingSoon: true,
   },
   {
     title: 'AI Caption Generator',
@@ -243,7 +241,6 @@ export default function SellerAIToolsPage() {
                                 <CardTitle className="flex items-center gap-3">
                                     <tool.icon className="h-6 w-6 text-primary" />
                                     <span>{tool.title}</span>
-                                    {tool.isComingSoon && <Badge variant="outline">Coming Soon</Badge>}
                                 </CardTitle>
                                 <CardDescription>{tool.description}</CardDescription>
                             </CardHeader>
@@ -251,7 +248,7 @@ export default function SellerAIToolsPage() {
                                 <div className="text-center font-bold text-lg my-2">
                                     {tool.points} Points
                                 </div>
-                                 <Button className="w-full" asChild disabled={tool.isComingSoon}>
+                                 <Button className="w-full" asChild>
                                     <Link href={tool.href} className="flex items-center">
                                         {tool.cta}
                                     </Link>
