@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calculator, Search, AlertTriangle, Briefcase, DollarSign, BookOpen, ArrowRightLeft } from 'lucide-react';
+import { Calculator, AlertTriangle, Briefcase, DollarSign, BookOpen } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -91,7 +91,6 @@ export default function CurrencyConverterPage() {
   const [fromCurrency, setFromCurrency] = useState('USD');
   const [toCurrency, setToCurrency] = useState('KES');
   const [lastUpdated, setLastUpdated] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const { user } = useUser();
@@ -107,20 +106,6 @@ export default function CurrencyConverterPage() {
   const selectedProduct = useMemo(() => {
       return products?.find(p => p.id === selectedProductId);
   }, [products, selectedProductId]);
-
-  const filteredCurrencies = useMemo(() => {
-    if (!searchQuery) {
-      return [];
-    }
-    return Object.entries(exchangeRates).filter(([code, rate]) => {
-        const info = currencyInfo[code as keyof typeof currencyInfo];
-        const searchText = searchQuery.toLowerCase();
-        return (
-            code.toLowerCase().includes(searchText) ||
-            info.name.toLowerCase().includes(searchText)
-        );
-    });
-  }, [searchQuery]);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -135,11 +120,6 @@ export default function CurrencyConverterPage() {
     const amountInUSD = amount / rateFrom;
     return (amountInUSD * rateTo).toFixed(2);
   }, [amount, fromCurrency, toCurrency]);
-
-  const handleSwapCurrencies = () => {
-    setFromCurrency(toCurrency);
-    setToCurrency(fromCurrency);
-  }
 
   return (
     <SellerLayout>
@@ -169,9 +149,9 @@ export default function CurrencyConverterPage() {
               Select one of your products to see its price automatically converted into other major currencies.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <CardContent>
              <div className="space-y-2">
-                <Label htmlFor="product-select" className="font-semibold text-lg">Select a Product</Label>
+                <Label htmlFor="product-select">Select a Product</Label>
                  <Select onValueChange={setSelectedProductId} disabled={areProductsLoading}>
                     <SelectTrigger id="product-select">
                         <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Select a product to see its pricing"} />
@@ -186,36 +166,6 @@ export default function CurrencyConverterPage() {
                   Note: These are estimates based on standard rates. The final amount charged to the customer may vary slightly based on their bank or payment provider's exchange rates.
                 </p>
             </div>
-             <div className="space-y-4">
-                 <h3 className="font-semibold text-lg">Live Global Pricing</h3>
-                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Search for a currency or country..." 
-                        className="pl-9"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                 </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                    {searchQuery && selectedProduct && filteredCurrencies.length > 0 ? (
-                        filteredCurrencies.map(([code, rate]) => {
-                            const info = currencyInfo[code as keyof typeof currencyInfo];
-                            const convertedAmount = selectedProduct.price * rate;
-                            return (
-                                <div key={code} className="flex flex-col items-start p-3 rounded-md bg-muted/50">
-                                    <span className="font-medium text-xs text-muted-foreground">{info.flag} {code}</span>
-                                    <span className="font-mono text-lg">{convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <div className="col-span-full text-center text-muted-foreground py-10">
-                            {searchQuery ? 'No currency found.' : 'Select a product and start typing to see conversions.'}
-                        </div>
-                    )}
-                </div>
-              </div>
           </CardContent>
         </Card>
 
@@ -240,7 +190,7 @@ export default function CurrencyConverterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
               
               <div className="space-y-2">
                 <Label htmlFor="from-amount">Amount</Label>
@@ -253,33 +203,34 @@ export default function CurrencyConverterPage() {
                 />
               </div>
 
-               <div className="space-y-2">
-                 <Label>From</Label>
-                <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                  <SelectTrigger id="from-currency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(currencyInfo).map(code => (
-                      <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>To</Label>
-                 <Select value={toCurrency} onValueChange={setToCurrency}>
-                  <SelectTrigger id="to-currency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(currencyInfo).map(code => (
-                      <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+               <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>From</Label>
+                        <Select value={fromCurrency} onValueChange={setFromCurrency}>
+                        <SelectTrigger id="from-currency">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Object.keys(currencyInfo).map(code => (
+                            <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="space-y-2">
+                        <Label>To</Label>
+                        <Select value={toCurrency} onValueChange={setToCurrency}>
+                        <SelectTrigger id="to-currency">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Object.keys(currencyInfo).map(code => (
+                            <SelectItem key={code} value={code}>{currencyInfo[code as keyof typeof currencyInfo].flag} {code}</SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
+               </div>
 
             </div>
 
@@ -302,3 +253,4 @@ export default function CurrencyConverterPage() {
     </SellerLayout>
   );
 }
+
