@@ -69,4 +69,3 @@ export async function GET() {
     conversion_rates: mockApiRates,
   });
 }
-
