@@ -19,7 +19,8 @@ export const homepageSlides = [
         description: 'Discover the latest trends and vibrant styles to refresh your summer wardrobe. Limited time offers available now!',
         imageUrl: 'https://picsum.photos/seed/slide1/1600/700',
         imageHint: 'summer fashion collection',
-        href: '/categories/fashion'
+        href: '/categories/fashion',
+        order: 1,
     },
     {
         id: 'slide-2',
@@ -27,7 +28,8 @@ export const homepageSlides = [
         description: 'Upgrade your gear with our exclusive discounts on the latest smartphones, headphones, and accessories.',
         imageUrl: 'https://picsum.photos/seed/slide2/1600/700',
         imageHint: 'tech gadgets sale',
-        href: '/categories/electronics'
+        href: '/categories/electronics',
+        order: 2,
     },
     {
         id: 'slide-3',
@@ -35,7 +37,8 @@ export const homepageSlides = [
         description: 'Transform your space with our curated collection of home decor, kitchenware, and more.',
         imageUrl: 'https://picsum.photos/seed/slide3/1600/700',
         imageHint: 'modern living room',
-        href: '/categories/home'
+        href: '/categories/home',
+        order: 3,
     }
 ];
 
@@ -256,3 +259,5 @@ export const storyHighlights: StoryHighlight[] = [
     { id: 'sh-4', title: 'Flash Deals', imageUrl: 'https://picsum.photos/seed/story4/200/200' },
     { id: 'sh-5', title: 'Re-stocked', imageUrl: 'https://picsum.photos/seed/story5/200/200' },
 ];
+
+    

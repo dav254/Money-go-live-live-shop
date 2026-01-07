@@ -20,6 +20,7 @@ import { collection, query, limit, orderBy, where } from 'firebase/firestore';
 import type { Product, SellerShop, HomepageSlide } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
+import { homepageSlides } from '@/lib/placeholder-data';
 
 const shortcuts = [
   {
@@ -43,19 +44,10 @@ const shortcuts = [
 ];
 
 const HomepageCarousel = () => {
-    const firestore = useFirestore();
-    const slidesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, 'homepageSlides'), orderBy('order'));
-    }, [firestore]);
-    const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
-
-    if (isLoading) {
-        return <Skeleton className="w-full aspect-video md:aspect-[16/7] rounded-lg" />;
-    }
+    const slides = homepageSlides;
 
     if (!slides || slides.length === 0) {
-        return null; // Don't render the carousel if there are no slides
+        return <Skeleton className="w-full aspect-video md:aspect-[16/7] rounded-lg" />;
     }
 
     return (
@@ -274,3 +266,5 @@ export default function BuyerDashboardPage() {
     </BuyerLayout>
   );
 }
+
+    
