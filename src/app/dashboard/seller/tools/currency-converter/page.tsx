@@ -179,7 +179,13 @@ export default function CurrencyConverterPage() {
     const rateFrom = exchangeRates[fromCurrency] || 1;
     const rateTo = exchangeRates[toCurrency] || 1;
     const amountInUSD = amount / rateFrom;
-    return (amountInUSD * rateTo).toFixed(2);
+    const finalAmount = amountInUSD * rateTo;
+
+    return new Intl.NumberFormat('en-US', {
+        style: 'decimal',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(finalAmount);
   }, [amount, fromCurrency, toCurrency, exchangeRates, isLoadingRates, ratesError]);
 
   return (
@@ -285,3 +291,5 @@ export default function CurrencyConverterPage() {
     </SellerLayout>
   );
 }
+
+    
