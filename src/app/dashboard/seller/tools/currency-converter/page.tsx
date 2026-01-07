@@ -20,6 +20,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCurrency } from '@/context/currency-context';
 
 
 const exchangeRates: Record<string, number> = {
