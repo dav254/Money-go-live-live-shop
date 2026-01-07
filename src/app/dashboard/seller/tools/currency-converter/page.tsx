@@ -12,15 +12,9 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Calculator, Search, ArrowRightLeft, AlertTriangle } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calculator, Search, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const exchangeRates: Record<string, number> = {
   KES: 128.50,
@@ -50,27 +44,21 @@ const currencyInfo: Record<string, { name: string; flag: string }> = {
 export default function CurrencyConverterPage() {
   const [amountUSD, setAmountUSD] = useState(100);
   const [lastUpdated, setLastUpdated] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const { user } = useUser();
-  const firestore = useFirestore();
-
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-
-  const productsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-  }, [user, firestore]);
-
-  const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-
-  const selectedProduct = useMemo(() => {
-    if (!selectedProductId || !products) return null;
-    return products.find(p => p.id === selectedProductId);
-  }, [selectedProductId, products]);
-
-  const displayAmountUSD = useMemo(() => {
-    return selectedProduct ? selectedProduct.price : amountUSD;
-  }, [selectedProduct, amountUSD]);
+  const filteredCurrencies = useMemo(() => {
+    if (!searchQuery) {
+      return []; // Return empty if no search query
+    }
+    return Object.entries(exchangeRates).filter(([code, rate]) => {
+        const info = currencyInfo[code as keyof typeof currencyInfo];
+        const searchText = searchQuery.toLowerCase();
+        return (
+            code.toLowerCase().includes(searchText) ||
+            info.name.toLowerCase().includes(searchText)
+        );
+    });
+  }, [searchQuery]);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -117,56 +105,57 @@ export default function CurrencyConverterPage() {
           <CardContent className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
               
-              {/* Product Selector */}
+              {/* Input Section */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Check Your Product's Price</h3>
-                <div className="space-y-2">
-                  <Label>Select a product to see its global pricing</Label>
-                  {areProductsLoading ? <Skeleton className="h-10 w-full" /> : (
-                    <Select onValueChange={setSelectedProductId} value={selectedProductId || ""}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select one of your products..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {products?.map(p => (
-                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="usd-amount">
-                    Or Enter a Custom Amount in USD ($)
+                 <div className="space-y-2">
+                  <Label htmlFor="usd-amount" className="font-semibold text-lg">
+                    1. Enter Amount in USD ($)
                   </Label>
                   <Input
                     id="usd-amount"
                     type="number"
-                    value={selectedProduct ? selectedProduct.price : amountUSD}
-                    onChange={(e) => {
-                      setAmountUSD(Number(e.target.value));
-                      setSelectedProductId(null); // Clear product selection when typing custom amount
-                    }}
+                    value={amountUSD}
+                    onChange={(e) => setAmountUSD(Number(e.target.value))}
                     className="text-2xl font-bold h-14"
                     placeholder="100"
                   />
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="currency-search" className="font-semibold text-lg">2. Search for a Currency or Country</Label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            id="currency-search"
+                            placeholder="e.g., 'Kenya' or 'KES'" 
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
                 </div>
               </div>
 
               {/* Conversion Results */}
               <div className="space-y-4">
-                 <h3 className="font-semibold text-lg">Global Conversions</h3>
-                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2">
-                    {Object.entries(exchangeRates).map(([code, rate]) => {
-                        const info = currencyInfo[code as keyof typeof currencyInfo];
-                        const convertedAmount = displayAmountUSD * rate;
-                        return (
-                             <div key={code} className="flex flex-col items-start p-3 rounded-md bg-muted/50">
-                                <span className="font-medium text-xs text-muted-foreground">{info.flag} {code}</span>
-                                <span className="font-mono text-lg">{convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </div>
-                        )
-                    })}
+                 <h3 className="font-semibold text-lg">Conversion Results</h3>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                    {searchQuery && filteredCurrencies.length > 0 ? (
+                        filteredCurrencies.map(([code, rate]) => {
+                            const info = currencyInfo[code as keyof typeof currencyInfo];
+                            const convertedAmount = amountUSD * rate;
+                            return (
+                                 <div key={code} className="flex flex-col items-start p-3 rounded-md bg-muted/50">
+                                    <span className="font-medium text-xs text-muted-foreground">{info.flag} {code}</span>
+                                    <span className="font-mono text-lg">{convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            )
+                        })
+                    ) : (
+                        <div className="col-span-full text-center text-muted-foreground py-10">
+                            {searchQuery ? 'No currency found.' : 'Start typing to see conversions.'}
+                        </div>
+                    )}
                 </div>
               </div>
             </div>
