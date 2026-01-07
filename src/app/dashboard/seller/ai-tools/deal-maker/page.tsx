@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -12,6 +13,7 @@ import { Handshake, Zap, Box, Tag, Loader2, Sparkles } from 'lucide-react';
 import { generateDealSuggestion, GenerateDealSuggestionOutput } from '@/ai/flows/generate-deal-suggestion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useCurrency } from '@/context/currency-context';
 
 const DealCard = ({ title, icon: Icon, children }: { title: string, icon: React.ElementType, children: React.ReactNode }) => (
     <Card className="bg-card/50">
@@ -39,6 +41,7 @@ export default function AIDealMakerPage() {
     const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [deal, setDeal] = useState<GenerateDealSuggestionOutput | null>(null);
+    const { getConvertedPrice } = useCurrency();
 
     const productsQuery = useMemoFirebase(() => {
         if (!user) return null;
@@ -111,14 +114,14 @@ export default function AIDealMakerPage() {
                 {deal && (
                     <div className="grid md:grid-cols-3 gap-6">
                         <DealCard title="Flash Sale" icon={Zap}>
-                            <p className="font-bold text-2xl text-foreground">${deal.flashSale.newPrice}</p>
-                            <p className="text-muted-foreground line-through">Was ${deal.flashSale.originalPrice}</p>
+                            <p className="font-bold text-2xl text-foreground">{getConvertedPrice(deal.flashSale.newPrice)}</p>
+                            <p className="text-muted-foreground line-through">Was {getConvertedPrice(deal.flashSale.originalPrice)}</p>
                             <p className="mt-2"><strong className="text-foreground">Reason:</strong> {deal.flashSale.reason}</p>
                         </DealCard>
                          <DealCard title="Smart Bundle" icon={Box}>
                             <p className="font-bold text-lg text-foreground">Bundle with:</p>
                             <p>{deal.smartBundle.bundleWith}</p>
-                            <p className="font-bold text-2xl text-foreground mt-2">${deal.smartBundle.bundlePrice}</p>
+                            <p className="font-bold text-2xl text-foreground mt-2">{getConvertedPrice(deal.smartBundle.bundlePrice)}</p>
                             <p className="mt-2"><strong className="text-foreground">Reason:</strong> {deal.smartBundle.reason}</p>
                         </DealCard>
                          <DealCard title="Tiered Offer" icon={Tag}>
