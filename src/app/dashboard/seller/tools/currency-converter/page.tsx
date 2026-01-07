@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -44,8 +45,9 @@ export default function CurrencyConverterPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredCurrencies = useMemo(() => {
+    // Only return results if there is a search term
     if (!searchTerm) {
-      return Object.entries(exchangeRates);
+      return [];
     }
     return Object.entries(exchangeRates).filter(([code, rate]) => {
       const info = currencyInfo[code as keyof typeof currencyInfo];
@@ -112,28 +114,33 @@ export default function CurrencyConverterPage() {
             <Separator />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredCurrencies.map(([code, rate]) => {
-                    const info = currencyInfo[code as keyof typeof currencyInfo];
-                    const convertedAmount = amountUSD * rate;
-                    return (
-                        <Card key={code}>
-                            <CardHeader>
-                            <CardTitle className="text-base">{info.flag} {info.name} ({code})</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                            <p className="text-2xl font-bold">
-                                {convertedAmount.toLocaleString(undefined, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                                })}
-                            </p>
-                            </CardContent>
-                        </Card>
-                    )
-                })}
-                 {filteredCurrencies.length === 0 && (
-                    <p className="text-muted-foreground col-span-full text-center py-8">
+                {searchTerm && filteredCurrencies.length > 0 ? (
+                    filteredCurrencies.map(([code, rate]) => {
+                        const info = currencyInfo[code as keyof typeof currencyInfo];
+                        const convertedAmount = amountUSD * rate;
+                        return (
+                            <Card key={code}>
+                                <CardHeader>
+                                <CardTitle className="text-base">{info.flag} {info.name} ({code})</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                <p className="text-2xl font-bold">
+                                    {convertedAmount.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                    })}
+                                </p>
+                                </CardContent>
+                            </Card>
+                        )
+                    })
+                ) : searchTerm ? (
+                     <p className="text-muted-foreground col-span-full text-center py-8">
                         No currencies found for "{searchTerm}".
+                    </p>
+                ) : (
+                     <p className="text-muted-foreground col-span-full text-center py-8">
+                        Start typing to search for a currency.
                     </p>
                 )}
             </div>
