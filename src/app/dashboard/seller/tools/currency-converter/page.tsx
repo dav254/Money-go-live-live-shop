@@ -139,9 +139,18 @@ export default function CurrencyConverterPage() {
             </div>
              <div className="space-y-4">
                  <h3 className="font-semibold text-lg">Live Global Pricing</h3>
+                 <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search for a currency or country..." 
+                        className="pl-9"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                 </div>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                    {selectedProduct ? (
-                        Object.entries(exchangeRates).map(([code, rate]) => {
+                    {searchQuery && selectedProduct && filteredCurrencies.length > 0 ? (
+                        filteredCurrencies.map(([code, rate]) => {
                             const info = currencyInfo[code as keyof typeof currencyInfo];
                             const convertedAmount = selectedProduct.price * rate;
                             return (
@@ -153,7 +162,7 @@ export default function CurrencyConverterPage() {
                         })
                     ) : (
                         <div className="col-span-full text-center text-muted-foreground py-10">
-                            Select a product to see its pricing here.
+                            {searchQuery ? 'No currency found.' : 'Select a product and start typing to see conversions.'}
                         </div>
                     )}
                 </div>
@@ -186,7 +195,7 @@ export default function CurrencyConverterPage() {
               
               {/* Left Side: Local to USD */}
                <div className="space-y-4">
-                 <h3 className="font-semibold text-lg">1. Convert Local Currency to USD</h3>
+                 <h3 className="font-semibold text-lg">Convert Local Currency to USD</h3>
                  <div className="grid grid-cols-2 gap-4">
                      <div className="space-y-2">
                         <Label htmlFor="local-amount">Amount</Label>
@@ -224,7 +233,7 @@ export default function CurrencyConverterPage() {
               <div className="space-y-4">
                  <div className="space-y-2">
                   <Label htmlFor="usd-amount" className="font-semibold text-lg">
-                    2. USD to Any Currency
+                    USD to Any Currency
                   </Label>
                   <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
