@@ -11,6 +11,8 @@ interface CurrencyContextType {
   rate: number;
   exchangeRates: Record<string, number> | null;
   ratesLastFetched: Date | null;
+  isLoadingRates: boolean;
+  ratesError: boolean;
 }
 
 const currencyInfo: Record<string, { name: string; flag: string }> = {
@@ -73,29 +75,44 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [currency, setCurrency] = useState<string>('USD');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number> | null>(null);
   const [ratesLastFetched, setRatesLastFetched] = useState<Date | null>(null);
+  const [isLoadingRates, setIsLoadingRates] = useState(true);
+  const [ratesError, setRatesError] = useState(false);
+
 
   useEffect(() => {
     const fetchRates = async () => {
       try {
-        const response = await fetch('/api/rates');
+        const response = await fetch('/api/exchange-rates');
+        if (!response.ok) {
+          throw new Error('Failed to fetch from API route');
+        }
         const data = await response.json();
-        if (data.result === 'success') {
-          setExchangeRates(data.conversion_rates);
+
+        if (data.rates) {
+          setExchangeRates(data.rates);
           setRatesLastFetched(new Date());
+          setRatesError(false);
         } else {
-          console.error("Failed to fetch exchange rates:", data);
+          throw new Error('API response did not contain rates.');
         }
       } catch (error) {
-        console.error("Error fetching exchange rates API:", error);
+        console.error("Error fetching exchange rates:", error);
+        setRatesError(true);
+      } finally {
+        setIsLoadingRates(false);
       }
     };
 
     fetchRates();
+    // Refresh every 10 minutes
+    const interval = setInterval(fetchRates, 10 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const rate = exchangeRates ? exchangeRates[currency] || 1 : 1;
 
   const getConvertedPrice = (priceInUsd: number): string => {
+    if (!exchangeRates) return '...';
     const convertedAmount = priceInUsd * rate;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -111,7 +128,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     exchangeRates,
     getConvertedPrice,
     ratesLastFetched,
-  }), [currency, rate, exchangeRates, ratesLastFetched]);
+    isLoadingRates,
+    ratesError,
+  }), [currency, rate, exchangeRates, ratesLastFetched, isLoadingRates, ratesError]);
 
   return (
     <CurrencyContext.Provider value={value}>

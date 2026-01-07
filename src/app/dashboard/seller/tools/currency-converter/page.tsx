@@ -139,7 +139,7 @@ export default function CurrencyConverterPage() {
   const [toCurrency, setToCurrency] = useState('KES');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
-  const { exchangeRates, getConvertedPrice, ratesLastFetched } = useCurrency();
+  const { exchangeRates, getConvertedPrice, ratesLastFetched, isLoadingRates, ratesError } = useCurrency();
   const [lastUpdatedText, setLastUpdatedText] = useState('just now');
 
   const { user } = useUser();
@@ -176,12 +176,12 @@ export default function CurrencyConverterPage() {
   }, [ratesLastFetched]);
   
   const convertedAmount = useMemo(() => {
-    if (!exchangeRates) return '...'; 
+    if (!exchangeRates || isLoadingRates || ratesError) return '...'; 
     const rateFrom = exchangeRates[fromCurrency] || 1;
     const rateTo = exchangeRates[toCurrency] || 1;
     const amountInUSD = amount / rateFrom;
     return (amountInUSD * rateTo).toFixed(2);
-  }, [amount, fromCurrency, toCurrency, exchangeRates]);
+  }, [amount, fromCurrency, toCurrency, exchangeRates, isLoadingRates, ratesError]);
 
   return (
     <SellerLayout>
@@ -230,11 +230,15 @@ export default function CurrencyConverterPage() {
                     Manual Pricing Tool
                 </div>
                 <div className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    Live rate — updated {lastUpdatedText}
+                    {isLoadingRates ? (
+                      <span className="text-xs text-muted-foreground">Fetching live rates…</span>
+                    ) : ratesError ? (
+                      <span className="text-xs text-red-500">Rate service unavailable</span>
+                    ) : (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        ● Live market rates
+                      </span>
+                    )}
                 </div>
             </CardTitle>
             <CardDescription>
