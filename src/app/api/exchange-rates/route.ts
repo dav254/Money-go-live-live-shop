@@ -12,14 +12,17 @@ export async function GET() {
 
     const data = await res.json();
 
+    // The error was that the provider was expecting the rates object directly.
+    // This now returns the full expected payload.
     return NextResponse.json({
       base: data.base,
       rates: data.rates,
       updated: data.date,
     });
   } catch (error) {
+    console.error("Error in /api/exchange-rates:", error);
     return NextResponse.json(
-      { error: 'Unable to fetch exchange rates' },
+      { error: 'Unable to fetch exchange rates from the external provider.' },
       { status: 500 }
     );
   }

@@ -64,7 +64,6 @@ const currencyInfo: Record<string, { name: string; flag: string }> = {
     NZD: { name: 'New Zealand Dollar', flag: '🇳🇿' },
     ILS: { name: 'Israeli New Shekel', flag: '🇮🇱' },
     UAH: { name: 'Ukrainian Hryvnia', flag: '🇺🇦' },
-    CFA: { name: 'CFA Franc', flag: '🇨🇫' }
 };
 
 // Create the context
@@ -112,7 +111,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const rate = exchangeRates ? exchangeRates[currency] || 1 : 1;
 
   const getConvertedPrice = (priceInUsd: number): string => {
-    if (!exchangeRates) return '...';
+    if (!exchangeRates || isLoadingRates || ratesError) return '...';
     const convertedAmount = priceInUsd * rate;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
