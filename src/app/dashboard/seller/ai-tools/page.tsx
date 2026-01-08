@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -42,14 +41,6 @@ const tools = [
     cta: 'Coming Soon',
     points: 100,
     isComingSoon: true,
-  },
-  {
-    title: 'AI Poster Generator',
-    description: 'Create a unique, AI-generated promotional poster for your product.',
-    icon: ImageGeneratorIcon,
-    href: '/dashboard/seller/ai-tools/poster-generator',
-    cta: 'Generate Poster',
-    points: 150,
   },
   {
     title: 'Image-to-Video Generator',
