@@ -68,14 +68,6 @@ const tools = [
     points: 250,
   },
   {
-    title: "AI Video Enhancer",
-    description: "Add music, text, and effects to make your product videos pop.",
-    icon: Film,
-    href: "/dashboard/seller/ai-tools/video-enhancer",
-    cta: "Enhance Video",
-    points: 250,
-  },
-  {
     title: 'AI Caption Generator',
     description: 'Generate viral captions for TikTok, Instagram, and Facebook to boost engagement.',
     icon: Bot,
