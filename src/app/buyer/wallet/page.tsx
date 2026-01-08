@@ -38,6 +38,7 @@ import type { PaymentMethod, Payment } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { formatDistanceToNow } from 'date-fns';
 
 const paypalFormSchema = z.object({
   email: z.string().email("Please enter a valid PayPal email address."),
@@ -282,7 +283,7 @@ export default function BuyerPaymentsPage() {
                         ) : transactions && transactions.length > 0 ? (
                             transactions.map((tx) => (
                                 <TableRow key={tx.id}>
-                                    <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate().toLocaleDateString()}</TableCell>
+                                    <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate() ? formatDistanceToNow(tx.paymentDate.toDate(), { addSuffix: true }) : 'N/A'}</TableCell>
                                     <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
                                     <TableCell className="font-medium">
                                         {tx.orderId ? `Order #${tx.orderId.substring(0, 8)}...` : 'AI Points Purchase'}
@@ -300,12 +301,6 @@ export default function BuyerPaymentsPage() {
                 </Table>
             </CardContent>
             <CardFooter className="flex-wrap gap-2">
-                 <Dialog>
-                    <DialogTrigger asChild>
-                         <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Download Report</Button>
-                    </DialogTrigger>
-                    {/* Add DownloadReportDialog component here later */}
-                </Dialog>
                  <Button variant="link" className="ml-auto" asChild>
                     <Link href="/buyer/wallet/all-transactions">View all transactions</Link>
                  </Button>

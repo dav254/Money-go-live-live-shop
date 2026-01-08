@@ -17,10 +17,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, limit, orderBy, where } from 'firebase/firestore';
-import type { Product, SellerShop, HomepageSlide } from '@/lib/types';
+import type { Product, SellerShop, HomepageSlide, LiveSession } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
-import { homepageSlides } from '@/lib/placeholder-data';
 
 const shortcuts = [
   {
@@ -44,9 +43,14 @@ const shortcuts = [
 ];
 
 const HomepageCarousel = () => {
-    const slides = homepageSlides;
+    const firestore = useFirestore();
+    const slidesQuery = useMemoFirebase(() => {
+        return query(collection(firestore, 'homepageSlides'), orderBy('order'));
+    }, [firestore]);
 
-    if (!slides || slides.length === 0) {
+    const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
+
+    if (isLoading || !slides || slides.length === 0) {
         return <Skeleton className="w-full aspect-video md:aspect-[16/7] rounded-lg" />;
     }
 
@@ -119,25 +123,23 @@ export default function BuyerDashboardPage() {
 
   const dealsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Simple query: get recent products with a discount
     return query(collection(firestore, 'products'), where('wasPrice', '>', 0), limit(10));
   }, [firestore]);
 
   const recommendedQuery = useMemoFirebase(() => {
     if (!firestore || !lastViewedCategory) return null;
-    // Smarter query: get products from the same category as the last viewed item.
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
   }, [firestore, lastViewedCategory]);
 
 
-  const sellerShopsQuery = useMemoFirebase(() => {
+  const liveSellersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'sellerShops'), limit(4));
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'), limit(4));
   }, [firestore]);
 
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
-  const { data: sellers, isLoading: isLoadingSellers } = useCollection<SellerShop>(sellerShopsQuery);
+  const { data: liveSellers, isLoading: isLoadingSellers } = useCollection<LiveSession>(liveSellersQuery);
 
   return (
     <BuyerLayout>
@@ -202,12 +204,12 @@ export default function BuyerDashboardPage() {
             </h2>
             {isLoadingSellers ? <SellerCarouselSkeleton /> : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {sellers?.map((seller) => (
-                    <Link href={`/sellers/${seller.id}`} key={seller.id}>
+                    {liveSellers?.map((seller) => (
+                    <Link href={`/sellers/${seller.sellerId}`} key={seller.id}>
                         <Card className="group relative h-40 overflow-hidden">
                         <Image
-                            src={seller.bannerUrl || `https://picsum.photos/seed/${seller.id}/600/400`}
-                            alt={seller.shopName}
+                            src={`https://picsum.photos/seed/${seller.sellerId}/600/400`}
+                            alt={seller.title}
                             fill
                             sizes="(max-width: 768px) 50vw, 25vw"
                             className="object-cover transition-transform group-hover:scale-105"
@@ -216,7 +218,7 @@ export default function BuyerDashboardPage() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                         <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
                             <CardTitle className="font-headline text-lg text-white">
-                            {seller.shopName}
+                            {seller.title}
                             </CardTitle>
                         </CardHeader>
                         </Card>
@@ -266,5 +268,3 @@ export default function BuyerDashboardPage() {
     </BuyerLayout>
   );
 }
-
-    
