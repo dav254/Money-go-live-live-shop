@@ -3,9 +3,9 @@
 
 import * as React from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, collectionGroup } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, collectionGroup, onSnapshot, doc } from 'firebase/firestore';
+import type { Product, WishlistItem } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -18,11 +18,6 @@ import {
 import Image from 'next/image';
 import { Heart, Eye, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
-
-interface WishlistItem {
-  productId: string;
-  userId: string;
-}
 
 const ProductDetails = ({ productId }: { productId: string }) => {
     const firestore = useFirestore();
@@ -42,7 +37,7 @@ const ProductDetails = ({ productId }: { productId: string }) => {
 
     return (
         <Link href={`/products/${product.id}`} className="flex items-center gap-3 group">
-            <Image src={product.imageUrl} alt={product.name || ''} width={40} height={40} className="rounded-md object-cover" />
+            <Image src={product.imageUrl || 'https://picsum.photos/seed/placeholder-product/40/40'} alt={product.name || 'product'} width={40} height={40} className="rounded-md object-cover" />
             <span className="font-medium group-hover:text-primary">{product.name}</span>
         </Link>
     );
