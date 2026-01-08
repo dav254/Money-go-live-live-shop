@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview An AI flow to generate a new image from an existing image and a prompt,
+ * @fileOverview An AI flow to generate a new image from a text prompt,
  * upload it to Cloudinary, and save the URL to the product.
  *
  * - generateVideoFromImage - Generates a new image, uploads it, and updates Firestore.
@@ -35,9 +35,9 @@ const GenerateVideoFromImageOutputSchema = z.object({
 });
 export type GenerateVideoFromImageOutput = z.infer<typeof GenerateVideoFromImageOutputSchema>;
 
-async function uploadToCloudinary(videoDataUri: string, productId: string): Promise<string> {
-    const uploadResponse = await cloudinary.uploader.upload(videoDataUri, {
-      resource_type: 'image', // Changed from 'video' to 'image'
+async function uploadToCloudinary(imageDataUri: string, productId: string): Promise<string> {
+    const uploadResponse = await cloudinary.uploader.upload(imageDataUri, {
+      resource_type: 'image',
       public_id: `products/${productId}/image_${Date.now()}`,
     });
     if (!uploadResponse || !uploadResponse.secure_url) {
@@ -48,16 +48,10 @@ async function uploadToCloudinary(videoDataUri: string, productId: string): Prom
 
 
 export async function generateVideoFromImage(input: GenerateVideoFromImageInput): Promise<GenerateVideoFromImageOutput> {
-  // 1. Generate new image using Gemini Flash
+  // 1. Generate new image using Imagen 4 from a text prompt
   const { media } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash-image-preview'),
-    prompt: [
-      { media: { url: input.imageDataUri } },
-      { text: input.prompt },
-    ],
-    config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-    }
+    model: googleAI.model('imagen-4.0-fast-generate-001'),
+    prompt: input.prompt,
   });
 
   if (!media?.url) {
@@ -80,3 +74,4 @@ export async function generateVideoFromImage(input: GenerateVideoFromImageInput)
   // The output key is still 'videoUrl' to avoid breaking the frontend component expecting this key.
   return { videoUrl: permanentImageUrl };
 }
+
