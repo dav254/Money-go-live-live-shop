@@ -31,6 +31,7 @@ import {
   Bell,
   Tag,
   Calculator,
+  Heart, // Added Heart icon here
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
