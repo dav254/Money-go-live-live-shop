@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, ReactNode, useEffect } from 'react';
+import { useState, useMemo, ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -45,6 +44,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter } from '@/firebase';
+import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -82,7 +83,9 @@ const cardFormSchema = z.object({
 });
 
 
-const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: PaymentMethod) => void }) => {
+const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
+    const { user } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
@@ -95,22 +98,32 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: Pay
         resolver: zodResolver(cardFormSchema),
         defaultValues: { cardNumber: '', expiry: '', cvc: '' },
     });
-
+    
     const handleSaveMethod = async (type: 'paypal' | 'card', values: any) => {
+        if (!user || !firestore) return;
         setIsSaving(true);
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
         
-        let newMethod: PaymentMethod;
+        const payoutMethodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+
+        let newMethodData;
         if (type === 'paypal') {
-            newMethod = { id: `pm_${Date.now()}`, type: 'paypal', details: values.email };
+            newMethodData = { type: 'paypal', details: values.email, providerToken: `paypal_${values.email}` };
         } else {
-            newMethod = { id: `pm_${Date.now()}`, type: 'card', details: `Visa **** ${values.cardNumber.slice(-4)}` };
+            // In a real app, you would tokenize the card with a payment provider like Paystack.
+            // For now, we'll just store a masked version.
+            newMethodData = { type: 'card', details: `Visa **** ${values.cardNumber.slice(-4)}`, providerToken: `card_${Date.now()}` };
         }
-        
-        onMethodAdded(newMethod);
-        toast({ title: "Success", description: `Your ${type} method has been saved.` });
-        setIsSaving(false);
+
+        try {
+            await addDoc(payoutMethodsRef, newMethodData);
+            toast({ title: "Success", description: `Your ${type} method has been saved.` });
+            onMethodAdded();
+        } catch (error) {
+            console.error(`Error saving ${type} method:`, error);
+            toast({ variant: 'destructive', title: "Error", description: `Could not save your ${type} method.` });
+        } finally {
+            setIsSaving(false);
+        }
     };
     
     return (
@@ -140,11 +153,12 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: Pay
                             </div>
                              <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button type="submit" className="w-full" disabled={isSaving}>
-                                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Save Card
-                                    </Button>
+                                    <Button type="button" variant="ghost">Cancel</Button>
                                 </DialogClose>
+                                <Button type="submit" className="w-full" disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Card
+                                </Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -157,11 +171,12 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: Pay
                             )} />
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button type="submit" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" disabled={isSaving}>
-                                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                                        Save PayPal
-                                    </Button>
+                                    <Button type="button" variant="ghost">Cancel</Button>
                                 </DialogClose>
+                                <Button type="submit" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" disabled={isSaving}>
+                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                    Save PayPal
+                                </Button>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -175,35 +190,39 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: Pay
 export default function BuyerPaymentsPage() {
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+
+    const paymentMethodsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
+    }, [firestore, user]);
+
+    const { data: paymentMethods, isLoading: areMethodsLoading } = useCollection<PaymentMethod>(paymentMethodsQuery);
     
-    const mockPaymentMethods: PaymentMethod[] = [
-        { id: 'pm_1', type: 'card', details: 'Visa **** 4242' },
-        { id: 'pm_2', type: 'paypal', details: 'buyer@example.com' },
-    ];
-    
+    // Mocking transactions for now, as this section's backend is not requested yet.
     const mockTransactions: Payment[] = [
         { id: 'pay_1', amount: 45.50, paymentDate: new Date(), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_123', transactionId: 'txn_1' },
         { id: 'pay_2', amount: 10.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 2)), paymentMethod: 'paypal', paymentStatus: 'completed', transactionType: 'points-purchase', userId: 'user_1', transactionId: 'txn_2' },
         { id: 'pay_3', amount: 120.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 5)), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_456', transactionId: 'txn_3' },
     ];
-
-    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(mockPaymentMethods);
     const [transactions, setTransactions] = useState<Payment[]>(mockTransactions);
-    const [isLoading, setIsLoading] = useState(true);
+    const isLoading = isUserLoading || areMethodsLoading;
 
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 1000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    const handleAddMethod = (newMethod: PaymentMethod) => {
-        setPaymentMethods(prev => [...prev, newMethod]);
-        setIsAddMethodOpen(false);
+    const handleAddMethod = () => {
+        setIsAddMethodOpen(false); // The form will close itself upon success.
     };
 
     const handleDeleteMethod = async (methodId: string) => {
-        setPaymentMethods(prev => prev.filter(pm => pm.id !== methodId));
-        toast({ title: 'Success', description: 'Payment method has been removed.' });
+        if (!user || !firestore) return;
+        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
+        try {
+            await deleteDoc(methodRef);
+            toast({ title: 'Success', description: 'Payment method has been removed.' });
+        } catch(error) {
+            console.error('Error deleting payment method:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not remove payment method.' });
+        }
     };
 
   return (
