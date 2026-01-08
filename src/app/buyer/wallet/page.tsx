@@ -32,12 +32,21 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc, query, where, orderBy, limit } from 'firebase/firestore';
 import type { PaymentMethod, Payment } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+
+const mockPaymentMethods: PaymentMethod[] = [
+    { id: 'pm_1', type: 'card', details: 'Visa **** 4242' },
+    { id: 'pm_2', type: 'paypal', details: 'buyer@example.com' },
+];
+
+const mockTransactions: Payment[] = [
+    { id: 'pay_1', amount: 45.50, paymentDate: new Date(), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_123', transactionId: 'txn_1' },
+    { id: 'pay_2', amount: 10.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 2)), paymentMethod: 'paypal', paymentStatus: 'completed', transactionType: 'points-purchase', userId: 'user_1', transactionId: 'txn_2' },
+    { id: 'pay_3', amount: 120.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 5)), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_456', transactionId: 'txn_3' },
+];
 
 const paypalFormSchema = z.object({
   email: z.string().email("Please enter a valid PayPal email address."),
@@ -50,15 +59,13 @@ const cardFormSchema = z.object({
 });
 
 
-const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }) => {
-    const { user } = useUser();
-    const firestore = useFirestore();
+const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: PaymentMethod) => void }) => {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
     const paypalForm = useForm<z.infer<typeof paypalFormSchema>>({
         resolver: zodResolver(paypalFormSchema),
-        defaultValues: { email: user?.email || '' },
+        defaultValues: { email: '' },
     });
 
     const cardForm = useForm<z.infer<typeof cardFormSchema>>({
@@ -67,31 +74,20 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
     });
 
     const handleSaveMethod = async (type: 'paypal' | 'card', values: any) => {
-        if (!user || !firestore) {
-            toast({ variant: 'destructive', title: "Not logged in" });
-            return;
-        };
-
         setIsSaving(true);
-        try {
-            const methodsRef = collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-            let data: Omit<PaymentMethod, 'id'>;
-
-            if (type === 'paypal') {
-                data = { type: 'paypal', details: values.email };
-            } else {
-                data = { type: 'card', details: `Visa **** ${values.cardNumber.slice(-4)}` };
-            }
-
-            await addDoc(methodsRef, data);
-            toast({ title: "Success", description: `Your ${type} method has been saved.` });
-            onMethodAdded();
-        } catch (error) {
-            console.error("Error saving payment method:", error);
-            toast({ variant: 'destructive', title: "Save Failed", description: "Could not save payment method." });
-        } finally {
-            setIsSaving(false);
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        let newMethod: PaymentMethod;
+        if (type === 'paypal') {
+            newMethod = { id: `pm_${Date.now()}`, type: 'paypal', details: values.email };
+        } else {
+            newMethod = { id: `pm_${Date.now()}`, type: 'card', details: `Visa **** ${values.cardNumber.slice(-4)}` };
         }
+        
+        onMethodAdded(newMethod);
+        toast({ title: "Success", description: `Your ${type} method has been saved.` });
+        setIsSaving(false);
     };
     
     return (
@@ -156,35 +152,23 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
 export default function BuyerPaymentsPage() {
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(mockPaymentMethods);
+    const [transactions, setTransactions] = useState<Payment[]>(mockTransactions);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const paymentMethodsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return collection(firestore, 'userProfiles', user.uid, 'paymentMethods');
-    }, [firestore, user]);
-    
-    const transactionsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(collection(firestore, 'payments'), where('userId', '==', user.uid), orderBy('paymentDate', 'desc'), limit(5));
-    }, [firestore, user]);
+    useEffect(() => {
+        const timer = setTimeout(() => setIsLoading(false), 1000);
+        return () => clearTimeout(timer);
+    }, []);
 
-
-    const { data: paymentMethods, isLoading: isLoadingMethods } = useCollection<PaymentMethod>(paymentMethodsQuery);
-    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
-    
-    const isLoading = isUserLoading || isLoadingMethods || isLoadingTransactions;
+    const handleAddMethod = (newMethod: PaymentMethod) => {
+        setPaymentMethods(prev => [...prev, newMethod]);
+        setIsAddMethodOpen(false);
+    };
 
     const handleDeleteMethod = async (methodId: string) => {
-        if (!user || !firestore) return;
-        const methodRef = doc(firestore, 'userProfiles', user.uid, 'paymentMethods', methodId);
-        try {
-            await deleteDoc(methodRef);
-            toast({ title: 'Success', description: 'Payment method has been removed.' });
-        } catch (error) {
-            console.error("Error deleting payment method:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not remove payment method.' });
-        }
+        setPaymentMethods(prev => prev.filter(pm => pm.id !== methodId));
+        toast({ title: 'Success', description: 'Payment method has been removed.' });
     };
 
   return (
@@ -197,7 +181,7 @@ export default function BuyerPaymentsPage() {
                 <CardDescription>Manage your saved payment options for faster checkout.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {isLoadingMethods ? (
+                {isLoading ? (
                     <div className="space-y-4">
                         <Skeleton className="h-16 w-full" />
                         <Skeleton className="h-16 w-full" />
@@ -255,7 +239,7 @@ export default function BuyerPaymentsPage() {
                             Add New Method
                         </Button>
                     </DialogTrigger>
-                   <AddPaymentMethodDialog onMethodAdded={() => setIsAddMethodOpen(false)} />
+                   <AddPaymentMethodDialog onMethodAdded={handleAddMethod} />
                 </Dialog>
             </CardContent>
         </Card>
@@ -277,7 +261,7 @@ export default function BuyerPaymentsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoadingTransactions ? (
+                        {isLoading ? (
                              [...Array(3)].map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell colSpan={5}><Skeleton className="h-6 w-full" /></TableCell>
@@ -286,7 +270,7 @@ export default function BuyerPaymentsPage() {
                         ) : transactions && transactions.length > 0 ? (
                             transactions.map((tx) => (
                                 <TableRow key={tx.id}>
-                                    <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate() ? formatDistanceToNow(tx.paymentDate.toDate(), { addSuffix: true }) : 'N/A'}</TableCell>
+                                    <TableCell className="text-muted-foreground">{tx.paymentDate ? formatDistanceToNow(new Date(tx.paymentDate), { addSuffix: true }) : 'N/A'}</TableCell>
                                     <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
                                     <TableCell className="font-medium">
                                         {tx.orderId ? `Order #${tx.orderId.substring(0, 8)}...` : 'AI Points Purchase'}
