@@ -177,7 +177,6 @@ export function AdminSidebar() {
             { href: 'ads', label: 'Ads Manager' },
             { href: 'boosts', label: 'TikTok Boosts' },
             { href: 'banners', label: 'Promo Banners' },
-            { href: 'posters', label: 'AI Poster Requests' },
             { href: 'sliders', label: 'Homepage Sliders' },
             { href: 'notifications', label: 'Notification Center' },
           ]}
