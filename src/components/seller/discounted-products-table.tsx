@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -31,6 +32,8 @@ import { Badge } from '@/components/ui/badge';
 import type { Product } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ProductUploadForm } from './product-upload-form';
 
 
 type ProductRow = Product;
@@ -38,6 +41,8 @@ type ProductRow = Product;
 export function DiscountedProductsTable() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | undefined>(undefined);
 
   const productsQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -49,6 +54,11 @@ export function DiscountedProductsTable() {
   const discountedProducts = React.useMemo(() => {
     return productsData?.filter(p => p.wasPrice != null && p.wasPrice > p.price) || [];
   }, [productsData]);
+  
+  const handleEditOpen = React.useCallback((product: Product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  }, []);
 
   const columns: ColumnDef<ProductRow>[] = React.useMemo(() => [
     {
@@ -132,12 +142,12 @@ export function DiscountedProductsTable() {
       cell: ({ row }) => {
         return (
           <div className="text-right">
-              <Button variant="outline">Edit Discount</Button>
+              <Button variant="outline" onClick={() => handleEditOpen(row.original)}>Edit Discount</Button>
           </div>
         );
       },
     },
-  ], []);
+  ], [handleEditOpen]);
 
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -235,6 +245,17 @@ export function DiscountedProductsTable() {
           </Button>
         </div>
       </div>
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-3xl">
+            <DialogHeader>
+                <DialogTitle>Edit Product Discount</DialogTitle>
+            </DialogHeader>
+            <ProductUploadForm 
+                productToEdit={selectedProduct} 
+                onFormSubmit={() => setIsEditDialogOpen(false)} 
+            />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
