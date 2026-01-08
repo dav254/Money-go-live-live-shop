@@ -269,9 +269,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            {/* Left Column */}
-            <div className="space-y-6 lg:col-span-2">
+          <CardContent className="space-y-8">
+            {/* Main Info */}
+            <div className="space-y-6">
               <FormField
                 control={form.control}
                 name="productName"
@@ -298,159 +298,137 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   </FormItem>
                 )}
               />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Media Uploads</CardTitle>
-                   <CardDescription>Add up to 5 images and videos.</CardDescription>
-                </CardHeader>
-                 <CardContent>
-                   <div className="space-y-2">
-                      <Label htmlFor="file-upload" className="sr-only">Product Images & Videos</Label>
-                      <input
-                          id="file-upload"
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          accept="image/*,video/*"
-                          className="hidden"
-                          onChange={handleFileChange}
-                          disabled={isUploading || allMediaCount >= 5}
-                      />
-                      <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full border-dashed"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading || allMediaCount >= 5}
-                      >
-                          <UploadCloud className="mr-2 h-4 w-4" />
-                          {isUploading ? 'Uploading...' : `Select Files (${5 - allMediaCount} remaining)`}
-                      </Button>
-                  </div>
-                   {(files.length > 0 || existingImageUrls.length > 0 || existingVideoUrls.length > 0) && (
-                      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4">
-                           {existingImageUrls.map((url) => (
-                              <div key={url} className="relative aspect-square group">
-                                  <Image src={url} alt="Existing product image" fill className="object-cover rounded-md" />
-                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4" /></Button>
-                              </div>
-                          ))}
-                           {existingVideoUrls.map((url) => (
-                               <div key={url} className="relative aspect-square group bg-black">
-                                  <video src={url} className="object-cover rounded-md h-full w-full" muted />
-                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white"/></div>
-                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4" /></Button>
-                              </div>
-                           ))}
-                          {files.map(file => (
-                              <div key={file.name} className="relative aspect-square group">
-                                  <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover rounded-md" />
-                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-2">
-                                      <p className="text-white text-xs text-center truncate w-full">{file.name}</p>
-                                      {uploadProgress[file.name] !== undefined && <Progress value={uploadProgress[file.name]} className="h-1 mt-1 w-full" />}
-                                  </div>
-                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4" /></Button>
-                              </div>
-                          ))}
-                      </div>
-                  )}
-                 </CardContent>
-              </Card>
             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Media Column */}
+              <div className="space-y-6">
+                 <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Media Uploads</CardTitle>
+                      <CardDescription>Add up to 5 images and videos.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                          <Label htmlFor="file-upload" className="sr-only">Product Images & Videos</Label>
+                          <input
+                              id="file-upload"
+                              ref={fileInputRef}
+                              type="file"
+                              multiple
+                              accept="image/*,video/*"
+                              className="hidden"
+                              onChange={handleFileChange}
+                              disabled={isUploading || allMediaCount >= 5}
+                          />
+                          <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full border-dashed"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={isUploading || allMediaCount >= 5}
+                          >
+                              <UploadCloud className="mr-2 h-4 w-4" />
+                              {isUploading ? 'Uploading...' : `Select Files (${5 - allMediaCount} remaining)`}
+                          </Button>
+                      </div>
+                      {(files.length > 0 || existingImageUrls.length > 0 || existingVideoUrls.length > 0) && (
+                          <div className="grid grid-cols-3 gap-3 mt-4">
+                              {existingImageUrls.map((url) => (
+                                  <div key={url} className="relative aspect-square group">
+                                      <Image src={url} alt="Existing product image" fill className="object-cover rounded-md" />
+                                      <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4" /></Button>
+                                  </div>
+                              ))}
+                              {existingVideoUrls.map((url) => (
+                                  <div key={url} className="relative aspect-square group bg-black">
+                                      <video src={url} className="object-cover rounded-md h-full w-full" muted />
+                                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white"/></div>
+                                      <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4" /></Button>
+                                  </div>
+                              ))}
+                              {files.map(file => (
+                                  <div key={file.name} className="relative aspect-square group">
+                                      <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover rounded-md" />
+                                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-2">
+                                          <p className="text-white text-xs text-center truncate w-full">{file.name}</p>
+                                          {uploadProgress[file.name] !== undefined && <Progress value={uploadProgress[file.name]} className="h-1 mt-1 w-full" />}
+                                      </div>
+                                      <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4" /></Button>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                    </CardContent>
+                  </Card>
+              </div>
 
-            {/* Right Column */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Organization</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <FormControl><Input placeholder="e.g., Apparel" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
+              {/* Details Column */}
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader><CardTitle className="text-lg">Pricing & Inventory</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField control={form.control} name="price" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Original Price (USD)</FormLabel>
+                            <FormControl><Input type="number" placeholder="e.g., 25.00" {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="enableDiscount" render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <FormLabel>Enable Discount</FormLabel>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                    )} />
+                    {enableDiscount && (
+                      <FormField control={form.control} name="salePrice" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Sale Price (USD)</FormLabel>
+                              <FormControl><Input type="number" placeholder="e.g., 19.99" {...field} /></FormControl>
+                              <FormDescription>Must be lower than original price.</FormDescription>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
                     )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
+                    <FormField control={form.control} name="stock" render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Tags / Hashtags</FormLabel>
-                        <FormControl><Input placeholder="e.g., #summer, #tshirt, #fashion" {...field} /></FormControl>
-                        <FormDescription>Separate with commas.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Pricing & Inventory</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <Alert><Info className="h-4 w-4" /><AlertDescription>All prices must be in USD.</AlertDescription></Alert>
-                  <FormField control={form.control} name="price" render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Original Price (USD)</FormLabel>
-                          <FormControl><Input type="number" placeholder="e.g., 25.00" {...field} /></FormControl>
-                          <FormMessage />
-                      </FormItem>
-                  )} />
-                  <FormField control={form.control} name="enableDiscount" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <FormLabel>Enable Discount</FormLabel>
-                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      </FormItem>
-                  )} />
-                  {enableDiscount && (
-                    <FormField control={form.control} name="salePrice" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Sale Price (USD)</FormLabel>
-                            <FormControl><Input type="number" placeholder="e.g., 19.99" {...field} /></FormControl>
-                            <FormDescription>Must be lower than original price.</FormDescription>
+                            <FormLabel>Stock Quantity</FormLabel>
+                            <FormControl><Input type="number" placeholder="e.g., 50" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
-                  )}
-                  <FormField control={form.control} name="stock" render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Stock Quantity</FormLabel>
-                          <FormControl><Input type="number" placeholder="e.g., 50" {...field} /></FormControl>
-                          <FormMessage />
-                      </FormItem>
-                  )} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Logistics</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <FormField control={form.control} name="shippingCost" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center gap-2">Shipping Cost (USD)</FormLabel>
-                            <FormControl><Input type="number" placeholder="e.g., 10.00" {...field} /></FormControl>
-                            <FormDescription>Enter 0 for free shipping.</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                     <FormField control={form.control} name="location" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center gap-2">Product Location</FormLabel>
-                            <FormControl><Input placeholder="e.g., Nairobi CBD, Kenya" {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                      <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center gap-2">Delivery Options</FormLabel>
-                            <FormControl><Textarea rows={2} placeholder="e.g., International shipping via DHL (5-7 days) for $25." {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader><CardTitle className="text-lg">Organization</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Category</FormLabel>
+                                <FormControl><Input placeholder="e.g., Apparel" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="tags"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tags / Hashtags</FormLabel>
+                                <FormControl><Input placeholder="e.g., #summer, #tshirt, #fashion" {...field} /></FormControl>
+                                <FormDescription>Separate with commas.</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
