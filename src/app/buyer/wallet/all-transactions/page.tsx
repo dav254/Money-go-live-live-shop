@@ -17,10 +17,53 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Payment } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Timestamp } from 'firebase/firestore';
+
+
+const mockPayments: Payment[] = [
+    {
+        id: 'pay1',
+        amount: 55.00,
+        paymentDate: Timestamp.fromDate(addDays(new Date(), -2)),
+        paymentMethod: 'paystack_card',
+        paymentStatus: 'completed',
+        transactionType: 'product-purchase',
+        orderId: 'ord123',
+        transactionId: 'txn_abc'
+    },
+    {
+        id: 'pay2',
+        amount: 10.00,
+        paymentDate: Timestamp.fromDate(addDays(new Date(), -5)),
+        paymentMethod: 'paypal',
+        paymentStatus: 'completed',
+        transactionType: 'points-purchase',
+        userId: 'user123',
+        transactionId: 'txn_def'
+    },
+    {
+        id: 'pay3',
+        amount: 120.50,
+        paymentDate: Timestamp.fromDate(addDays(new Date(), -10)),
+        paymentMethod: 'paystack_card',
+        paymentStatus: 'completed',
+        transactionType: 'product-purchase',
+        orderId: 'ord456',
+        transactionId: 'txn_ghi'
+    },
+    {
+        id: 'pay4',
+        amount: 25.00,
+        paymentDate: Timestamp.fromDate(addDays(new Date(), -15)),
+        paymentMethod: 'paypal',
+        paymentStatus: 'failed',
+        transactionType: 'product-purchase',
+        orderId: 'ord789',
+        transactionId: 'txn_jkl'
+    }
+];
 
 
 const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
@@ -171,17 +214,9 @@ const TableSkeleton = () => (
 );
 
 export default function AllTransactionsPage() {
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
+    const [transactions, setTransactions] = useState<Payment[]>(mockPayments);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const transactionsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(collection(firestore, 'payments'), where('userId', '==', user.uid), orderBy('paymentDate', 'desc'));
-    }, [firestore, user]);
-
-    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
-
-    const isLoading = isUserLoading || isLoadingTransactions;
 
     return (
         <BuyerLayout>
