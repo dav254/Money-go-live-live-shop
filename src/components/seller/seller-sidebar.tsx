@@ -157,14 +157,6 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/wishlist')}>
-                <Link href="/dashboard/seller/wishlist">
-                    <Heart />
-                    <span>My Wishlist</span>
-                </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
 
