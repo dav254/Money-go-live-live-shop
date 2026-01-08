@@ -38,9 +38,10 @@ const tools = [
     title: 'AI Deal Maker',
     description: 'Generate strategic deal suggestions like bundles and flash sales to boost revenue.',
     icon: Handshake,
-    href: '/dashboard/seller/ai-tools/deal-maker',
-    cta: 'Launch Deal Maker',
+    href: '#',
+    cta: 'Coming Soon',
     points: 100,
+    isComingSoon: true,
   },
   {
     title: 'AI Poster Generator',
@@ -239,9 +240,12 @@ export default function SellerAIToolsPage() {
                     {tools.filter(t => !t.isTab).map((tool) => (
                         <Card key={tool.title} className="flex flex-col">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <tool.icon className="h-6 w-6 text-primary" />
-                                    <span>{tool.title}</span>
+                                <CardTitle className="flex items-center justify-between">
+                                    <span className="flex items-center gap-3">
+                                        <tool.icon className="h-6 w-6 text-primary" />
+                                        <span>{tool.title}</span>
+                                    </span>
+                                    {tool.isComingSoon && <Badge variant="outline">Coming Soon</Badge>}
                                 </CardTitle>
                                 <CardDescription>{tool.description}</CardDescription>
                             </CardHeader>
@@ -249,7 +253,7 @@ export default function SellerAIToolsPage() {
                                 <div className="text-center font-bold text-lg my-2">
                                     {tool.points} Points
                                 </div>
-                                 <Button className="w-full" asChild>
+                                 <Button className="w-full" asChild disabled={tool.isComingSoon}>
                                     <Link href={tool.href} className="flex items-center">
                                         {tool.cta}
                                     </Link>

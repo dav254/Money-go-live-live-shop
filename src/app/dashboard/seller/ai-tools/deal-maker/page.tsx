@@ -9,11 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import { Handshake, Zap, Box, Tag, Loader2, Sparkles } from 'lucide-react';
-import { generateDealSuggestion, GenerateDealSuggestionOutput } from '@/ai/flows/generate-deal-suggestion';
+import { Handshake, Zap, Box, Tag, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrency } from '@/context/currency-context';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+// Placeholder type as the real one is in a deleted file.
+type GenerateDealSuggestionOutput = any;
 
 const DealCard = ({ title, icon: Icon, children }: { title: string, icon: React.ElementType, children: React.ReactNode }) => (
     <Card className="bg-card/50">
@@ -61,27 +64,35 @@ export default function AIDealMakerPage() {
 
         setIsLoading(true);
         setDeal(null);
-
-        try {
-            const result = await generateDealSuggestion({
-                productName: product.name,
-                productCategory: product.category || 'General',
-                currentPrice: product.price,
-                productDescription: product.description || '',
-                userId: user.uid, // Pass the user ID to the flow
-            });
-            setDeal(result);
-        } catch (error) {
-            console.error('Error generating deal suggestion:', error);
-            toast({ variant: 'destructive', title: 'AI Error', description: 'Could not generate deal suggestions. Please try again.' });
-        } finally {
-            setIsLoading(false);
-        }
+        toast({ title: 'Feature Not Available', description: 'The AI Deal Maker is coming soon!' });
+        setIsLoading(false);
+        // try {
+        //     const result = await generateDealSuggestion({
+        //         productName: product.name,
+        //         productCategory: product.category || 'General',
+        //         currentPrice: product.price,
+        //         productDescription: product.description || '',
+        //         userId: user.uid, // Pass the user ID to the flow
+        //     });
+        //     setDeal(result);
+        // } catch (error) {
+        //     console.error('Error generating deal suggestion:', error);
+        //     toast({ variant: 'destructive', title: 'AI Error', description: 'Could not generate deal suggestions. Please try again.' });
+        // } finally {
+        //     setIsLoading(false);
+        // }
     };
 
     return (
         <SellerLayout>
             <div className="flex-1 space-y-4 p-8 pt-6">
+                 <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-200">
+                    <AlertCircle className="h-4 w-4 !text-blue-400" />
+                    <AlertTitle className="font-bold !text-blue-300">Feature Coming Soon</AlertTitle>
+                    <AlertDescription>
+                        The AI Deal Maker is currently under development. This tool will help you create strategic promotions to boost your sales. Check back soon!
+                    </AlertDescription>
+                </Alert>
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl flex items-center gap-2">
@@ -92,7 +103,7 @@ export default function AIDealMakerPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col md:flex-row items-center gap-4">
-                        <Select onValueChange={setSelectedProductId} disabled={areProductsLoading}>
+                        <Select onValueChange={setSelectedProductId} disabled={areProductsLoading || true}>
                             <SelectTrigger className="w-full md:w-[300px]">
                                 <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Select a product"} />
                             </SelectTrigger>
@@ -102,7 +113,7 @@ export default function AIDealMakerPage() {
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Button onClick={handleGenerateDeals} disabled={isLoading || !selectedProductId}>
+                        <Button onClick={handleGenerateDeals} disabled={isLoading || !selectedProductId || true}>
                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                             Generate Deals (100 Points)
                         </Button>
