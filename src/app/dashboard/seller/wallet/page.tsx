@@ -236,7 +236,7 @@ const WithdrawFundsDialog = ({ balance, payoutMethods, onWithdrawal }: { balance
                     requestResourceData: newPayoutData,
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                throw permissionError; // Rethrow to be caught by the outer catch block
+                throw permissionError; // Re-throw to be caught by the outer catch block
             });
 
             toast({ title: 'Success', description: 'Your withdrawal request has been submitted for processing.' });

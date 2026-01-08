@@ -152,8 +152,16 @@ export function SellerSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/earnings')}>
               <Link href="/dashboard/seller/earnings">
-                <Wallet />
+                <Banknote />
                 <span>Earnings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/wallet')}>
+              <Link href="/dashboard/seller/wallet">
+                <Wallet />
+                <span>Wallet & Payouts</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
