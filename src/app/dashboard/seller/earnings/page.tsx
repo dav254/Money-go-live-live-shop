@@ -1,9 +1,7 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import React, { useMemo, useState, useEffect } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -27,6 +25,12 @@ const formatCurrency = (amount: number) => {
 // Helper to format dates
 const formatDate = (timestamp: any) => {
   if (!timestamp || !timestamp.toDate) {
+    // Adjust for regular Date objects in mock data
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+    }
     return 'Invalid Date';
   }
   return timestamp.toDate().toLocaleDateString('en-US', {
@@ -34,22 +38,58 @@ const formatDate = (timestamp: any) => {
   });
 };
 
+const mockEarnings: WalletTransaction[] = [
+    {
+        id: 'txn1',
+        userId: 'seller_abc',
+        orderId: 'ord_abc_1',
+        type: 'SALE_EARNING',
+        amount: 85.50,
+        description: 'Net earnings from sale of "Vintage Leather Jacket"',
+        timestamp: new Date(new Date().setDate(new Date().getDate() - 1))
+    },
+    {
+        id: 'txn2',
+        userId: 'seller_abc',
+        orderId: 'ord_abc_1',
+        type: 'SHIPPING_FEE',
+        amount: 10.00,
+        description: 'Shipping reimbursement for "Vintage Leather Jacket"',
+        timestamp: new Date(new Date().setDate(new Date().getDate() - 1))
+    },
+    {
+        id: 'txn3',
+        userId: 'seller_abc',
+        orderId: 'ord_xyz_2',
+        type: 'SALE_EARNING',
+        amount: 29.25,
+        description: 'Net earnings from sale of "Handcrafted Wooden Bowl"',
+        timestamp: new Date(new Date().setDate(new Date().getDate() - 3))
+    },
+    {
+        id: 'txn4',
+        userId: 'seller_abc',
+        orderId: 'ord_xyz_2',
+        type: 'SHIPPING_FEE',
+        amount: 5.00,
+        description: 'Shipping reimbursement for "Handcrafted Wooden Bowl"',
+        timestamp: new Date(new Date().setDate(new Date().getDate() - 3))
+    }
+];
+
 const SellerEarningsPage = () => {
-  const { user, isLoading: isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const [earnings, setEarnings] = useState<WalletTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const earningsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
-      collection(firestore, 'walletTransactions'), 
-      where('userId', '==', user.uid),
-      where('type', 'in', ['SALE_EARNING', 'SHIPPING_FEE']),
-      orderBy('timestamp', 'desc')
-    );
-  }, [user, firestore]);
+  useEffect(() => {
+    // Simulate fetching data
+    const timer = setTimeout(() => {
+      setEarnings(mockEarnings);
+      setIsLoading(false);
+    }, 1000); // 1 second delay
 
-  const { data: earnings, isLoading: areEarningsLoading } = useCollection<WalletTransaction>(earningsQuery);
-  const isLoading = isUserLoading || areEarningsLoading;
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <SellerLayout>
