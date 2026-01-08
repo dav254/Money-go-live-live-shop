@@ -216,7 +216,7 @@ export default function AllTransactionsPage() {
                                     {transactions && transactions.length > 0 ? (
                                         transactions.map((tx) => (
                                             <TableRow key={tx.id}>
-                                                <TableCell className="text-muted-foreground">{format(tx.paymentDate.toDate(), 'PPP')}</TableCell>
+                                                <TableCell className="text-muted-foreground">{tx.paymentDate.toDate().toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}</TableCell>
                                                 <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType.replace('-', ' ')}</Badge></TableCell>
                                                 <TableCell className="font-medium">
                                                     {tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase'}
