@@ -38,7 +38,7 @@ const tools = [
     title: 'AI Deal Maker',
     description: 'Generate strategic deal suggestions like bundles and flash sales to boost revenue.',
     icon: Handshake,
-    href: '#',
+    href: '/dashboard/seller/ai-tools/deal-maker',
     cta: 'Coming Soon',
     points: 100,
     isComingSoon: true,
@@ -66,14 +66,6 @@ const tools = [
     href: '/dashboard/seller/ai-tools/text-to-video',
     cta: 'Create Video',
     points: 250,
-  },
-  {
-    title: 'AI Caption Generator',
-    description: 'Generate viral captions for TikTok, Instagram, and Facebook to boost engagement.',
-    icon: Bot,
-    href: '/dashboard/seller/ai-tools/caption-generator',
-    cta: 'Generate Caption',
-    points: 50,
   },
 ];
 

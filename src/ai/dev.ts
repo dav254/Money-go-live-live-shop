@@ -14,7 +14,6 @@ import '@/ai/flows/generate-deal-suggestion.ts';
 import '@/ai/flows/generate-video-from-image.ts';
 import '@/ai/flows/live-selling-copilot.ts';
 import '@/ai/flows/generate-video-from-text.ts';
-import '@/ai/flows/generate-caption.ts';
 import '@/ai/flows/admin-chat-flow.ts';
 import '@/ai/flows/publish-video.ts';
 import '@/ai/flows/generate-poster-flow.ts';
