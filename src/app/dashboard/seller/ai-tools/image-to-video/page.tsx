@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -10,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 
 const ProductCardSkeleton = () => (
     <Card>
@@ -25,7 +26,7 @@ const ProductCardSkeleton = () => (
     </Card>
 );
 
-export default function SelectProductForVideoPage() {
+export default function SelectProductForImagePage() {
     const { user } = useUser();
     const firestore = useFirestore();
 
@@ -42,10 +43,10 @@ export default function SelectProductForVideoPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl flex items-center gap-2">
-                           <ImageIcon className="text-primary" /> Image-to-Video Generator
+                           <ImageIcon className="text-primary" /> AI Image Generator
                         </CardTitle>
                         <CardDescription>
-                           Select one of your products to generate a short promotional video from its images.
+                           Select a product to generate a new promotional image for its gallery.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -65,7 +66,7 @@ export default function SelectProductForVideoPage() {
                                         <p className="font-semibold">{product.name}</p>
                                         <p className="text-sm text-muted-foreground">{product.imageUrls?.length || 0} images available</p>
                                     </div>
-                                    <Button asChild disabled={!product.imageUrls || product.imageUrls.length === 0}>
+                                    <Button asChild>
                                         <Link href={`/dashboard/seller/ai-tools/image-to-video/${product.id}`}>
                                             Select
                                         </Link>
@@ -74,7 +75,7 @@ export default function SelectProductForVideoPage() {
                             </Card>
                         )) : !isLoading && (
                              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                                <p className="text-muted-foreground">You have no products with images to generate videos from.</p>
+                                <p className="text-muted-foreground">You have no products to generate images for.</p>
                                 <Button asChild variant="link">
                                     <Link href="/dashboard/products?tab=add-new">Add a Product</Link>
                                 </Button>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -13,9 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { generateVideoFromImage } from '@/ai/flows/generate-video-from-image';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, ChevronLeft } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
+import { Loader2, Sparkles, ChevronLeft, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 
 const PageSkeleton = () => (
@@ -28,17 +27,16 @@ const PageSkeleton = () => (
     </div>
 );
 
-export default function GenerateVideoPage() {
+export default function GenerateImagePage() {
     const params = useParams();
     const productId = params.productId as string;
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
 
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [prompt, setPrompt] = useState<string>('A dynamic, short promotional video of the product, with smooth camera pans and zooms, in a studio setting.');
+    const [prompt, setPrompt] = useState<string>('A professional, clean product shot of the item on a white background.');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+    const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
     const productRef = useMemoFirebase(() => {
         if (!productId) return null;
@@ -47,26 +45,28 @@ export default function GenerateVideoPage() {
 
     const { data: product, isLoading } = useDoc<Product>(productRef);
 
-    const handleGenerateVideo = async () => {
-        if (!product || !selectedImage) {
-            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select an image and enter a prompt.' });
+    const handleGenerateImage = async () => {
+        if (!product || !prompt) {
+            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please enter a prompt.' });
             return;
         }
         setIsGenerating(true);
-        setGeneratedVideoUrl(null);
-        toast({ title: '🤖 Starting Video Generation...', description: 'This may take up to a minute. Please wait.' });
+        setGeneratedImageUrl(null);
+        toast({ title: '🤖 Starting Image Generation...', description: 'This may take a moment. Please wait.' });
 
         try {
+            // Note: The flow is misnamed, but we are calling it as intended.
             const result = await generateVideoFromImage({
                 productId: product.id,
-                imageDataUri: selectedImage,
+                // imageDataUri is not used by the updated flow, but we pass an empty string to satisfy the type.
+                imageDataUri: '', 
                 prompt: prompt
             });
-            setGeneratedVideoUrl(result.videoUrl);
-            toast({ title: '✅ Video Generated!', description: 'Your new video has been saved to the product.' });
+            setGeneratedImageUrl(result.videoUrl); // The flow returns the URL in a 'videoUrl' field
+            toast({ title: '✅ Image Generated!', description: 'Your new image has been saved to the product.' });
         } catch (error: any) {
-            console.error("Error generating video:", error);
-            toast({ variant: 'destructive', title: 'Video Generation Failed', description: error.message || 'Please try again.' });
+            console.error("Error generating image:", error);
+            toast({ variant: 'destructive', title: 'Image Generation Failed', description: error.message || 'Please try again.' });
         } finally {
             setIsGenerating(false);
         }
@@ -91,56 +91,53 @@ export default function GenerateVideoPage() {
                 <div className="grid md:grid-cols-2 gap-8 items-start">
                     <Card>
                         <CardHeader>
-                            <CardTitle>1. Select an Image for "{product.name}"</CardTitle>
-                            <CardDescription>Choose the base image to animate.</CardDescription>
+                            <CardTitle>1. Describe Your Image for "{product.name}"</CardTitle>
+                            <CardDescription>Tell the AI what kind of image you want to create.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <RadioGroup onValueChange={setSelectedImage} className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {product.imageUrls?.map((url, index) => (
-                                    <Label key={index} htmlFor={`img-${index}`} className="block relative aspect-square rounded-md overflow-hidden cursor-pointer has-[:checked]:ring-2 has-[:checked]:ring-primary">
-                                        <Image src={url} alt={`Product image ${index + 1}`} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" />
-                                        <RadioGroupItem value={url} id={`img-${index}`} className="absolute top-2 right-2" />
-                                    </Label>
-                                ))}
-                            </RadioGroup>
-                            {(!product.imageUrls || product.imageUrls.length === 0) && <p className="text-muted-foreground text-center py-8">This product has no images.</p>}
+                            <Textarea
+                                rows={5}
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder="e.g., A lifestyle photo of the product being used on a sunny day."
+                            />
+                             <Button className="w-full mt-4" onClick={handleGenerateImage} disabled={isGenerating}>
+                                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                                Generate Image (100 Points)
+                            </Button>
                         </CardContent>
                     </Card>
                     <div className="space-y-4 sticky top-24">
                         <Card>
                             <CardHeader>
-                                <CardTitle>2. Describe Your Video</CardTitle>
-                                <CardDescription>Tell the AI how to animate the image.</CardDescription>
+                                <CardTitle>2. Generated Result</CardTitle>
+                                <CardDescription>Your new image will appear here.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Textarea
-                                    rows={5}
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="e.g., A slow zoom out revealing the product on a wooden table."
-                                />
-                            </CardContent>
-                        </Card>
-                        <Button className="w-full" onClick={handleGenerateVideo} disabled={!selectedImage || isGenerating}>
-                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            Generate Video
-                        </Button>
-
-                         {generatedVideoUrl && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Result</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <video src={generatedVideoUrl} controls autoPlay muted loop className="w-full rounded-md" />
+                                <div className="aspect-square w-full bg-muted rounded-lg flex items-center justify-center">
+                                    {isGenerating ? (
+                                         <div className="text-center text-muted-foreground">
+                                            <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+                                            <p className="mt-2">Generating...</p>
+                                        </div>
+                                    ) : generatedImageUrl ? (
+                                        <Image src={generatedImageUrl} alt="Generated product image" width={500} height={500} className="rounded-lg object-contain" />
+                                    ) : (
+                                        <div className="text-center text-muted-foreground">
+                                            <ImageIcon className="mx-auto h-12 w-12" />
+                                            <p>Your generated image will appear here.</p>
+                                        </div>
+                                    )}
+                                </div>
+                                 {generatedImageUrl && (
                                      <Button variant="outline" className="w-full mt-4" asChild>
-                                        <Link href={`/dashboard/products?tab=add-new`}>
-                                            View in Products
+                                        <Link href={`/dashboard/products?tab=add-new&productId=${product.id}`}>
+                                            View in Product Editor
                                         </Link>
                                     </Button>
-                                </CardContent>
-                            </Card>
-                        )}
+                                 )}
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </div>
