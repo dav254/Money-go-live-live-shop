@@ -1,18 +1,49 @@
 
 'use client';
 
-import { useState, useMemo, ReactNode } from 'react';
+import { useState, useMemo, ReactNode, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { CreditCard, PlusCircle, MoreVertical, Trash2, Loader2, Landmark, Mail, Download, History, Gift, Ticket } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import {
+  Wallet,
+  ArrowRight,
+  Download,
+  Settings,
+  ShieldCheck,
+  CreditCard,
+  History,
+  CircleDollarSign,
+  PlusCircle,
+  MoreVertical,
+  Trash2,
+  Phone,
+  Loader2,
+  Landmark,
+  Mail,
+} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -32,21 +63,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PaymentMethod, Payment } from '@/lib/types';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 
-const mockPaymentMethods: PaymentMethod[] = [
-    { id: 'pm_1', type: 'card', details: 'Visa **** 4242' },
-    { id: 'pm_2', type: 'paypal', details: 'buyer@example.com' },
-];
-
-const mockTransactions: Payment[] = [
-    { id: 'pay_1', amount: 45.50, paymentDate: new Date(), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_123', transactionId: 'txn_1' },
-    { id: 'pay_2', amount: 10.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 2)), paymentMethod: 'paypal', paymentStatus: 'completed', transactionType: 'points-purchase', userId: 'user_1', transactionId: 'txn_2' },
-    { id: 'pay_3', amount: 120.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 5)), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_456', transactionId: 'txn_3' },
-];
 
 const paypalFormSchema = z.object({
   email: z.string().email("Please enter a valid PayPal email address."),
@@ -152,6 +174,18 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: (method: Pay
 export default function BuyerPaymentsPage() {
     const { toast } = useToast();
     const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+    
+    const mockPaymentMethods: PaymentMethod[] = [
+        { id: 'pm_1', type: 'card', details: 'Visa **** 4242' },
+        { id: 'pm_2', type: 'paypal', details: 'buyer@example.com' },
+    ];
+    
+    const mockTransactions: Payment[] = [
+        { id: 'pay_1', amount: 45.50, paymentDate: new Date(), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_123', transactionId: 'txn_1' },
+        { id: 'pay_2', amount: 10.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 2)), paymentMethod: 'paypal', paymentStatus: 'completed', transactionType: 'points-purchase', userId: 'user_1', transactionId: 'txn_2' },
+        { id: 'pay_3', amount: 120.00, paymentDate: new Date(new Date().setDate(new Date().getDate() - 5)), paymentMethod: 'card', paymentStatus: 'completed', transactionType: 'product-purchase', orderId: 'ord_456', transactionId: 'txn_3' },
+    ];
+
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(mockPaymentMethods);
     const [transactions, setTransactions] = useState<Payment[]>(mockTransactions);
     const [isLoading, setIsLoading] = useState(true);
