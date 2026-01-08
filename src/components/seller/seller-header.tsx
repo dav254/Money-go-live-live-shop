@@ -1,10 +1,9 @@
 
 'use client';
 
-import type { Seller } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
@@ -18,6 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../u
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
+import { Video } from 'lucide-react';
 
 
 export function SellerHeader() {
@@ -90,12 +90,6 @@ export function SellerHeader() {
           <Link href="/dashboard/seller/notifications">
             <Bell />
             <span className="sr-only">Notifications</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="icon" asChild>
-           <Link href="/dashboard/seller/messages">
-            <MessageSquare />
-            <span className="sr-only">Messages</span>
           </Link>
         </Button>
         <Button variant="destructive" size="sm" asChild>

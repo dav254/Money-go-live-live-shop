@@ -149,14 +149,6 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/messages')}>
-              <Link href="/dashboard/seller/messages">
-                <MessageSquare />
-                <span>Messages</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/earnings')}>
               <Link href="/dashboard/seller/earnings">
                 <Wallet />
@@ -212,7 +204,7 @@ export function SellerSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
-
+      
       <SidebarGroup>
         <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
          <SidebarMenu>
