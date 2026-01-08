@@ -51,6 +51,7 @@ import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 type ProductRow = Product & {
@@ -412,14 +413,18 @@ export function MyProductsTable() {
         </div>
       </div>
        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-3xl">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-3xl grid-rows-[auto_1fr] p-0 max-h-[90vh]">
+                <DialogHeader className="p-6 pb-0">
                     <DialogTitle>Edit Product</DialogTitle>
                 </DialogHeader>
-                <ProductUploadForm 
-                    productToEdit={selectedProduct} 
-                    onFormSubmit={() => setIsEditDialogOpen(false)} 
-                />
+                <ScrollArea className="h-full">
+                  <div className="p-6 pt-0">
+                    <ProductUploadForm 
+                        productToEdit={selectedProduct} 
+                        onFormSubmit={() => setIsEditDialogOpen(false)} 
+                    />
+                  </div>
+                </ScrollArea>
             </DialogContent>
         </Dialog>
     </div>
