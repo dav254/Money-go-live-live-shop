@@ -16,6 +16,23 @@
          ]
        },
        crossOrigin: 'anonymous',
+       async headers() {
+        return [
+          {
+            source: '/:path*',
+            headers: [
+              {
+                key: 'Permissions-Policy',
+                value: 'clipboard-write=*',
+              },
+              {
+                key: 'Content-Security-Policy',
+                value: "connect-src *;",
+              }
+            ],
+          },
+        ];
+       },
        images: {
          dangerouslyAllowSVG: true,
          remotePatterns: [
@@ -57,4 +74,5 @@
      };
      
      export default nextConfig;
+
 
