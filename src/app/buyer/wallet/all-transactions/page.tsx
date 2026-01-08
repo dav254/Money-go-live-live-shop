@@ -19,52 +19,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Payment } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Timestamp } from 'firebase/firestore';
-
-
-const mockPayments: Payment[] = [
-    {
-        id: 'pay1',
-        amount: 55.00,
-        paymentDate: Timestamp.fromDate(addDays(new Date(), -2)),
-        paymentMethod: 'paystack_card',
-        paymentStatus: 'completed',
-        transactionType: 'product-purchase',
-        orderId: 'ord123',
-        transactionId: 'txn_abc'
-    },
-    {
-        id: 'pay2',
-        amount: 10.00,
-        paymentDate: Timestamp.fromDate(addDays(new Date(), -5)),
-        paymentMethod: 'paypal',
-        paymentStatus: 'completed',
-        transactionType: 'points-purchase',
-        userId: 'user123',
-        transactionId: 'txn_def'
-    },
-    {
-        id: 'pay3',
-        amount: 120.50,
-        paymentDate: Timestamp.fromDate(addDays(new Date(), -10)),
-        paymentMethod: 'paystack_card',
-        paymentStatus: 'completed',
-        transactionType: 'product-purchase',
-        orderId: 'ord456',
-        transactionId: 'txn_ghi'
-    },
-    {
-        id: 'pay4',
-        amount: 25.00,
-        paymentDate: Timestamp.fromDate(addDays(new Date(), -15)),
-        paymentMethod: 'paypal',
-        paymentStatus: 'failed',
-        transactionType: 'product-purchase',
-        orderId: 'ord789',
-        transactionId: 'txn_jkl'
-    }
-];
-
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 
 const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
     const [date, setDate] = React.useState<DateRange | undefined>({
@@ -87,6 +43,7 @@ const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
             const toDate = date?.to ? format(date.to, 'yyyy-MM-dd') : 'end';
             
             const filteredPayments = payments.filter(tx => {
+                if (!tx.paymentDate) return false;
                 const txDate = tx.paymentDate.toDate();
                 const from = date?.from ? new Date(date.from.setHours(0,0,0,0)) : new Date(0);
                 const to = date?.to ? new Date(date.to.setHours(23,59,59,999)) : new Date();
@@ -105,7 +62,7 @@ const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
                 const headers = "Date,Type,Description,Status,Amount (USD)";
                 const rows = filteredPayments.map(tx => {
                     const description = tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase';
-                    return `${format(tx.paymentDate.toDate(), 'yyyy-MM-dd')},${tx.transactionType},"${description}",${tx.paymentStatus},${tx.amount}`;
+                    return `${format(tx.paymentDate!.toDate(), 'yyyy-MM-dd')},${tx.transactionType},"${description}",${tx.paymentStatus},${tx.amount}`;
                 });
                 const csvContent = [headers, ...rows].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -125,8 +82,8 @@ const DownloadReportDialog = ({ payments }: { payments: Payment[] }) => {
                     startY: 30,
                     head: [['Date', 'Type', 'Description', 'Status', 'Amount (USD)']],
                     body: filteredPayments.map(tx => [
-                        format(tx.paymentDate.toDate(), 'yyyy-MM-dd'),
-                        tx.transactionType.replace('-', ' '),
+                        format(tx.paymentDate!.toDate(), 'yyyy-MM-dd'),
+                        tx.transactionType?.replace('-', ' '),
                         tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase',
                         tx.paymentStatus,
                         `$${tx.amount.toFixed(2)}`
@@ -214,9 +171,17 @@ const TableSkeleton = () => (
 );
 
 export default function AllTransactionsPage() {
-    const [transactions, setTransactions] = useState<Payment[]>(mockPayments);
-    const [isLoading, setIsLoading] = useState(false);
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
 
+    const transactionsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(collection(firestore, 'payments'), where('userId', '==', user.uid), orderBy('paymentDate', 'desc'));
+    }, [firestore, user]);
+
+    const { data: transactions, isLoading: isLoadingTransactions } = useCollection<Payment>(transactionsQuery);
+
+    const isLoading = isUserLoading || isLoadingTransactions;
 
     return (
         <BuyerLayout>
@@ -251,8 +216,8 @@ export default function AllTransactionsPage() {
                                     {transactions && transactions.length > 0 ? (
                                         transactions.map((tx) => (
                                             <TableRow key={tx.id}>
-                                                <TableCell className="text-muted-foreground">{tx.paymentDate.toDate().toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}</TableCell>
-                                                <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType.replace('-', ' ')}</Badge></TableCell>
+                                                <TableCell className="text-muted-foreground">{tx.paymentDate?.toDate().toLocaleDateString('en-us', { year:"numeric", month:"short", day:"numeric"})}</TableCell>
+                                                <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
                                                 <TableCell className="font-medium">
                                                     {tx.orderId ? `Order #${tx.orderId.substring(0,8)}...` : 'AI Points Purchase'}
                                                 </TableCell>

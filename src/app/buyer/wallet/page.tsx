@@ -9,7 +9,7 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { CreditCard, PlusCircle, MoreVertical, Trash2, Loader2, Landmark, Mail, Download, History, Gift, Ticket } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,7 +36,6 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, addDoc, deleteDoc, doc, query, where, orderBy, limit } from 'firebase/firestore';
 import type { PaymentMethod, Payment } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -121,10 +120,12 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
                                 )} />
                             </div>
                              <DialogFooter>
-                                <Button type="submit" className="w-full" disabled={isSaving}>
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Card
-                                </Button>
+                                <DialogClose asChild>
+                                    <Button type="submit" className="w-full" disabled={isSaving}>
+                                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Save Card
+                                    </Button>
+                                </DialogClose>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -136,10 +137,12 @@ const AddPaymentMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void }
                                 <FormItem><FormLabel>PayPal Email</FormLabel><FormControl><Input placeholder="you@example.com" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <DialogFooter>
-                                <Button type="submit" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" disabled={isSaving}>
-                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                                    Save PayPal
-                                </Button>
+                                <DialogClose asChild>
+                                    <Button type="submit" className="w-full bg-[#0070BA] hover:bg-[#005ea6]" disabled={isSaving}>
+                                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                        Save PayPal
+                                    </Button>
+                                </DialogClose>
                             </DialogFooter>
                         </form>
                     </Form>
@@ -309,7 +312,7 @@ export default function BuyerPaymentsPage() {
 
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Ticket /> Coupons &amp; Rewards</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Ticket /> Coupons & Rewards</CardTitle>
                 <CardDescription>This feature is coming soon!</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-dashed border rounded-lg">
