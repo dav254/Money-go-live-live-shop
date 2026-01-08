@@ -3,11 +3,13 @@
 
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import type { UserProfile } from "@/lib/types";
+import type { UserProfile, PayoutMethod } from "@/lib/types";
+import Paystack from 'paystack';
 
 admin.initializeApp();
 
 const db = admin.firestore();
+const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 
 // Import the new commission recording function
 export { recordCommissionOnOrder } from './commissions';
@@ -16,6 +18,7 @@ export { recordCommissionOnOrder } from './commissions';
  * Automatically processes an order when its status is updated to 'delivered'.
  * It calculates and distributes earnings to the seller, reseller (if any),
  * the person who referred the seller, and the platform. It also creates
+
  * notifications for each party.
  */
 export const processOrderAndDistributeEarnings = functions.firestore
@@ -318,33 +321,49 @@ export const processPayout = functions.firestore
         
         try {
             functions.logger.info(`Processing payout ${payoutId} for seller ${sellerId} of amount ${amount}`);
+            
+            const payoutMethodDoc = await db.doc(`userProfiles/${sellerId}/payoutMethods/${payoutMethodId}`).get();
+            if (!payoutMethodDoc.exists) {
+                throw new Error('Payout method not found.');
+            }
+            const methodDetails = payoutMethodDoc.data() as PayoutMethod;
 
-            //
-            // --- PAYMENT PROVIDER INTEGRATION ---
-            // THIS IS WHERE YOU WOULD ADD YOUR PAYSTACK, PAYPAL, OR MPESA API CALLS
-            //
-            // 1. Fetch the seller's actual payout details securely from their profile
-            //    const payoutMethodDoc = await db.doc(`userProfiles/${sellerId}/payoutMethods/${payoutMethodId}`).get();
-            //    if (!payoutMethodDoc.exists) throw new Error('Payout method not found.');
-            //    const methodDetails = payoutMethodDoc.data();
-            //
-            // 2. Call the payment provider's API with the details
-            //    e.g., const paymentResult = await paystack.transfer.create({ amount: amount * 100, recipient: methodDetails.recipientCode });
-            //
-            // 3. Check the result from the payment provider
-            //    if (!paymentResult.status) throw new Error(paymentResult.message);
-            //
+            let transactionId = `MOCK_${payoutId}`;
             
-            // --- MOCK SUCCESS (for now) ---
-            const mockTransactionId = `MOCK_TXN_${payoutId}`;
-            functions.logger.warn(`THIS IS A MOCK PAYOUT FOR ${payoutId}. NO REAL MONEY WAS SENT.`);
-            // --- END MOCK ---
-            
+            if(methodDetails.type === 'bank' && process.env.PAYSTACK_SECRET_KEY) {
+                const recipientResponse = await paystack.transfer_recipient.create({
+                    type: 'nuban',
+                    name: methodDetails.accountName,
+                    account_number: methodDetails.accountNumber,
+                    bank_code: methodDetails.bankCode, // You need to store bank_code when saving method
+                    currency: 'NGN' // or the seller's local currency
+                });
+
+                if(!recipientResponse.status) {
+                    throw new Error(`Paystack Error (Recipient): ${recipientResponse.message}`);
+                }
+
+                const transferResponse = await paystack.transfer.initiate({
+                    source: 'balance',
+                    amount: amount * 100, // Paystack expects amount in kobo/cents
+                    recipient: recipientResponse.data.recipient_code,
+                    reason: `Go Earn Payout: ${payoutId}`,
+                });
+
+                if(!transferResponse.status || transferResponse.data.status !== 'success') {
+                    throw new Error(`Paystack Error (Transfer): ${transferResponse.message}`);
+                }
+                transactionId = transferResponse.data.transfer_code;
+
+            } else {
+                 functions.logger.warn(`THIS IS A MOCK PAYOUT FOR ${payoutId}. NO REAL MONEY WAS SENT.`);
+            }
+
             // On successful payment, update the payout document to 'completed'
             await db.doc(`payouts/${payoutId}`).update({
                 status: 'completed',
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
-                transactionId: mockTransactionId, // The real ID from your payment provider
+                transactionId: transactionId,
             });
 
             // Create a formal transaction record in the wallet ledger
@@ -370,3 +389,6 @@ export const processPayout = functions.firestore
             return null;
         }
     });
+
+    export { recordCommissionOnOrder } from './commissions';
+

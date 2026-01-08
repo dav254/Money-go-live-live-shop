@@ -48,3 +48,19 @@ export interface ResellActivity {
     createdAt: admin.firestore.FieldValue; // The timestamp of when the sale occurred.
     type: 'sale' | 'share' | 'click'; // The type of activity (starting with 'sale').
 }
+
+export interface UserProfile {
+    // ... other user profile fields
+}
+
+export interface PayoutMethod {
+  id: string;
+  type: 'paypal' | 'bank';
+  details: string;
+  paypalEmail?: string;
+  accountName?: string;
+  accountNumber?: string;
+  bankName?: string;
+  country?: string;
+  bankCode?: string; // Added for Paystack
+}
