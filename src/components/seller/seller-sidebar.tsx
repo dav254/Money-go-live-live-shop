@@ -156,6 +156,14 @@ export function SellerSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/wishlist')}>
+                <Link href="/dashboard/seller/wishlist">
+                    <Heart />
+                    <span>My Wishlist</span>
+                </Link>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
 
@@ -163,12 +171,15 @@ export function SellerSidebar() {
         <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
            <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller/rules')}>
-              <Link href="/dashboard/seller/reseller/rules">
-                <Users />
-                <span>Reseller Center</span>
-              </Link>
-            </SidebarMenuButton>
+            <NavCollapsible 
+                title="Reseller Center"
+                icon={Users}
+                basePath="reseller"
+                items={[
+                    { href: 'rules', label: 'Commission Rules' },
+                    { href: 'analytics', label: 'Analytics' },
+                ]}
+            />
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/studio')}>
