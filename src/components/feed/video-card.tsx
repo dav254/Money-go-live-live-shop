@@ -26,16 +26,23 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     if (!item.product) return [];
     
     const media: {url: string, type: 'video' | 'image'}[] = [];
+    // Prioritize video
+    if (item.product.videoUrl) media.push({ url: item.product.videoUrl, type: 'video' as 'video' });
     if (item.product.videoUrls) media.push(...item.product.videoUrls.map(url => ({ url, type: 'video' as 'video' })));
+    
+    // Then add images
+    if (item.product.imageUrl) media.push({ url: item.product.imageUrl, type: 'image' as 'image' });
     if (item.product.imageUrls) media.push(...item.product.imageUrls.map(url => ({ url, type: 'image' as 'image' })));
-    if (item.product.imageUrl && !item.product.imageUrls) media.push({ url: item.product.imageUrl, type: 'image' as 'image' });
+    
+    // Remove duplicates just in case
+    const uniqueMedia = Array.from(new Map(media.map(m => [m.url, m])).values());
     
     // Fallback if no media is present
-    if (media.length === 0) {
-        media.push({ url: 'https://picsum.photos/seed/placeholder/1000/1000', type: 'image' });
+    if (uniqueMedia.length === 0) {
+        uniqueMedia.push({ url: 'https://picsum.photos/seed/placeholder/1000/1000', type: 'image' });
     }
 
-    return media;
+    return uniqueMedia;
   }, [item.product]);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
