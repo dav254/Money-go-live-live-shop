@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export const dynamic = 'force-dynamic';
+
 function RealtimeVideoCard({ product, onScroll }: { product: Product; onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
     
