@@ -301,56 +301,6 @@ export default function BuyerPaymentsPage() {
 
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><History /> Transaction History</CardTitle>
-                <CardDescription>A record of your wallet activities.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Amount (USD)</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                             [...Array(3)].map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell colSpan={5}><Skeleton className="h-6 w-full" /></TableCell>
-                                </TableRow>
-                            ))
-                        ) : transactions && transactions.length > 0 ? (
-                            transactions.map((tx) => (
-                                <TableRow key={tx.id}>
-                                    <TableCell className="text-muted-foreground">{tx.paymentDate ? formatDistanceToNow(new Date(tx.paymentDate), { addSuffix: true }) : 'N/A'}</TableCell>
-                                    <TableCell><Badge variant="outline" className="capitalize">{tx.transactionType?.replace('-', ' ')}</Badge></TableCell>
-                                    <TableCell className="font-medium">
-                                        {tx.orderId ? `Order #${tx.orderId.substring(0, 8)}...` : 'AI Points Purchase'}
-                                    </TableCell>
-                                    <TableCell><Badge variant={tx.paymentStatus === 'completed' ? 'default' : 'secondary'} className={tx.paymentStatus === 'completed' ? 'bg-green-600/80' : 'bg-yellow-500/80'}>{tx.paymentStatus}</Badge></TableCell>
-                                    <TableCell className="text-right font-semibold">${tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">No transactions found.</TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-            <CardFooter className="flex-wrap gap-2">
-                 <Button variant="link" className="ml-auto" asChild>
-                    <Link href="/buyer/wallet/all-transactions">View all transactions</Link>
-                 </Button>
-            </CardFooter>
-        </Card>
-
-        <Card>
-            <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Ticket /> Coupons & Rewards</CardTitle>
                 <CardDescription>This feature is coming soon!</CardDescription>
             </CardHeader>
