@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
+import { useCallback, useRef, useMemo } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
@@ -10,10 +10,9 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
+function RealtimeVideoCard({ product, onScroll }: { product: Product; onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
     
     const sellerShopRef = useMemoFirebase(() => {
@@ -67,20 +66,22 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
         description: sellerData?.description || userProfileData?.bio || 'Welcome!',
     };
 
+    // The 'video' object here is a bit of a misnomer now, but it's what VideoCard expects.
+    // We pass a primary image as a fallback/poster.
     const feedItem: VideoFeedItem = {
         id: product.id,
-        product: product,
+        product: product, // Pass the full product with all its media URLs
         seller: seller,
         video: {
-          id: product.id + mediaUrl, 
-          imageUrl: mediaUrl,
-          description: product.name,
-          imageHint: mediaType,
-          mediaType: mediaType,
+          id: product.id,
+          imageUrl: product.imageUrl || getPlaceholderImage(),
+          description: product.name || 'product media',
+          imageHint: 'product',
+          mediaType: 'image', // This is just a fallback, the card will handle video/image logic
         },
         likes: product.likes || 0,
-        viewers: 0, // View count removed
-        comments: [], // Placeholder
+        viewers: 0, 
+        comments: [],
     };
 
     return (
@@ -97,28 +98,12 @@ export default function LivePage() {
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        // Query for all products to create a full feed
         return query(collection(firestore, 'products'));
     }, [firestore]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
     const isLoading = isUserLoading || areProductsLoading;
-
-    const feedMediaItems = useMemo(() => {
-        if (!products) return [];
-
-        const allMedia: {product: Product, mediaUrl: string, mediaType: 'video' | 'image'}[] = [];
-        products.forEach(product => {
-            if (product.videoUrls && product.videoUrls.length > 0) {
-                product.videoUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'video' }));
-            }
-            if (product.imageUrls && product.imageUrls.length > 0) {
-                product.imageUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'image' }));
-            }
-        });
-        return allMedia;
-    }, [products]);
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
         const container = scrollContainerRef.current;
@@ -157,19 +142,15 @@ export default function LivePage() {
                     ref={scrollContainerRef}
                     className={cn(
                         "h-full w-full snap-y snap-mandatory overflow-y-scroll",
-                        // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
                         "[&::-webkit-scrollbar]:hidden",
-                        // This will hide the scrollbar in Firefox
                         "scrollbar-hide"
                     )}
                 >
-                {feedMediaItems && feedMediaItems.length > 0 ? (
-                    feedMediaItems.map((item, index) => (
+                {products && products.length > 0 ? (
+                    products.map((product) => (
                         <RealtimeVideoCard 
-                            key={`${item.product.id}-${index}`} 
-                            product={item.product} 
-                            mediaUrl={item.mediaUrl}
-                            mediaType={item.mediaType}
+                            key={product.id}
+                            product={product} 
                             onScroll={handleScroll}
                         />
                     ))

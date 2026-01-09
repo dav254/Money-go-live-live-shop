@@ -13,7 +13,8 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { ProductInfo } from '../live/product-info';
 import { doc, increment, writeBatch, collection, addDoc, serverTimestamp, query, orderBy, updateDoc } from 'firebase/firestore';
 import { CommentDrawer } from './comment-drawer';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, ChevronLeft, ChevronRight, Video } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface VideoCardProps {
   item: VideoFeedItem;
@@ -21,6 +22,23 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ item, onScroll }: VideoCardProps) {
+  const allMedia = useMemo(() => {
+    if (!item.product) return [];
+    
+    const media: {url: string, type: 'video' | 'image'}[] = [];
+    if (item.product.videoUrls) media.push(...item.product.videoUrls.map(url => ({ url, type: 'video' as 'video' })));
+    if (item.product.imageUrls) media.push(...item.product.imageUrls.map(url => ({ url, type: 'image' as 'image' })));
+    if (item.product.imageUrl && !item.product.imageUrls) media.push({ url: item.product.imageUrl, type: 'image' as 'image' });
+    
+    // Fallback if no media is present
+    if (media.length === 0) {
+        media.push({ url: 'https://picsum.photos/seed/placeholder/1000/1000', type: 'image' });
+    }
+
+    return media;
+  }, [item.product]);
+
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -30,6 +48,8 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
+  
+  const currentMedia = allMedia[currentMediaIndex];
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -38,7 +58,6 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Set initial state
     if (typeof navigator !== 'undefined') {
       setIsOnline(navigator.onLine);
     }
@@ -49,17 +68,14 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
     };
   }, []);
 
-
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || currentMedia.type !== 'video') return;
 
     if (isIntersecting) {
-        // play() returns a promise, which can be interrupted.
         const playPromise = videoElement.play();
         if (playPromise !== undefined) {
             playPromise.catch(error => {
-                // Ignore interruption errors, as they are expected during fast scrolling.
                 if (error.name !== 'AbortError') {
                     console.error("Autoplay was prevented:", error);
                 }
@@ -67,33 +83,29 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
         }
     } else {
         videoElement.pause();
-        videoElement.currentTime = 0; // Reset video on scroll away
+        videoElement.currentTime = 0;
         if (!videoElement.muted) {
             videoElement.muted = true;
             setIsMuted(true);
         }
     }
-  }, [isIntersecting, item.video.imageUrl]);
+  }, [isIntersecting, currentMedia]);
   
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsIntersecting(entry.isIntersecting);
-      },
-      { threshold: 0.5 } // Trigger when 50% of the video is visible
+      ([entry]) => setIsIntersecting(entry.isIntersecting),
+      { threshold: 0.5 }
     );
 
     const currentCardRef = cardRef.current;
-    if (currentCardRef) {
-      observer.observe(currentCardRef);
-    }
-
-    return () => {
-      if (currentCardRef) {
-        observer.unobserve(currentCardRef);
-      }
-    };
+    if (currentCardRef) observer.observe(currentCardRef);
+    return () => { if (currentCardRef) observer.unobserve(currentCardRef); };
   }, []);
+  
+  // Reset media index when product changes
+  useEffect(() => {
+    setCurrentMediaIndex(0);
+  }, [item.product.id]);
 
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !item.product.id) return null;
@@ -123,38 +135,52 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   const toggleMute = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    if (videoRef.current) {
-      videoRef.current.muted = newMutedState;
+    if (videoRef.current) videoRef.current.muted = newMutedState;
+  };
+  
+  const handleHorizontalScroll = (direction: 'left' | 'right') => {
+    if (direction === 'left') {
+      setCurrentMediaIndex((prev) => (prev > 0 ? prev - 1 : allMedia.length - 1));
+    } else {
+      setCurrentMediaIndex((prev) => (prev < allMedia.length - 1 ? prev + 1 : 0));
     }
   };
 
-
   return (
     <div ref={cardRef} className="relative h-full w-full bg-black">
-      {item.video.mediaType === 'video' ? (
-        <video 
-          ref={videoRef}
-          src={item.video.imageUrl} // imageUrl now holds the media URL
-          className="h-full w-full object-contain" 
-          poster={item.product.imageUrl}
-          muted={isMuted}
-          loop 
-          playsInline
-          key={item.video.imageUrl}
-          onClick={toggleMute}
-        />
-      ) : (
-        <Image
-          src={item.video.imageUrl}
-          alt={item.video.description || item.product.name || 'Product image'}
-          fill
-          sizes="100vw"
-          className="object-contain"
-          priority
-          data-ai-hint={item.video.imageHint}
-          key={item.video.imageUrl}
-        />
-      )}
+      <AnimatePresence initial={false}>
+        <motion.div
+          key={currentMedia.url}
+          className="absolute inset-0 z-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {currentMedia.type === 'video' ? (
+            <video 
+              ref={videoRef}
+              src={currentMedia.url}
+              className="h-full w-full object-contain" 
+              poster={item.product.imageUrl}
+              muted={isMuted}
+              loop 
+              playsInline
+              key={currentMedia.url} // Force re-mount on src change
+              onClick={toggleMute}
+            />
+          ) : (
+            <Image
+              src={currentMedia.url}
+              alt={item.video.description || item.product.name || 'Product image'}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              priority
+              data-ai-hint={item.video.imageHint}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
 
@@ -165,10 +191,21 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
           <p className="text-sm text-muted-foreground">Reconnecting...</p>
         </div>
       )}
+
+      {allMedia.length > 1 && (
+        <>
+          <Button onClick={() => handleHorizontalScroll('left')} size="icon" variant="ghost" className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/50 hover:bg-black/70"><ChevronLeft className="h-6 w-6 text-white" /></Button>
+          <Button onClick={() => handleHorizontalScroll('right')} size="icon" variant="ghost" className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/50 hover:bg-black/70"><ChevronRight className="h-6 w-6 text-white" /></Button>
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1">
+            {allMedia.map((_, i) => (
+                <div key={i} className={`h-1.5 w-6 rounded-full ${i === currentMediaIndex ? 'bg-white' : 'bg-white/50'}`}/>
+            ))}
+          </div>
+        </>
+      )}
       
       <VideoInfo seller={item.seller} />
 
-       {/* Comments Feed (Bottom Left) */}
        <div className="absolute bottom-24 left-4 z-20 pointer-events-auto flex flex-col gap-2 max-h-48 overflow-y-auto">
            {comments?.slice(-5).map(c => (
                <div key={c.id} className="bg-black/50 text-white px-3 py-2 rounded-xl text-sm shadow-lg backdrop-blur-sm max-w-xs">
@@ -177,7 +214,6 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
            ))}
        </div>
 
-      {/* Product Info (Bottom Center) */}
        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
             {item.product && <ProductInfo product={item.product} />}
        </div>
