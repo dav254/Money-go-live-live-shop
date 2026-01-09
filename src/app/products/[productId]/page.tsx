@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -97,6 +97,7 @@ export default function BuyerProductPage() {
     const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
+    const [quantity, setQuantity] = useState(1);
 
     // This effect runs when the component mounts, which is when a video is viewed.
     useEffect(() => {
@@ -193,7 +194,7 @@ export default function BuyerProductPage() {
           productId: product.id,
           sellerId: product.sellerId,
           buyerId: user.uid,
-          quantity: increment(1),
+          quantity: increment(quantity),
           price: product.price,
           name: product.name,
           imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200',
@@ -202,7 +203,7 @@ export default function BuyerProductPage() {
 
         try {
           await setDoc(cartItemRef, cartItemData, { merge: true });
-          toast({ title: 'Added to Cart', description: `${product.name} has been added to your cart.` });
+          toast({ title: 'Added to Cart', description: `${quantity} x ${product.name} has been added to your cart.` });
         } catch (error) {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: cartItemRef.path, operation: 'write', requestResourceData: cartItemData }));
         }
@@ -217,6 +218,7 @@ export default function BuyerProductPage() {
 
         const newOrderRef = doc(collection(firestore, 'orders'));
         const shippingCost = product.shippingCost || 0;
+        const subtotal = product.price * quantity;
         
         let resellerId = localStorage.getItem('resellerRefId');
         if (!resellerId && userProfile.referredBy) {
@@ -231,13 +233,13 @@ export default function BuyerProductPage() {
                 productId: product.id,
                 name: product.name || '',
                 price: product.price,
-                quantity: 1,
+                quantity: quantity,
                 imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200'
             }],
-            subtotal: product.price,
-            productPrice: product.price,
+            subtotal: subtotal,
+            productPrice: subtotal, // for single item, this is the same
             shippingCost: shippingCost,
-            totalAmount: product.price + shippingCost,
+            totalAmount: subtotal + shippingCost,
             orderDate: serverTimestamp() as any,
             shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
             orderStatus: 'pending',
@@ -301,8 +303,9 @@ export default function BuyerProductPage() {
     };
     
     const handleMessageSeller = async () => {
-        if (!user) {
-            router.push('/signup');
+        if (!user || !firestore) {
+            toast({ title: 'Please log in', description: 'You need to be logged in to send a message.' });
+            router.push('/login');
             return;
         }
         if (sellerId === user.uid) {
@@ -462,9 +465,9 @@ export default function BuyerProductPage() {
                     <div className="flex items-center justify-between">
                         <p className="font-semibold">Quantity</p>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700">-</Button>
-                            <span className="w-10 text-center font-bold">1</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700">+</Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus className="h-4 w-4" /></Button>
+                            <span className="w-10 text-center font-bold">{quantity}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700" onClick={() => setQuantity(q => Math.min(product.stock || 99, q + 1))}><Plus className="h-4 w-4" /></Button>
                         </div>
                     </div>
                     {product.stock != null && product.stock <= 5 && <p className="text-red-500 text-sm font-semibold">Only {product.stock} left in stock!</p>}
@@ -552,5 +555,7 @@ export default function BuyerProductPage() {
         </LayoutComponent>
     );
 }
+
+    
 
     
