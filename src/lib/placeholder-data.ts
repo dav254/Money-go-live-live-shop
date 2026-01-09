@@ -255,9 +255,7 @@ export const reviews: Review[] = [
 export const storyHighlights: StoryHighlight[] = [
     { id: 'sh-1', title: 'New Drops', imageUrl: 'https://picsum.photos/seed/story1/200/200' },
     { id: 'sh-2', title: 'On Sale', imageUrl: 'https://picsum.photos/seed/story2/200/200' },
-    { id: 'sh-3', title: 'Best Sellers', imageUrl: 'https://picsum.photos/seed/story3/200/200' },
-    { id: 'sh-4', title: 'Flash Deals', imageUrl: 'https://picsum.photos/seed/story4/200/200' },
-    { id: 'sh-5', title: 'Re-stocked', imageUrl: 'https://picsum.photos/seed/story5/200/200' },
+    { id: 'sh-3', title: 'Best Sellers', imageUrl: 'https://picsum.photos/seed/story4/200/200' },
+    { id: 'sh-4', title: 'Flash Deals', imageUrl: 'https://picsum.photos/seed/story5/200/200' },
+    { id: 'sh-5', title: 'Re-stocked', imageUrl: 'https://picsum.photos/seed/story6/200/200' },
 ];
-
-    
