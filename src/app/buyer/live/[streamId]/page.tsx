@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
-import type { LiveSession, Product, Seller, SellerShop, UserProfile } from '@/lib/types';
+import type { LiveSession, Product, UserProfile } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RadioTower, AlertCircle, ShoppingCart } from 'lucide-react';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
@@ -50,7 +50,7 @@ export default function BuyerLiveViewPage() {
 
     if (isLoading) {
         return (
-            <BuyerLayout fullWidth>
+            <BuyerLayout>
                 <div className="flex-1 space-y-4 p-8 pt-6">
                     <p>Loading live stream...</p>
                 </div>
@@ -60,7 +60,7 @@ export default function BuyerLiveViewPage() {
     
     if (!liveSession || liveSession.status !== 'live') {
         return (
-             <BuyerLayout fullWidth>
+             <BuyerLayout>
                 <div className="flex-1 space-y-4 p-8 pt-6">
                     <Alert variant="destructive">
                         <RadioTower className="h-4 w-4" />
@@ -75,7 +75,7 @@ export default function BuyerLiveViewPage() {
     }
 
     return (
-        <BuyerLayout fullWidth>
+        <BuyerLayout>
             <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)]">
                 {/* Main Video Content */}
                 <div className="lg:col-span-3 bg-black flex flex-col relative">

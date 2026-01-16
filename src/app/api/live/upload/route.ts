@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { Readable } from 'stream';
 
 // Function to ensure directory exists
 async function ensureDir(dirPath: string) {

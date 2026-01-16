@@ -1,30 +1,25 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Radio, StopCircle, Video, Loader2, Link as LinkIcon, Users, MessageSquare } from "lucide-react";
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { Radio, StopCircle, Loader2, Video, Users, MessageSquare } from "lucide-react";
+import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { LiveChat } from '@/components/buyer/LiveChat';
 import { StreamControls } from '@/components/studio/StreamControls';
+import { LiveChat } from '@/components/buyer/LiveChat';
 
 export default function SellerLiveStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [isCameraReady, setIsCameraReady] = useState(false);
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -42,20 +37,23 @@ export default function SellerLiveStudio() {
         videoRef.current.play();
 
         mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        
         mediaRecorderRef.current.ondataavailable = async (event) => {
             if (event.data.size > 0) {
                 const formData = new FormData();
                 formData.append('video', event.data, 'live.webm');
-                await fetch('/api/live/upload', { method: 'POST', body: formData });
+                // Don't wait for the fetch to complete to keep the stream real-time
+                fetch('/api/live/upload', { method: 'POST', body: formData }).catch(console.error);
             }
         };
-        mediaRecorderRef.current.start(1000); // Send data every 1 second
+
+        mediaRecorderRef.current.start(2000); // Send data every 2 seconds
 
         const sessionRef = doc(firestore, 'liveSessions', user.uid);
         const sessionData: LiveSession = {
             id: user.uid,
             sellerId: user.uid,
-            title: "My Live Show",
+            title: `${user.displayName || 'Seller'}'s Live Show`,
             status: 'live',
             startTime: serverTimestamp(),
         };
@@ -93,6 +91,16 @@ export default function SellerLiveStudio() {
     setPinnedProduct(null);
     toast({ title: "Stream Ended" });
   };
+  
+   // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (isLive) {
+        endStream();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive]);
 
   return (
     <SellerLayout>
