@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
@@ -17,6 +17,7 @@ export default function BuyerLiveViewPage() {
     const mediaSourceRef = useRef<MediaSource | null>(null);
     const sourceBufferRef = useRef<SourceBuffer | null>(null);
     const fetchIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
     const [videoStatus, setVideoStatus] = useState<'loading' | 'playing' | 'error'>('loading');
 
     const liveSessionRef = useMemoFirebase(() => {
@@ -26,95 +27,104 @@ export default function BuyerLiveViewPage() {
 
     const { data: liveSession, isLoading } = useDoc<LiveSession>(liveSessionRef);
 
-    useEffect(() => {
-        const videoElement = videoRef.current;
-        if (!videoElement || !liveSession || liveSession.status !== 'live') {
-            return;
+    const cleanupStream = useCallback(() => {
+        if (fetchIntervalRef.current) {
+            clearInterval(fetchIntervalRef.current);
+            fetchIntervalRef.current = null;
         }
+        if (mediaSourceRef.current && mediaSourceRef.current.readyState === 'open') {
+            try {
+                mediaSourceRef.current.endOfStream();
+            } catch(e) {
+                console.error("Error ending stream:", e);
+            }
+        }
+        if (videoRef.current && videoRef.current.src) {
+            URL.revokeObjectURL(videoRef.current.src);
+            videoRef.current.removeAttribute('src');
+            try {
+                videoRef.current.load();
+            } catch (e) {
+                console.error("Error resetting video element:", e);
+            }
+        }
+        sourceBufferRef.current = null;
+        mediaSourceRef.current = null;
+    }, []);
 
-        // 1. Initialize MediaSource
-        mediaSourceRef.current = new MediaSource();
-        videoElement.src = URL.createObjectURL(mediaSourceRef.current);
+    useEffect(() => {
+        // This effect runs only once to set up the player
+        const videoElement = videoRef.current;
+        if (!videoElement) return;
+
+        const mediaSource = new MediaSource();
+        mediaSourceRef.current = mediaSource;
+        videoElement.src = URL.createObjectURL(mediaSource);
 
         const onSourceOpen = () => {
-            if (!mediaSourceRef.current) return;
-            // 2. Create SourceBuffer
             const mimeCodec = 'video/webm; codecs=vp9';
-            if (MediaSource.isTypeSupported(mimeCodec)) {
-                try {
-                    const sourceBuffer = mediaSourceRef.current.addSourceBuffer(mimeCodec);
-                    sourceBufferRef.current = sourceBuffer;
-                    setVideoStatus('playing');
-                    // 3. Start fetching chunks
-                    fetchAndAppendChunks();
-                } catch (e) {
-                    console.error("Error adding source buffer:", e);
-                    setVideoStatus('error');
-                }
-            } else {
+            if (!MediaSource.isTypeSupported(mimeCodec)) {
                 console.error("Unsupported MIME type:", mimeCodec);
+                setVideoStatus('error');
+                return;
+            }
+
+            try {
+                const buffer = mediaSource.addSourceBuffer(mimeCodec);
+                sourceBufferRef.current = buffer;
+                
+                const fetchChunk = async () => {
+                    // Check if source buffer is still valid before fetching
+                    if (!sourceBufferRef.current || sourceBufferRef.current.updating || mediaSourceRef.current?.readyState !== 'open') {
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/live/live.webm?t=${Date.now()}`);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        
+                        const data = await response.arrayBuffer();
+                        if (data.byteLength > 0 && sourceBufferRef.current && !sourceBufferRef.current.updating) {
+                           sourceBufferRef.current.appendBuffer(data);
+                        }
+                    } catch (error) {
+                        console.error('Error fetching stream chunk:', error);
+                        setVideoStatus('error');
+                        if (fetchIntervalRef.current) clearInterval(fetchIntervalRef.current);
+                    }
+                };
+
+                if (liveSession?.status === 'live') {
+                    setVideoStatus('playing');
+                    fetchIntervalRef.current = setInterval(fetchChunk, 2000);
+                }
+
+            } catch (e) {
+                console.error("Error adding source buffer:", e);
                 setVideoStatus('error');
             }
         };
 
-        mediaSourceRef.current.addEventListener('sourceopen', onSourceOpen);
-
-        const currentMediaSource = mediaSourceRef.current;
+        mediaSource.addEventListener('sourceopen', onSourceOpen);
 
         return () => {
-            // Cleanup
-            currentMediaSource?.removeEventListener('sourceopen', onSourceOpen);
-            if (fetchIntervalRef.current) {
-                clearInterval(fetchIntervalRef.current);
+            // This is the main cleanup when the component unmounts
+            cleanupStream();
+            if (mediaSource.removeEventListener) {
+                mediaSource.removeEventListener('sourceopen', onSourceOpen);
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty dependency array ensures this runs only ONCE
 
-    }, [liveSession]);
-
-
-    const fetchAndAppendChunks = () => {
-        let lastFetchedData: ArrayBuffer | null = null;
-
-        const fetchChunk = async () => {
-            try {
-                const response = await fetch(`/live/live.webm?t=${Date.now()}`); // Cache-bust
-                if (!response.ok) throw new Error('Network response was not ok');
-
-                const data = await response.arrayBuffer();
-
-                // Very basic check to avoid appending identical chunks
-                if (lastFetchedData && buffersAreEqual(lastFetchedData, data)) {
-                    return;
-                }
-                lastFetchedData = data;
-
-                const sourceBuffer = sourceBufferRef.current;
-                if (sourceBuffer && !sourceBuffer.updating) {
-                    sourceBuffer.appendBuffer(data);
-                }
-
-            } catch (error) {
-                console.error('Error fetching stream chunk:', error);
-                setVideoStatus('error'); 
-                 if (fetchIntervalRef.current) {
-                    clearInterval(fetchIntervalRef.current);
-                }
+    useEffect(() => {
+        // This effect manages the stream based on liveSession status
+        if (liveSession?.status !== 'live') {
+            cleanupStream();
+             if (liveSession) { // If session exists but is not live
+                setVideoStatus('error');
             }
-        };
-        
-        fetchChunk(); // Fetch immediately
-        fetchIntervalRef.current = setInterval(fetchChunk, 2000);
-    };
-    
-    function buffersAreEqual(buf1: ArrayBuffer, buf2: ArrayBuffer) {
-        if (buf1.byteLength !== buf2.byteLength) return false;
-        const dv1 = new Int8Array(buf1);
-        const dv2 = new Int8Array(buf2);
-        for (let i = 0; i !== buf1.byteLength; i++) {
-            if (dv1[i] !== dv2[i]) return false;
         }
-        return true;
-    }
+    }, [liveSession?.status, cleanupStream]);
 
 
     if (isLoading) {
