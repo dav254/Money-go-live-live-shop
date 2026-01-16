@@ -36,13 +36,12 @@ export default function BuyerLiveViewPage() {
             try {
                 mediaSourceRef.current.endOfStream();
             } catch(e) {
-                // Ignore errors on cleanup, the source might already be closed
+                console.warn("Error ending stream on cleanup:", e);
             }
         }
         if (videoRef.current && videoRef.current.src) {
             URL.revokeObjectURL(videoRef.current.src);
             videoRef.current.removeAttribute('src');
-            // Don't call load() as it can cause issues.
         }
         sourceBufferRef.current = null;
     }, []);
@@ -57,6 +56,7 @@ export default function BuyerLiveViewPage() {
         const onSourceOpen = () => {
             const mimeCodec = 'video/webm; codecs=vp9';
             if (!MediaSource.isTypeSupported(mimeCodec)) {
+                console.error("Unsupported MIME type:", mimeCodec);
                 setVideoStatus('error');
                 return;
             }
@@ -69,13 +69,14 @@ export default function BuyerLiveViewPage() {
                         return;
                     }
                     try {
-                        const response = await fetch(`/live/live.webm?t=${'\'\'\'' + Date.now() + '\'\'\''}`);
+                        // Cache-busting by adding a timestamp
+                        const response = await fetch(`/live/live.webm?t=${Date.now()}`);
                         if (!response.ok) {
                             if (response.status === 404) {
                                 console.log("Stream file not found, retrying...");
-                                return;
+                                return; // Don't throw error, just wait for next fetch
                             }
-                            throw new Error(`Network response was not ok (${'\'\'\'' + response.status + '\'\'\''})`);
+                            throw new Error(`Network response was not ok (${response.status})`);
                         }
                         
                         const data = await response.arrayBuffer();
@@ -86,6 +87,7 @@ export default function BuyerLiveViewPage() {
                         }
                     } catch (error) {
                         console.error('Error fetching stream chunk:', error);
+                        // Don't set to 'error' immediately, allow retries
                     }
                 };
                 
@@ -102,21 +104,26 @@ export default function BuyerLiveViewPage() {
         return () => {
             cleanupStream();
             if (mediaSourceRef.current) {
-                mediaSourceRef.current.removeEventListener('sourceopen', onSourceOpen);
+                // Ensure the event listener is removed from the old MediaSource instance
+                try {
+                    mediaSourceRef.current.removeEventListener('sourceopen', onSourceOpen);
+                } catch(e) {
+                    // Ignore if already cleaned up
+                }
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // This separate effect handles the stream ending gracefully.
     useEffect(() => {
-        if (liveSession && liveSession.status !== 'live' && fetchIntervalRef.current) {
-            clearInterval(fetchIntervalRef.current);
-            fetchIntervalRef.current = null;
+        if (liveSession && liveSession.status !== 'live') {
+            cleanupStream();
             if (videoStatus !== 'playing') {
                  setVideoStatus('error');
             }
         }
-    }, [liveSession, videoStatus]);
+    }, [liveSession, videoStatus, cleanupStream]);
 
 
     if (isLoading) {

@@ -79,7 +79,7 @@ export default function SellerLiveStudio() {
     }
 
     if (user && firestore && liveSession) {
-        const sessionRef = doc(firestore, 'liveSessions', liveSession.id);
+        const sessionRef = doc(firestore, 'liveSessions', user.uid);
         await updateDoc(sessionRef, {
             status: 'ended',
             endTime: serverTimestamp()
