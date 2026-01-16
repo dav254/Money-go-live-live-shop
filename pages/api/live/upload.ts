@@ -1,3 +1,4 @@
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs/promises';
@@ -18,15 +19,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const form = formidable({});
     const [fields, files] = await form.parse(req);
 
-    const videoFile = Array.isArray(files.video) ? files.video[0] : undefined;
+    const imageFile = Array.isArray(files.frame) ? files.frame[0] : undefined;
 
-    if (!videoFile) {
-      return res.status(400).json({ success: false, error: 'No video file uploaded.' });
+    if (!imageFile) {
+      return res.status(400).json({ success: false, error: 'No image frame uploaded.' });
     }
 
     const publicDir = path.join(process.cwd(), 'public');
     const liveDir = path.join(publicDir, 'live');
-    const filePath = path.join(liveDir, 'live.webm');
+    const filePath = path.join(liveDir, 'live.jpg');
 
     // Ensure the /public/live directory exists
     try {
@@ -36,12 +37,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Read the file from the temporary path and write it
-    const fileData = await fs.readFile(videoFile.filepath);
+    const fileData = await fs.readFile(imageFile.filepath);
     await fs.writeFile(filePath, fileData);
 
-    return res.status(200).json({ success: true, message: 'Live chunk updated.' });
+    return res.status(200).json({ success: true, message: 'Live frame updated.' });
   } catch (error) {
-    console.error('Error handling video upload:', error);
+    console.error('Error handling image upload:', error);
     return res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 }

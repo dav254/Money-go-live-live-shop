@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -11,7 +12,7 @@ import { StreamControls } from '@/components/studio/StreamControls';
 
 export default function SellerLiveStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { user } = useUser();
@@ -25,29 +26,29 @@ export default function SellerLiveStudio() {
     toast({ title: "Going Live...", description: "Setting up your stream." });
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
 
-        const mimeType = 'video/webm; codecs=vp9';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-            toast({ title: "Streaming Error", description: "Your browser does not support the required video format.", variant: "destructive"});
-            setIsStarting(false);
-            return;
-        }
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
 
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
-        
-        mediaRecorderRef.current.ondataavailable = async (event) => {
-            if (event.data.size > 0) {
-                const formData = new FormData();
-                formData.append('video', event.data, 'live.webm');
-                fetch('/api/live/upload', { method: 'POST', body: formData }).catch(console.error);
-            }
-        };
+        captureIntervalRef.current = setInterval(() => {
+            if (!videoRef.current || !context || videoRef.current.paused || videoRef.current.ended) return;
 
-        // Send a chunk of video data every 2 seconds
-        mediaRecorderRef.current.start(2000);
+            // Match canvas to video dimensions
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                if (blob) {
+                    const formData = new FormData();
+                    formData.append('frame', blob, 'live.jpg');
+                    fetch('/api/live/upload', { method: 'POST', body: formData }).catch(console.error);
+                }
+            }, 'image/jpeg', 0.8); // 80% quality JPEG
+        }, 200); // 5 frames per second
 
         const sessionRef = doc(firestore, 'liveSessions', user.uid);
         const sessionData: LiveSession = {
@@ -64,15 +65,15 @@ export default function SellerLiveStudio() {
         toast({ title: "You are live!", variant: 'default' });
     } catch (error) {
         console.error("Error starting stream:", error);
-        toast({ title: "Could not start stream", description: "Please ensure camera and microphone permissions are granted.", variant: 'destructive' });
+        toast({ title: "Could not start stream", description: "Please ensure camera permissions are granted.", variant: 'destructive' });
     } finally {
         setIsStarting(false);
     }
   };
 
   const endStream = async () => {
-    if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
+    if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
     }
     if (videoRef.current && videoRef.current.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
@@ -91,14 +92,12 @@ export default function SellerLiveStudio() {
     toast({ title: "Stream Ended" });
   };
   
-   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (isLive) {
         endStream();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLive]);
 
   return (
