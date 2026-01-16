@@ -1,7 +1,9 @@
-'use client';
+
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+
+export const runtime = 'nodejs';
 
 // Function to ensure directory exists
 async function ensureDir(dirPath: string) {
