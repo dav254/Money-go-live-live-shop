@@ -47,8 +47,8 @@ export default function SellerLiveStudio() {
                     formData.append('frame', blob, 'live.jpg');
                     fetch('/api/live/upload', { method: 'POST', body: formData }).catch(console.error);
                 }
-            }, 'image/jpeg', 0.8); // 80% quality JPEG
-        }, 200); // 5 frames per second
+            }, 'image/jpeg', 0.75); // 75% quality JPEG
+        }, 41); // ~24 frames per second
 
         const sessionRef = doc(firestore, 'liveSessions', user.uid);
         const sessionData: LiveSession = {
