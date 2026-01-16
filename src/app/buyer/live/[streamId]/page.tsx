@@ -36,67 +36,60 @@ export default function BuyerLiveViewPage() {
             try {
                 mediaSourceRef.current.endOfStream();
             } catch(e) {
-                console.error("Error ending stream:", e);
+                // Ignore errors on cleanup, the source might already be closed
             }
         }
         if (videoRef.current && videoRef.current.src) {
             URL.revokeObjectURL(videoRef.current.src);
             videoRef.current.removeAttribute('src');
-            try {
-                videoRef.current.load();
-            } catch (e) {
-                console.error("Error resetting video element:", e);
-            }
+            // Don't call load() as it can cause issues.
         }
         sourceBufferRef.current = null;
-        mediaSourceRef.current = null;
     }, []);
 
     useEffect(() => {
-        // This effect runs only once to set up the player
         const videoElement = videoRef.current;
         if (!videoElement) return;
 
-        const mediaSource = new MediaSource();
-        mediaSourceRef.current = mediaSource;
-        videoElement.src = URL.createObjectURL(mediaSource);
+        mediaSourceRef.current = new MediaSource();
+        videoElement.src = URL.createObjectURL(mediaSourceRef.current);
 
         const onSourceOpen = () => {
             const mimeCodec = 'video/webm; codecs=vp9';
             if (!MediaSource.isTypeSupported(mimeCodec)) {
-                console.error("Unsupported MIME type:", mimeCodec);
                 setVideoStatus('error');
                 return;
             }
-
             try {
-                const buffer = mediaSource.addSourceBuffer(mimeCodec);
+                const buffer = mediaSourceRef.current!.addSourceBuffer(mimeCodec);
                 sourceBufferRef.current = buffer;
                 
                 const fetchChunk = async () => {
-                    // Check if source buffer is still valid before fetching
-                    if (!sourceBufferRef.current || sourceBufferRef.current.updating || mediaSourceRef.current?.readyState !== 'open') {
+                    if (!sourceBufferRef.current || sourceBufferRef.current.updating) {
                         return;
                     }
                     try {
-                        const response = await fetch(`/live/live.webm?t=${Date.now()}`);
-                        if (!response.ok) throw new Error('Network response was not ok');
+                        const response = await fetch(`/live/live.webm?t=${'\'\'\'' + Date.now() + '\'\'\''}`);
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                console.log("Stream file not found, retrying...");
+                                return;
+                            }
+                            throw new Error(`Network response was not ok (${'\'\'\'' + response.status + '\'\'\''})`);
+                        }
                         
                         const data = await response.arrayBuffer();
-                        if (data.byteLength > 0 && sourceBufferRef.current && !sourceBufferRef.current.updating) {
+                        
+                        if (data.byteLength > 0 && sourceBufferRef.current && !sourceBufferRef.current.updating && mediaSourceRef.current?.readyState === 'open') {
                            sourceBufferRef.current.appendBuffer(data);
+                           setVideoStatus('playing');
                         }
                     } catch (error) {
                         console.error('Error fetching stream chunk:', error);
-                        setVideoStatus('error');
-                        if (fetchIntervalRef.current) clearInterval(fetchIntervalRef.current);
                     }
                 };
-
-                if (liveSession?.status === 'live') {
-                    setVideoStatus('playing');
-                    fetchIntervalRef.current = setInterval(fetchChunk, 2000);
-                }
+                
+                fetchIntervalRef.current = setInterval(fetchChunk, 2000);
 
             } catch (e) {
                 console.error("Error adding source buffer:", e);
@@ -104,32 +97,31 @@ export default function BuyerLiveViewPage() {
             }
         };
 
-        mediaSource.addEventListener('sourceopen', onSourceOpen);
+        mediaSourceRef.current.addEventListener('sourceopen', onSourceOpen);
 
         return () => {
-            // This is the main cleanup when the component unmounts
             cleanupStream();
-            if (mediaSource.removeEventListener) {
-                mediaSource.removeEventListener('sourceopen', onSourceOpen);
+            if (mediaSourceRef.current) {
+                mediaSourceRef.current.removeEventListener('sourceopen', onSourceOpen);
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty dependency array ensures this runs only ONCE
+    }, []);
 
     useEffect(() => {
-        // This effect manages the stream based on liveSession status
-        if (liveSession?.status !== 'live') {
-            cleanupStream();
-             if (liveSession) { // If session exists but is not live
-                setVideoStatus('error');
+        if (liveSession && liveSession.status !== 'live' && fetchIntervalRef.current) {
+            clearInterval(fetchIntervalRef.current);
+            fetchIntervalRef.current = null;
+            if (videoStatus !== 'playing') {
+                 setVideoStatus('error');
             }
         }
-    }, [liveSession?.status, cleanupStream]);
+    }, [liveSession, videoStatus]);
 
 
     if (isLoading) {
         return (
-            <BuyerLayout fullWidth>
+            <BuyerLayout>
                 <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-black text-white">
                     <p>Loading live stream...</p>
                 </div>
@@ -154,7 +146,7 @@ export default function BuyerLiveViewPage() {
     }
 
     return (
-        <BuyerLayout fullWidth>
+        <BuyerLayout>
             <div className="h-[calc(100vh-4rem)] bg-black flex items-center justify-center">
                 <div className="w-full h-full relative">
                     <video 
@@ -176,7 +168,7 @@ export default function BuyerLiveViewPage() {
                                     <AlertCircle className="h-4 w-4" />
                                     <AlertTitle>Stream Interrupted</AlertTitle>
                                     <AlertDescription>
-                                        The connection was lost. Please refresh the page to try again.
+                                        The connection was lost. Trying to reconnect...
                                     </AlertDescription>
                                 </Alert>
                             )}
