@@ -29,7 +29,14 @@ export default function SellerLiveStudio() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
 
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const mimeType = 'video/webm; codecs=vp9';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+            toast({ title: "Streaming Error", description: "Your browser does not support the required video format.", variant: "destructive"});
+            setIsStarting(false);
+            return;
+        }
+
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
         
         mediaRecorderRef.current.ondataavailable = async (event) => {
             if (event.data.size > 0) {

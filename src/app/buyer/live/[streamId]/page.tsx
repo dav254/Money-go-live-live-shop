@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
@@ -14,10 +13,11 @@ export default function BuyerLiveViewPage() {
     const params = useParams();
     const streamId = params.streamId as string;
     const firestore = useFirestore();
-    const [videoStatus, setVideoStatus] = useState<'loading' | 'playing' | 'error'>('loading');
-    const [timestamp, setTimestamp] = useState(Date.now());
     const videoRef = useRef<HTMLVideoElement>(null);
-    const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const mediaSourceRef = useRef<MediaSource | null>(null);
+    const sourceBufferRef = useRef<SourceBuffer | null>(null);
+    const fetchIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [videoStatus, setVideoStatus] = useState<'loading' | 'playing' | 'error'>('loading');
 
     const liveSessionRef = useMemoFirebase(() => {
         if (!streamId) return null;
@@ -25,48 +25,96 @@ export default function BuyerLiveViewPage() {
     }, [firestore, streamId]);
 
     const { data: liveSession, isLoading } = useDoc<LiveSession>(liveSessionRef);
-    
-    const videoSrc = `/live/live.webm?t=${timestamp}`;
 
-    // Effect to periodically update timestamp to refetch video
     useEffect(() => {
-        const interval = setInterval(() => {
-            setTimestamp(Date.now());
-        }, 2500); // A bit longer to allow for upload
-
-        return () => clearInterval(interval);
-    }, []);
-
-    const handleError = () => {
-        setVideoStatus('error');
-        // Clear any existing timeout before setting a new one
-        if (retryTimeoutRef.current) {
-            clearTimeout(retryTimeoutRef.current);
+        const videoElement = videoRef.current;
+        if (!videoElement || !liveSession || liveSession.status !== 'live') {
+            return;
         }
-        // Retry loading the video after a short delay
-        retryTimeoutRef.current = setTimeout(() => {
-            if (videoRef.current) {
-                setVideoStatus('loading');
-                videoRef.current.load(); // This will re-trigger the src fetch with a new timestamp
-            }
-        }, 3000);
-    };
 
-    const handleCanPlay = () => {
-        setVideoStatus('playing');
-        if (videoRef.current) {
-            videoRef.current.play().catch(console.error);
-        }
-    };
-    
-    // Cleanup timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (retryTimeoutRef.current) {
-                clearTimeout(retryTimeoutRef.current);
+        // 1. Initialize MediaSource
+        mediaSourceRef.current = new MediaSource();
+        videoElement.src = URL.createObjectURL(mediaSourceRef.current);
+
+        const onSourceOpen = () => {
+            if (!mediaSourceRef.current) return;
+            // 2. Create SourceBuffer
+            const mimeCodec = 'video/webm; codecs=vp9';
+            if (MediaSource.isTypeSupported(mimeCodec)) {
+                try {
+                    const sourceBuffer = mediaSourceRef.current.addSourceBuffer(mimeCodec);
+                    sourceBufferRef.current = sourceBuffer;
+                    setVideoStatus('playing');
+                    // 3. Start fetching chunks
+                    fetchAndAppendChunks();
+                } catch (e) {
+                    console.error("Error adding source buffer:", e);
+                    setVideoStatus('error');
+                }
+            } else {
+                console.error("Unsupported MIME type:", mimeCodec);
+                setVideoStatus('error');
             }
         };
-    }, []);
+
+        mediaSourceRef.current.addEventListener('sourceopen', onSourceOpen);
+
+        const currentMediaSource = mediaSourceRef.current;
+
+        return () => {
+            // Cleanup
+            currentMediaSource?.removeEventListener('sourceopen', onSourceOpen);
+            if (fetchIntervalRef.current) {
+                clearInterval(fetchIntervalRef.current);
+            }
+        };
+
+    }, [liveSession]);
+
+
+    const fetchAndAppendChunks = () => {
+        let lastFetchedData: ArrayBuffer | null = null;
+
+        const fetchChunk = async () => {
+            try {
+                const response = await fetch(`/live/live.webm?t=${Date.now()}`); // Cache-bust
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const data = await response.arrayBuffer();
+
+                // Very basic check to avoid appending identical chunks
+                if (lastFetchedData && buffersAreEqual(lastFetchedData, data)) {
+                    return;
+                }
+                lastFetchedData = data;
+
+                const sourceBuffer = sourceBufferRef.current;
+                if (sourceBuffer && !sourceBuffer.updating) {
+                    sourceBuffer.appendBuffer(data);
+                }
+
+            } catch (error) {
+                console.error('Error fetching stream chunk:', error);
+                setVideoStatus('error'); 
+                 if (fetchIntervalRef.current) {
+                    clearInterval(fetchIntervalRef.current);
+                }
+            }
+        };
+        
+        fetchChunk(); // Fetch immediately
+        fetchIntervalRef.current = setInterval(fetchChunk, 2000);
+    };
+    
+    function buffersAreEqual(buf1: ArrayBuffer, buf2: ArrayBuffer) {
+        if (buf1.byteLength !== buf2.byteLength) return false;
+        const dv1 = new Int8Array(buf1);
+        const dv2 = new Int8Array(buf2);
+        for (let i = 0; i !== buf1.byteLength; i++) {
+            if (dv1[i] !== dv2[i]) return false;
+        }
+        return true;
+    }
 
 
     if (isLoading) {
@@ -101,16 +149,12 @@ export default function BuyerLiveViewPage() {
                 <div className="w-full h-full relative">
                     <video 
                         ref={videoRef}
-                        src={videoSrc}
                         autoPlay 
                         muted 
                         playsInline 
                         className="w-full h-full object-contain"
-                        onError={handleError}
-                        onCanPlay={handleCanPlay}
-                        key={videoSrc} // Force re-mount on src change
                     />
-                    {videoStatus !== 'playing' && (
+                     {videoStatus !== 'playing' && (
                          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
                             {videoStatus === 'loading' ? (
                                 <div className="text-center text-white">
@@ -122,7 +166,7 @@ export default function BuyerLiveViewPage() {
                                     <AlertCircle className="h-4 w-4" />
                                     <AlertTitle>Stream Interrupted</AlertTitle>
                                     <AlertDescription>
-                                        The connection was lost. Trying to reconnect...
+                                        The connection was lost. Please refresh the page to try again.
                                     </AlertDescription>
                                 </Alert>
                             )}
