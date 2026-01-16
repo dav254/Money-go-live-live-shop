@@ -27,7 +27,7 @@ export default function SellerLiveStudio() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
 
         mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
         
@@ -39,6 +39,7 @@ export default function SellerLiveStudio() {
             }
         };
 
+        // Send a chunk of video data every 2 seconds
         mediaRecorderRef.current.start(2000);
 
         const sessionRef = doc(firestore, 'liveSessions', user.uid);

@@ -23,12 +23,13 @@ export default function BuyerLiveViewPage() {
 
     const { data: liveSession, isLoading } = useDoc<LiveSession>(liveSessionRef);
 
+    // This effect will periodically reload the video source to get new chunks
     useEffect(() => {
         const interval = setInterval(() => {
             if (videoRef.current) {
                 videoRef.current.load();
             }
-        }, 2000);
+        }, 2000); // Reload every 2 seconds
 
         return () => clearInterval(interval);
     }, []);

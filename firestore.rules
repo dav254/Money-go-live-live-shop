@@ -196,17 +196,12 @@ service cloud.firestore {
 
     // Live Sessions
     match /liveSessions/{sessionId} {
-      allow read, create, update: if request.auth != null;
-      allow delete: if request.auth.uid == sessionId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow read: if request.auth != null;
+      // Allow seller to create/update their session document
+      allow create, update: if request.auth.uid == sessionId;
 
-      match /offerCandidates/{candidateId} {
-        allow write: if request.auth.uid == sessionId && request.resource.data.sellerId == request.auth.uid;
-        allow read: if request.auth != null;
-      }
-      
-      match /answerCandidates/{candidateId} {
-        allow write: if request.auth != null;
-        allow read: if request.auth.uid == sessionId;
+      match /chat/{messageId} {
+        allow read, write: if request.auth != null;
       }
       
       match /events/{eventId} {
