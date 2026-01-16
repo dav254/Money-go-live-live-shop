@@ -3,7 +3,7 @@
 
 import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore'; // Import where
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -13,7 +13,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 
-function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product: Product; mediaUrl: string; mediaType: 'image' | 'video', onScroll: (direction: 'up' | 'down') => void; }) {
+function RealtimeVideoCard({ product, onScroll }: { product: Product; onScroll: (direction: 'up' | 'down') => void; }) {
     const firestore = useFirestore();
     
     const sellerShopRef = useMemoFirebase(() => {
@@ -72,11 +72,11 @@ function RealtimeVideoCard({ product, mediaUrl, mediaType, onScroll }: { product
         product: product,
         seller: seller,
         video: {
-          id: product.id + mediaUrl, 
-          imageUrl: mediaUrl,
+          id: product.id, 
+          imageUrl: product.imageUrl || getPlaceholderImage(),
           description: product.name,
-          imageHint: mediaType,
-          mediaType: mediaType,
+          imageHint: 'product',
+          mediaType: 'image', // This is just a fallback
         },
         likes: product.likes || 0,
         viewers: 0, // View count removed
@@ -96,29 +96,14 @@ export default function SellerLivePage() {
     const firestore = useFirestore();
 
     const productsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        // Query for all products to create a full feed
-        return query(collection(firestore, 'products'));
-    }, [firestore]);
+        if (!user || !firestore) return null;
+        // Query for the seller's own products
+        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+    }, [firestore, user]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
     const isLoading = isUserLoading || areProductsLoading;
-
-    const feedMediaItems = useMemo(() => {
-        if (!products) return [];
-
-        const allMedia: {product: Product, mediaUrl: string, mediaType: 'video' | 'image'}[] = [];
-        products.forEach(product => {
-            if (product.videoUrls && product.videoUrls.length > 0) {
-                product.videoUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'video' }));
-            }
-            if (product.imageUrls && product.imageUrls.length > 0) {
-                product.imageUrls.forEach(url => allMedia.push({ product, mediaUrl: url, mediaType: 'image' }));
-            }
-        });
-        return allMedia;
-    }, [products]);
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
         const container = scrollContainerRef.current;
@@ -163,13 +148,11 @@ export default function SellerLivePage() {
                         "scrollbar-hide"
                     )}
                 >
-                {feedMediaItems && feedMediaItems.length > 0 ? (
-                    feedMediaItems.map((item, index) => (
+                {products && products.length > 0 ? (
+                    products.map((product) => (
                         <RealtimeVideoCard 
-                            key={`${item.product.id}-${index}`} 
-                            product={item.product} 
-                            mediaUrl={item.mediaUrl}
-                            mediaType={item.mediaType}
+                            key={product.id} 
+                            product={product} 
                             onScroll={handleScroll}
                         />
                     ))
@@ -178,7 +161,7 @@ export default function SellerLivePage() {
                         <div className="text-center p-4">
                             <h2 className="text-xl font-semibold">Your Live Preview is Empty</h2>
                             <p className="text-muted-foreground max-w-sm mx-auto">This page shows how your products will look in the main feed. Upload products with images or videos to see them here.</p>
-                            <Link href="/dashboard/products">
+                            <Link href="/dashboard/products?tab=add-new">
                                 <button className="mt-4 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
                                     Add Your First Product
                                 </button>
