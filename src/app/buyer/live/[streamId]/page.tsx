@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -7,14 +8,16 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RadioTower, AlertCircle } from 'lucide-react';
+import { RadioTower, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function BuyerLiveViewPage() {
     const params = useParams();
     const streamId = params.streamId as string;
     const firestore = useFirestore();
-    const [videoError, setVideoError] = useState(false);
+    const [videoStatus, setVideoStatus] = useState<'loading' | 'playing' | 'error'>('loading');
+    const [timestamp, setTimestamp] = useState(Date.now());
     const videoRef = useRef<HTMLVideoElement>(null);
+    const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const liveSessionRef = useMemoFirebase(() => {
         if (!streamId) return null;
@@ -22,17 +25,49 @@ export default function BuyerLiveViewPage() {
     }, [firestore, streamId]);
 
     const { data: liveSession, isLoading } = useDoc<LiveSession>(liveSessionRef);
+    
+    const videoSrc = `/live/live.webm?t=${timestamp}`;
 
-    // This effect will periodically reload the video source to get new chunks
+    // Effect to periodically update timestamp to refetch video
     useEffect(() => {
         const interval = setInterval(() => {
-            if (videoRef.current) {
-                videoRef.current.load();
-            }
-        }, 2000); // Reload every 2 seconds
+            setTimestamp(Date.now());
+        }, 2500); // A bit longer to allow for upload
 
         return () => clearInterval(interval);
     }, []);
+
+    const handleError = () => {
+        setVideoStatus('error');
+        // Clear any existing timeout before setting a new one
+        if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+        }
+        // Retry loading the video after a short delay
+        retryTimeoutRef.current = setTimeout(() => {
+            if (videoRef.current) {
+                setVideoStatus('loading');
+                videoRef.current.load(); // This will re-trigger the src fetch with a new timestamp
+            }
+        }, 3000);
+    };
+
+    const handleCanPlay = () => {
+        setVideoStatus('playing');
+        if (videoRef.current) {
+            videoRef.current.play().catch(console.error);
+        }
+    };
+    
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (retryTimeoutRef.current) {
+                clearTimeout(retryTimeoutRef.current);
+            }
+        };
+    }, []);
+
 
     if (isLoading) {
         return (
@@ -66,22 +101,31 @@ export default function BuyerLiveViewPage() {
                 <div className="w-full h-full relative">
                     <video 
                         ref={videoRef}
-                        src="/live/live.webm" 
+                        src={videoSrc}
                         autoPlay 
                         muted 
                         playsInline 
                         className="w-full h-full object-contain"
-                        onError={() => setVideoError(true)}
+                        onError={handleError}
+                        onCanPlay={handleCanPlay}
+                        key={videoSrc} // Force re-mount on src change
                     />
-                    {videoError && (
+                    {videoStatus !== 'playing' && (
                          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                            <Alert variant="destructive" className="max-w-md">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>Stream Interrupted</AlertTitle>
-                                <AlertDescription>
-                                    The connection to the live stream was lost. Please wait or try refreshing the page.
-                                </AlertDescription>
-                            </Alert>
+                            {videoStatus === 'loading' ? (
+                                <div className="text-center text-white">
+                                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                                    <p className="mt-2">Connecting to live stream...</p>
+                                </div>
+                            ) : (
+                                <Alert variant="destructive" className="max-w-md">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertTitle>Stream Interrupted</AlertTitle>
+                                    <AlertDescription>
+                                        The connection was lost. Trying to reconnect...
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                         </div>
                     )}
                 </div>
