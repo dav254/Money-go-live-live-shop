@@ -59,6 +59,7 @@
     "next": "15.3.8",
     "next-themes": "^0.3.0",
     "node-fetch": "^2.6.7",
+    "nprogress": "^0.2.0",
     "paystack": "^2.0.1",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -74,6 +75,7 @@
   "devDependencies": {
     "@types/node": "^20",
     "@types/node-fetch": "^2.6.11",
+    "@types/nprogress": "^0.2.3",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^9.0.8",
