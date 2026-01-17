@@ -42,10 +42,10 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/live')} tooltip="Live Buying">
-            <Link href="/live">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-stream')} tooltip="Live Stream">
+            <Link href="/buyer/live-stream">
               <Video />
-              <span>Live Feed</span>
+              <span>Live Stream</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -100,7 +100,7 @@ export function BuyerSidebar() {
 
     <SidebarMenu className="mt-auto">
         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/about')} tooltip="About Us">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/about')}>
             <Link href="/buyer/about">
               <Info />
               <span>About Us</span>
@@ -108,7 +108,7 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-            <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')} tooltip="Help Center">
+            <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')}>
             <Link href="/buyer/help">
                 <HelpCircle />
                 <span>Help Center</span>
