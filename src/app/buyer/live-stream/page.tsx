@@ -2,21 +2,12 @@
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Video } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
 import { LiveSellerCard } from '@/components/buyer/LiveSellerCard';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const mockLiveSellers = [
-    {
-        id: 'CKmHD5jv0dOevUJhJ8tM7akpSlF2',
-        name: "Aisha's Handbags",
-        avatar: 'https://picsum.photos/seed/seller-avatar-1/100',
-        viewers: 1300
-    }
-]
+import { Video } from 'lucide-react';
 
 export default function LiveStreamPage() {
     const firestore = useFirestore();
@@ -28,9 +19,6 @@ export default function LiveStreamPage() {
 
     const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
     
-    // For now, we will use mock data since the full backend isn't in place.
-    const sellers = liveSessions && liveSessions.length > 0 ? liveSessions : mockLiveSellers;
-
   return (
     <BuyerLayout>
       <div className="p-8">
@@ -42,10 +30,13 @@ export default function LiveStreamPage() {
         </p>
         <div className="mt-8 space-y-4">
              {isLoading ? (
-                <Skeleton className="h-24 w-full" />
-             ) : sellers.length > 0 ? (
-                sellers.map(seller => (
-                    <LiveSellerCard key={seller.id} seller={seller} />
+                <div className="space-y-4">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                </div>
+             ) : liveSessions && liveSessions.length > 0 ? (
+                liveSessions.map(session => (
+                    <LiveSellerCard key={session.id} sellerSession={session} />
                 ))
              ) : (
                 <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
