@@ -1,21 +1,13 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, onSnapshot, collection, addDoc, getDocs, deleteDoc, serverTimestamp, updateDoc, query, where } from 'firebase/firestore';
 import { Radio, StopCircle, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
-import type { Product } from '@/lib/types';
 import { StreamControls } from '@/components/studio/StreamControls';
 import Recorder from '@/components/studio/Recorder';
-
 
 export default function SellerStreamPage() {
   const { user } = useUser();
@@ -25,11 +17,8 @@ export default function SellerStreamPage() {
   const [isLive, setIsLive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
-  const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
   
   const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
-
-  // Memoize stream for stability
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const handleGoLive = useCallback(async () => {
@@ -46,7 +35,6 @@ export default function SellerStreamPage() {
         sellerId: user.uid,
         status: 'live',
         startTime: serverTimestamp(),
-        productIds: [],
         viewerCount: 0
       }, { merge: true });
 
@@ -115,7 +103,6 @@ export default function SellerStreamPage() {
     const sessionRef = doc(firestore, 'liveSessions', user.uid);
     await updateDoc(sessionRef, { status: 'ended', endTime: serverTimestamp() });
     
-    // Clean up subcollections
     const collectionsToDelete = ['viewers', 'offers', 'answers', 'offerCandidates', 'answerCandidates'];
     for (const coll of collectionsToDelete) {
         const snapshot = await getDocs(collection(sessionRef, coll));
@@ -126,75 +113,33 @@ export default function SellerStreamPage() {
 
     setIsLive(false);
     setViewerCount(0);
-    setPinnedProduct(null);
     toast({ title: 'Live stream ended.' });
   }, [user, firestore, toast]);
-  
-  const handlePinProduct = useCallback(async (product: Product) => {
-      setPinnedProduct(product);
-      if(user) {
-        const sessionRef = doc(firestore, 'liveSessions', user.uid);
-        await updateDoc(sessionRef, { productIds: [product.id] });
-      }
-  }, [user, firestore]);
-  
-  const handleUnpinProduct = useCallback(async () => {
-      setPinnedProduct(null);
-      if(user) {
-        const sessionRef = doc(firestore, 'liveSessions', user.uid);
-        await updateDoc(sessionRef, { productIds: [] });
-      }
-  }, [user, firestore]);
-
 
   return (
     <SellerLayout>
-        <div className="flex-1 p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-            {/* Main Content: Video Feed and Controls */}
-            <div className="lg:col-span-3 flex flex-col gap-4">
-                <div className="flex-1 relative bg-black rounded-lg overflow-hidden">
-                    <Recorder isLive={isLive} />
-                    <div className="absolute top-4 left-4 flex items-center gap-4 z-10">
-                        {isLive && (
-                            <div className="bg-red-600 text-white px-3 py-1 rounded-md text-sm font-semibold animate-pulse flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-white"></div>
-                                LIVE
-                            </div>
-                        )}
-                         <div className="bg-black/50 text-white px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            {viewerCount}
-                        </div>
-                    </div>
-                    {pinnedProduct && (
-                        <div className="absolute bottom-4 left-4 z-10">
-                            <PinnedProduct product={pinnedProduct} />
+        <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+            <div className="flex-1 relative bg-black rounded-lg overflow-hidden">
+                <Recorder isLive={isLive} />
+                <div className="absolute top-4 left-4 flex items-center gap-4 z-10">
+                    {isLive && (
+                        <div className="bg-red-600 text-white px-3 py-1 rounded-md text-sm font-semibold animate-pulse flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-white"></div>
+                            LIVE
                         </div>
                     )}
+                     <div className="bg-black/50 text-white px-3 py-1 rounded-md text-sm font-semibold flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        {viewerCount}
+                    </div>
                 </div>
-                <StreamControls 
-                    isLive={isLive} 
-                    isStarting={isStarting}
-                    onGoLive={handleGoLive}
-                    onEndLive={handleEndLive}
-                />
             </div>
-
-            {/* Right Sidebar: Products and Activity */}
-            <div className="flex flex-col gap-4 overflow-hidden">
-                <Card className="flex-1 flex flex-col">
-                    <CardHeader><CardTitle>My Products</CardTitle></CardHeader>
-                    <CardContent className="flex-1 overflow-hidden">
-                        {user && <LiveProductShelf sellerId={user.uid} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} />}
-                    </CardContent>
-                </Card>
-                <Card className="flex-1 flex flex-col">
-                    <CardHeader><CardTitle>Live Activity</CardTitle></CardHeader>
-                    <CardContent className="flex-1 overflow-hidden">
-                        <LiveActivityFeed liveSessionId={user?.uid || null} />
-                    </CardContent>
-                </Card>
-            </div>
+            <StreamControls 
+                isLive={isLive} 
+                isStarting={isStarting}
+                onGoLive={handleGoLive}
+                onEndLive={handleEndLive}
+            />
         </div>
     </SellerLayout>
   );
