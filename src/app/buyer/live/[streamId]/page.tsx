@@ -6,10 +6,14 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
+import { doc, collection } from 'firebase/firestore';
+import type { LiveSession, Product } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RadioTower, AlertCircle, Loader2 } from 'lucide-react';
+import { PinnedProduct } from '@/components/live/PinnedProduct';
+import { LiveChat } from '@/components/buyer/LiveChat';
+import { LiveProductCard } from '@/components/buyer/LiveProductCard';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function BuyerLiveViewPage() {
     const params = useParams();
@@ -26,6 +30,13 @@ export default function BuyerLiveViewPage() {
     }, [firestore, streamId]);
 
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
+    
+    // For now, we will mock the products. A real implementation would fetch these based on the live session.
+    const mockProducts: Product[] = [
+        { id: 'prod-1', name: 'Classic Leather Handbag', price: 850, imageUrl: 'https://picsum.photos/seed/product-handbag/200' },
+        { id: 'prod-4', name: 'Urban Explorer Sneakers', price: 120, imageUrl: 'https://picsum.photos/seed/product-sneakers/200' },
+    ];
+
 
     useEffect(() => {
         const fetchFrame = () => {
@@ -40,25 +51,21 @@ export default function BuyerLiveViewPage() {
             };
 
             preloader.onerror = () => {
-                // If we were successfully playing before, show an error.
-                // This prevents the error from showing on initial load if the first frame isn't ready.
                 if (status === 'playing') {
                      setStatus('error');
                 }
             };
         };
 
-        // Start fetching immediately, then set interval for a smooth ~24 FPS
         fetchFrame();
-        intervalRef.current = setInterval(fetchFrame, 41);
+        intervalRef.current = setInterval(fetchFrame, 41); // ~24 FPS
 
-        // Cleanup on component unmount
         return () => {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
         };
-    }, [status]); // Rerun effect if status changes from 'error' to try reconnecting
+    }, [status]);
 
     if (isSessionLoading) {
         return (
@@ -88,36 +95,45 @@ export default function BuyerLiveViewPage() {
 
     return (
         <BuyerLayout>
-            <div className="h-[calc(100vh-4rem)] bg-black flex items-center justify-center">
-                <div className="w-full h-full relative">
-                    {imageUrl && (
-                        <Image
-                            src={imageUrl}
-                            alt="Live stream from seller"
-                            fill
-                            unoptimized // Important: prevents Next.js from caching the image
-                            className="object-contain"
-                            priority
-                        />
-                    )}
-                     {status !== 'playing' && (
-                         <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                            {status === 'loading' ? (
-                                <div className="text-center text-white">
-                                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                                    <p className="mt-2">Connecting to live stream...</p>
-                                </div>
-                            ) : (
-                                <Alert variant="destructive" className="max-w-md">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertTitle>Stream Interrupted</AlertTitle>
-                                    <AlertDescription>
-                                        The connection was lost. Reconnecting...
-                                    </AlertDescription>
-                                </Alert>
-                            )}
-                        </div>
-                    )}
+            <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)] bg-black">
+                {/* Main Live View */}
+                <div className="lg:col-span-3 h-full flex items-center justify-center relative">
+                    <div className="w-full h-full relative">
+                        {imageUrl && (
+                            <Image
+                                src={imageUrl}
+                                alt="Live stream from seller"
+                                fill
+                                unoptimized
+                                className="object-contain"
+                                priority
+                            />
+                        )}
+                        {status !== 'playing' && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
+                                {status === 'loading' ? (
+                                    <div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Connecting...</p></div>
+                                ) : (
+                                    <Alert variant="destructive" className="max-w-md"><AlertCircle className="h-4 w-4" /><AlertTitle>Stream Interrupted</AlertTitle><AlertDescription>Reconnecting...</AlertDescription></Alert>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                     <div className="absolute bottom-4 left-4 z-20">
+                        {liveSession.pinnedProductId && <PinnedProduct product={mockProducts.find(p => p.id === liveSession.pinnedProductId) as Product} />}
+                    </div>
+                    <div className="absolute bottom-4 right-4 z-20">
+                         <ScrollArea className="w-40 h-48">
+                            <div className="flex flex-col gap-2">
+                               {mockProducts.map(p => <LiveProductCard key={p.id} product={p} />)}
+                            </div>
+                         </ScrollArea>
+                    </div>
+                </div>
+
+                {/* Chat Section */}
+                <div className="lg:col-span-1 h-full">
+                    <LiveChat streamId={streamId} />
                 </div>
             </div>
         </BuyerLayout>

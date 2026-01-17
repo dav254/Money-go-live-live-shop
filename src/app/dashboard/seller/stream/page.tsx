@@ -1,36 +1,79 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Button } from '@/components/ui/button';
+import Recorder from '@/components/studio/Recorder';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Radio } from 'lucide-react';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
+import { useUser } from '@/firebase';
+import { PinnedProduct } from '@/components/live/PinnedProduct';
+import React from 'react';
+import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
+import { StreamControls } from '@/components/studio/StreamControls';
+import type { Product } from '@/lib/types';
 
 export default function SellerStreamPage() {
+    const { user } = useUser();
+    const [isLive, setIsLive] = React.useState(false);
+    const [isStarting, setIsStarting] = React.useState(false);
+    const [pinnedProduct, setPinnedProduct] = React.useState<Product | null>(null);
+
+    const handleGoLive = async () => {
+        setIsStarting(true);
+        // Simulate a delay for setting up the stream
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setIsLive(true);
+        setIsStarting(false);
+    };
+
+    const handleEndLive = () => {
+        setIsLive(false);
+    };
+    
+    const handlePinProduct = (product: Product) => {
+        setPinnedProduct(product);
+    };
+
+    const handleUnpinProduct = () => {
+        setPinnedProduct(null);
+    }
+
     return (
         <SellerLayout>
-            <div className="flex-1 space-y-8 p-8 pt-6">
-                <h1 className="font-headline text-3xl font-bold tracking-tight">
-                    Live Stream Studio
-                </h1>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Start Your Live Show</CardTitle>
-                        <CardDescription>
-                            Get ready to connect with your audience and sell your products in real-time.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center justify-center text-center gap-4 h-96 border-2 border-dashed rounded-lg">
-                        <div className="p-4 bg-primary/10 rounded-full">
-                            <Radio className="h-10 w-10 text-primary" />
-                        </div>
-                        <p className="max-w-xs text-muted-foreground">
-                            Your camera and microphone controls will appear here. When you're ready, click the button below to start your broadcast.
-                        </p>
-                        <Button size="lg" className="font-bold">
-                            Go Live
-                        </Button>
-                    </CardContent>
-                </Card>
+            <div className="flex-1 p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+                {/* Main Content: Video Feed and Controls */}
+                <div className="lg:col-span-3 flex flex-col gap-4">
+                    <div className="flex-1 relative">
+                        <Recorder isLive={isLive} />
+                        {pinnedProduct && (
+                            <div className="absolute bottom-4 left-4 z-20">
+                                <PinnedProduct product={pinnedProduct} />
+                            </div>
+                        )}
+                    </div>
+                    <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={handleGoLive} onEndLive={handleEndLive} />
+                </div>
+
+                {/* Right Sidebar: Products and Activity */}
+                <div className="flex flex-col gap-4 overflow-hidden">
+                    <Card className="flex-1 flex flex-col">
+                        <CardHeader>
+                            <CardTitle>My Products</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-hidden">
+                             {user && <LiveProductShelf sellerId={user.uid} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} />}
+                        </CardContent>
+                    </Card>
+                    <Card className="flex-1 flex flex-col">
+                        <CardHeader>
+                            <CardTitle>Live Activity</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-hidden">
+                           <LiveActivityFeed liveSessionId={user?.uid || null} />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </SellerLayout>
     );
