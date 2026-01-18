@@ -5,14 +5,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, onSnapshot, collection, addDoc, getDocs, deleteDoc, serverTimestamp, setDoc, query, where, DocumentReference } from 'firebase/firestore';
-import type { LiveSession, Product } from '@/lib/types';
+import { doc, onSnapshot, collection, addDoc, setDoc, query, where } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RadioTower, AlertCircle, Loader2, ArrowLeft, VideoOff } from 'lucide-react';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
-import { LiveChat } from '@/components/buyer/LiveChat';
-import { LiveProductCard } from '@/components/buyer/LiveProductCard';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { RadioTower, Loader2, ArrowLeft, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // WebRTC Configuration
@@ -35,7 +31,6 @@ export default function BuyerLiveViewPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
 
     const liveSessionRef = useMemoFirebase(() => {
         if (!streamId) return null;
@@ -44,22 +39,6 @@ export default function BuyerLiveViewPage() {
     
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
     
-    // Correctly derive pinnedProductId AFTER fetching liveSession
-    const pinnedProductId = (liveSession as any)?.pinnedProductId;
-
-    // Correctly create the ref for the pinned product
-    const pinnedProductRef = useMemoFirebase(() => {
-        if (!pinnedProductId) return null;
-        return doc(firestore, 'products', pinnedProductId);
-    }, [firestore, pinnedProductId]);
-
-    // Now call useDoc at the top level
-    const { data: pinnedProductData } = useDoc<Product>(pinnedProductRef);
-
-     useEffect(() => {
-        setPinnedProduct(pinnedProductData);
-    }, [pinnedProductData]);
-
     const setupPeerConnection = useCallback(async () => {
         if (!firestore || !user || !streamId || peerConnectionRef.current) return;
         setIsLoading(true);
@@ -82,22 +61,25 @@ export default function BuyerLiveViewPage() {
                 await addDoc(answerCandidates, { ...event.candidate.toJSON(), viewerId: user.uid });
             }
         };
-        
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
 
-        const offerRef = doc(sessionRef, 'offers', user.uid);
-        await setDoc(offerRef, { offer });
+        const offerDocRef = doc(sessionRef, 'offers', streamId);
         
-        const answerRef = doc(sessionRef, 'answers', user.uid);
-        const unsubAnswer = onSnapshot(answerRef, async (answerDoc) => {
-            if (answerDoc.exists() && pc.signalingState !== 'stable') {
-                const answerDescription = new RTCSessionDescription(answerDoc.data().answer);
-                await pc.setRemoteDescription(answerDescription);
+        const unsubOffer = onSnapshot(offerDocRef, async (snapshot) => {
+            if (snapshot.exists()) {
+                const offerDescription = new RTCSessionDescription(snapshot.data().offer);
+                if (pc.signalingState !== 'stable') {
+                    await pc.setRemoteDescription(offerDescription);
+                    const answerDescription = await pc.createAnswer();
+                    await pc.setLocalDescription(answerDescription);
+
+                    const answer = { answer: { type: answerDescription.type, sdp: answerDescription.sdp }, viewerId: user.uid };
+                    const answerDocRef = doc(sessionRef, 'answers', user.uid);
+                    await setDoc(answerDocRef, answer);
+                }
             }
         });
         
-        const unsubIce = onSnapshot(query(offerCandidates, where('viewerId', '==', user.uid)), (iceSnapshot) => {
+        const unsubIce = onSnapshot(query(offerCandidates), (iceSnapshot) => {
             iceSnapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
@@ -110,7 +92,7 @@ export default function BuyerLiveViewPage() {
         
         setIsLoading(false);
         
-        return () => { unsubAnswer(); unsubIce(); }
+        return () => { unsubOffer(); unsubIce(); }
 
     }, [firestore, user, streamId]);
 
@@ -160,25 +142,15 @@ export default function BuyerLiveViewPage() {
 
     return (
         <BuyerLayout fullWidth>
-            <div className="grid grid-cols-1 lg:grid-cols-4 h-[calc(100vh-4rem)] bg-black">
+            <div className="flex h-[calc(100vh-4rem)] bg-black">
                 {/* Main Live View */}
-                <div className="lg:col-span-3 h-full flex items-center justify-center relative bg-black">
+                <div className="flex-1 h-full flex items-center justify-center relative bg-black">
                     <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
                             <div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Connecting...</p></div>
                         </div>
                     )}
-                    {pinnedProduct && (
-                        <div className="absolute bottom-4 left-4 z-20">
-                            <PinnedProduct product={pinnedProduct} />
-                        </div>
-                    )}
-                </div>
-
-                {/* Chat Section */}
-                <div className="lg:col-span-1 h-full">
-                    <LiveChat streamId={streamId} />
                 </div>
             </div>
         </BuyerLayout>
