@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Radio, StopCircle, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Recorder } from '@/components/studio/Recorder';
+import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
@@ -46,6 +46,7 @@ export default function SellerStreamPage() {
         return () => unsubscribe();
     }, [liveSessionId, firestore]);
 
+    
     // --- WebRTC Handler for new viewers ---
     const handleNewViewer = useCallback(async (viewerId: string, offer: RTCSessionDescriptionInit) => {
         if (!liveSessionId || !firestore || !localStreamRef.current) return;
@@ -82,7 +83,7 @@ export default function SellerStreamPage() {
         });
 
     }, [liveSessionId, firestore]);
-
+    
     // --- Signaling Listener (for new offers from viewers) ---
     useEffect(() => {
         if (!liveSessionId || !firestore) return;
