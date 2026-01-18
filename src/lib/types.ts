@@ -323,8 +323,6 @@ export interface LiveSession {
     viewerCount?: number;
     startTime: any;
     endTime?: any;
-    muxStreamKey?: string;
-    muxPlaybackId?: string;
 }
 
 export interface SupportTicket {

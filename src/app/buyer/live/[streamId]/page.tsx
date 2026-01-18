@@ -35,20 +35,33 @@ export default function BuyerLiveViewPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
 
     const liveSessionRef = useMemoFirebase(() => {
         if (!streamId) return null;
         return doc(firestore, 'liveSessions', streamId);
     }, [firestore, streamId]);
+    
+    const pinnedProductRef = useMemoFirebase(() => {
+        if (!streamId) return null;
+        const pinnedId = (useDoc<LiveSession>(liveSessionRef).data as any)?.pinnedProductId;
+        if (!pinnedId) return null;
+        return doc(firestore, 'products', pinnedId);
+    }, [firestore, streamId, useDoc<LiveSession>(liveSessionRef).data]);
 
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
+    const { data: pinnedProductData } = useDoc<Product>(pinnedProductRef);
+
+     useEffect(() => {
+        setPinnedProduct(pinnedProductData);
+    }, [pinnedProductData]);
 
     const setupPeerConnection = useCallback(async () => {
         if (!firestore || !user || !streamId || peerConnectionRef.current) return;
         setIsLoading(true);
 
-        peerConnectionRef.current = new RTCPeerConnection(servers);
-        const pc = peerConnectionRef.current;
+        const pc = new RTCPeerConnection(servers);
+        peerConnectionRef.current = pc;
         
         pc.ontrack = event => {
             if (remoteVideoRef.current && event.streams[0]) {
@@ -66,31 +79,34 @@ export default function BuyerLiveViewPage() {
             }
         };
         
-        await setDoc(doc(sessionRef, 'viewers', user.uid), { joinedAt: serverTimestamp() });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
 
-        onSnapshot(doc(sessionRef, 'offers', user.uid), async (offerDoc) => {
-            if (offerDoc.exists()) {
-                const offerDescription = new RTCSessionDescription(offerDoc.data().offer);
-                await pc.setRemoteDescription(offerDescription);
-
-                const answerDescription = await pc.createAnswer();
-                await pc.setLocalDescription(answerDescription);
-
-                const answer = { answer: { type: answerDescription.type, sdp: answerDescription.sdp }, viewerId: user.uid };
-                await setDoc(doc(sessionRef, 'answers', user.uid), answer);
+        const offerRef = doc(sessionRef, 'offers', user.uid);
+        await setDoc(offerRef, { offer });
+        
+        const answerRef = doc(sessionRef, 'answers', user.uid);
+        const unsubAnswer = onSnapshot(answerRef, async (answerDoc) => {
+            if (answerDoc.exists() && pc.signalingState !== 'stable') {
+                const answerDescription = new RTCSessionDescription(answerDoc.data().answer);
+                await pc.setRemoteDescription(answerDescription);
             }
         });
         
-        onSnapshot(query(offerCandidates, where('viewerId', '==', user.uid)), (iceSnapshot) => {
+        const unsubIce = onSnapshot(query(offerCandidates, where('viewerId', '==', user.uid)), (iceSnapshot) => {
             iceSnapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
-                    await pc.addIceCandidate(candidate);
+                    if (pc.remoteDescription) {
+                        await pc.addIceCandidate(candidate);
+                    }
                 }
             });
         });
         
         setIsLoading(false);
+        
+        return () => { unsubAnswer(); unsubIce(); }
 
     }, [firestore, user, streamId]);
 
@@ -106,11 +122,8 @@ export default function BuyerLiveViewPage() {
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.close();
             }
-            if (firestore && user && streamId) {
-                deleteDoc(doc(firestore, 'liveSessions', streamId, 'viewers', user.uid));
-            }
         };
-    }, [isSessionLoading, liveSession, setupPeerConnection, firestore, user, streamId]);
+    }, [isSessionLoading, liveSession, setupPeerConnection]);
 
     if (isSessionLoading) {
         return (
@@ -150,6 +163,11 @@ export default function BuyerLiveViewPage() {
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
                             <div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Connecting...</p></div>
+                        </div>
+                    )}
+                    {pinnedProduct && (
+                        <div className="absolute bottom-4 left-4 z-20">
+                            <PinnedProduct product={pinnedProduct} />
                         </div>
                     )}
                 </div>

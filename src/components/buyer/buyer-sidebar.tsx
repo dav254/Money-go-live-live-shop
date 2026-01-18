@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -45,15 +46,15 @@ export function BuyerSidebar() {
           <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-stream')} tooltip="Live Feed">
             <Link href="/buyer/live-stream">
               <Video />
-              <span>Live Feed</span>
+              <span>Live Streams</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/live')} tooltip="Live Stream">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/live')} tooltip="Product Feed">
             <Link href="/live">
               <RadioTower />
-              <span>Live Stream</span>
+              <span>Product Feed</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

@@ -197,7 +197,7 @@ service cloud.firestore {
     // Live Sessions & WebRTC Signaling
     match /liveSessions/{sessionId} {
       allow read: if true;
-      allow create, update: if request.auth.uid == sessionId;
+      allow create, update: if request.auth.uid == sessionId; // Seller owns their session
       allow delete: if request.auth.uid == sessionId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
       
       // Any authenticated user can announce they are a viewer
