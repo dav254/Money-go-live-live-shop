@@ -23,7 +23,7 @@ export default function Recorder({ stream, isLive }: RecorderProps) {
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
       <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-      {!isLive && (
+      {!stream && (
           <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center">
              <VideoOff className="h-16 w-16 text-muted-foreground mb-4" />
              <h3 className="text-xl font-bold">You are not live</h3>

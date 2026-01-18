@@ -46,64 +46,74 @@ export default function SellerStreamPage() {
     }, [liveSessionId, firestore]);
     
     // --- WebRTC Handler for new viewers ---
-    const handleNewViewer = useCallback(async (viewerId: string) => {
-        if (!liveSessionId || !firestore || !localStream) return;
-        console.log(`[Seller] Received request from new viewer: ${viewerId}`);
+    const handleNewViewer = useCallback(async (viewerId: string, offer: RTCSessionDescriptionInit) => {
+        if (!liveSessionId || !firestore || !localStream || !user) return;
+        console.log(`[Seller] Received offer from new viewer: ${viewerId}`);
 
         const pc = new RTCPeerConnection(servers);
         peerConnectionsRef.current.set(viewerId, pc);
 
         localStream.getTracks().forEach(track => {
-            pc.addTrack(track, localStream);
-        });
-
-        const offersCol = collection(firestore, 'liveSessions', liveSessionId, 'offers');
-        const offerCandidatesCol = collection(firestore, 'liveSessions', liveSessionId, 'offerCandidates');
-        
-        pc.onicecandidate = event => {
-            event.candidate && addDoc(offerCandidatesCol, { ...event.candidate.toJSON(), viewerId: viewerId });
-        };
-
-        const offerDescription = await pc.createOffer();
-        await pc.setLocalDescription(offerDescription);
-
-        const offer = {
-            sdp: offerDescription.sdp,
-            type: offerDescription.type,
-        };
-
-        await setDoc(doc(offersCol, viewerId), { offer });
-
-        // Listen for the answer from the buyer
-        onSnapshot(doc(collection(firestore, 'liveSessions', liveSessionId, 'answers'), viewerId), (snapshot) => {
-            const data = snapshot.data();
-            if (data && !pc.currentRemoteDescription) {
-                const answerDescription = new RTCSessionDescription(data.answer);
-                pc.setRemoteDescription(answerDescription);
+            if (localStream) {
+                 pc.addTrack(track, localStream);
             }
         });
 
-    }, [liveSessionId, firestore, localStream]);
+        const signalingCol = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
+        
+        pc.onicecandidate = event => {
+            event.candidate && addDoc(signalingCol, { type: 'sellerCandidate', to: viewerId, candidate: event.candidate.toJSON() });
+        };
+
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answerDescription = await pc.createAnswer();
+            await pc.setLocalDescription(answerDescription);
+
+            const answer = {
+                type: answerDescription.type,
+                sdp: answerDescription.sdp,
+            };
+
+            await setDoc(doc(signalingCol, `answer-${viewerId}`), { answer });
+
+            // Listen for buyer ICE candidates for this specific peer connection
+            const buyerCandidatesQuery = query(signalingCol, where('type', '==', 'buyerCandidate'), where('from', '==', viewerId));
+            const unsubIce = onSnapshot(buyerCandidatesQuery, (snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === 'added') {
+                        const candidate = new RTCIceCandidate(change.doc.data().candidate);
+                        await pc.addIceCandidate(candidate);
+                    }
+                });
+            });
+            // You might want to manage unsubscribe functions for each peer connection
+        } catch (error) {
+            console.error("Error handling offer:", error);
+        }
+
+    }, [liveSessionId, firestore, localStream, user]);
 
     // --- Signaling Listener (for new buyers joining) ---
     useEffect(() => {
-        if (!liveSessionId || !firestore) return;
-        const viewersColRef = collection(firestore, 'liveSessions', liveSessionId, 'viewers');
-        const unsubscribe = onSnapshot(query(viewersColRef), (snapshot) => {
+        if (!liveSessionId || !firestore || !user) return;
+        
+        const signalingCol = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
+        // This query needs to be specific to offers meant for this seller.
+        // Assuming offers from buyers are directly added with a predictable format or a 'to' field.
+        const offersQuery = query(signalingCol, where('type', '==', 'offer'), where('to', '==', user.uid));
+
+        const unsubscribe = onSnapshot(offersQuery, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
-                    const viewerId = change.doc.id;
-                    handleNewViewer(viewerId);
-                }
-                 if (change.type === 'removed') {
-                    const viewerId = change.doc.id;
-                    peerConnectionsRef.current.get(viewerId)?.close();
-                    peerConnectionsRef.current.delete(viewerId);
+                    const data = change.doc.data();
+                    // Ensure we don't re-process an offer. A 'processed' flag could be useful.
+                    handleNewViewer(data.from, data.offer);
                 }
             });
         });
         return () => unsubscribe();
-    }, [liveSessionId, firestore, handleNewViewer]);
+    }, [liveSessionId, firestore, handleNewViewer, user]);
 
 
     // --- Go Live ---
@@ -121,16 +131,18 @@ export default function SellerStreamPage() {
             
             toast({ title: 'Starting your live stream...' });
 
-            const sessionRef = doc(firestore, 'liveSessions', user.uid);
+            const sessionId = user.uid; // Use user ID for a predictable session ID
+            const sessionRef = doc(firestore, 'liveSessions', sessionId);
+
             await setDoc(sessionRef, {
                 sellerId: user.uid,
                 title: `${user.displayName || 'Seller'}'s Live Show`,
                 status: 'live',
                 startTime: serverTimestamp(),
-                viewerCount: 0,
+                pinnedProductId: null,
             }, { merge: true });
 
-            setLiveSessionId(user.uid);
+            setLiveSessionId(sessionId);
             setIsLive(true);
             toast({ title: 'You are now LIVE!', variant: 'default' });
 
@@ -159,11 +171,12 @@ export default function SellerStreamPage() {
             endTime: serverTimestamp(),
         });
         
-        const subcollections = ['offers', 'answers', 'offerCandidates', 'answerCandidates', 'viewers', 'chat', 'events'];
+        // Clean up subcollections
+        const subcollections = ['signaling', 'viewers'];
         for (const sub of subcollections) {
             const subcollectionRef = collection(sessionRef, sub);
             const docsSnapshot = await getDocs(subcollectionRef);
-            docsSnapshot.forEach(doc => deleteDoc(doc.ref));
+            docsSnapshot.forEach(docToDelete => deleteDoc(docToDelete.ref));
         }
 
         setIsLive(false);
@@ -195,7 +208,7 @@ export default function SellerStreamPage() {
         <SellerLayout>
             <div className="flex-1 p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
                 {/* Main Content: Video and controls */}
-                <div className="lg:col-span-3 flex flex-col gap-4">
+                <div className="lg:col-span-3 flex flex-col gap-4 h-full">
                     <div className="relative flex-1">
                         <Recorder stream={localStream} isLive={isLive} />
                         {isLive && (
@@ -210,7 +223,7 @@ export default function SellerStreamPage() {
                             </div>
                         )}
                     </div>
-                    <div className="hidden lg:block">
+                     <div className="hidden lg:block">
                         <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
                     </div>
                 </div>

@@ -1,17 +1,16 @@
-
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, onSnapshot, collection, addDoc, setDoc, query, where } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
+import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import type { LiveSession, Product } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RadioTower, Loader2, ArrowLeft, VideoOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PinnedProduct } from '@/components/live/PinnedProduct';
 
-// WebRTC Configuration
 const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -32,13 +31,14 @@ export default function BuyerLiveViewPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const liveSessionRef = useMemoFirebase(() => {
-        if (!streamId) return null;
-        return doc(firestore, 'liveSessions', streamId);
-    }, [firestore, streamId]);
-    
+    const liveSessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', streamId), [firestore, streamId]);
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
     
+    const pinnedProductId = liveSession?.pinnedProductId;
+    const pinnedProductRef = useMemoFirebase(() => pinnedProductId ? doc(firestore, 'products', pinnedProductId) : null, [firestore, pinnedProductId]);
+    const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
+
+
     const setupPeerConnection = useCallback(async () => {
         if (!firestore || !user || !streamId || peerConnectionRef.current) return;
         setIsLoading(true);
@@ -52,53 +52,51 @@ export default function BuyerLiveViewPage() {
             }
         };
 
-        const sessionRef = doc(firestore, 'liveSessions', streamId);
-        const offerCandidates = collection(sessionRef, 'offerCandidates');
-        const answerCandidates = collection(sessionRef, 'answerCandidates');
-        
-        pc.onicecandidate = async event => {
-            if (event.candidate) {
-                await addDoc(answerCandidates, { ...event.candidate.toJSON(), viewerId: user.uid });
-            }
+        const signalingCol = collection(firestore, 'liveSessions', streamId, 'signaling');
+
+        pc.onicecandidate = event => {
+            event.candidate && addDoc(signalingCol, { type: 'buyerCandidate', from: user.uid, candidate: event.candidate.toJSON() });
         };
-
-        const offerDocRef = doc(sessionRef, 'offers', streamId);
         
-        const unsubOffer = onSnapshot(offerDocRef, async (snapshot) => {
-            if (snapshot.exists()) {
-                const offerDescription = new RTCSessionDescription(snapshot.data().offer);
-                if (pc.signalingState !== 'stable') {
-                    await pc.setRemoteDescription(offerDescription);
-                    const answerDescription = await pc.createAnswer();
-                    await pc.setLocalDescription(answerDescription);
+        // Add viewer document
+        await setDoc(doc(firestore, 'liveSessions', streamId, 'viewers', user.uid), { joinedAt: serverTimestamp() });
 
-                    const answer = { answer: { type: answerDescription.type, sdp: answerDescription.sdp }, viewerId: user.uid };
-                    const answerDocRef = doc(sessionRef, 'answers', user.uid);
-                    await setDoc(answerDocRef, answer);
-                }
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        
+        // Send offer TO the seller
+        await addDoc(signalingCol, { type: 'offer', from: user.uid, to: streamId, offer: { type: offer.type, sdp: offer.sdp } });
+        
+        // Listen for answer from seller
+        const answerDocRef = doc(signalingCol, `answer-${user.uid}`);
+        const unsubAnswer = onSnapshot(answerDocRef, async (snapshot) => {
+            const data = snapshot.data();
+            if (data && !pc.currentRemoteDescription) {
+                const answerDescription = new RTCSessionDescription(data.answer);
+                await pc.setRemoteDescription(answerDescription);
             }
         });
         
-        const unsubIce = onSnapshot(query(offerCandidates), (iceSnapshot) => {
-            iceSnapshot.docChanges().forEach(async (change) => {
+        // Listen for seller ICE candidates
+        const sellerCandidatesQuery = query(signalingCol, where('type', '==', 'sellerCandidate'), where('to', '==', user.uid));
+        const unsubIce = onSnapshot(sellerCandidatesQuery, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
-                    const candidate = new RTCIceCandidate(change.doc.data());
-                    if (pc.remoteDescription) {
-                        await pc.addIceCandidate(candidate);
-                    }
+                    const candidate = new RTCIceCandidate(change.doc.data().candidate);
+                    await pc.addIceCandidate(candidate);
                 }
             });
         });
-        
+
         setIsLoading(false);
-        
-        return () => { unsubOffer(); unsubIce(); }
+        return () => { unsubAnswer(); unsubIce(); }
 
     }, [firestore, user, streamId]);
 
     useEffect(() => {
-        if (!isSessionLoading && liveSession?.status === 'live') {
-            setupPeerConnection();
+        let cleanup: (() => void) | undefined;
+        if (!isSessionLoading && liveSession?.status === 'live' && user) {
+            setupPeerConnection().then(c => { cleanup = c; });
         } else if (!isSessionLoading && liveSession?.status !== 'live') {
             setError('This stream is not live.');
             setIsLoading(false);
@@ -107,13 +105,18 @@ export default function BuyerLiveViewPage() {
         return () => {
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.close();
+                peerConnectionRef.current = null;
             }
+            if(user && firestore && streamId){
+                 deleteDoc(doc(firestore, 'liveSessions', streamId, 'viewers', user.uid));
+            }
+            if (cleanup) cleanup();
         };
-    }, [isSessionLoading, liveSession, setupPeerConnection]);
+    }, [isSessionLoading, liveSession, setupPeerConnection, user, firestore, streamId]);
 
     if (isSessionLoading) {
         return (
-            <BuyerLayout fullWidth>
+            <BuyerLayout>
                 <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-black text-white">
                     <p>Connecting to live stream...</p>
                 </div>
@@ -133,7 +136,7 @@ export default function BuyerLiveViewPage() {
                         </AlertDescription>
                     </Alert>
                     <Button onClick={() => router.back()}>
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Live Streams
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
                     </Button>
                 </div>
             </BuyerLayout>
@@ -141,14 +144,19 @@ export default function BuyerLiveViewPage() {
     }
 
     return (
-        <BuyerLayout fullWidth>
-            <div className="flex h-[calc(100vh-4rem)] bg-black">
+        <BuyerLayout>
+            <div className="flex h-full w-full bg-black">
                 {/* Main Live View */}
                 <div className="flex-1 h-full flex items-center justify-center relative bg-black">
                     <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
                             <div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Connecting...</p></div>
+                        </div>
+                    )}
+                     {pinnedProduct && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+                            <PinnedProduct product={pinnedProduct} />
                         </div>
                     )}
                 </div>

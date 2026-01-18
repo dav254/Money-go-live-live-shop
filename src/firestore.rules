@@ -197,19 +197,18 @@ service cloud.firestore {
     // Live Sessions & WebRTC Signaling
     match /liveSessions/{sessionId} {
       allow read: if true;
-      allow create, update: if request.auth.uid == sessionId; // Seller owns their session
-      allow delete: if request.auth.uid == sessionId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-      
-      // Any authenticated user can announce they are a viewer
-      match /viewers/{viewerId} {
-        allow write: if request.auth.uid == viewerId;
-        allow read, list: if request.auth.uid == sessionId;
-        allow delete: if request.auth.uid == viewerId || request.auth.uid == sessionId;
-      }
+      // Only the seller can create or update their own session doc (for pinning products etc.)
+      allow create, update: if request.auth.uid == resource.data.sellerId || request.auth.uid == sessionId;
+      allow delete: if request.auth.uid == resource.data.sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
       
       // Allow signaling for WebRTC
-      match /{subcollection}/{docId} {
+      match /signaling/{docId} {
         allow read, write: if request.auth != null;
+      }
+      
+      // Allow viewers to add themselves to a list, which seller reads to get viewer count.
+      match /viewers/{viewerId} {
+        allow read, write, delete: if request.auth.uid == viewerId || request.auth.uid == sessionId;
       }
     }
     
