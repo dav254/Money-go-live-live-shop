@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -11,8 +10,9 @@ import { Radio, StopCircle, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
+import { PinnedProduct } from '@/components/live/PinnedProduct';
 import type { Product } from '@/lib/types';
-
 
 const servers = {
     iceServers: [
@@ -30,8 +30,9 @@ export default function SellerStreamPage() {
     const [isStarting, setIsStarting] = useState(false);
     const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
     const [viewerCount, setViewerCount] = useState(0);
+    const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
-    const localStreamRef = useRef<MediaStream | null>(null);
     const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
     // --- Viewer Count Listener ---
@@ -43,54 +44,61 @@ export default function SellerStreamPage() {
         });
         return () => unsubscribe();
     }, [liveSessionId, firestore]);
-
     
-    const handleNewViewer = useCallback(async (viewerId: string, offer: RTCSessionDescriptionInit) => {
-        if (!liveSessionId || !firestore || !localStreamRef.current) return;
-        console.log(`[Seller] Received offer from new viewer: ${viewerId}`);
+    // --- WebRTC Handler for new viewers ---
+    const handleNewViewer = useCallback(async (viewerId: string) => {
+        if (!liveSessionId || !firestore || !localStream) return;
+        console.log(`[Seller] Received request from new viewer: ${viewerId}`);
 
         const pc = new RTCPeerConnection(servers);
         peerConnectionsRef.current.set(viewerId, pc);
 
-        localStreamRef.current.getTracks().forEach(track => {
-            pc.addTrack(track, localStreamRef.current!);
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
         });
 
-        pc.onicecandidate = async (event) => {
-            if (event.candidate) {
-                const candidatesCol = collection(firestore, 'liveSessions', liveSessionId, 'offerCandidates');
-                await addDoc(candidatesCol, { ...event.candidate.toJSON(), viewerId });
-            }
+        const offersCol = collection(firestore, 'liveSessions', liveSessionId, 'offers');
+        const offerCandidatesCol = collection(firestore, 'liveSessions', liveSessionId, 'offerCandidates');
+        
+        pc.onicecandidate = event => {
+            event.candidate && addDoc(offerCandidatesCol, { ...event.candidate.toJSON(), viewerId: viewerId });
         };
 
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
+        const offerDescription = await pc.createOffer();
+        await pc.setLocalDescription(offerDescription);
 
-        const answerRef = doc(firestore, 'liveSessions', liveSessionId, 'answers', viewerId);
-        await setDoc(answerRef, { answer });
+        const offer = {
+            sdp: offerDescription.sdp,
+            type: offerDescription.type,
+        };
 
-        const answerCandidatesQuery = query(collection(firestore, 'liveSessions', liveSessionId, 'answerCandidates'), where('viewerId', '==', viewerId));
-        onSnapshot(answerCandidatesQuery, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                }
-            });
+        await setDoc(doc(offersCol, viewerId), { offer });
+
+        // Listen for the answer from the buyer
+        onSnapshot(doc(collection(firestore, 'liveSessions', liveSessionId, 'answers'), viewerId), (snapshot) => {
+            const data = snapshot.data();
+            if (data && !pc.currentRemoteDescription) {
+                const answerDescription = new RTCSessionDescription(data.answer);
+                pc.setRemoteDescription(answerDescription);
+            }
         });
 
-    }, [liveSessionId, firestore]);
-    
-    // --- Signaling Listener (for new offers from viewers) ---
+    }, [liveSessionId, firestore, localStream]);
+
+    // --- Signaling Listener (for new buyers joining) ---
     useEffect(() => {
         if (!liveSessionId || !firestore) return;
-        const offersColRef = collection(firestore, 'liveSessions', liveSessionId, 'offers');
-        const unsubscribe = onSnapshot(query(offersColRef), (snapshot) => {
+        const viewersColRef = collection(firestore, 'liveSessions', liveSessionId, 'viewers');
+        const unsubscribe = onSnapshot(query(viewersColRef), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
-                    const offerData = change.doc.data();
                     const viewerId = change.doc.id;
-                    handleNewViewer(viewerId, offerData.offer);
+                    handleNewViewer(viewerId);
+                }
+                 if (change.type === 'removed') {
+                    const viewerId = change.doc.id;
+                    peerConnectionsRef.current.get(viewerId)?.close();
+                    peerConnectionsRef.current.delete(viewerId);
                 }
             });
         });
@@ -102,18 +110,17 @@ export default function SellerStreamPage() {
     const goLive = async () => {
         if (!user || !firestore) return;
         setIsStarting(true);
-        toast({ title: 'Starting your live stream...' });
+        toast({ title: 'Requesting camera access...' });
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } },
                 audio: true,
             });
-            localStreamRef.current = stream;
-
-            const videoEl = document.querySelector('video');
-            if(videoEl) videoEl.srcObject = stream;
+            setLocalStream(stream);
             
+            toast({ title: 'Starting your live stream...' });
+
             const sessionRef = doc(firestore, 'liveSessions', user.uid);
             await setDoc(sessionRef, {
                 sellerId: user.uid,
@@ -129,7 +136,8 @@ export default function SellerStreamPage() {
 
         } catch (error) {
             console.error('Error starting live stream:', error);
-            toast({ variant: 'destructive', title: 'Could not start stream', description: 'Please check camera/mic permissions.' });
+            toast({ variant: 'destructive', title: 'Could not start stream', description: 'Please check camera/mic permissions and try again.' });
+            setLocalStream(null);
         } finally {
             setIsStarting(false);
         }
@@ -139,8 +147,8 @@ export default function SellerStreamPage() {
     const endLive = async () => {
         if (!liveSessionId || !firestore) return;
 
-        localStreamRef.current?.getTracks().forEach(track => track.stop());
-        localStreamRef.current = null;
+        localStream?.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
 
         peerConnectionsRef.current.forEach(pc => pc.close());
         peerConnectionsRef.current.clear();
@@ -161,25 +169,62 @@ export default function SellerStreamPage() {
         setIsLive(false);
         setLiveSessionId(null);
         setViewerCount(0);
+        setPinnedProduct(null);
         toast({ title: 'Stream Ended' });
     };
+    
+     const handlePinProduct = (product: Product) => {
+        setPinnedProduct(product);
+        if (firestore && liveSessionId) {
+            updateDoc(doc(firestore, 'liveSessions', liveSessionId), {
+                pinnedProductId: product.id,
+            });
+        }
+    };
 
+    const handleUnpinProduct = () => {
+        setPinnedProduct(null);
+         if (firestore && liveSessionId) {
+            updateDoc(doc(firestore, 'liveSessions', liveSessionId), {
+                pinnedProductId: null,
+            });
+        }
+    };
 
     return (
         <SellerLayout>
-            <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+            <div className="flex-1 p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
                 {/* Main Content: Video and controls */}
-                <div className="flex-1 flex flex-col gap-4">
+                <div className="lg:col-span-3 flex flex-col gap-4">
                     <div className="relative flex-1">
-                        <Recorder isLive={isLive} />
-                         {isLive && (
+                        <Recorder stream={localStream} isLive={isLive} />
+                        {isLive && (
                             <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg flex items-center gap-2 text-white font-semibold">
                                 <Users className="h-5 w-5 text-primary" />
                                 <span>{viewerCount}</span>
                             </div>
                         )}
+                         {pinnedProduct && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+                                <PinnedProduct product={pinnedProduct} />
+                            </div>
+                        )}
                     </div>
-                    <div>
+                    <div className="hidden lg:block">
+                        <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
+                    </div>
+                </div>
+
+                {/* Right Sidebar: Products and Chat */}
+                 <div className="flex flex-col gap-4 overflow-hidden h-full">
+                    {user && (
+                        <div className="bg-card p-4 rounded-lg flex-1 flex flex-col min-h-0">
+                            <h3 className="text-lg font-bold mb-3">Product Bag</h3>
+                            <LiveProductShelf sellerId={user.uid} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} />
+                        </div>
+                    )}
+                     {/* Mobile Stream Controls */}
+                    <div className="lg:hidden">
                         <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
                     </div>
                 </div>

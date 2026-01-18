@@ -1,51 +1,24 @@
-
 'use client';
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { FlipHorizontal, Video, VideoOff } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { LiveActivityFeed } from './LiveActivityFeed';
+import React, { useRef, useEffect } from 'react';
+import { VideoOff } from 'lucide-react';
 
 interface RecorderProps {
+  stream: MediaStream | null;
   isLive: boolean;
 }
 
-export default function Recorder({ isLive }: RecorderProps) {
+export default function Recorder({ stream, isLive }: RecorderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { toast } = useToast();
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const getCameraPermission = useCallback(async () => {
-    if (!isClient || !navigator.mediaDevices) {
-        setHasCameraPermission(false);
-        return;
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    } else if (videoRef.current) {
+      // Clear the srcObject when the stream is null (e.g., when the stream ends)
+      videoRef.current.srcObject = null;
     }
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-        }
-    } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({
-            variant: 'destructive',
-            title: 'Camera Access Denied',
-            description: 'Please enable camera permissions in your browser settings.',
-        });
-    }
-  }, [isClient, toast]);
-
-  useEffect(() => {
-    getCameraPermission();
-  }, [getCameraPermission]);
-
+  }, [stream]);
 
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
@@ -57,14 +30,6 @@ export default function Recorder({ isLive }: RecorderProps) {
              <p className="text-muted-foreground">Click the "Go Live" button to start your broadcast.</p>
           </div>
       )}
-      {hasCameraPermission === false && isClient && (
-         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-center p-4">
-             <VideoOff className="h-16 w-16 text-destructive mb-4" />
-             <h3 className="text-xl font-bold text-destructive">Camera Access Required</h3>
-             <p className="text-destructive-foreground/80">Please allow camera access in your browser settings and refresh the page to use the live studio.</p>
-         </div>
-      )}
     </div>
   );
 }
-
