@@ -3,7 +3,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, serverTimestamp, setDoc, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, serverTimestamp, setDoc, getDocs, query, where } from 'firebase/firestore';
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,7 @@ import { Radio, StopCircle, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Recorder } from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
-import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
 import type { Product } from '@/lib/types';
 
 
@@ -34,7 +32,6 @@ export default function SellerStreamPage() {
     const [isStarting, setIsStarting] = useState(false);
     const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
     const [viewerCount, setViewerCount] = useState(0);
-    const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
 
     const localStreamRef = useRef<MediaStream | null>(null);
     const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -48,22 +45,6 @@ export default function SellerStreamPage() {
         });
         return () => unsubscribe();
     }, [liveSessionId, firestore]);
-
-    // --- Signaling Listener (for new offers from viewers) ---
-    useEffect(() => {
-        if (!liveSessionId || !firestore) return;
-        const offersColRef = collection(firestore, 'liveSessions', liveSessionId, 'offers');
-        const unsubscribe = onSnapshot(query(offersColRef), (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    const offerData = change.doc.data();
-                    const viewerId = change.doc.id;
-                    handleNewViewer(viewerId, offerData.offer);
-                }
-            });
-        });
-        return () => unsubscribe();
-    }, [liveSessionId, firestore, handleNewViewer]);
 
     // --- WebRTC Handler for new viewers ---
     const handleNewViewer = useCallback(async (viewerId: string, offer: RTCSessionDescriptionInit) => {
@@ -102,6 +83,22 @@ export default function SellerStreamPage() {
 
     }, [liveSessionId, firestore]);
 
+    // --- Signaling Listener (for new offers from viewers) ---
+    useEffect(() => {
+        if (!liveSessionId || !firestore) return;
+        const offersColRef = collection(firestore, 'liveSessions', liveSessionId, 'offers');
+        const unsubscribe = onSnapshot(query(offersColRef), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const offerData = change.doc.data();
+                    const viewerId = change.doc.id;
+                    handleNewViewer(viewerId, offerData.offer);
+                }
+            });
+        });
+        return () => unsubscribe();
+    }, [liveSessionId, firestore, handleNewViewer]);
+
 
     // --- Go Live ---
     const goLive = async () => {
@@ -116,8 +113,6 @@ export default function SellerStreamPage() {
             });
             localStreamRef.current = stream;
 
-            // This is a simplified way to pass the stream to the Recorder.
-            // A more robust solution might use a Context.
             const videoEl = document.querySelector('video');
             if(videoEl) videoEl.srcObject = stream;
             
@@ -158,7 +153,6 @@ export default function SellerStreamPage() {
             endTime: serverTimestamp(),
         });
         
-        // Cleanup signaling subcollections
         const subcollections = ['offers', 'answers', 'offerCandidates', 'answerCandidates', 'viewers', 'chat', 'events'];
         for (const sub of subcollections) {
             const subcollectionRef = collection(sessionRef, sub);
@@ -171,39 +165,15 @@ export default function SellerStreamPage() {
         setViewerCount(0);
         toast({ title: 'Stream Ended' });
     };
-    
-    // --- Product Pinning ---
-    const handlePinProduct = (product: Product) => {
-        setPinnedProduct(product);
-        if (liveSessionId && firestore) {
-            updateDoc(doc(firestore, 'liveSessions', liveSessionId), {
-                pinnedProductId: product.id,
-            });
-        }
-    };
-
-    const handleUnpinProduct = () => {
-        setPinnedProduct(null);
-         if (liveSessionId && firestore) {
-            updateDoc(doc(firestore, 'liveSessions', liveSessionId), {
-                pinnedProductId: null,
-            });
-        }
-    };
 
 
     return (
         <SellerLayout>
             <div className="flex-1 p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-4 lg:grid-rows-1 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-                {/* Main Content: Video + Pinned Product */}
+                {/* Main Content: Video */}
                 <div className="lg:col-span-3 flex flex-col gap-4">
                     <div className="relative flex-1">
                         <Recorder isLive={isLive} />
-                        {pinnedProduct && (
-                            <div className="absolute bottom-4 left-4 z-20">
-                                <PinnedProduct product={pinnedProduct} />
-                            </div>
-                        )}
                     </div>
                     <div className="hidden lg:block">
                         <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
@@ -229,7 +199,7 @@ export default function SellerStreamPage() {
                             <CardTitle className="text-base">Product Bag</CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 pt-0 flex-1">
-                             <LiveProductShelf sellerId={user?.uid || ''} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} />
+                             <LiveProductShelf sellerId={user?.uid || ''} onPinProduct={() => {}} onUnpinProduct={() => {}} />
                         </CardContent>
                     </Card>
 
