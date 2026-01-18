@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -6,13 +7,15 @@ import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
-import { Radio, StopCircle, Users, Loader2 } from 'lucide-react';
+import { Radio, StopCircle, Users, Loader2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
 import type { Product } from '@/lib/types';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 const servers = {
     iceServers: [
@@ -32,6 +35,7 @@ export default function SellerStreamPage() {
     const [viewerCount, setViewerCount] = useState(0);
     const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [shareLink, setShareLink] = useState('');
 
     const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
@@ -99,15 +103,12 @@ export default function SellerStreamPage() {
         if (!liveSessionId || !firestore || !user) return;
         
         const signalingCol = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
-        // This query needs to be specific to offers meant for this seller.
-        // Assuming offers from buyers are directly added with a predictable format or a 'to' field.
         const offersQuery = query(signalingCol, where('type', '==', 'offer'), where('to', '==', user.uid));
 
         const unsubscribe = onSnapshot(offersQuery, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    // Ensure we don't re-process an offer. A 'processed' flag could be useful.
                     handleNewViewer(data.from, data.offer);
                 }
             });
@@ -131,7 +132,7 @@ export default function SellerStreamPage() {
             
             toast({ title: 'Starting your live stream...' });
 
-            const sessionId = user.uid; // Use user ID for a predictable session ID
+            const sessionId = user.uid;
             const sessionRef = doc(firestore, 'liveSessions', sessionId);
 
             await setDoc(sessionRef, {
@@ -144,7 +145,11 @@ export default function SellerStreamPage() {
 
             setLiveSessionId(sessionId);
             setIsLive(true);
-            toast({ title: 'You are now LIVE!', variant: 'default' });
+            
+            const link = `${window.location.origin}/buyer/live/${sessionId}`;
+            setShareLink(link);
+
+            toast({ title: 'You are now LIVE!', description: 'Share your link to invite viewers.' });
 
         } catch (error) {
             console.error('Error starting live stream:', error);
@@ -171,7 +176,6 @@ export default function SellerStreamPage() {
             endTime: serverTimestamp(),
         });
         
-        // Clean up subcollections
         const subcollections = ['signaling', 'viewers'];
         for (const sub of subcollections) {
             const subcollectionRef = collection(sessionRef, sub);
@@ -183,6 +187,7 @@ export default function SellerStreamPage() {
         setLiveSessionId(null);
         setViewerCount(0);
         setPinnedProduct(null);
+        setShareLink('');
         toast({ title: 'Stream Ended' });
     };
     
@@ -204,11 +209,17 @@ export default function SellerStreamPage() {
         }
     };
 
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(shareLink).then(() => {
+            toast({ title: 'Link Copied!', description: 'Your live stream link is ready to share.' });
+        });
+    };
+
     return (
         <SellerLayout>
             <div className="flex-1 p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
                 {/* Main Content: Video and controls */}
-                <div className="lg:col-span-3 flex flex-col gap-4 h-full">
+                <div className="lg:col-span-3 flex flex-col gap-4">
                     <div className="relative flex-1">
                         <Recorder stream={localStream} isLive={isLive} />
                         {isLive && (
@@ -226,6 +237,20 @@ export default function SellerStreamPage() {
                      <div className="hidden lg:block">
                         <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
                     </div>
+                    {isLive && shareLink && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Share Your Stream</CardTitle>
+                                <CardDescription>Copy this link and send it to your audience to join your live session.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex items-center gap-2">
+                                <Input value={shareLink} readOnly />
+                                <Button size="icon" onClick={handleCopyLink}>
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 {/* Right Sidebar: Products and Chat */}
