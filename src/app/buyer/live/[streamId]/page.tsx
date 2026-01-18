@@ -42,14 +42,18 @@ export default function BuyerLiveViewPage() {
         return doc(firestore, 'liveSessions', streamId);
     }, [firestore, streamId]);
     
-    const pinnedProductRef = useMemoFirebase(() => {
-        if (!streamId) return null;
-        const pinnedId = (useDoc<LiveSession>(liveSessionRef).data as any)?.pinnedProductId;
-        if (!pinnedId) return null;
-        return doc(firestore, 'products', pinnedId);
-    }, [firestore, streamId, useDoc<LiveSession>(liveSessionRef).data]);
-
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
+    
+    // Correctly derive pinnedProductId AFTER fetching liveSession
+    const pinnedProductId = (liveSession as any)?.pinnedProductId;
+
+    // Correctly create the ref for the pinned product
+    const pinnedProductRef = useMemoFirebase(() => {
+        if (!pinnedProductId) return null;
+        return doc(firestore, 'products', pinnedProductId);
+    }, [firestore, pinnedProductId]);
+
+    // Now call useDoc at the top level
     const { data: pinnedProductData } = useDoc<Product>(pinnedProductRef);
 
      useEffect(() => {
