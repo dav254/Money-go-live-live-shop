@@ -7,12 +7,10 @@ import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot
 import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Radio, StopCircle, Users, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
 
 
@@ -47,7 +45,6 @@ export default function SellerStreamPage() {
     }, [liveSessionId, firestore]);
 
     
-    // --- WebRTC Handler for new viewers ---
     const handleNewViewer = useCallback(async (viewerId: string, offer: RTCSessionDescriptionInit) => {
         if (!liveSessionId || !firestore || !localStreamRef.current) return;
         console.log(`[Seller] Received offer from new viewer: ${viewerId}`);
@@ -124,7 +121,7 @@ export default function SellerStreamPage() {
                 status: 'live',
                 startTime: serverTimestamp(),
                 viewerCount: 0,
-            });
+            }, { merge: true });
 
             setLiveSessionId(user.uid);
             setIsLive(true);
@@ -170,42 +167,19 @@ export default function SellerStreamPage() {
 
     return (
         <SellerLayout>
-            <div className="flex-1 p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-4 lg:grid-rows-1 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-                {/* Main Content: Video */}
-                <div className="lg:col-span-3 flex flex-col gap-4">
+            <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+                {/* Main Content: Video and controls */}
+                <div className="flex-1 flex flex-col gap-4">
                     <div className="relative flex-1">
                         <Recorder isLive={isLive} />
-                    </div>
-                    <div className="hidden lg:block">
-                        <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
-                    </div>
-                </div>
-
-                {/* Right Sidebar: Controls, Chat, Products */}
-                <div className="flex flex-col gap-4 h-full">
-                    {/* Viewer Count */}
-                    <Card>
-                        <CardHeader className="p-4 flex-row items-center justify-between">
-                            <CardTitle className="text-base">Live Viewers</CardTitle>
-                            <div className="flex items-center gap-2 font-bold text-lg">
+                         {isLive && (
+                            <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg flex items-center gap-2 text-white font-semibold">
                                 <Users className="h-5 w-5 text-primary" />
-                                {viewerCount}
+                                <span>{viewerCount}</span>
                             </div>
-                        </CardHeader>
-                    </Card>
-
-                    {/* Product Bag */}
-                    <Card className="flex-1 flex flex-col">
-                        <CardHeader className="p-4">
-                            <CardTitle className="text-base">Product Bag</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0 flex-1">
-                             <LiveProductShelf sellerId={user?.uid || ''} onPinProduct={() => {}} onUnpinProduct={() => {}} />
-                        </CardContent>
-                    </Card>
-
-                    {/* Mobile Controls */}
-                    <div className="lg:hidden">
+                        )}
+                    </div>
+                    <div>
                         <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
                     </div>
                 </div>
