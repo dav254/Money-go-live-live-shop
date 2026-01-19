@@ -19,6 +19,10 @@ import { collection, query, limit, orderBy, where } from 'firebase/firestore';
 import type { Product, SellerShop, HomepageSlide, LiveSession } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
+
+const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev');
+
 
 const shortcuts = [
   {
@@ -111,12 +115,28 @@ const SellerCarouselSkeleton = () => (
 export default function BuyerDashboardPage() {
   const firestore = useFirestore();
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
+  const [liveSellers, setLiveSellers] = useState<any[]>([]);
+  const [isLoadingSellers, setIsLoadingSellers] = useState(true);
 
   useEffect(() => {
     const categories = ['Fashion', 'Electronics', 'Home Goods', 'Beauty'];
     const randomCategory = categories[Math.floor(Math.random() * categories.length)];
     setLastViewedCategory(randomCategory);
   }, []);
+
+  useEffect(() => {
+    socket.emit('get-sellers');
+    
+    socket.on('sellers-update', (updatedSellers) => {
+        setLiveSellers(updatedSellers.slice(0, 4)); // Take only the first 4
+        setIsLoadingSellers(false);
+    });
+
+    return () => {
+        socket.off('sellers-update');
+    };
+  }, []);
+
 
   const dealsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -128,16 +148,9 @@ export default function BuyerDashboardPage() {
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
   }, [firestore, lastViewedCategory]);
 
-
-  const liveSellersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'), limit(4));
-  }, [firestore]);
-
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
-  const { data: liveSellers, isLoading: isLoadingSellers } = useCollection<LiveSession>(liveSellersQuery);
-
+  
   return (
     <BuyerLayout>
         <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
@@ -197,10 +210,10 @@ export default function BuyerDashboardPage() {
             {isLoadingSellers ? <SellerCarouselSkeleton /> : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {liveSellers?.map((seller) => (
-                    <Link href={`/sellers/${seller.sellerId}`} key={seller.id}>
+                    <Link href={`/buyer/live/${seller.streamId}`} key={seller.streamId}>
                         <Card className="group relative h-40 overflow-hidden">
                         <Image
-                            src={`https://picsum.photos/seed/${seller.sellerId}/600/400`}
+                            src={`https://picsum.photos/seed/${seller.streamId}/600/400`}
                             alt={seller.sellerName || 'Live stream from seller'}
                             fill
                             sizes="(max-width: 768px) 50vw, 25vw"
