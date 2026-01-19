@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -17,6 +18,7 @@ import {
 import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
 import { useToast } from '@/hooks/use-toast';
+import { SellerLayout } from '@/components/layout/seller-layout';
 
 const servers = {
   iceServers: [
