@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
-import type { LiveSession, Product } from '@/lib/types';
+import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { RadioTower, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,6 @@ export default function BuyerLiveViewPage() {
     const sessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', streamId), [firestore, streamId]);
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
-    // Correct WebRTC signaling flow
     const setupPeerConnection = useCallback(async () => {
         if (!firestore || !user || !streamId || peerConnectionRef.current) return;
         setIsLoading(true);
@@ -58,9 +57,9 @@ export default function BuyerLiveViewPage() {
         const unsubscribeOffer = onSnapshot(offerQuery, async (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
-                    const { offer, from } = change.doc.data();
-                    if (offer && pc.signalingState !== "stable") {
-                        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                    const data = change.doc.data();
+                    if (data.offer && pc.signalingState !== 'stable') {
+                        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                         const answer = await pc.createAnswer();
                         await pc.setLocalDescription(answer);
 
@@ -68,19 +67,32 @@ export default function BuyerLiveViewPage() {
                             type: 'answer', 
                             answer: { type: answer.type, sdp: answer.sdp },
                             from: user.uid,
-                            to: from
+                            to: data.from
                         });
                     }
                 }
             });
         });
+        
+        pc.onicecandidate = event => {
+            if (event.candidate) {
+                addDoc(signalingCol, {
+                    type: 'buyerCandidate',
+                    candidate: event.candidate.toJSON(),
+                    from: user.uid,
+                    to: streamId // Seller's UID is the streamId
+                });
+            }
+        };
 
         // Listen for ICE candidates from seller
         const iceQuery = query(signalingCol, where('type', '==', 'sellerCandidate'), where('to', '==', user.uid));
         const unsubscribeIce = onSnapshot(iceQuery, (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
-                    await pc.addIceCandidate(new RTCIceCandidate(change.doc.data().candidate));
+                    if (change.doc.data().candidate) {
+                        await pc.addIceCandidate(new RTCIceCandidate(change.doc.data().candidate));
+                    }
                 }
             });
         });

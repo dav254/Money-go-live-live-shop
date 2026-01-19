@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -6,27 +5,18 @@ import { useUser, useFirestore } from '@/firebase';
 import {
   collection,
   addDoc,
-  updateDoc,
   doc,
   onSnapshot,
   serverTimestamp,
   setDoc,
-  writeBatch,
-  getDocs,
   query,
   where,
+  deleteDoc,
+  getDocs,
 } from 'firebase/firestore';
-import { SellerLayout } from '@/components/layout/seller-layout';
 import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { Users, VideoOff } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { LiveShoppingEventFeed } from '@/components/studio/live-shopping-event-feed';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
-import type { Product } from '@/lib/types';
 
 const servers = {
   iceServers: [
@@ -45,61 +35,64 @@ export default function SellerStreamPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [viewerCount, setViewerCount] = useState(0);
-  const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
 
-  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection & { unsubscribe?: () => void }>>(new Map());
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
-  const handleNewViewer = useCallback(async (viewerId: string) => {
-    if (!liveSessionId || !firestore || !localStream || !user) return;
+  const handleSignaling = useCallback(async (viewerId: string) => {
+      if (!liveSessionId || !firestore || !localStream || !user) return;
 
-    const pc = new RTCPeerConnection(servers) as RTCPeerConnection & { unsubscribe?: () => void };
-    peerConnectionsRef.current.set(viewerId, pc);
+      const pc = new RTCPeerConnection(servers);
+      peerConnectionsRef.current.set(viewerId, pc);
 
-    localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
-    });
+      localStream.getTracks().forEach(track => {
+          pc.addTrack(track, localStream);
+      });
 
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    const offerCandidates = collection(sessionRef, 'offerCandidates');
-    const answerCandidates = collection(sessionRef, 'answerCandidates');
+      const signalingCol = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
 
-    pc.onicecandidate = event => {
-        if (event.candidate) {
-            addDoc(offerCandidates, { ...event.candidate.toJSON(), viewerId: user.uid });
-        }
-    };
-    
-    const answerQuery = query(collection(sessionRef, 'answers'), where('viewerId', '==', viewerId));
-    const unsubAnswer = onSnapshot(answerQuery, async (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-            if (change.type === 'added') {
-                const answerDescription = new RTCSessionDescription(change.doc.data().answer);
-                if (pc.signalingState !== 'stable') {
-                    await pc.setRemoteDescription(answerDescription);
-                }
-            }
-        });
-    });
-    
-    const iceQuery = query(answerCandidates, where('viewerId', '==', viewerId));
-    const unsubIce = onSnapshot(iceQuery, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-            if (change.type === 'added') {
-                pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-            }
-        });
-    });
+      pc.onicecandidate = event => {
+          if (event.candidate) {
+              addDoc(signalingCol, { 
+                  type: 'sellerCandidate', 
+                  candidate: event.candidate.toJSON(),
+                  to: viewerId,
+                  from: user.uid,
+              });
+          }
+      };
+      
+      const answerQuery = query(signalingCol, where('type', '==', 'answer'), where('from', '==', viewerId));
+      const unsubscribeAnswer = onSnapshot(answerQuery, async (snapshot) => {
+          snapshot.docChanges().forEach(async (change) => {
+              if (change.type === 'added') {
+                  const data = change.doc.data();
+                  if (data.answer && pc.signalingState !== "stable") {
+                      const answerDescription = new RTCSessionDescription(data.answer);
+                      await pc.setRemoteDescription(answerDescription);
+                  }
+              }
+          });
+      });
 
-    const offerDescription = await pc.createOffer();
-    await pc.setLocalDescription(offerDescription);
-    const offer = { offer: { type: offerDescription.type, sdp: offerDescription.sdp }, viewerId: viewerId };
-    await setDoc(doc(sessionRef, 'offers', viewerId), offer);
-    
-    pc.unsubscribe = () => {
-      unsubAnswer();
-      unsubIce();
-    };
+      const offerDescription = await pc.createOffer();
+      await pc.setLocalDescription(offerDescription);
+
+      const offer = {
+          type: 'offer',
+          offer: {
+              type: offerDescription.type,
+              sdp: offerDescription.sdp,
+          },
+          to: viewerId,
+          from: user.uid,
+      };
+
+      await addDoc(signalingCol, offer);
+      
+      // Store the unsubscribe function to be called on cleanup
+      (pc as any).unsubscribeSignaling = () => {
+          unsubscribeAnswer();
+      };
 
   }, [liveSessionId, firestore, localStream, user]);
 
@@ -108,16 +101,16 @@ export default function SellerStreamPage() {
 
     const viewersRef = collection(firestore, 'liveSessions', liveSessionId, 'viewers');
     const unsubscribeViewers = onSnapshot(viewersRef, (snapshot) => {
-        setViewerCount(snapshot.size);
         snapshot.docChanges().forEach((change) => {
+            const viewerId = change.doc.id;
             if (change.type === 'added') {
-                handleNewViewer(change.doc.id);
+                handleSignaling(viewerId);
             } else if (change.type === 'removed') {
-                const pc = peerConnectionsRef.current.get(change.doc.id);
+                const pc = peerConnectionsRef.current.get(viewerId);
                 if (pc) {
+                    (pc as any).unsubscribeSignaling?.(); // Call cleanup for this specific peer connection
                     pc.close();
-                    pc.unsubscribe?.();
-                    peerConnectionsRef.current.delete(change.doc.id);
+                    peerConnectionsRef.current.delete(viewerId);
                 }
             }
         });
@@ -125,7 +118,7 @@ export default function SellerStreamPage() {
     
     return () => unsubscribeViewers();
 
-  }, [liveSessionId, firestore, handleNewViewer]);
+  }, [liveSessionId, firestore, handleSignaling]);
 
   const goLive = async () => {
     if (!user || !firestore) return;
@@ -179,8 +172,8 @@ export default function SellerStreamPage() {
     setLocalStream(null);
 
     peerConnectionsRef.current.forEach((pc) => {
-      pc.unsubscribe?.();
-      pc.close();
+        (pc as any).unsubscribeSignaling?.();
+        pc.close();
     });
     peerConnectionsRef.current.clear();
     
@@ -194,13 +187,21 @@ export default function SellerStreamPage() {
             },
             body: JSON.stringify({ liveSessionId })
         });
+        
+        // Cleanup signaling collection
+        const signalingRef = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
+        const signalingSnapshot = await getDocs(signalingRef);
+        signalingSnapshot.forEach(async (doc) => {
+            await deleteDoc(doc.ref);
+        });
+
+
     } catch (error) {
         console.error("Error ending live session via API:", error);
     }
 
     setIsLive(false);
     setLiveSessionId(null);
-    setViewerCount(0);
     toast({ title: 'Stream Ended' });
   };
 
