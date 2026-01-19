@@ -10,7 +10,7 @@ import { StreamControls } from '@/components/studio/StreamControls';
 import Recorder from '@/components/studio/Recorder';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000');
+const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev');
 
 export default function SellerStreamPage() {
   const { user } = useUser();

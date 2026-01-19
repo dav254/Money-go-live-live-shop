@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
-const socket = io('http://localhost:5000');
+const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev');
 
 export default function BuyerWatchPage() {
     const params = useParams();

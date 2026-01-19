@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +9,7 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 
-const socket = io('http://localhost:5000');
+const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev');
 
 export default function BuyerLiveListPage() {
     const [sellers, setSellers] = useState<any[]>([]);
