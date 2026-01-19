@@ -18,6 +18,18 @@ export default function BuyerWatchPage() {
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const stopWatching = () => {
+        if (peerConnection.current) {
+            peerConnection.current.close();
+            peerConnection.current = null;
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        socket.emit('buyer-leave-stream', { streamId });
+        router.push('/buyer/live-stream');
+    };
+
     useEffect(() => {
         if (!streamId) return;
 
@@ -64,30 +76,23 @@ export default function BuyerWatchPage() {
         
         // 3. Set up listeners
         socket.on('offer', handleOffer);
-        socket.on('stream-ended', handleStreamEnded);
+        socket.on('seller-offline', () => {
+             toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
+             stopWatching();
+        });
 
 
         // Cleanup function
         return () => {
             socket.off('offer', handleOffer);
-            socket.off('stream-ended', handleStreamEnded);
+            socket.off('seller-offline');
             if (peerConnection.current) {
                 peerConnection.current.close();
             }
-            socket.emit('buyer-leave-stream');
+            socket.emit('buyer-leave-stream', { streamId });
         };
     }, [streamId, router]);
     
-    const stopWatching = () => {
-        if (peerConnection.current) {
-            peerConnection.current.close();
-            peerConnection.current = null;
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-        router.push('/buyer/live-stream');
-    };
 
     return (
         <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4 relative">

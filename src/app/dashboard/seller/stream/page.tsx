@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { SellerLayout } from '@/components/layout/seller-layout';
 import { useUser, useUserProfile } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -24,6 +23,27 @@ export default function SellerStreamPage() {
   const { toast } = useToast();
   
   const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
+
+  const createPeerConnection = useCallback(async (buyerSocketId: string) => {
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    peerConnections.current[buyerSocketId] = pc;
+
+    localStream.current?.getTracks().forEach(track => {
+      if (localStream.current) {
+        pc.addTrack(track, localStream.current);
+      }
+    });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('ice-candidate', { to: buyerSocketId, candidate: event.candidate });
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('offer', { to: buyerSocketId, offer });
+  }, []);
 
   // Effect for handling all socket event listeners
   useEffect(() => {
@@ -61,28 +81,7 @@ export default function SellerStreamPage() {
       socket.off('answer', handleAnswer);
       socket.off('ice-candidate', handleIceCandidate);
     };
-  }, []); // Empty dependency array means this runs once on mount
-
-  const createPeerConnection = async (buyerSocketId: string) => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-    peerConnections.current[buyerSocketId] = pc;
-
-    localStream.current?.getTracks().forEach(track => {
-      if (localStream.current) {
-        pc.addTrack(track, localStream.current);
-      }
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit('ice-candidate', { to: buyerSocketId, candidate: event.candidate });
-      }
-    };
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('offer', { to: buyerSocketId, offer });
-  };
+  }, [createPeerConnection]);
 
   const goLive = async () => {
     if (!user) return;
@@ -148,7 +147,6 @@ export default function SellerStreamPage() {
   };
 
   return (
-    <SellerLayout>
       <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
         <div className="relative flex-1">
               <Recorder stream={localStream.current} isLive={isLive} />
@@ -162,6 +160,5 @@ export default function SellerStreamPage() {
           />
         </div>
       </div>
-    </SellerLayout>
   );
 }

@@ -55,7 +55,7 @@ export default function BuyerLiveListPage() {
                                 </div>
                                 <div className="p-4">
                                     <h3 className="font-bold">{seller.sellerName}</h3>
-                                    <p className="text-sm text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" /> {seller.buyers ? Object.keys(seller.buyers).length : 0} watching</p>
+                                    <p className="text-sm text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4" /> {seller.buyers || 0} watching</p>
                                 </div>
                             </Card>
                         ))
@@ -65,4 +65,3 @@ export default function BuyerLiveListPage() {
         </BuyerLayout>
     );
 }
-
