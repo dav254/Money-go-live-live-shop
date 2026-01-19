@@ -1,220 +1,158 @@
 
 'use client';
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useUser, useFirestore } from '@/firebase';
-import {
-  collection,
-  addDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-  setDoc,
-  query,
-  where,
-  deleteDoc,
-  getDocs,
-} from 'firebase/firestore';
-import Recorder from '@/components/studio/Recorder';
-import { StreamControls } from '@/components/studio/StreamControls';
-import { useToast } from '@/hooks/use-toast';
+import React, { useRef, useState, useEffect } from 'react';
+import { io, Socket } from 'socket.io-client';
+import { useUser } from '@/firebase';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 import { SellerLayout } from '@/components/layout/seller-layout';
 
-const servers = {
-  iceServers: [
-    {
-      urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'],
-    },
-  ],
-};
+const socket = io('http://localhost:5000');
 
 export default function SellerStreamPage() {
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const { toast } = useToast();
+    const { user } = useUser();
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
+    const localStream = useRef<MediaStream | null>(null);
+    const [streamId, setStreamId] = useState<string | null>(null);
+    const [viewerCount, setViewerCount] = useState(0);
+    const [sellerName, setSellerName] = useState('Seller');
+    
+    const isLive = !!streamId;
 
-  const [isLive, setIsLive] = useState(false);
-  const [isStarting, setIsStarting] = useState(false);
-  const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    useEffect(() => {
+        socket.on('buyer-joined', async (data: { buyerSocketId: string, viewerCount: number }) => {
+            console.log('Buyer joined:', data.buyerSocketId);
+            setViewerCount(data.viewerCount);
+            await createPeerConnection(data.buyerSocketId);
+        });
 
-  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-
-  const handleSignaling = useCallback(async (viewerId: string) => {
-      if (!liveSessionId || !firestore || !localStream || !user) return;
-
-      const pc = new RTCPeerConnection(servers);
-      peerConnectionsRef.current.set(viewerId, pc);
-
-      localStream.getTracks().forEach(track => {
-          pc.addTrack(track, localStream);
-      });
-
-      const signalingCol = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
-
-      pc.onicecandidate = event => {
-          if (event.candidate) {
-              addDoc(signalingCol, { 
-                  type: 'sellerCandidate', 
-                  candidate: event.candidate.toJSON(),
-                  to: viewerId,
-                  from: user.uid,
-              });
-          }
-      };
-      
-      const answerQuery = query(signalingCol, where('type', '==', 'answer'), where('from', '==', viewerId));
-      const unsubscribeAnswer = onSnapshot(answerQuery, async (snapshot) => {
-          snapshot.docChanges().forEach(async (change) => {
-              if (change.type === 'added') {
-                  const data = change.doc.data();
-                  if (data.answer && pc.signalingState !== "stable") {
-                      const answerDescription = new RTCSessionDescription(data.answer);
-                      await pc.setRemoteDescription(answerDescription);
-                  }
-              }
-          });
-      });
-
-      const offerDescription = await pc.createOffer();
-      await pc.setLocalDescription(offerDescription);
-
-      const offer = {
-          type: 'offer',
-          offer: {
-              type: offerDescription.type,
-              sdp: offerDescription.sdp,
-          },
-          to: viewerId,
-          from: user.uid,
-      };
-
-      await addDoc(signalingCol, offer);
-      
-      // Store the unsubscribe function to be called on cleanup
-      (pc as any).unsubscribeSignaling = () => {
-          unsubscribeAnswer();
-      };
-
-  }, [liveSessionId, firestore, localStream, user]);
-
-  useEffect(() => {
-    if (!liveSessionId || !firestore) return;
-
-    const viewersRef = collection(firestore, 'liveSessions', liveSessionId, 'viewers');
-    const unsubscribeViewers = onSnapshot(viewersRef, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            const viewerId = change.doc.id;
-            if (change.type === 'added') {
-                handleSignaling(viewerId);
-            } else if (change.type === 'removed') {
-                const pc = peerConnectionsRef.current.get(viewerId);
-                if (pc) {
-                    (pc as any).unsubscribeSignaling?.(); // Call cleanup for this specific peer connection
-                    pc.close();
-                    peerConnectionsRef.current.delete(viewerId);
-                }
+        socket.on('answer', (data: { from: string, answer: RTCSessionDescriptionInit }) => {
+            const pc = peerConnections.current[data.from];
+            if (pc) {
+                pc.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
         });
-    });
-    
-    return () => unsubscribeViewers();
 
-  }, [liveSessionId, firestore, handleSignaling]);
-
-  const goLive = async () => {
-    if (!user || !firestore) return;
-    setIsStarting(true);
-    toast({ title: 'Requesting camera access...' });
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
-      });
-      setLocalStream(stream);
-
-      toast({ title: 'Starting your live stream...' });
-      
-      const token = await user.getIdToken();
-      const response = await fetch('/api/live-session', {
-          method: 'POST',
-          headers: {
-              'Authorization': `Bearer ${token}`
-          }
-      });
-      
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to start live session.');
-      }
-      
-      const { liveSessionId: sessionId } = await response.json();
-
-      setLiveSessionId(sessionId);
-      setIsLive(true);
-      toast({ title: 'You are now LIVE!' });
-    } catch (error: any) {
-      console.error('Error starting live stream:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Could not start stream',
-        description: error.message || 'Please check permissions and try again.',
-      });
-      setLocalStream(null);
-    } finally {
-      setIsStarting(false);
-    }
-  };
-
-  const endLive = async () => {
-    if (!liveSessionId || !firestore || !user) return;
-
-    localStream?.getTracks().forEach((track) => track.stop());
-    setLocalStream(null);
-
-    peerConnectionsRef.current.forEach((pc) => {
-        (pc as any).unsubscribeSignaling?.();
-        pc.close();
-    });
-    peerConnectionsRef.current.clear();
-    
-    try {
-        const token = await user.getIdToken();
-        await fetch('/api/live-session', {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ liveSessionId })
+        socket.on('ice-candidate', (data: { from: string, candidate: RTCIceCandidateInit }) => {
+            const pc = peerConnections.current[data.from];
+            if (pc && data.candidate) {
+                pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
         });
         
-        // Cleanup signaling collection
-        const signalingRef = collection(firestore, 'liveSessions', liveSessionId, 'signaling');
-        const signalingSnapshot = await getDocs(signalingRef);
-        signalingSnapshot.forEach(async (doc) => {
-            await deleteDoc(doc.ref);
+        socket.on('buyer-left', (data: { viewerCount: number }) => {
+            setViewerCount(data.viewerCount);
         });
 
+        return () => {
+            socket.off('buyer-joined');
+            socket.off('answer');
+            socket.off('ice-candidate');
+            socket.off('buyer-left');
+        };
+    }, [streamId]);
 
-    } catch (error) {
-        console.error("Error ending live session via API:", error);
-    }
+    const startStream = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: true,
+            });
+            if(videoRef.current) videoRef.current.srcObject = stream;
+            localStream.current = stream;
 
-    setIsLive(false);
-    setLiveSessionId(null);
-    toast({ title: 'Stream Ended' });
-  };
+            const newStreamId = `stream_${Date.now()}`;
+            setStreamId(newStreamId);
 
-  return (
-    <SellerLayout>
-      <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-        <div className="relative flex-1">
-              <Recorder stream={localStream} isLive={isLive} />
-        </div>
-          <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
-      </div>
-    </SellerLayout>
-  );
+            socket.emit('seller-go-live', { streamId: newStreamId, sellerName });
+            
+            toast({ title: "You are now live!", description: "Share your link with buyers to start selling." });
+
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Error", description: "Camera/Microphone access was denied." });
+        }
+    };
+
+    const createPeerConnection = async (buyerSocketId: string) => {
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        peerConnections.current[buyerSocketId] = pc;
+
+        if (localStream.current) {
+            localStream.current.getTracks().forEach(track => {
+                pc.addTrack(track, localStream.current!);
+            });
+        }
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice-candidate', { to: buyerSocketId, candidate: event.candidate });
+            }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit('offer', { to: buyerSocketId, offer });
+    };
+
+    const stopStream = () => {
+        if (localStream.current) {
+            localStream.current.getTracks().forEach(track => track.stop());
+        }
+        Object.values(peerConnections.current).forEach(pc => pc.close());
+        peerConnections.current = {};
+        
+        socket.emit('seller-stop-live', { streamId });
+        setStreamId(null);
+        setViewerCount(0);
+    };
+    
+    const copyLink = () => {
+        const link = `${window.location.origin}/buyer/live/${streamId}`;
+        navigator.clipboard.writeText(link);
+        toast({ title: 'Link Copied!', description: "Your live stream link is copied to the clipboard." });
+    };
+
+
+    return (
+        <SellerLayout>
+            <div className="container mx-auto p-4">
+                <h2 className="text-2xl font-bold mb-4">🎬 Seller - Go Live</h2>
+                
+                <Input
+                    id="sellerName"
+                    className="mb-4"
+                    placeholder="Enter your name"
+                    value={sellerName}
+                    onChange={(e) => setSellerName(e.target.value)}
+                    disabled={isLive}
+                />
+
+                <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden mb-4">
+                    <video id="sellerVideo" ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover"></video>
+                    {isLive && <div className="absolute top-2 left-2 bg-red-600 text-white px-3 py-1 rounded font-bold animate-pulse">🔴 LIVE</div>}
+                </div>
+
+                {isLive && <div className="bg-gray-800 text-white p-2 rounded mb-4">👁️ {viewerCount} watching</div>}
+
+                <div className="flex gap-2">
+                    {!isLive ? (
+                        <Button className="flex-1 bg-primary hover:bg-primary/90" onClick={startStream}>🔴 GO LIVE</Button>
+                    ) : (
+                        <Button className="flex-1" variant="destructive" onClick={stopStream}>⏹️ STOP LIVE</Button>
+                    )}
+                </div>
+
+                {isLive && (
+                    <div className="mt-4 bg-primary/10 p-4 rounded-lg text-center">
+                        <p className="mb-2 font-bold">📱 Share this link with buyers:</p>
+                        <div className="bg-black/20 p-3 rounded mb-3 break-all font-mono text-sm">{`${window.location.origin}/buyer/live/${streamId}`}</div>
+                        <Button className="w-full" onClick={copyLink}>📋 COPY LINK</Button>
+                    </div>
+                )}
+            </div>
+        </SellerLayout>
+    );
 }
