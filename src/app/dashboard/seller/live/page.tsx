@@ -1,175 +1,119 @@
 
 'use client';
 
-import { useCallback, useRef, useMemo, useState, useEffect } from 'react';
-import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore'; // Import where
-import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
-import { useFirestore, useUser } from '@/firebase';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { VideoCard } from '@/components/feed/video-card';
-import { cn } from '@/lib/utils';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import Link from 'next/link';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useUser, useFirestore } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Video, Loader2, AlertTriangle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useRef, useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
-function RealtimeVideoCard({ product, onScroll }: { product: Product; onScroll: (direction: 'up' | 'down') => void; }) {
+export default function SellerGoLivePage() {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const { user } = useUser();
     const firestore = useFirestore();
-    
-    const sellerShopRef = useMemoFirebase(() => {
-        if (!firestore || !product.sellerId) return null;
-        return doc(firestore, 'sellerShops', product.sellerId);
-    }, [firestore, product.sellerId]);
-    
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !product.sellerId) return null;
-        return doc(firestore, 'userProfiles', product.sellerId);
-    }, [firestore, product.sellerId]);
+    const router = useRouter();
+    const { toast } = useToast();
 
-    const { data: sellerData, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
-    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+    const [isStarting, setIsStarting] = useState(false);
+    const [mediaError, setMediaError] = useState<string | null>(null);
 
-    if (isSellerLoading || isProfileLoading) {
-        return (
-             <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
-                <Skeleton className="h-full w-full" />
-            </div>
-        )
-    }
-    
-    const sellerName = sellerData?.shopName || userProfileData?.fullName || 'Seller Store';
-    const sellerFollowers = sellerData?.followers || 0;
-    const sellerReviews = sellerData?.reviewsCount || 0;
+    useEffect(() => {
+        const enableStream = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true,
+                });
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            } catch (err) {
+                console.error("Error accessing media devices.", err);
+                setMediaError("Could not access your camera or microphone. Please check your browser permissions and try again.");
+            }
+        };
 
-    const seller: Seller = {
-        id: product.sellerId,
-        sellerId: product.sellerId,
-        name: sellerName,
-        avatar: {
-            id: 'avatar',
-            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
-            description: `${sellerName}'s avatar`,
-            imageHint: 'seller avatar'
-        },
-        banner: {
-            id: 'banner',
-            imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
-            description: `${sellerName}'s banner`,
-            imageHint: 'store banner'
-        },
-        bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
-        rating: 4.8, // Placeholder
-        followers: sellerFollowers,
-        reviewsCount: sellerReviews,
-        isVerified: true, // Placeholder
-        joinedDate: userProfileData?.joinDate || new Date().toISOString(),
-        location: sellerData?.location || userProfileData?.location || 'Unknown',
-        description: sellerData?.description || userProfileData?.bio || 'Welcome!',
-    };
+        enableStream();
 
-    const feedItem: VideoFeedItem = {
-        id: product.id,
-        product: product,
-        seller: seller,
-        video: {
-          id: product.id, 
-          imageUrl: product.imageUrl || getPlaceholderImage(),
-          description: product.name,
-          imageHint: 'product',
-          mediaType: 'image', // This is just a fallback
-        },
-        likes: product.likes || 0,
-        viewers: 0, // View count removed
-        comments: [], // Placeholder
-    };
-
-    return (
-        <div className="h-full w-full snap-start flex-shrink-0">
-          <VideoCard item={feedItem} onScroll={onScroll} />
-        </div>
-    );
-}
-
-export default function SellerLivePage() {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const { user, isLoading: isUserLoading } = useUser();
-    const firestore = useFirestore();
-
-    const productsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        // Query for the seller's own products
-        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-    }, [firestore, user]);
-
-    const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-
-    const isLoading = isUserLoading || areProductsLoading;
-
-    const handleScroll = useCallback((direction: 'up' | 'down') => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
-
-        const scrollAmount = container.clientHeight;
-        const currentScroll = container.scrollTop;
-
-        let targetScroll;
-        if (direction === 'down') {
-            targetScroll = currentScroll + scrollAmount;
-        } else {
-            targetScroll = currentScroll - scrollAmount;
-        }
-        
-        container.scrollTo({
-            top: targetScroll,
-            behavior: 'smooth',
-        });
+        // Cleanup function to stop the stream
+        return () => {
+            if (videoRef.current && videoRef.current.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
     }, []);
 
-    if (isLoading) {
-        return (
-            <SellerLayout>
-                <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
-                    <p>Loading your product feed...</p>
-                </div>
-            </SellerLayout>
-        );
-    }
+    const handleGoLive = async () => {
+        if (!user || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to start a stream.' });
+            return;
+        }
+
+        setIsStarting(true);
+        const sessionId = user.uid; // Use user's UID as the session ID for simplicity
+
+        try {
+            const liveSessionRef = doc(firestore, 'liveSessions', sessionId);
+            await setDoc(liveSessionRef, {
+                sellerId: user.uid,
+                status: 'live',
+                startedAt: serverTimestamp(),
+                viewers: 0,
+            });
+            
+            // Navigate to the actual streaming page
+            router.push(`/dashboard/seller/stream`);
+
+        } catch (error) {
+            console.error("Failed to create live session:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not start the live session. Please try again.' });
+            setIsStarting(false);
+        }
+    };
 
     return (
         <SellerLayout>
-            <div className="relative h-[calc(100vh-4rem)] w-full">
-                <div 
-                    ref={scrollContainerRef}
-                    className={cn(
-                        "h-full w-full snap-y snap-mandatory overflow-y-scroll",
-                        // This will hide the scrollbar in WebKit browsers (Chrome, Safari)
-                        "[&::-webkit-scrollbar]:hidden",
-                        // This will hide the scrollbar in Firefox
-                        "scrollbar-hide"
-                    )}
-                >
-                {products && products.length > 0 ? (
-                    products.map((product) => (
-                        <RealtimeVideoCard 
-                            key={product.id} 
-                            product={product} 
-                            onScroll={handleScroll}
-                        />
-                    ))
-                ) : (
-                    <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
-                        <div className="text-center p-4">
-                            <h2 className="text-xl font-semibold">Your Live Preview is Empty</h2>
-                            <p className="text-muted-foreground max-w-sm mx-auto">This page shows how your products will look in the main feed. Upload products with images or videos to see them here.</p>
-                            <Link href="/dashboard/products?tab=add-new">
-                                <button className="mt-4 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-                                    Add Your First Product
-                                </button>
-                            </Link>
+            <div className="flex-1 space-y-8 p-8 pt-6">
+                <h1 className="font-headline text-3xl font-bold tracking-tight">
+                    Go Live
+                </h1>
+                <Card className="mx-auto max-w-4xl">
+                    <CardHeader>
+                        <CardTitle>Live Stream Preview</CardTitle>
+                        <CardDescription>Check your camera and audio before starting your show.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted">
+                            {mediaError ? (
+                                <div className="flex h-full flex-col items-center justify-center text-center p-4">
+                                    <AlertTriangle className="h-12 w-12 text-destructive" />
+                                    <p className="mt-4 font-semibold text-lg">Media Error</p>
+                                    <p className="text-muted-foreground">{mediaError}</p>
+                                </div>
+                            ) : (
+                                <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover"></video>
+                            )}
                         </div>
-                    </div>
-                )}
-                </div>
+                        <Button 
+                            size="lg" 
+                            className="w-full font-bold text-lg"
+                            onClick={handleGoLive}
+                            disabled={isStarting || !!mediaError}
+                        >
+                            {isStarting ? (
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            ) : (
+                                <Video className="mr-2 h-5 w-5" />
+                            )}
+                            Start Live Show
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         </SellerLayout>
     );

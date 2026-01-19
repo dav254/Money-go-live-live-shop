@@ -19,6 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useSearchParams } from 'next/navigation';
+import { MyTickets } from '@/components/reseller/my-tickets';
+import { Label } from '@/components/ui/label';
+
 
 const formSchema = z.object({
   issueType: z.string({ required_error: 'Please select an issue type.' }),
@@ -194,20 +197,7 @@ export default function ResellerContactSupportPage() {
                                 </Button>
                             </CardContent>
                         </Card>
-                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Ticket />
-                                    My Tickets
-                                </CardTitle>
-                                <CardDescription>Check the status of your existing support tickets.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center justify-center rounded-lg border border-dashed p-12 text-center">
-                                    <p className="text-muted-foreground">You have no open tickets.</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                         <MyTickets />
                     </div>
                 </div>
             </div>

@@ -2,20 +2,12 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { getFirestore, collection, addDoc, updateDoc, doc, deleteDoc, onSnapshot, serverTimestamp, setDoc, getDocs, query, where } from 'firebase/firestore';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Button } from '@/components/ui/button';
-import { Radio, StopCircle, Users, Loader2, Copy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
-import type { Product } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import Recorder from '@/components/studio/Recorder';
+import { useToast } from '@/hooks/use-toast';
 
 const servers = {
     iceServers: [
@@ -32,27 +24,12 @@ export default function SellerStreamPage() {
     const [isLive, setIsLive] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
-    const [viewerCount, setViewerCount] = useState(0);
-    const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [shareLink, setShareLink] = useState('');
 
     const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
-    // --- Viewer Count Listener ---
-    useEffect(() => {
-        if (!liveSessionId || !firestore) return;
-        const viewersColRef = collection(firestore, 'liveSessions', liveSessionId, 'viewers');
-        const unsubscribe = onSnapshot(viewersColRef, (snapshot) => {
-            setViewerCount(snapshot.size);
-        });
-        return () => unsubscribe();
-    }, [liveSessionId, firestore]);
-    
-    // --- WebRTC Handler for new viewers ---
     const handleNewViewer = useCallback(async (viewerId: string, offer: RTCSessionDescriptionInit) => {
         if (!liveSessionId || !firestore || !localStream || !user) return;
-        console.log(`[Seller] Received offer from new viewer: ${viewerId}`);
 
         const pc = new RTCPeerConnection(servers);
         peerConnectionsRef.current.set(viewerId, pc);
@@ -81,24 +58,12 @@ export default function SellerStreamPage() {
 
             await setDoc(doc(signalingCol, `answer-${viewerId}`), { answer });
 
-            // Listen for buyer ICE candidates for this specific peer connection
-            const buyerCandidatesQuery = query(signalingCol, where('type', '==', 'buyerCandidate'), where('from', '==', viewerId));
-            const unsubIce = onSnapshot(buyerCandidatesQuery, (snapshot) => {
-                snapshot.docChanges().forEach(async (change) => {
-                    if (change.type === 'added') {
-                        const candidate = new RTCIceCandidate(change.doc.data().candidate);
-                        await pc.addIceCandidate(candidate);
-                    }
-                });
-            });
-            // You might want to manage unsubscribe functions for each peer connection
         } catch (error) {
             console.error("Error handling offer:", error);
         }
 
     }, [liveSessionId, firestore, localStream, user]);
 
-    // --- Signaling Listener (for new buyers joining) ---
     useEffect(() => {
         if (!liveSessionId || !firestore || !user) return;
         
@@ -116,8 +81,6 @@ export default function SellerStreamPage() {
         return () => unsubscribe();
     }, [liveSessionId, firestore, handleNewViewer, user]);
 
-
-    // --- Go Live ---
     const goLive = async () => {
         if (!user || !firestore) return;
         setIsStarting(true);
@@ -137,19 +100,14 @@ export default function SellerStreamPage() {
 
             await setDoc(sessionRef, {
                 sellerId: user.uid,
-                title: `${user.displayName || 'Seller'}'s Live Show`,
                 status: 'live',
                 startTime: serverTimestamp(),
-                pinnedProductId: null,
             }, { merge: true });
 
             setLiveSessionId(sessionId);
             setIsLive(true);
-            
-            const link = `${window.location.origin}/buyer/live/${sessionId}`;
-            setShareLink(link);
 
-            toast({ title: 'You are now LIVE!', description: 'Share your link to invite viewers.' });
+            toast({ title: 'You are now LIVE!' });
 
         } catch (error) {
             console.error('Error starting live stream:', error);
@@ -160,7 +118,6 @@ export default function SellerStreamPage() {
         }
     };
 
-    // --- End Live ---
     const endLive = async () => {
         if (!liveSessionId || !firestore) return;
 
@@ -176,96 +133,22 @@ export default function SellerStreamPage() {
             endTime: serverTimestamp(),
         });
         
-        const subcollections = ['signaling', 'viewers'];
-        for (const sub of subcollections) {
-            const subcollectionRef = collection(sessionRef, sub);
-            const docsSnapshot = await getDocs(subcollectionRef);
-            docsSnapshot.forEach(docToDelete => deleteDoc(docToDelete.ref));
-        }
+        const signalingCol = collection(sessionRef, 'signaling');
+        const docsSnapshot = await getDocs(signalingCol);
+        docsSnapshot.forEach(docToDelete => deleteDoc(docToDelete.ref));
 
         setIsLive(false);
         setLiveSessionId(null);
-        setViewerCount(0);
-        setPinnedProduct(null);
-        setShareLink('');
         toast({ title: 'Stream Ended' });
-    };
-    
-     const handlePinProduct = (product: Product) => {
-        setPinnedProduct(product);
-        if (firestore && liveSessionId) {
-            updateDoc(doc(firestore, 'liveSessions', liveSessionId), {
-                pinnedProductId: product.id,
-            });
-        }
-    };
-
-    const handleUnpinProduct = () => {
-        setPinnedProduct(null);
-         if (firestore && liveSessionId) {
-            updateDoc(doc(firestore, 'liveSessions', liveSessionId), {
-                pinnedProductId: null,
-            });
-        }
-    };
-
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(shareLink).then(() => {
-            toast({ title: 'Link Copied!', description: 'Your live stream link is ready to share.' });
-        });
     };
 
     return (
         <SellerLayout>
-            <div className="flex-1 p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-                {/* Main Content: Video and controls */}
-                <div className="lg:col-span-3 flex flex-col gap-4">
-                    <div className="relative flex-1">
-                        <Recorder stream={localStream} isLive={isLive} />
-                        {isLive && (
-                            <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm p-2 rounded-lg flex items-center gap-2 text-white font-semibold">
-                                <Users className="h-5 w-5 text-primary" />
-                                <span>{viewerCount}</span>
-                            </div>
-                        )}
-                         {pinnedProduct && (
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-                                <PinnedProduct product={pinnedProduct} />
-                            </div>
-                        )}
-                    </div>
-                     <div className="hidden lg:block">
-                        <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
-                    </div>
-                    {isLive && shareLink && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Share Your Stream</CardTitle>
-                                <CardDescription>Copy this link and send it to your audience to join your live session.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex items-center gap-2">
-                                <Input value={shareLink} readOnly />
-                                <Button size="icon" onClick={handleCopyLink}>
-                                    <Copy className="h-4 w-4" />
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    )}
+            <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+                <div className="flex-1 relative">
+                    <Recorder stream={localStream} isLive={isLive} />
                 </div>
-
-                {/* Right Sidebar: Products and Chat */}
-                 <div className="flex flex-col gap-4 overflow-hidden h-full">
-                    {user && (
-                        <div className="bg-card p-4 rounded-lg flex-1 flex flex-col min-h-0">
-                            <h3 className="text-lg font-bold mb-3">Product Bag</h3>
-                            <LiveProductShelf sellerId={user.uid} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} />
-                        </div>
-                    )}
-                     {/* Mobile Stream Controls */}
-                    <div className="lg:hidden">
-                        <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
-                    </div>
-                </div>
+                <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
             </div>
         </SellerLayout>
     );

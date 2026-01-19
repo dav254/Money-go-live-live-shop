@@ -4,12 +4,11 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
-import type { LiveSession, Product } from '@/lib/types';
+import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import type { LiveSession } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RadioTower, Loader2, ArrowLeft, VideoOff } from 'lucide-react';
+import { RadioTower, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
 
 const servers = {
   iceServers: [
@@ -33,11 +32,6 @@ export default function BuyerLiveViewPage() {
 
     const liveSessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', streamId), [firestore, streamId]);
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
-    
-    const pinnedProductId = liveSession?.pinnedProductId;
-    const pinnedProductRef = useMemoFirebase(() => pinnedProductId ? doc(firestore, 'products', pinnedProductId) : null, [firestore, pinnedProductId]);
-    const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
-
 
     const setupPeerConnection = useCallback(async () => {
         if (!firestore || !user || !streamId || peerConnectionRef.current) return;
@@ -57,17 +51,12 @@ export default function BuyerLiveViewPage() {
         pc.onicecandidate = event => {
             event.candidate && addDoc(signalingCol, { type: 'buyerCandidate', from: user.uid, candidate: event.candidate.toJSON() });
         };
-        
-        // Add viewer document
-        await setDoc(doc(firestore, 'liveSessions', streamId, 'viewers', user.uid), { joinedAt: serverTimestamp() });
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         
-        // Send offer TO the seller
         await addDoc(signalingCol, { type: 'offer', from: user.uid, to: streamId, offer: { type: offer.type, sdp: offer.sdp } });
         
-        // Listen for answer from seller
         const answerDocRef = doc(signalingCol, `answer-${user.uid}`);
         const unsubAnswer = onSnapshot(answerDocRef, async (snapshot) => {
             const data = snapshot.data();
@@ -77,7 +66,6 @@ export default function BuyerLiveViewPage() {
             }
         });
         
-        // Listen for seller ICE candidates
         const sellerCandidatesQuery = query(signalingCol, where('type', '==', 'sellerCandidate'), where('to', '==', user.uid));
         const unsubIce = onSnapshot(sellerCandidatesQuery, (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
@@ -106,9 +94,6 @@ export default function BuyerLiveViewPage() {
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.close();
                 peerConnectionRef.current = null;
-            }
-            if(user && firestore && streamId){
-                 deleteDoc(doc(firestore, 'liveSessions', streamId, 'viewers', user.uid));
             }
             if (cleanup) cleanup();
         };
@@ -146,17 +131,11 @@ export default function BuyerLiveViewPage() {
     return (
         <BuyerLayout>
             <div className="flex h-full w-full bg-black">
-                {/* Main Live View */}
                 <div className="flex-1 h-full flex items-center justify-center relative bg-black">
                     <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
                             <div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Connecting...</p></div>
-                        </div>
-                    )}
-                     {pinnedProduct && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-                            <PinnedProduct product={pinnedProduct} />
                         </div>
                     )}
                 </div>
