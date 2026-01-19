@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
@@ -120,39 +119,31 @@ export default function BuyerLiveViewPage() {
 
     if (isLoading || isSessionLoading) {
         return (
-            <BuyerLayout>
-                <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-black text-white">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="ml-3">Connecting to live stream...</p>
-                </div>
-            </BuyerLayout>
+            <div className="flex h-screen items-center justify-center bg-black text-white">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p className="ml-3">Connecting to live stream...</p>
+            </div>
         );
     }
     
     if (error) {
         return (
-             <BuyerLayout>
-                <div className="flex-1 space-y-4 p-8 pt-6">
-                    <Alert variant="destructive">
-                        <RadioTower className="h-4 w-4" />
-                        <AlertTitle>Stream Offline</AlertTitle>
-                        <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                    <Button onClick={() => router.push('/buyer/live-stream')}>
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Live Streams
-                    </Button>
-                </div>
-            </BuyerLayout>
+             <div className="flex h-screen flex-col items-center justify-center p-8 bg-background">
+                <Alert variant="destructive" className="max-w-md">
+                    <RadioTower className="h-4 w-4" />
+                    <AlertTitle>Stream Offline</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+                <Button onClick={() => router.push('/buyer/live-stream')} className="mt-4">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Live Streams
+                </Button>
+            </div>
         )
     }
 
     return (
-        <BuyerLayout>
-            <div className="flex h-full w-full bg-black">
-                <div className="flex-1 h-full flex items-center justify-center relative bg-black">
-                    <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
-                </div>
-            </div>
-        </BuyerLayout>
+        <div className="h-screen w-screen bg-black flex items-center justify-center">
+            <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
+        </div>
     )
 }
