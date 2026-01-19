@@ -1,7 +1,10 @@
+
 'use client';
 
 import React, { useRef, useEffect } from 'react';
 import { VideoOff } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import { Users } from 'lucide-react';
 
 interface RecorderProps {
   stream: MediaStream | null;
@@ -33,3 +36,5 @@ export default function Recorder({ stream, isLive }: RecorderProps) {
     </div>
   );
 }
+
+    

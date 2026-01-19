@@ -1,14 +1,19 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
+import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
+import type { LiveSession, Product } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RadioTower, Loader2, ArrowLeft } from 'lucide-react';
+import { RadioTower, Loader2, ArrowLeft, Heart, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LiveChat } from '@/components/buyer/LiveChat';
+import { LiveProductCard } from '@/components/buyer/LiveProductCard';
+import { PinnedProduct } from '@/components/live/PinnedProduct';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const servers = {
   iceServers: [
@@ -16,6 +21,13 @@ const servers = {
     { urls: 'stun:stun1.l.google.com:19302' },
   ],
 };
+
+interface Heart {
+  id: number;
+  x: number;
+  y: number;
+}
+
 
 export default function BuyerLiveViewPage() {
     const params = useParams();
@@ -29,13 +41,18 @@ export default function BuyerLiveViewPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [hearts, setHearts] = useState<Heart[]>([]);
+    const heartsRef = useRef<Heart[]>([]);
 
-    const liveSessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', streamId), [firestore, streamId]);
-    const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(liveSessionRef);
+    const sessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', streamId), [firestore, streamId]);
+    const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
+    const pinnedProduct = liveSession?.pinnedProduct as Product | null;
 
+    // Correct WebRTC signaling flow
     const setupPeerConnection = useCallback(async () => {
         if (!firestore || !user || !streamId || peerConnectionRef.current) return;
         setIsLoading(true);
+        setError(null);
 
         const pc = new RTCPeerConnection(servers);
         peerConnectionRef.current = pc;
@@ -48,45 +65,57 @@ export default function BuyerLiveViewPage() {
 
         const signalingCol = collection(firestore, 'liveSessions', streamId, 'signaling');
 
-        pc.onicecandidate = event => {
-            event.candidate && addDoc(signalingCol, { type: 'buyerCandidate', from: user.uid, candidate: event.candidate.toJSON() });
-        };
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+        // Add user to viewers subcollection
+        const viewerRef = doc(firestore, 'liveSessions', streamId, 'viewers', user.uid);
+        await setDoc(viewerRef, { joinedAt: serverTimestamp() });
         
-        await addDoc(signalingCol, { type: 'offer', from: user.uid, to: streamId, offer: { type: offer.type, sdp: offer.sdp } });
-        
-        const answerDocRef = doc(signalingCol, `answer-${user.uid}`);
-        const unsubAnswer = onSnapshot(answerDocRef, async (snapshot) => {
-            const data = snapshot.data();
-            if (data && !pc.currentRemoteDescription) {
-                const answerDescription = new RTCSessionDescription(data.answer);
-                await pc.setRemoteDescription(answerDescription);
-            }
-        });
-        
-        const sellerCandidatesQuery = query(signalingCol, where('type', '==', 'sellerCandidate'), where('to', '==', user.uid));
-        const unsubIce = onSnapshot(sellerCandidatesQuery, (snapshot) => {
+        // Listen for offers from seller
+        const offerQuery = query(signalingCol, where('type', '==', 'offer'), where('to', '==', user.uid));
+        const unsubscribeOffer = onSnapshot(offerQuery, async (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
-                    const candidate = new RTCIceCandidate(change.doc.data().candidate);
-                    await pc.addIceCandidate(candidate);
+                    const { offer, from } = change.doc.data();
+                    if (offer && pc.signalingState !== "stable") {
+                        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+
+                        await addDoc(signalingCol, { 
+                            type: 'answer', 
+                            answer: { type: answer.type, sdp: answer.sdp },
+                            from: user.uid,
+                            to: from
+                        });
+                    }
                 }
             });
         });
 
+        // Listen for ICE candidates from seller
+        const iceQuery = query(signalingCol, where('type', '==', 'sellerCandidate'), where('to', '==', user.uid));
+        const unsubscribeIce = onSnapshot(iceQuery, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.type === 'added') {
+                    await pc.addIceCandidate(new RTCIceCandidate(change.doc.data().candidate));
+                }
+            });
+        });
+        
         setIsLoading(false);
-        return () => { unsubAnswer(); unsubIce(); }
+
+        return () => {
+            unsubscribeOffer();
+            unsubscribeIce();
+        };
 
     }, [firestore, user, streamId]);
-
+    
     useEffect(() => {
         let cleanup: (() => void) | undefined;
         if (!isSessionLoading && liveSession?.status === 'live' && user) {
             setupPeerConnection().then(c => { cleanup = c; });
-        } else if (!isSessionLoading && liveSession?.status !== 'live') {
-            setError('This stream is not live.');
+        } else if (!isSessionLoading && (!liveSession || liveSession.status !== 'live')) {
+            setError('This stream is not live or has ended.');
             setIsLoading(false);
         }
 
@@ -95,33 +124,51 @@ export default function BuyerLiveViewPage() {
                 peerConnectionRef.current.close();
                 peerConnectionRef.current = null;
             }
+            if (firestore && user) {
+                const viewerRef = doc(firestore, 'liveSessions', streamId, 'viewers', user.uid);
+                deleteDoc(viewerRef);
+            }
             if (cleanup) cleanup();
         };
     }, [isSessionLoading, liveSession, setupPeerConnection, user, firestore, streamId]);
 
-    if (isSessionLoading) {
+    const handleLike = (e: React.MouseEvent<HTMLButtonElement>) => {
+        const x = e.clientX || window.innerWidth / 2;
+        const y = e.clientY || window.innerHeight / 2;
+        const id = Date.now() + Math.random();
+        const heart = { id, x, y };
+        heartsRef.current = [...heartsRef.current, heart];
+        setHearts(heartsRef.current);
+
+        setTimeout(() => {
+            heartsRef.current = heartsRef.current.filter(h => h.id !== id);
+            setHearts(heartsRef.current);
+        }, 1200);
+    };
+
+
+    if (isLoading || isSessionLoading) {
         return (
             <BuyerLayout>
                 <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-black text-white">
-                    <p>Connecting to live stream...</p>
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <p className="ml-3">Connecting to live stream...</p>
                 </div>
             </BuyerLayout>
         );
     }
     
-    if (error || liveSession?.status !== 'live') {
+    if (error) {
         return (
              <BuyerLayout>
                 <div className="flex-1 space-y-4 p-8 pt-6">
                     <Alert variant="destructive">
                         <RadioTower className="h-4 w-4" />
                         <AlertTitle>Stream Offline</AlertTitle>
-                        <AlertDescription>
-                          {error || 'This live stream has ended or is not currently active.'}
-                        </AlertDescription>
+                        <AlertDescription>{error}</AlertDescription>
                     </Alert>
-                    <Button onClick={() => router.back()}>
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                    <Button onClick={() => router.push('/buyer/live-stream')}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Live Streams
                     </Button>
                 </div>
             </BuyerLayout>
@@ -133,13 +180,36 @@ export default function BuyerLiveViewPage() {
             <div className="flex h-full w-full bg-black">
                 <div className="flex-1 h-full flex items-center justify-center relative bg-black">
                     <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
-                    {isLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white">
-                            <div className="text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p className="mt-2">Connecting...</p></div>
-                        </div>
-                    )}
+                    <div className="absolute inset-0 pointer-events-none">
+                         <AnimatePresence>
+                            {hearts.map(h => (
+                            <motion.div key={h.id} className="absolute" style={{ left: h.x - 16, top: h.y - 40 }}>
+                                <motion.span
+                                initial={{ y: 0, scale: 0.6, opacity: 0.9 }}
+                                animate={{ y: -120, scale: 0.8, opacity: 0 }}
+                                transition={{ duration: 1.2, ease: "easeOut" }}
+                                className="text-2xl"
+                                >
+                                ❤️
+                                </motion.span>
+                            </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+
+                    <div className="absolute bottom-20 right-4 z-10">
+                        <Button size="icon" variant="ghost" className="h-12 w-12 rounded-full bg-black/50 hover:bg-black/70" onClick={handleLike}>
+                           <Heart className="h-6 w-6 text-white"/>
+                        </Button>
+                    </div>
+
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-sm px-4">
+                        {pinnedProduct && <PinnedProduct product={pinnedProduct} />}
+                    </div>
                 </div>
             </div>
         </BuyerLayout>
     )
 }
+
+    

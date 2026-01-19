@@ -15,9 +15,10 @@ interface LiveProductShelfProps {
     sellerId: string;
     onPinProduct: (product: Product) => void;
     onUnpinProduct: () => void;
+    pinnedProductId: string | null;
 }
 
-const ProductRow = ({ product, onPin, onUnpin }: { product: Product; onPin: (p: Product) => void; onUnpin: () => void }) => {
+const ProductRow = ({ product, onPin, onUnpin, isPinned }: { product: Product; onPin: (p: Product) => void; onUnpin: () => void; isPinned: boolean; }) => {
     return (
         <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
             <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
@@ -28,18 +29,21 @@ const ProductRow = ({ product, onPin, onUnpin }: { product: Product; onPin: (p: 
                 <p className="text-xs font-bold text-primary">${product.price.toLocaleString()}</p>
             </div>
             <div className="flex gap-1">
-                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onPin(product)}>
-                    <Pin className="h-4 w-4" />
-                </Button>
-                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onUnpin}>
-                    <PinOff className="h-4 w-4" />
-                </Button>
+                {isPinned ? (
+                    <Button size="icon" variant="secondary" className="h-8 w-8" onClick={onUnpin}>
+                        <PinOff className="h-4 w-4" />
+                    </Button>
+                ) : (
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onPin(product)}>
+                        <Pin className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
         </div>
     );
 };
 
-export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct }: LiveProductShelfProps) {
+export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct, pinnedProductId }: LiveProductShelfProps) {
     const firestore = useFirestore();
 
     const productsQuery = useMemoFirebase(() => {
@@ -66,9 +70,17 @@ export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct }: Liv
         <ScrollArea className="h-full">
             <div className="space-y-2">
                 {products.map(product => (
-                    <ProductRow key={product.id} product={product} onPin={onPinProduct} onUnpin={onUnpinProduct} />
+                    <ProductRow 
+                        key={product.id} 
+                        product={product} 
+                        onPin={onPinProduct} 
+                        onUnpin={onUnpinProduct} 
+                        isPinned={pinnedProductId === product.id}
+                    />
                 ))}
             </div>
         </ScrollArea>
     )
 }
+
+    
