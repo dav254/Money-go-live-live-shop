@@ -1,15 +1,12 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import {
-  getFirestore,
   collection,
   addDoc,
   updateDoc,
   doc,
-  deleteDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -18,21 +15,12 @@ import {
   query,
   where,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import Recorder from '@/components/studio/Recorder';
 import { StreamControls } from '@/components/studio/StreamControls';
 import { useToast } from '@/hooks/use-toast';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { LiveActivityFeed } from '@/components/studio/LiveActivityFeed';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
-import type { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { Users, Link as LinkIcon, VideoOff } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, VideoOff } from 'lucide-react';
 
 const servers = {
   iceServers: [
@@ -51,8 +39,6 @@ export default function SellerStreamPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [pinnedProduct, setPinnedProduct] = useState<Product | null>(null);
-  const [shareLink, setShareLink] = useState('');
   const [viewerCount, setViewerCount] = useState(0);
 
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection & { unsubscribe?: () => void }>>(new Map());
@@ -161,7 +147,6 @@ export default function SellerStreamPage() {
       );
 
       setLiveSessionId(sessionId);
-      setShareLink(`${window.location.origin}/buyer/live/${sessionId}`);
       setIsLive(true);
       toast({ title: 'You are now LIVE!' });
     } catch (error) {
@@ -205,75 +190,23 @@ export default function SellerStreamPage() {
 
     setIsLive(false);
     setLiveSessionId(null);
-    setShareLink('');
     setViewerCount(0);
-    setPinnedProduct(null);
     toast({ title: 'Stream Ended' });
-  };
-
-  const handlePinProduct = async (product: Product) => {
-    if (!liveSessionId) return;
-    setPinnedProduct(product);
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    await updateDoc(sessionRef, { pinnedProduct: product });
-  };
-
-  const handleUnpinProduct = async () => {
-    if (!liveSessionId) return;
-    setPinnedProduct(null);
-    const sessionRef = doc(firestore, 'liveSessions', liveSessionId);
-    await updateDoc(sessionRef, { pinnedProduct: null });
-  };
-  
-  const copyShareLink = () => {
-    navigator.clipboard.writeText(shareLink).then(() => {
-        toast({ title: "Link Copied!", description: "Share this link with your audience." });
-    });
   };
 
   return (
     <SellerLayout>
-      <div className="flex-1 p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-        <div className="lg:col-span-3 flex flex-col gap-4">
-            <div className="relative flex-1">
-                 <Recorder stream={localStream} isLive={isLive} />
-                 {isLive && (
-                     <div className="absolute top-4 left-4 flex gap-2">
-                        <Badge className="bg-red-600 hover:bg-red-700">LIVE</Badge>
-                        <Badge variant="secondary" className="flex items-center gap-1.5"><Users className="h-3 w-3" />{viewerCount}</Badge>
-                    </div>
-                )}
-                 <div className="absolute bottom-4 left-4 z-20">
-                    {pinnedProduct && <PinnedProduct product={pinnedProduct} />}
-                 </div>
-            </div>
-             <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
-        </div>
-        <div className="flex flex-col gap-4">
-            {shareLink && (
-                <div className="bg-card p-3 rounded-lg border">
-                    <Label className="text-xs font-semibold text-muted-foreground">Share Link</Label>
-                    <div className="flex gap-2 items-center mt-1">
-                        <Input value={shareLink} readOnly className="h-9 text-xs" />
-                        <Button size="icon" variant="outline" className="h-9 w-9" onClick={copyShareLink}>
-                            <LinkIcon className="h-4 w-4" />
-                        </Button>
-                    </div>
+      <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+        <div className="relative flex-1">
+              <Recorder stream={localStream} isLive={isLive} />
+              {isLive && (
+                  <div className="absolute top-4 left-4 flex gap-2">
+                    <Badge className="bg-red-600 hover:bg-red-700">LIVE</Badge>
+                    <Badge variant="secondary" className="flex items-center gap-1.5"><Users className="h-3 w-3" />{viewerCount}</Badge>
                 </div>
             )}
-             <Card className="flex-1 flex flex-col">
-                <CardHeader><CardTitle className="text-lg">Product Bag</CardTitle></CardHeader>
-                <CardContent className="flex-1">
-                    <LiveProductShelf sellerId={user?.uid || ''} onPinProduct={handlePinProduct} onUnpinProduct={handleUnpinProduct} pinnedProductId={pinnedProduct?.id || null} />
-                </CardContent>
-            </Card>
-            <Card className="flex-1 flex flex-col">
-                 <CardHeader><CardTitle className="text-lg">Live Activity</CardTitle></CardHeader>
-                <CardContent className="flex-1">
-                     <LiveActivityFeed liveSessionId={liveSessionId} />
-                </CardContent>
-            </Card>
         </div>
+          <StreamControls isLive={isLive} isStarting={isStarting} onGoLive={goLive} onEndLive={endLive} />
       </div>
     </SellerLayout>
   );
