@@ -50,6 +50,14 @@ const tools = [
     cta: 'Create Video',
     points: 250,
   },
+   {
+    title: 'AI Video Enhancer',
+    description: 'Animate a product image with a text prompt to create a short video.',
+    icon: Film,
+    href: '/dashboard/seller/ai-tools/video-enhancer',
+    cta: 'Enhance Video',
+    points: 250,
+  },
 ];
 
 
@@ -212,7 +220,6 @@ export default function SellerAIToolsPage() {
                                         <tool.icon className="h-6 w-6 text-primary" />
                                         <span>{tool.title}</span>
                                     </span>
-                                    {tool.isComingSoon && <Badge variant="outline">Coming Soon</Badge>}
                                 </CardTitle>
                                 <CardDescription>{tool.description}</CardDescription>
                             </CardHeader>
@@ -220,7 +227,7 @@ export default function SellerAIToolsPage() {
                                 <div className="text-center font-bold text-lg my-2">
                                     {tool.points} Points
                                 </div>
-                                 <Button className="w-full" asChild disabled={tool.isComingSoon}>
+                                 <Button className="w-full" asChild>
                                     <Link href={tool.href} className="flex items-center">
                                         {tool.cta}
                                     </Link>

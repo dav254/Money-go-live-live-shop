@@ -1,4 +1,3 @@
-
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -37,7 +36,7 @@ const shortcuts = [
   {
     title: 'Live Shows',
     icon: Video,
-    href: '/live',
+    href: '/buyer/live-stream',
     color: 'bg-purple-500/20 text-purple-500',
   },
 ];
@@ -65,7 +64,7 @@ const HomepageCarousel = () => {
                         <div className="relative aspect-video md:aspect-[16/7] w-full overflow-hidden rounded-lg">
                             <Image
                                 src={slide.imageUrl}
-                                alt={slide.title}
+                                alt={slide.title || 'Promotional slide'}
                                 fill
                                 sizes="100vw"
                                 className="object-cover"
@@ -114,8 +113,6 @@ export default function BuyerDashboardPage() {
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    // In a real app, this would be updated whenever a user views a product.
-    // For this example, we'll simulate it by picking a random category on mount.
     const categories = ['Fashion', 'Electronics', 'Home Goods', 'Beauty'];
     const randomCategory = categories[Math.floor(Math.random() * categories.length)];
     setLastViewedCategory(randomCategory);
@@ -146,7 +143,6 @@ export default function BuyerDashboardPage() {
         <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
             <HomepageCarousel />
 
-            {/* Quick Shortcuts */}
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
             {shortcuts.map((shortcut) => (
                 <Card
@@ -169,14 +165,11 @@ export default function BuyerDashboardPage() {
             ))}
             </div>
 
-            {/* Today's Deals Carousel */}
             <div className="space-y-4">
             <h2 className="font-headline text-2xl font-bold">Today's Deals</h2>
             {isLoadingDeals ? <ProductCarouselSkeleton /> : (
                 <Carousel
-                    opts={{
-                    align: 'start',
-                    }}
+                    opts={{ align: 'start' }}
                     className="w-full"
                 >
                     <CarouselContent>
@@ -197,7 +190,6 @@ export default function BuyerDashboardPage() {
             )}
             </div>
 
-            {/* Trending Live Shows */}
             <div className="space-y-4">
             <h2 className="font-headline text-2xl font-bold">
                 Trending Live Shows
@@ -209,7 +201,7 @@ export default function BuyerDashboardPage() {
                         <Card className="group relative h-40 overflow-hidden">
                         <Image
                             src={`https://picsum.photos/seed/${seller.sellerId}/600/400`}
-                            alt={seller.title}
+                            alt={seller.sellerName || 'Live stream from seller'}
                             fill
                             sizes="(max-width: 768px) 50vw, 25vw"
                             className="object-cover transition-transform group-hover:scale-105"
@@ -218,7 +210,7 @@ export default function BuyerDashboardPage() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                         <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
                             <CardTitle className="font-headline text-lg text-white">
-                            {seller.title}
+                            {seller.sellerName || 'Live Stream'}
                             </CardTitle>
                         </CardHeader>
                         </Card>
@@ -228,7 +220,6 @@ export default function BuyerDashboardPage() {
             )}
             </div>
 
-            {/* Recommended For You */}
             <div className="space-y-4">
             <h2 className="font-headline text-2xl font-bold">
                 Recommended For You
@@ -237,9 +228,7 @@ export default function BuyerDashboardPage() {
                 <ProductCarouselSkeleton />
             ) : recommendedProducts && recommendedProducts.length > 0 ? (
                 <Carousel
-                    opts={{
-                    align: 'start',
-                    }}
+                    opts={{ align: 'start' }}
                     className="w-full"
                 >
                     <CarouselContent>
