@@ -1,7 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
-import { FieldValue, Timestamp, doc, setDoc, updateDoc } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
@@ -38,9 +38,9 @@ export async function POST(request: Request) {
     const userProfile = userProfileDoc.data();
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    const newSessionRef = doc(db, 'liveSessions', sellerId);
+    const newSessionRef = db.collection('liveSessions').doc(sellerId);
 
-    await setDoc(newSessionRef, {
+    await newSessionRef.set({
       id: sellerId,
       sellerId: sellerId,
       title: `${sellerName}'s Live Show`,
@@ -75,14 +75,14 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const sessionRef = doc(db, 'liveSessions', liveSessionId);
+    const sessionRef = db.collection('liveSessions').doc(liveSessionId);
 
     const sessionDoc = await sessionRef.get();
-    if (!sessionDoc.exists() || sessionDoc.data()?.sellerId !== sellerId) {
+    if (!sessionDoc.exists || sessionDoc.data()?.sellerId !== sellerId) {
         return NextResponse.json({ error: 'Forbidden: You do not own this live session.' }, { status: 403 });
     }
 
-    await updateDoc(sessionRef, {
+    await sessionRef.update({
       status: 'ended',
       endTime: Timestamp.now(),
     });
