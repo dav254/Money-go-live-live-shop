@@ -28,6 +28,7 @@ import { useDoc } from '@/firebase/firestore/use-doc';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Video, Users, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 
 const SellerCell = ({ sellerId }: { sellerId: string }) => {
   const firestore = useFirestore();
@@ -82,7 +83,9 @@ const columns: ColumnDef<LiveSession>[] = [
       id: 'actions',
       cell: ({row}) => (
           <div className="text-right">
-              <Button variant="outline" size="sm">Monitor</Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/buyer/live/${row.original.sellerId}`}>Monitor</Link>
+              </Button>
           </div>
       )
   }
