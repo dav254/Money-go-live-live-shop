@@ -114,9 +114,18 @@
         { "fieldPath": "type", "order": "ASCENDING" },
         { "fieldPath": "to", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "signaling",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "from", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
 }
+
 
 
