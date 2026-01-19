@@ -109,7 +109,7 @@
     },
     {
       "collectionGroup": "signaling",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "type", "order": "ASCENDING" },
         { "fieldPath": "to", "order": "ASCENDING" }
@@ -117,15 +117,25 @@
     },
     {
       "collectionGroup": "signaling",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "from", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "signaling",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "to", "order": "ASCENDING" },
         { "fieldPath": "from", "order": "ASCENDING" }
       ]
     }
   ],
   "fieldOverrides": []
 }
+
 
 
 
