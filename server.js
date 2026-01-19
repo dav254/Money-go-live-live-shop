@@ -10,22 +10,20 @@ const io = socketIo(server, { cors: { origin: '*' } });
 app.use(cors());
 
 let activeSellers = {};
-let buyerCounts = {};
 
 io.on('connection', (socket) => {
-  console.log('✅ Connected:', socket.id);
+  console.log('✅ New Connection:', socket.id);
 
   socket.on('seller-go-live', (data) => {
+    console.log(`🔴 Seller is live: ${data.sellerName} (${data.streamId})`);
     activeSellers[data.streamId] = {
       streamId: data.streamId,
       socketId: socket.id,
       sellerName: data.sellerName,
-      buyers: 0
+      buyers: {}, // Use an object to store buyer sockets
     };
-    buyerCounts[data.streamId] = 0;
-
+    // Inform all clients that a new seller is live
     io.emit('sellers-update', Object.values(activeSellers));
-    console.log(`🔴 Seller live: ${data.sellerName}`);
   });
 
   socket.on('get-sellers', () => {
@@ -33,36 +31,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('buyer-join-stream', (data) => {
-    const sellerSocketId = activeSellers[data.streamId]?.socketId;
-    
-    if (sellerSocketId) {
-      buyerCounts[data.streamId] = (buyerCounts[data.streamId] || 0) + 1;
-      if (activeSellers[data.streamId]) {
-        activeSellers[data.streamId].buyers = buyerCounts[data.streamId];
-      }
-
-      io.to(sellerSocketId).emit('buyer-joined', { 
-        buyerSocketId: socket.id,
-        viewerCount: buyerCounts[data.streamId]
-      });
-
+    const seller = activeSellers[data.streamId];
+    if (seller) {
+      seller.buyers[socket.id] = true;
+      const viewerCount = Object.keys(seller.buyers).length;
+      console.log(`👁️ Buyer joined ${seller.streamId}. Viewers: ${viewerCount}`);
+      // Notify seller of the new buyer
+      io.to(seller.socketId).emit('buyer-joined', { buyerSocketId: socket.id, viewerCount });
+      // Update everyone on the new viewer count
       io.emit('sellers-update', Object.values(activeSellers));
-    }
-  });
-
-  socket.on('buyer-leave-stream', (data) => {
-    const streamId = data.streamId;
-    if (buyerCounts[streamId] && buyerCounts[streamId] > 0) {
-      buyerCounts[streamId]--;
-      if (activeSellers[streamId]) {
-        activeSellers[streamId].buyers = buyerCounts[streamId];
-      }
-      io.emit('sellers-update', Object.values(activeSellers));
-      
-      const sellerSocketId = activeSellers[streamId]?.socketId;
-      if(sellerSocketId) {
-          io.to(sellerSocketId).emit('buyer-left', { viewerCount: buyerCounts[streamId] });
-      }
     }
   });
 
@@ -75,49 +52,46 @@ io.on('connection', (socket) => {
   });
 
   socket.on('ice-candidate', (data) => {
-    const stream = Object.values(activeSellers).find(s => s.socketId === socket.id || s.buyers[socket.id]);
-    if (stream) {
-      const recipient = stream.socketId === socket.id ? data.to : stream.socketId;
-      io.to(recipient).emit('ice-candidate', { 
-        from: socket.id, 
-        candidate: data.candidate 
-      });
+    // Forward the ICE candidate to the correct peer
+    const recipientSocketId = data.to;
+    if(recipientSocketId) {
+        io.to(recipientSocketId).emit('ice-candidate', { from: socket.id, candidate: data.candidate });
     }
   });
 
-  socket.on('seller-stop-live', () => {
-    for (let streamId in activeSellers) {
-      if (activeSellers[streamId].socketId === socket.id) {
-        delete activeSellers[streamId];
-        delete buyerCounts[streamId];
-        io.emit('sellers-update', Object.values(activeSellers));
-        io.emit('seller-offline', { streamId });
-        console.log(`⏹️ Seller stopped: ${streamId}`);
-        break;
-      }
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Disconnected:', socket.id);
-    let streamIdToDelete = null;
-    for (let streamId in activeSellers) {
-      if (activeSellers[streamId].socketId === socket.id) {
+  const cleanupStream = (socketId) => {
+     let streamIdToDelete = null;
+    for (const streamId in activeSellers) {
+      if (activeSellers[streamId].socketId === socketId) {
         streamIdToDelete = streamId;
         break;
       }
+      if (activeSellers[streamId].buyers[socketId]) {
+          delete activeSellers[streamId].buyers[socketId];
+          const viewerCount = Object.keys(activeSellers[streamId].buyers).length;
+          console.log(`👋 Buyer left ${streamId}. Viewers: ${viewerCount}`);
+          io.to(activeSellers[streamId].socketId).emit('buyer-left', { viewerCount });
+          io.emit('sellers-update', Object.values(activeSellers));
+          break;
+      }
     }
-
+    
     if (streamIdToDelete) {
-      delete activeSellers[streamIdToDelete];
-      delete buyerCounts[streamIdToDelete];
-      io.emit('sellers-update', Object.values(activeSellers));
-      io.emit('seller-offline', { streamId: streamIdToDelete });
-      console.log(`⏹️ Seller disconnected: ${streamIdToDelete}`);
+        console.log(`⏹️ Seller stopped stream: ${streamIdToDelete}`);
+        delete activeSellers[streamIdToDelete];
+        io.emit('sellers-update', Object.values(activeSellers));
+        io.emit('stream-ended', { streamId: streamIdToDelete });
     }
+  }
+
+  socket.on('seller-stop-live', () => cleanupStream(socket.id));
+  socket.on('buyer-leave-stream', () => cleanupStream(socket.id));
+  socket.on('disconnect', () => {
+    console.log('❌ Disconnected:', socket.id);
+    cleanupStream(socket.id);
   });
 });
 
 server.listen(5000, () => {
-  console.log('🚀 Server running on port 5000');
+  console.log('🚀 Live streaming server is running on port 5000');
 });
