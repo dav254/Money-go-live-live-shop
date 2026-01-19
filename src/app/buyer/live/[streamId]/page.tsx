@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -8,12 +7,8 @@ import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RadioTower, Loader2, ArrowLeft, Heart, X, Send } from 'lucide-react';
+import { RadioTower, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { LiveChat } from '@/components/buyer/LiveChat';
-import { LiveProductCard } from '@/components/buyer/LiveProductCard';
-import { PinnedProduct } from '@/components/live/PinnedProduct';
-import { AnimatePresence, motion } from 'framer-motion';
 
 const servers = {
   iceServers: [
@@ -21,13 +16,6 @@ const servers = {
     { urls: 'stun:stun1.l.google.com:19302' },
   ],
 };
-
-interface Heart {
-  id: number;
-  x: number;
-  y: number;
-}
-
 
 export default function BuyerLiveViewPage() {
     const params = useParams();
@@ -41,12 +29,9 @@ export default function BuyerLiveViewPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [hearts, setHearts] = useState<Heart[]>([]);
-    const heartsRef = useRef<Heart[]>([]);
 
     const sessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', streamId), [firestore, streamId]);
     const { data: liveSession, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
-    const pinnedProduct = liveSession?.pinnedProduct as Product | null;
 
     // Correct WebRTC signaling flow
     const setupPeerConnection = useCallback(async () => {
@@ -132,20 +117,6 @@ export default function BuyerLiveViewPage() {
         };
     }, [isSessionLoading, liveSession, setupPeerConnection, user, firestore, streamId]);
 
-    const handleLike = (e: React.MouseEvent<HTMLButtonElement>) => {
-        const x = e.clientX || window.innerWidth / 2;
-        const y = e.clientY || window.innerHeight / 2;
-        const id = Date.now() + Math.random();
-        const heart = { id, x, y };
-        heartsRef.current = [...heartsRef.current, heart];
-        setHearts(heartsRef.current);
-
-        setTimeout(() => {
-            heartsRef.current = heartsRef.current.filter(h => h.id !== id);
-            setHearts(heartsRef.current);
-        }, 1200);
-    };
-
 
     if (isLoading || isSessionLoading) {
         return (
@@ -180,36 +151,8 @@ export default function BuyerLiveViewPage() {
             <div className="flex h-full w-full bg-black">
                 <div className="flex-1 h-full flex items-center justify-center relative bg-black">
                     <video ref={remoteVideoRef} className="w-full h-full object-contain" autoPlay playsInline />
-                    <div className="absolute inset-0 pointer-events-none">
-                         <AnimatePresence>
-                            {hearts.map(h => (
-                            <motion.div key={h.id} className="absolute" style={{ left: h.x - 16, top: h.y - 40 }}>
-                                <motion.span
-                                initial={{ y: 0, scale: 0.6, opacity: 0.9 }}
-                                animate={{ y: -120, scale: 0.8, opacity: 0 }}
-                                transition={{ duration: 1.2, ease: "easeOut" }}
-                                className="text-2xl"
-                                >
-                                ❤️
-                                </motion.span>
-                            </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    </div>
-
-                    <div className="absolute bottom-20 right-4 z-10">
-                        <Button size="icon" variant="ghost" className="h-12 w-12 rounded-full bg-black/50 hover:bg-black/70" onClick={handleLike}>
-                           <Heart className="h-6 w-6 text-white"/>
-                        </Button>
-                    </div>
-
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-sm px-4">
-                        {pinnedProduct && <PinnedProduct product={pinnedProduct} />}
-                    </div>
                 </div>
             </div>
         </BuyerLayout>
     )
 }
-
-    
