@@ -52,8 +52,8 @@ export default function BuyerWatchPage() {
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                // Send candidate to the seller via the server
-                socket.emit('ice-candidate', { to: null, candidate: event.candidate });
+                // Send candidate to the seller via the server, including streamId
+                socket.emit('ice-candidate', { streamId: streamId, candidate: event.candidate });
             }
         };
         
