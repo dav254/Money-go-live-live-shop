@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -134,6 +133,7 @@ export default function SellerStreamPage() {
             isStarting={isStarting}
             onGoLive={goLive}
             onEndLive={endLive}
+            streamId={streamId}
           />
         </div>
       </div>
