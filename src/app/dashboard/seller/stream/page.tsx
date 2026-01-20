@@ -14,7 +14,6 @@ const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5
 export default function SellerStreamPage() {
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
   const localStream = useRef<MediaStream | null>(null);
   const [streamId, setStreamId] = useState<string | null>(null);
@@ -93,21 +92,11 @@ export default function SellerStreamPage() {
       });
       localStream.current = stream;
 
-      const token = await user.getIdToken();
-      const response = await fetch('/api/live-session', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const currentStreamId = user.uid; // Use UID for a unique, predictable stream ID
+      setStreamId(currentStreamId);
 
-      if (!response.ok) {
-        throw new Error('Failed to create live session on the server.');
-      }
-      
-      const { liveSessionId } = await response.json();
-      setStreamId(liveSessionId);
-
-      // Announce to the socket server
-      socket.emit('seller-go-live', { streamId: liveSessionId, sellerName: sellerName });
+      // Announce to the socket server that you are live
+      socket.emit('seller-go-live', { streamId: currentStreamId, sellerName: sellerName });
 
       setIsLive(true);
       toast({ title: "You are now live!", description: "Buyers can see and join your stream." });
@@ -126,24 +115,12 @@ export default function SellerStreamPage() {
     Object.values(peerConnections.current).forEach(pc => pc.close());
     peerConnections.current = {};
 
-    try {
-      const token = await user.getIdToken();
-      await fetch('/api/live-session', {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ liveSessionId: streamId }),
-      });
+    // Announce to the socket server that you are stopping the stream
+    socket.emit('seller-stop-live', { streamId });
 
-      // Announce to the socket server
-      socket.emit('seller-stop-live', { streamId });
-
-      setIsLive(false);
-      setStreamId(null);
-      toast({ title: "Stream Ended", description: "You are no longer live." });
-    } catch (error) {
-      console.error("Failed to end live session:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not properly end the live session.' });
-    }
+    setIsLive(false);
+    setStreamId(null);
+    toast({ title: "Stream Ended", description: "You are no longer live." });
   };
 
   return (

@@ -22,8 +22,14 @@ export default function BuyerLiveListPage() {
             setSellers(updatedSellers);
         });
 
+        // Also listen for a specific seller going offline to update the list
+        socket.on('seller-offline', () => {
+            socket.emit('get-sellers'); // Re-fetch the list
+        });
+
         return () => {
             socket.off('sellers-update');
+            socket.off('seller-offline');
         };
     }, []);
 
