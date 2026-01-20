@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { io } from 'socket.io-client';
 import { Button } from '@/components/ui/button';
@@ -16,10 +15,10 @@ export default function BuyerWatchPage() {
     const streamId = params.streamId as string;
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerConnection = useRef<RTCPeerConnection | null>(null);
+    const sellerSocketId = useRef<string | null>(null); // Use ref to avoid re-renders
     const [isLoading, setIsLoading] = useState(true);
-    const [sellerSocketId, setSellerSocketId] = useState<string | null>(null);
 
-    const stopWatching = () => {
+    const stopWatching = useCallback(() => {
         if (peerConnection.current) {
             peerConnection.current.close();
             peerConnection.current = null;
@@ -29,38 +28,38 @@ export default function BuyerWatchPage() {
         }
         socket.emit('buyer-leave-stream', { streamId });
         router.push('/buyer/live-stream');
-    };
+    }, [streamId, router]);
+
 
     useEffect(() => {
         if (!streamId) return;
 
-        // 1. Buyer joins the stream room
-        socket.emit('buyer-join-stream', { streamId });
-
-        // 2. Create a peer connection to receive the stream
+        // 1. Create a peer connection to receive the stream
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         });
         peerConnection.current = pc;
-
+        
+        // This is where the stream is actually displayed
         pc.ontrack = (event) => {
             console.log("Stream track received");
-            if (videoRef.current) {
+            if (videoRef.current && event.streams[0]) {
                 videoRef.current.srcObject = event.streams[0];
                 setIsLoading(false);
             }
         };
-
+        
+        // This sends the buyer's ICE candidates to the seller
         pc.onicecandidate = (event) => {
-            if (event.candidate && sellerSocketId) {
-                // Send candidate to the seller via the server
-                socket.emit('ice-candidate', { to: sellerSocketId, candidate: event.candidate });
+            if (event.candidate && sellerSocketId.current) {
+                socket.emit('ice-candidate', { to: sellerSocketId.current, candidate: event.candidate });
             }
         };
-        
+
+        // This handles the initial offer from the seller
         const handleOffer = async (data: { from: string, offer: RTCSessionDescriptionInit }) => {
+            sellerSocketId.current = data.from; // Store the seller's socket ID
             if (peerConnection.current) {
-                setSellerSocketId(data.from);
                 console.log("Offer received from seller");
                 await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnection.current.createAnswer();
@@ -69,25 +68,38 @@ export default function BuyerWatchPage() {
             }
         };
         
+        // This handles any new ICE candidates from the seller
+        const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
+            const pc = peerConnection.current;
+            if (pc && data.candidate) {
+                pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        };
+
         const handleStreamEnded = () => {
              toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
              stopWatching();
         }
         
-        // 3. Set up listeners
+        // Set up all listeners
         socket.on('offer', handleOffer);
+        socket.on('ice-candidate', handleIceCandidate); // Listener for seller's candidates
         socket.on('seller-offline', handleStreamEnded);
+
+        // Announce that this buyer wants to join
+        socket.emit('buyer-join-stream', { streamId });
 
         // Cleanup function
         return () => {
             socket.off('offer', handleOffer);
+            socket.off('ice-candidate', handleIceCandidate);
             socket.off('seller-offline', handleStreamEnded);
             if (peerConnection.current) {
                 peerConnection.current.close();
             }
             socket.emit('buyer-leave-stream', { streamId });
         };
-    }, [streamId, router, sellerSocketId]);
+    }, [streamId, stopWatching]);
     
 
     return (

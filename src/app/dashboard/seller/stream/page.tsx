@@ -44,14 +44,14 @@ export default function SellerStreamPage() {
   }, []);
 
   // Effect for handling all socket event listeners
-  useEffect(() => {
-    const handleBuyerJoined = async (data: { buyerSocketId: string, viewerCount: number }) => {
-      console.log(`Buyer ${data.buyerSocketId} joined. Total viewers: ${data.viewerCount}`);
-      if (localStream.current) {
-        await createPeerConnection(data.buyerSocketId);
-      }
-    };
+  const handleBuyerJoined = useCallback(async (data: { buyerSocketId: string }) => {
+    console.log(`Buyer ${data.buyerSocketId} joined.`);
+    if (localStream.current) {
+      await createPeerConnection(data.buyerSocketId);
+    }
+  }, [createPeerConnection]);
 
+  useEffect(() => {
     const handleAnswer = async (data: { from: string, answer: RTCSessionDescriptionInit }) => {
       const pc = peerConnections.current[data.from];
       if (pc && pc.signalingState !== 'stable') {
@@ -79,7 +79,7 @@ export default function SellerStreamPage() {
       socket.off('answer', handleAnswer);
       socket.off('ice-candidate', handleIceCandidate);
     };
-  }, [createPeerConnection]);
+  }, [handleBuyerJoined]);
 
   const goLive = async () => {
     if (!user) return;
