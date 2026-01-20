@@ -38,7 +38,9 @@ io.on('connection', (socket) => {
     
     if (sellerSocketId) {
       buyerCounts[data.streamId] = (buyerCounts[data.streamId] || 0) + 1;
-      activeSellers[data.streamId].buyers = buyerCounts[data.streamId];
+      if (activeSellers[data.streamId]) {
+        activeSellers[data.streamId].buyers = buyerCounts[data.streamId];
+      }
 
       io.to(sellerSocketId).emit('buyer-joined', { 
         buyerSocketId: socket.id,
@@ -81,7 +83,6 @@ io.on('connection', (socket) => {
       delete activeSellers[streamId];
       delete buyerCounts[streamId];
       io.emit('sellers-update', Object.values(activeSellers));
-      io.emit('seller-offline');
     }
   });
 
@@ -92,7 +93,6 @@ io.on('connection', (socket) => {
         delete activeSellers[streamId];
         delete buyerCounts[streamId];
         io.emit('sellers-update', Object.values(activeSellers));
-        io.emit('seller-offline');
       }
     }
   });

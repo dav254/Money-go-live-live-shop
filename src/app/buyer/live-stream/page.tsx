@@ -16,20 +16,20 @@ export default function BuyerLiveListPage() {
     const router = useRouter();
 
     useEffect(() => {
-        socket.emit('get-sellers');
-        
-        socket.on('sellers-update', (updatedSellers) => {
+        // Define the handler for the 'sellers-update' event
+        const handleSellersUpdate = (updatedSellers: any[]) => {
             setSellers(updatedSellers);
-        });
+        };
 
-        // Also listen for a specific seller going offline to update the list
-        socket.on('seller-offline', () => {
-            socket.emit('get-sellers'); // Re-fetch the list
-        });
+        // Listen for updates from the server
+        socket.on('sellers-update', handleSellersUpdate);
 
+        // Request the initial list of sellers when the component mounts
+        socket.emit('get-sellers');
+
+        // Cleanup: remove the listener when the component unmounts
         return () => {
-            socket.off('sellers-update');
-            socket.off('seller-offline');
+            socket.off('sellers-update', handleSellersUpdate);
         };
     }, []);
 
