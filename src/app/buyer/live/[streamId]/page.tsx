@@ -39,6 +39,12 @@ export default function BuyerWatchPage() {
         const pc = new RTCPeerConnection({
             iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         });
+        
+        // FIX: Add transceivers to tell the connection we want to receive media.
+        // This was the missing piece causing the connection to stall.
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+
         peerConnection.current = pc;
         
         pc.ontrack = (event) => {
@@ -62,7 +68,7 @@ export default function BuyerWatchPage() {
                 try {
                     await currentPC.setRemoteDescription(new RTCSessionDescription(data.offer));
                     
-                    // Process any buffered candidates
+                    // Process any buffered candidates that arrived before the offer was set
                     while(candidateQueue.current.length > 0) {
                         const candidate = candidateQueue.current.shift();
                         if (candidate) {
