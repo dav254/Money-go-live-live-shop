@@ -17,6 +17,7 @@ export default function BuyerWatchPage() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [sellerSocketId, setSellerSocketId] = useState<string | null>(null);
 
     const stopWatching = () => {
         if (peerConnection.current) {
@@ -51,14 +52,15 @@ export default function BuyerWatchPage() {
         };
 
         pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                // Send candidate to the seller via the server, including streamId
-                socket.emit('ice-candidate', { streamId: streamId, candidate: event.candidate });
+            if (event.candidate && sellerSocketId) {
+                // Send candidate to the seller via the server
+                socket.emit('ice-candidate', { to: sellerSocketId, candidate: event.candidate });
             }
         };
         
         const handleOffer = async (data: { from: string, offer: RTCSessionDescriptionInit }) => {
             if (peerConnection.current) {
+                setSellerSocketId(data.from);
                 console.log("Offer received from seller");
                 await peerConnection.current.setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnection.current.createAnswer();
@@ -67,31 +69,25 @@ export default function BuyerWatchPage() {
             }
         };
         
-        const handleStreamEnded = (data: {streamId: string}) => {
-             if (data.streamId === streamId) {
-                toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
-                stopWatching();
-            }
+        const handleStreamEnded = () => {
+             toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
+             stopWatching();
         }
         
         // 3. Set up listeners
         socket.on('offer', handleOffer);
-        socket.on('seller-offline', () => {
-             toast({ title: 'Stream Ended', description: 'The live stream has been ended by the seller.' });
-             stopWatching();
-        });
-
+        socket.on('seller-offline', handleStreamEnded);
 
         // Cleanup function
         return () => {
             socket.off('offer', handleOffer);
-            socket.off('seller-offline');
+            socket.off('seller-offline', handleStreamEnded);
             if (peerConnection.current) {
                 peerConnection.current.close();
             }
             socket.emit('buyer-leave-stream', { streamId });
         };
-    }, [streamId, router]);
+    }, [streamId, router, sellerSocketId]);
     
 
     return (
