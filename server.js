@@ -5,7 +5,7 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5000"],
+  origin: "*",
   credentials: true
 }));
 
@@ -17,19 +17,29 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  allowEIO3: true,
+  transports: ['websocket', 'polling'],
   pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ['websocket', 'polling']
+  pingInterval: 25000
 });
 
 // Test route
 app.get('/', (req, res) => {
-  res.send('Live Streaming Server is running');
+  res.json({ 
+    status: 'Live Streaming Server is running',
+    timestamp: new Date().toISOString(),
+    clients: io.engine.clientsCount || 0
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    activeSellers: Object.keys(activeSellers).length
+  });
 });
 
 let activeSellers = {};
-let socketToStream = {}; // Track which stream each socket is in
+let socketToStream = {};
 
 io.on('connection', (socket) => {
   console.log(`✅ User Connected: ${socket.id}`);
@@ -43,12 +53,12 @@ io.on('connection', (socket) => {
       socketId: socket.id,
       sellerName: sellerName,
       sellerUid: sellerUid,
-      buyers: new Set(), // Use Set for unique buyer IDs
+      buyers: new Set(),
       createdAt: new Date().toISOString(),
       sellerSocket: socket.id
     };
     
-    // Store stream info for this socket
+    // Store stream info
     socketToStream[socket.id] = { type: 'seller', streamId: streamId };
     
     // Broadcast to ALL connected clients
@@ -85,13 +95,13 @@ io.on('connection', (socket) => {
         streamId: streamId
       });
       
-      // Broadcast updated viewer count to ALL
+      // Broadcast updated viewer count
       io.emit('sellers-update', Object.values(activeSellers).map(s => ({
         ...s,
         buyers: s.buyers.size
       })));
       
-      console.log(`✅ Buyer ${socket.id} joined ${streamId}, total buyers: ${activeSellers[streamId].buyers.size}`);
+      console.log(`✅ Buyer ${socket.id} joined ${streamId}`);
     } else {
       console.log(`❌ Stream ${streamId} not found`);
       socket.emit('stream-not-found', { streamId });
@@ -105,12 +115,17 @@ io.on('connection', (socket) => {
       stream.buyers.delete(socket.id);
       delete socketToStream[socket.id];
       
+      // Notify seller
+      if (stream.socketId) {
+        io.to(stream.socketId).emit('buyer-left', { buyerSocketId: socket.id });
+      }
+      
       io.emit('sellers-update', Object.values(activeSellers).map(s => ({
         ...s,
         buyers: s.buyers.size
       })));
       
-      console.log(`👋 Buyer left ${streamId}, remaining: ${stream.buyers.size}`);
+      console.log(`👋 Buyer left ${streamId}`);
     }
   });
 
@@ -118,7 +133,7 @@ io.on('connection', (socket) => {
   socket.on('seller-stop-live', ({ streamId }) => {
     console.log(`⏹️ Stopping stream ${streamId}`);
     if (activeSellers[streamId]) {
-      // Notify all buyers in this stream
+      // Notify all buyers
       activeSellers[streamId].buyers.forEach(buyerSocketId => {
         io.to(buyerSocketId).emit('seller-offline', { streamId });
       });
@@ -162,64 +177,49 @@ io.on('connection', (socket) => {
     console.log(`❌ User Disconnected: ${socket.id}`);
     
     const streamInfo = socketToStream[socket.id];
-    if (!streamInfo) return;
+    if (streamInfo) {
+      const { type, streamId } = streamInfo;
+      const stream = activeSellers[streamId];
 
-    const { type, streamId } = streamInfo;
-    const stream = activeSellers[streamId];
-
-    if (type === 'seller') {
+      if (type === 'seller') {
         console.log(`⚫ Removing offline seller: ${streamId}`);
-        if(stream) {
-            stream.buyers.forEach(buyerSocketId => {
-                io.to(buyerSocketId).emit('seller-offline', { streamId });
-            });
-            delete activeSellers[streamId];
+        if (stream) {
+          stream.buyers.forEach(buyerSocketId => {
+            io.to(buyerSocketId).emit('seller-offline', { streamId });
+          });
+          delete activeSellers[streamId];
         }
-    } else if (type === 'buyer' && stream) {
+      } else if (type === 'buyer' && stream) {
         stream.buyers.delete(socket.id);
-        const sellerSocketId = stream.socketId;
-        io.to(sellerSocketId).emit('buyer-left', { buyerSocketId: socket.id });
+        if (stream.socketId) {
+          io.to(stream.socketId).emit('buyer-left', { buyerSocketId: socket.id });
+        }
+      }
+      
+      delete socketToStream[socket.id];
     }
     
-    delete socketToStream[socket.id];
-    io.emit('sellers-update', Object.values(activeSellers).map(s => ({ ...s, buyers: s.buyers.size })));
-  });
-
-  // Health check
-  socket.on('ping', () => {
-    socket.emit('pong');
+    // Update all clients
+    io.emit('sellers-update', Object.values(activeSellers).map(s => ({ 
+      ...s, 
+      buyers: s.buyers.size 
+    })));
   });
 
   // Debug endpoint
   socket.on('debug-info', () => {
-    console.log('=== DEBUG INFO ===');
-    console.log('Active sellers:', activeSellers);
-    console.log('Socket connections:', io.engine.clientsCount);
-    socket.emit('debug-response', {
+    const info = {
       sellers: activeSellers,
-      connections: io.engine.clientsCount
-    });
+      connections: io.engine.clientsCount,
+      socketToStream: socketToStream
+    };
+    socket.emit('debug-response', info);
   });
 });
 
-// Clean up old streams every 10 minutes
-setInterval(() => {
-  const now = new Date();
-  for (const streamId in activeSellers) {
-    const streamTime = new Date(activeSellers[streamId].createdAt);
-    const hoursDiff = (now - streamTime) / (1000 * 60 * 60);
-    
-    if (hoursDiff > 6) { // Remove streams older than 6 hours
-      console.log(`🗑️ Removing old stream: ${streamId}`);
-      delete activeSellers[streamId];
-      io.emit('sellers-update', Object.values(activeSellers).map(s => ({
-        ...s,
-        buyers: s.buyers.size
-      })));
-    }
-  }
-}, 600000); // Check every 10 minutes
-
-server.listen(5000, () => {
+server.listen(5000, '0.0.0.0', () => {
   console.log('🚀 Live Streaming Server is running on port 5000');
+  console.log('Server accessible at:');
+  console.log('  - http://localhost:5000');
+  console.log('  - http://0.0.0.0:5000');
 });

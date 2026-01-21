@@ -11,7 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const socket = io('http://localhost:5000', {
+const SOCKET_URL = 'https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev';
+
+const socket = io(SOCKET_URL, {
   transports: ['websocket', 'polling'],
   reconnection: true,
   reconnectionAttempts: 5,
@@ -26,24 +28,21 @@ export default function BuyerLiveListPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    // Handle sellers update
     const handleSellersUpdate = useCallback((updatedSellers: any[]) => {
         console.log('📡 Received sellers update:', updatedSellers);
         setSellers(updatedSellers);
         setLoading(false);
     }, []);
 
-    // Handle stream ended
     const handleStreamEnded = useCallback((data: { streamId: string }) => {
         toast({
             title: 'Stream Ended',
-            description: `A stream has ended.`,
+            description: `The stream has ended`,
             variant: 'destructive'
         });
         setSellers(prev => prev.filter(seller => seller.streamId !== data.streamId));
     }, [toast]);
 
-    // Handle socket connection events
     useEffect(() => {
         const onConnect = () => {
             console.log('✅ Connected to socket server');
@@ -77,10 +76,8 @@ export default function BuyerLiveListPage() {
         socket.on('sellers-update', handleSellersUpdate);
         socket.on('seller-offline', handleStreamEnded);
 
-        // Request initial sellers list
         socket.emit('get-sellers');
 
-        // Auto-refresh every 10 seconds
         const refreshInterval = setInterval(() => {
             if (socket.connected) {
                 socket.emit('get-sellers');
@@ -136,8 +133,7 @@ export default function BuyerLiveListPage() {
         if (diffHours < 24) return `${diffHours} hours ago`;
         
         const diffDays = Math.floor(diffHours / 24);
-        if (diffDays === 1) return '1 day ago';
-        return `${diffDays} days ago`;
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
     };
 
     return (
@@ -305,7 +301,7 @@ export default function BuyerLiveListPage() {
                         🔄 Streams update automatically every 10 seconds
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Click any stream card to start watching
+                        Click any stream card to start watching live
                     </p>
                 </div>
             </div>

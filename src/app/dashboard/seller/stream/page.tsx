@@ -8,7 +8,9 @@ import { StreamControls } from '@/components/studio/StreamControls';
 import Recorder from '@/components/studio/Recorder';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5000', {
+const SOCKET_URL = 'https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev';
+
+const socket = io(SOCKET_URL, {
   transports: ['websocket', 'polling'],
   reconnection: true,
   reconnectionAttempts: 5
@@ -27,10 +29,8 @@ export default function SellerStreamPage() {
   
   const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-  // Generate a more accessible stream ID
   const generateStreamId = useCallback(() => {
     if (!user) return '';
-    // Create a URL-friendly stream ID
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const username = sellerName.replace(/\s+/g, '-').toLowerCase();
@@ -39,21 +39,22 @@ export default function SellerStreamPage() {
 
   const createPeerConnection = useCallback(async (buyerSocketId: string) => {
     if (!localStream.current) {
-      console.error('No local stream available for peer connection');
+      console.error('No local stream available');
       return;
     }
 
     try {
       const pc = new RTCPeerConnection({ 
         iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
         ]
       });
       
       peerConnections.current[buyerSocketId] = pc;
 
+      // Add tracks
       localStream.current.getTracks().forEach(track => {
         pc.addTrack(track, localStream.current!);
       });
@@ -67,6 +68,21 @@ export default function SellerStreamPage() {
         }
       };
 
+      pc.oniceconnectionstatechange = () => {
+        console.log(`ICE state with ${buyerSocketId}:`, pc.iceConnectionState);
+        if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+          // Clean up failed connection
+          setTimeout(() => {
+            if (peerConnections.current[buyerSocketId]) {
+              peerConnections.current[buyerSocketId].close();
+              delete peerConnections.current[buyerSocketId];
+              setViewerCount(prev => Math.max(0, prev - 1));
+            }
+          }, 2000);
+        }
+      };
+
+      // Create offer (seller initiates)
       const offer = await pc.createOffer({
         offerToReceiveAudio: false,
         offerToReceiveVideo: false
@@ -74,28 +90,33 @@ export default function SellerStreamPage() {
       
       await pc.setLocalDescription(offer);
       
+      console.log(`📤 Sending offer to buyer: ${buyerSocketId}`);
       socket.emit('offer', { 
         to: buyerSocketId, 
         offer: pc.localDescription 
       });
-
-      console.log(`✅ Created peer connection for ${buyerSocketId}`);
 
     } catch (error) {
       console.error('Error creating peer connection:', error);
     }
   }, []);
 
+  // Handle buyer joined
   useEffect(() => {
     const handleBuyerJoined = (data: { buyerSocketId: string }) => {
       console.log(`🚀 New viewer joined: ${data.buyerSocketId}`);
       createPeerConnection(data.buyerSocketId);
       setViewerCount(prev => prev + 1);
+      toast({
+        title: 'New Viewer',
+        description: 'A buyer has joined your stream',
+        duration: 3000
+      });
     };
 
     const handleAnswer = async (data: { from: string, answer: RTCSessionDescriptionInit }) => {
       const pc = peerConnections.current[data.from];
-      if (pc && pc.signalingState !== 'stable') {
+      if (pc) {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
           console.log(`✅ Answer received from ${data.from}`);
@@ -114,13 +135,13 @@ export default function SellerStreamPage() {
     };
     
     const handleBuyerLeft = (data: { buyerSocketId: string }) => {
-        const pc = peerConnections.current[data.buyerSocketId];
-        if (pc) {
-          pc.close();
-          delete peerConnections.current[data.buyerSocketId];
-          setViewerCount(prev => Math.max(0, prev - 1));
-          console.log(`Buyer ${data.buyerSocketId} left, closed peer connection`);
-        }
+      const pc = peerConnections.current[data.buyerSocketId];
+      if (pc) {
+        pc.close();
+        delete peerConnections.current[data.buyerSocketId];
+        setViewerCount(prev => Math.max(0, prev - 1));
+        console.log(`Buyer ${data.buyerSocketId} left`);
+      }
     };
 
     socket.on('buyer-joined', handleBuyerJoined);
@@ -134,7 +155,7 @@ export default function SellerStreamPage() {
       socket.off('answer', handleAnswer);
       socket.off('ice-candidate', handleIceCandidate);
     };
-  }, [createPeerConnection]);
+  }, [createPeerConnection, toast]);
 
   const goLive = async () => {
     if (!user) {
@@ -148,27 +169,23 @@ export default function SellerStreamPage() {
 
     setIsStarting(true);
     try {
-      // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           width: { ideal: 1280 }, 
           height: { ideal: 720 },
-          frameRate: { ideal: 30, max: 60 }
+          frameRate: { ideal: 30 }
         },
         audio: { 
           echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
+          noiseSuppression: true
         }
       });
       
       localStream.current = stream;
 
-      // Generate stream ID
       const currentStreamId = generateStreamId();
       setStreamId(currentStreamId);
 
-      // Announce to server
       socket.emit('seller-go-live', { 
         streamId: currentStreamId, 
         sellerName: sellerName,
@@ -178,17 +195,15 @@ export default function SellerStreamPage() {
       setIsLive(true);
       toast({ 
         title: "🎥 You are now live!", 
-        description: "Share your stream ID with buyers" 
+        description: "Buyers can now join your stream" 
       });
-
-      console.log('✅ Stream started with ID:', currentStreamId);
 
     } catch (error: any) {
       console.error('Failed to start stream:', error);
       toast({ 
         variant: 'destructive', 
         title: "Error", 
-        description: error.message || "Could not access camera/microphone. Please check permissions." 
+        description: error.message || "Could not access camera/microphone" 
       });
     } finally {
       setIsStarting(false);
@@ -200,33 +215,27 @@ export default function SellerStreamPage() {
 
     // Stop media tracks
     if (localStream.current) {
-      localStream.current.getTracks().forEach(track => {
-        track.stop();
-      });
+      localStream.current.getTracks().forEach(track => track.stop());
       localStream.current = null;
     }
 
     // Close all peer connections
-    Object.values(peerConnections.current).forEach(pc => {
-      pc.close();
-    });
+    Object.values(peerConnections.current).forEach(pc => pc.close());
     peerConnections.current = {};
 
-    // Notify server
     socket.emit('seller-stop-live', { streamId });
 
-    // Reset state
     setIsLive(false);
     setStreamId(null);
     setViewerCount(0);
     
     toast({ 
       title: "⏹️ Stream Ended", 
-      description: "Your live stream has ended." 
+      description: "Your live stream has ended" 
     });
   };
 
-  // Clean up on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       if (isLive && streamId) {
@@ -260,6 +269,32 @@ export default function SellerStreamPage() {
 
       <div className="relative flex-1 bg-black rounded-xl overflow-hidden">
         <Recorder stream={localStream.current} isLive={isLive} />
+        
+        {!isLive && !isStarting && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-black text-white">
+            <div className="text-center p-8">
+              <div className="text-6xl mb-4">🎥</div>
+              <h2 className="text-2xl font-bold mb-2">Ready to Go Live?</h2>
+              <p className="text-gray-300 mb-6">Start streaming to connect with your buyers in real-time</p>
+              <button
+                onClick={goLive}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-8 rounded-full text-lg transition-all duration-300 transform hover:scale-105"
+              >
+                Start Live Stream
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {isStarting && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+            <div className="text-center text-white">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+              <p className="text-lg font-semibold">Preparing your live stream...</p>
+              <p className="text-sm text-gray-300 mt-2">Please allow camera & microphone access</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-shrink-0">
@@ -271,6 +306,40 @@ export default function SellerStreamPage() {
           streamId={streamId}
         />
       </div>
+
+      {isLive && streamId && (
+        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <h3 className="font-semibold mb-2">Stream Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Stream ID</p>
+              <p className="font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded break-all">
+                {streamId}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Share Link</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}/buyer/live/${streamId}`}
+                  className="flex-1 bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/buyer/live/${streamId}`);
+                    toast({ title: "Link copied!" });
+                  }}
+                  className="px-4 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
