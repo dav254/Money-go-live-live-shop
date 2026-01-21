@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -5,10 +6,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { io } from 'socket.io-client';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Users, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Volume2, VolumeX, Maximize2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev', {
+const socket = io('http://localhost:5000', {
   transports: ['websocket', 'polling'],
   reconnection: true
 });
@@ -19,77 +20,13 @@ export default function BuyerWatchPage() {
     const streamId = params.streamId as string;
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerConnection = useRef<RTCPeerConnection | null>(null);
+    const sellerSocketId = useRef<string | null>(null);
     const candidateQueue = useRef<RTCIceCandidateInit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [connectionState, setConnectionState] = useState<string>('connecting');
+    const [connectionState, setConnectionState] = useState<string>('disconnected');
     const [error, setError] = useState<string | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [sellerName, setSellerName] = useState<string>('');
-
-    const initializePeerConnection = useCallback(() => {
-        console.log('Initializing peer connection...');
-        
-        const pc = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ],
-            iceCandidatePoolSize: 10
-        });
-
-        peerConnection.current = pc;
-
-        pc.addTransceiver('video', { direction: 'recvonly' });
-        pc.addTransceiver('audio', { direction: 'recvonly' });
-
-        pc.ontrack = (event) => {
-            console.log('🎬 Stream track received:', event.track.kind);
-            if (videoRef.current && event.streams[0]) {
-                videoRef.current.srcObject = event.streams[0];
-                setIsLoading(false);
-                setConnectionState('connected');
-                toast({
-                    title: 'Connected!',
-                    description: 'You are now watching the live stream.',
-                    duration: 3000
-                });
-            }
-        };
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', {
-                    to: socket.id, // This should be seller's socket ID, but server will handle it
-                    candidate: event.candidate
-                });
-            }
-        };
-
-        pc.oniceconnectionstatechange = () => {
-            const state = pc.iceConnectionState;
-            console.log('ICE Connection State:', state);
-            setConnectionState(state);
-            
-            if (state === 'failed' || state === 'disconnected') {
-                setError('Connection lost. Attempting to reconnect...');
-                setTimeout(() => {
-                    if (peerConnection.current) {
-                        peerConnection.current.restartIce();
-                    }
-                }, 2000);
-            }
-        };
-
-        pc.onsignalingstatechange = () => {
-            console.log('Signaling State:', pc.signalingState);
-        };
-
-        return pc;
-    }, []);
 
     const stopWatching = useCallback(() => {
         if (peerConnection.current) {
@@ -106,50 +43,98 @@ export default function BuyerWatchPage() {
     useEffect(() => {
         if (!streamId) {
             setError('No stream ID provided');
-            setIsLoading(false);
             return;
         }
 
-        console.log('🎯 Initializing for stream:', streamId);
+        console.log('🎯 Initializing buyer for stream:', streamId);
+        
+        const pc = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        });
 
-        const pc = initializePeerConnection();
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
 
-        const handleOffer = async (data: { from: string, offer: RTCSessionDescriptionInit }) => {
-            console.log('📩 Received offer from seller:', data.from);
-            
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-                
-                while(candidateQueue.current.length > 0) {
-                    const candidate = candidateQueue.current.shift();
-                    if (candidate) {
-                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                    }
-                }
-
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                
-                socket.emit('answer', { 
-                    to: data.from, 
-                    answer: pc.localDescription 
+        peerConnection.current = pc;
+        
+        pc.ontrack = (event) => {
+            console.log('🎬 Stream track received!', event.track.kind);
+            if (videoRef.current && event.streams[0]) {
+                videoRef.current.srcObject = event.streams[0];
+                setIsLoading(false);
+                setConnectionState('connected');
+                toast({
+                    title: 'Connected!',
+                    description: 'You are now watching the live stream.'
                 });
-                
-                console.log('✅ Answer sent to seller');
-            } catch (e) {
-                console.error("Error handling offer:", e);
-                setError('Failed to connect to stream. Please try again.');
+            }
+        };
+        
+        pc.onicecandidate = (event) => {
+            if (event.candidate && sellerSocketId.current) {
+                console.log('🧊 Sending ICE candidate to seller:', sellerSocketId.current);
+                socket.emit('ice-candidate', { 
+                    to: sellerSocketId.current, 
+                    candidate: event.candidate 
+                });
             }
         };
 
-        const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
-            console.log('🧊 Received ICE candidate');
+        pc.oniceconnectionstatechange = () => {
+            console.log('ICE Connection State:', pc.iceConnectionState);
+            setConnectionState(pc.iceConnectionState);
+             if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
+                setError('Connection to the stream has been lost.');
+                setIsLoading(false);
+            }
+        };
+
+        pc.onsignalingstatechange = () => {
+            console.log('Signaling State:', pc.signalingState);
+        };
+
+        const handleOffer = async (data: { from: string, offer: RTCSessionDescriptionInit }) => {
+            console.log('📩 Received offer from seller:', data.from);
+            sellerSocketId.current = data.from;
+            const currentPC = peerConnection.current;
             
-            if (pc && data.candidate) {
-                if (!pc.remoteDescription) {
+            if (currentPC) {
+                try {
+                    await currentPC.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    
+                    while(candidateQueue.current.length > 0) {
+                        const candidate = candidateQueue.current.shift();
+                        if (candidate) {
+                            await currentPC.addIceCandidate(new RTCIceCandidate(candidate));
+                        }
+                    }
+
+                    const answer = await currentPC.createAnswer();
+                    await currentPC.setLocalDescription(answer);
+                    
+                    socket.emit('answer', { 
+                        to: data.from, 
+                        answer: currentPC.localDescription 
+                    });
+                    
+                } catch (e) {
+                    console.error("Error handling offer:", e);
+                    setError('Failed to connect to stream');
+                }
+            }
+        };
+        
+        const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
+            const currentPC = peerConnection.current;
+            if (currentPC && data.candidate) {
+                if (!currentPC.remoteDescription) {
                     candidateQueue.current.push(data.candidate);
                 } else {
-                    pc.addIceCandidate(new RTCIceCandidate(data.candidate))
+                    currentPC.addIceCandidate(new RTCIceCandidate(data.candidate))
                         .catch(e => console.error("Error adding ICE candidate:", e));
                 }
             }
@@ -158,8 +143,7 @@ export default function BuyerWatchPage() {
         const handleStreamEnded = () => {
             toast({ 
                 title: 'Stream Ended', 
-                description: 'The live stream has ended.', 
-                variant: 'destructive'
+                description: 'The live stream has been ended by the seller.' 
             });
             stopWatching();
         };
@@ -167,24 +151,19 @@ export default function BuyerWatchPage() {
         const handleStreamNotFound = () => {
             setError('Stream not found or seller is offline');
             setIsLoading(false);
-            toast({
-                title: 'Stream Not Found',
-                description: 'This stream is no longer available.',
-                variant: 'destructive'
-            });
         };
-
+        
         socket.on('offer', handleOffer);
         socket.on('ice-candidate', handleIceCandidate);
         socket.on('seller-offline', handleStreamEnded);
         socket.on('stream-not-found', handleStreamNotFound);
+        socket.on('connect_error', () => setError('Failed to connect to signaling server.'));
 
-        console.log('Joining stream:', streamId);
         socket.emit('buyer-join-stream', { streamId });
 
         const timeout = setTimeout(() => {
             if (connectionState !== 'connected' && isLoading) {
-                setError('Connection timeout. The seller might be offline.');
+                setError('Connection timeout. The seller might be offline or a network issue occurred.');
                 setIsLoading(false);
             }
         }, 15000);
@@ -195,6 +174,7 @@ export default function BuyerWatchPage() {
             socket.off('ice-candidate', handleIceCandidate);
             socket.off('seller-offline', handleStreamEnded);
             socket.off('stream-not-found', handleStreamNotFound);
+            socket.off('connect_error');
             
             if (peerConnection.current) {
                 peerConnection.current.close();
@@ -238,8 +218,8 @@ export default function BuyerWatchPage() {
                 </Button>
                 
                 <div className="flex items-center gap-4">
-                    <Badge variant={connectionState === 'connected' ? 'default' : 'secondary'}>
-                        {connectionState === 'connected' ? '🟢 LIVE' : '🟡 ' + connectionState.toUpperCase()}
+                    <Badge variant={connectionState === 'connected' ? 'default' : 'secondary'} className={connectionState === 'connected' ? 'bg-green-600' : 'bg-yellow-500'}>
+                        {connectionState === 'connected' ? '🟢 LIVE' : `🟡 ${connectionState.toUpperCase()}`}
                     </Badge>
                 </div>
             </div>
@@ -264,7 +244,7 @@ export default function BuyerWatchPage() {
                 {error && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90">
                         <div className="text-center max-w-md">
-                            <div className="text-6xl mb-4">📡</div>
+                            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                             <h2 className="text-2xl font-bold text-white mb-3">Connection Error</h2>
                             <p className="text-gray-300 mb-6">{error}</p>
                             <div className="flex gap-4 justify-center">
@@ -308,23 +288,6 @@ export default function BuyerWatchPage() {
                         </Button>
                     </div>
                 )}
-            </div>
-
-            <div className="p-4 bg-gray-900 text-white text-sm">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p>Stream ID: <code className="ml-2 bg-gray-800 px-2 py-1 rounded">{streamId}</code></p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <span className={`px-3 py-1 rounded ${
-                            connectionState === 'connected' ? 'bg-green-600' :
-                            connectionState === 'checking' ? 'bg-yellow-600' :
-                            'bg-red-600'
-                        }`}>
-                            {connectionState.toUpperCase()}
-                        </span>
-                    </div>
-                </div>
             </div>
         </div>
     );

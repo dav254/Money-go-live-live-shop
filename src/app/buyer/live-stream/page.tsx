@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,10 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev', {
-  transports: ['websocket', 'polling'],
-  reconnection: true,
-  reconnectionAttempts: 5
+const socket = io('http://localhost:5000', {
+  transports: ['websocket', 'polling']
 });
 
 export default function BuyerLiveListPage() {
@@ -33,7 +32,7 @@ export default function BuyerLiveListPage() {
     const handleStreamEnded = useCallback((data: { streamId: string }) => {
         toast({
             title: 'Stream Ended',
-            description: 'The stream you were watching has ended',
+            description: `A stream has ended.`,
             variant: 'destructive'
         });
         setSellers(prev => prev.filter(seller => seller.streamId !== data.streamId));
@@ -128,8 +127,7 @@ export default function BuyerLiveListPage() {
         if (diffHours < 24) return `${diffHours} hours ago`;
         
         const diffDays = Math.floor(diffHours / 24);
-        if (diffDays === 1) return '1 day ago';
-        return `${diffDays} days ago`;
+        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
     };
 
     return (
