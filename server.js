@@ -21,66 +21,75 @@ let activeSellers = {};
 io.on('connection', (socket) => {
   console.log(`✅ User Connected: ${socket.id}`);
 
-  socket.on('seller-go-live', ({ streamId, sellerName }) => {
-    console.log(`🎬 Seller ${sellerName} (${streamId}) going live`);
+  // Seller goes live
+  socket.on('seller-go-live', ({ streamId, sellerName, sellerUid }) => {
+    console.log(`🎬 ${sellerName} starting stream: ${streamId}`);
+    
     activeSellers[streamId] = {
       streamId: streamId,
       socketId: socket.id,
       sellerName: sellerName,
-      buyers: 0
+      sellerUid: sellerUid,
+      buyers: 0,
+      createdAt: new Date().toISOString()
     };
+    
+    // Broadcast to ALL connected clients
     io.emit('sellers-update', Object.values(activeSellers));
-    console.log(`🔴 Active sellers:`, Object.keys(activeSellers));
+    console.log(`🔴 Active streams:`, Object.keys(activeSellers));
   });
 
+  // Get current sellers
   socket.on('get-sellers', () => {
+    console.log(`📋 Sending sellers list to ${socket.id}`);
     socket.emit('sellers-update', Object.values(activeSellers));
   });
 
+  // Buyer joins stream
   socket.on('buyer-join-stream', ({ streamId }) => {
-    console.log(`👀 Buyer ${socket.id} wants to join stream ${streamId}`);
+    console.log(`👀 Buyer ${socket.id} joining stream ${streamId}`);
     
     if (activeSellers[streamId]) {
       activeSellers[streamId].buyers++;
+      
+      // Notify the specific seller
       const sellerSocketId = activeSellers[streamId].socketId;
-      
-      console.log(`🔗 Connecting buyer ${socket.id} to seller ${sellerSocketId}`);
-      
       io.to(sellerSocketId).emit('buyer-joined', { 
         buyerSocketId: socket.id,
         streamId: streamId
       });
       
+      // Broadcast updated viewer count to ALL
       io.emit('sellers-update', Object.values(activeSellers));
       
-      console.log(`✅ Buyer ${socket.id} joined stream ${streamId}`);
+      console.log(`✅ Buyer ${socket.id} joined ${streamId}`);
     } else {
-      console.log(`❌ Stream ${streamId} not found for buyer ${socket.id}`);
+      console.log(`❌ Stream ${streamId} not found`);
       socket.emit('stream-not-found', { streamId });
     }
   });
   
+  // Buyer leaves stream
   socket.on('buyer-leave-stream', ({ streamId }) => {
     if (activeSellers[streamId] && activeSellers[streamId].buyers > 0) {
       activeSellers[streamId].buyers--;
       io.emit('sellers-update', Object.values(activeSellers));
-      console.log(`👋 Buyer ${socket.id} left stream ${streamId}`);
+      console.log(`👋 Buyer left ${streamId}`);
     }
   });
 
+  // Seller stops stream
   socket.on('seller-stop-live', ({ streamId }) => {
-    console.log(`⏹️ Seller stopping stream ${streamId}`);
+    console.log(`⏹️ Stopping stream ${streamId}`);
     if (activeSellers[streamId]) {
       delete activeSellers[streamId];
       io.emit('sellers-update', Object.values(activeSellers));
       io.emit('seller-offline', { streamId });
-      console.log(`⚫ Stream ${streamId} removed`);
     }
   });
 
-  // --- WebRTC Signaling ---
+  // WebRTC signaling
   socket.on('offer', (data) => {
-    console.log(`📤 Offer from ${socket.id} to ${data.to}`);
     io.to(data.to).emit('offer', { 
       from: socket.id, 
       offer: data.offer 
@@ -88,7 +97,6 @@ io.on('connection', (socket) => {
   });
   
   socket.on('answer', (data) => {
-    console.log(`📥 Answer from ${socket.id} to ${data.to}`);
     io.to(data.to).emit('answer', { 
       from: socket.id, 
       answer: data.answer 
@@ -96,18 +104,20 @@ io.on('connection', (socket) => {
   });
   
   socket.on('ice-candidate', (data) => {
-    console.log(`🧊 ICE candidate from ${socket.id} to ${data.to}`);
     io.to(data.to).emit('ice-candidate', { 
       from: socket.id, 
       candidate: data.candidate 
     });
   });
 
+  // Disconnection
   socket.on('disconnect', () => {
     console.log(`❌ User Disconnected: ${socket.id}`);
+    
+    // Remove seller if they disconnect
     for (const streamId in activeSellers) {
       if (activeSellers[streamId].socketId === socket.id) {
-        console.log(`⚫ Seller ${streamId} disconnected`);
+        console.log(`⚫ Removing offline seller: ${streamId}`);
         delete activeSellers[streamId];
         io.emit('sellers-update', Object.values(activeSellers));
         io.emit('seller-offline', { streamId });
@@ -116,16 +126,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Debug endpoint
-  socket.on('debug-info', () => {
-    console.log('=== DEBUG INFO ===');
-    console.log('Active sellers:', activeSellers);
-    console.log('Socket connections:', io.engine.clientsCount);
-    socket.emit('debug-response', {
-      sellers: activeSellers,
-      connections: io.engine.clientsCount
-    });
-  });
+  // Auto cleanup: Remove old streams (optional)
+  setInterval(() => {
+    const now = new Date();
+    for (const streamId in activeSellers) {
+      const streamTime = new Date(activeSellers[streamId].createdAt);
+      const hoursDiff = (now - streamTime) / (1000 * 60 * 60);
+      
+      if (hoursDiff > 24) { // Remove streams older than 24 hours
+        console.log(`🗑️ Removing old stream: ${streamId}`);
+        delete activeSellers[streamId];
+        io.emit('sellers-update', Object.values(activeSellers));
+      }
+    }
+  }, 3600000); // Check every hour
 });
 
 server.listen(5000, () => {

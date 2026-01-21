@@ -23,6 +23,16 @@ export default function SellerStreamPage() {
   
   const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
+  // Generate a more accessible stream ID
+  const generateStreamId = useCallback(() => {
+    if (!user) return '';
+    // Create a URL-friendly stream ID
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const username = sellerName.replace(/\s+/g, '-').toLowerCase();
+    return `${username}-${timestamp}-${random}`;
+  }, [user, sellerName]);
+
   const createPeerConnection = useCallback(async (buyerSocketId: string) => {
     if (!localStream.current) {
       console.error('No local stream available for peer connection');
@@ -36,14 +46,12 @@ export default function SellerStreamPage() {
       
       peerConnections.current[buyerSocketId] = pc;
 
-      // Add all tracks from local stream
       localStream.current.getTracks().forEach(track => {
         pc.addTrack(track, localStream.current!);
       });
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log('Sending ICE candidate to buyer:', buyerSocketId);
           socket.emit('ice-candidate', { 
             to: buyerSocketId, 
             candidate: event.candidate 
@@ -51,15 +59,6 @@ export default function SellerStreamPage() {
         }
       };
 
-      pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${buyerSocketId}:`, pc.connectionState);
-      };
-
-      pc.onsignalingstatechange = () => {
-        console.log(`Signaling state with ${buyerSocketId}:`, pc.signalingState);
-      };
-
-      // Create and send offer
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
@@ -67,7 +66,6 @@ export default function SellerStreamPage() {
       
       await pc.setLocalDescription(offer);
       
-      console.log('Sending offer to buyer:', buyerSocketId);
       socket.emit('offer', { 
         to: buyerSocketId, 
         offer: pc.localDescription 
@@ -78,24 +76,19 @@ export default function SellerStreamPage() {
     }
   }, []);
 
-  // Handle buyer joined
   useEffect(() => {
     const handleBuyerJoined = (data: { buyerSocketId: string }) => {
       console.log(`🚀 Buyer joined: ${data.buyerSocketId}`);
       if (localStream.current) {
         createPeerConnection(data.buyerSocketId);
-      } else {
-        console.error('Cannot create peer: No local stream');
       }
     };
 
     const handleAnswer = async (data: { from: string, answer: RTCSessionDescriptionInit }) => {
-      console.log(`📩 Received answer from: ${data.from}`);
       const pc = peerConnections.current[data.from];
       if (pc) {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          console.log(`✅ Remote description set for ${data.from}`);
         } catch (e) {
           console.error("Error setting remote description:", e);
         }
@@ -103,7 +96,6 @@ export default function SellerStreamPage() {
     };
 
     const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
-      console.log(`🧊 Received ICE candidate from: ${data.from}`);
       const pc = peerConnections.current[data.from];
       if (pc && data.candidate) {
         pc.addIceCandidate(new RTCIceCandidate(data.candidate))
@@ -127,36 +119,28 @@ export default function SellerStreamPage() {
     setIsStarting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: { ideal: 1280 }, 
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
-        },
-        audio: { 
-          echoCancellation: true, 
-          noiseSuppression: true,
-          autoGainControl: true
-        }
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: { echoCancellation: true, noiseSuppression: true }
       });
       localStream.current = stream;
 
-      const currentStreamId = user.uid; // Use UID for stream ID
+      // Generate stream ID
+      const currentStreamId = generateStreamId();
       setStreamId(currentStreamId);
 
       // Announce to the socket server
       socket.emit('seller-go-live', { 
         streamId: currentStreamId, 
-        sellerName: sellerName 
+        sellerName: sellerName,
+        sellerUid: user.uid // Keep UID for reference
       });
 
       setIsLive(true);
       toast({ 
-        title: "🎥 You are now live!", 
-        description: "Buyers can see and join your stream." 
+        title: "You are now live!", 
+        description: "Share this link with buyers: " + currentStreamId 
       });
       
-      console.log('🎬 Stream started with ID:', currentStreamId);
-
     } catch (error: any) {
       toast({ 
         variant: 'destructive', 
@@ -171,33 +155,16 @@ export default function SellerStreamPage() {
   const endLive = async () => {
     if (!user || !streamId) return;
 
-    // Stop all tracks
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => {
-        track.stop();
-        track.enabled = false;
-      });
-      localStream.current = null;
-    }
-
-    // Close all peer connections
-    Object.values(peerConnections.current).forEach(pc => {
-      pc.close();
-    });
+    localStream.current?.getTracks().forEach(track => track.stop());
+    localStream.current = null;
+    Object.values(peerConnections.current).forEach(pc => pc.close());
     peerConnections.current = {};
 
-    // Announce to server
     socket.emit('seller-stop-live', { streamId });
 
     setIsLive(false);
     setStreamId(null);
-    
-    toast({ 
-      title: "⏹️ Stream Ended", 
-      description: "You are no longer live." 
-    });
-    
-    console.log('🔴 Stream ended');
+    toast({ title: "Stream Ended", description: "You are no longer live." });
   };
 
   return (
@@ -213,13 +180,6 @@ export default function SellerStreamPage() {
           onEndLive={endLive}
           streamId={streamId}
         />
-      </div>
-      
-      {/* Debug info */}
-      <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
-        <p><strong>Stream ID:</strong> {streamId || 'Not live'}</p>
-        <p><strong>Active Connections:</strong> {Object.keys(peerConnections.current).length}</p>
-        <p><strong>Seller Socket ID:</strong> {socket.id || 'Connecting...'}</p>
       </div>
     </div>
   );
