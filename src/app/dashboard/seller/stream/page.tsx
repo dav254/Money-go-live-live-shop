@@ -1,16 +1,18 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser, useUserProfile } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users } from 'lucide-react';
 import { StreamControls } from '@/components/studio/StreamControls';
 import Recorder from '@/components/studio/Recorder';
 import { io } from 'socket.io-client';
 
 const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev', {
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
 });
 
 export default function SellerStreamPage() {
@@ -21,6 +23,7 @@ export default function SellerStreamPage() {
   const [streamId, setStreamId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
   const { toast } = useToast();
   
   const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
@@ -28,7 +31,6 @@ export default function SellerStreamPage() {
   // Generate a more accessible stream ID
   const generateStreamId = useCallback(() => {
     if (!user) return '';
-    // Create a URL-friendly stream ID
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const username = sellerName.replace(/\s+/g, '-').toLowerCase();
@@ -37,25 +39,28 @@ export default function SellerStreamPage() {
 
   const createPeerConnection = useCallback(async (buyerSocketId: string) => {
     if (!localStream.current) {
-      console.error('No local stream available for peer connection');
+      console.error('No local stream available');
       return;
     }
 
     try {
       const pc = new RTCPeerConnection({ 
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] 
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
       });
       
       peerConnections.current[buyerSocketId] = pc;
 
-      // Add all tracks from local stream
+      // Add tracks
       localStream.current.getTracks().forEach(track => {
         pc.addTrack(track, localStream.current!);
       });
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log('Sending ICE candidate to buyer:', buyerSocketId);
           socket.emit('ice-candidate', { 
             to: buyerSocketId, 
             candidate: event.candidate 
@@ -63,51 +68,49 @@ export default function SellerStreamPage() {
         }
       };
 
-      pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${buyerSocketId}:`, pc.connectionState);
+      pc.oniceconnectionstatechange = () => {
+        console.log(`ICE state with ${buyerSocketId}:`, pc.iceConnectionState);
+        if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+          // Clean up failed connection
+          pc.close();
+          delete peerConnections.current[buyerSocketId];
+        }
       };
 
-      pc.onsignalingstatechange = () => {
-        console.log(`Signaling state with ${buyerSocketId}:`, pc.signalingState);
-      };
-
-      // Create and send offer
+      // Create offer
       const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false
       });
       
       await pc.setLocalDescription(offer);
       
-      console.log('Sending offer to buyer:', buyerSocketId);
       socket.emit('offer', { 
         to: buyerSocketId, 
         offer: pc.localDescription 
       });
+
+      console.log(`✅ Created peer connection for ${buyerSocketId}`);
 
     } catch (error) {
       console.error('Error creating peer connection:', error);
     }
   }, []);
 
-  // Handle buyer joined
+  // Handle buyer events
   useEffect(() => {
     const handleBuyerJoined = (data: { buyerSocketId: string }) => {
-      console.log(`🚀 Buyer joined: ${data.buyerSocketId}`);
-      if (localStream.current) {
-        createPeerConnection(data.buyerSocketId);
-      } else {
-        console.error('Cannot create peer: No local stream');
-      }
+      console.log(`🚀 New viewer joined: ${data.buyerSocketId}`);
+      createPeerConnection(data.buyerSocketId);
+      setViewerCount(prev => prev + 1);
     };
 
     const handleAnswer = async (data: { from: string, answer: RTCSessionDescriptionInit }) => {
-      console.log(`📩 Received answer from: ${data.from}`);
       const pc = peerConnections.current[data.from];
-      if (pc) {
+      if (pc && pc.signalingState !== 'stable') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          console.log(`✅ Remote description set for ${data.from}`);
+          console.log(`✅ Answer received from ${data.from}`);
         } catch (e) {
           console.error("Error setting remote description:", e);
         }
@@ -115,7 +118,6 @@ export default function SellerStreamPage() {
     };
 
     const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
-      console.log(`🧊 Received ICE candidate from: ${data.from}`);
       const pc = peerConnections.current[data.from];
       if (pc && data.candidate) {
         pc.addIceCandidate(new RTCIceCandidate(data.candidate))
@@ -123,26 +125,46 @@ export default function SellerStreamPage() {
       }
     };
 
+    const handleBuyerLeft = (data: { buyerSocketId: string }) => {
+        console.log(`👋 Buyer left: ${data.buyerSocketId}`);
+        const pc = peerConnections.current[data.buyerSocketId];
+        if (pc) {
+            pc.close();
+            delete peerConnections.current[data.buyerSocketId];
+        }
+        setViewerCount(prev => Math.max(0, prev - 1));
+    };
+
     socket.on('buyer-joined', handleBuyerJoined);
+    socket.on('buyer-left', handleBuyerLeft);
     socket.on('answer', handleAnswer);
     socket.on('ice-candidate', handleIceCandidate);
 
     return () => {
       socket.off('buyer-joined', handleBuyerJoined);
+      socket.off('buyer-left', handleBuyerLeft);
       socket.off('answer', handleAnswer);
       socket.off('ice-candidate', handleIceCandidate);
     };
   }, [createPeerConnection]);
 
   const goLive = async () => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: "Error",
+        description: "Please login to start a live stream"
+      });
+      return;
+    }
+
     setIsStarting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           width: { ideal: 1280 }, 
           height: { ideal: 720 },
-          frameRate: { ideal: 30 }
+          frameRate: { ideal: 30, max: 60 }
         },
         audio: { 
           echoCancellation: true, 
@@ -150,31 +172,29 @@ export default function SellerStreamPage() {
           autoGainControl: true
         }
       });
+      
       localStream.current = stream;
-
-      const currentStreamId = generateStreamId(); // Use UID for stream ID
+      const currentStreamId = generateStreamId();
       setStreamId(currentStreamId);
 
-      // Announce to the socket server
       socket.emit('seller-go-live', { 
         streamId: currentStreamId, 
         sellerName: sellerName,
-        sellerUid: user.uid 
+        sellerUid: user.uid
       });
 
       setIsLive(true);
       toast({ 
         title: "🎥 You are now live!", 
-        description: "Buyers can see and join your stream." 
+        description: "Share your stream ID with buyers" 
       });
-      
-      console.log('🎬 Stream started with ID:', currentStreamId);
 
     } catch (error: any) {
+      console.error('Failed to start stream:', error);
       toast({ 
         variant: 'destructive', 
         title: "Error", 
-        description: error.message || "Could not start the live session." 
+        description: error.message || "Could not access camera/microphone. Please check permissions." 
       });
     } finally {
       setIsStarting(false);
@@ -182,58 +202,77 @@ export default function SellerStreamPage() {
   };
 
   const endLive = async () => {
-    if (!user || !streamId) return;
+    if (!streamId) return;
 
-    // Stop all tracks
-    if (localStream.current) {
-      localStream.current.getTracks().forEach(track => {
-        track.stop();
-        track.enabled = false;
-      });
-      localStream.current = null;
-    }
-
-    // Close all peer connections
-    Object.values(peerConnections.current).forEach(pc => {
-      pc.close();
-    });
+    localStream.current?.getTracks().forEach(track => track.stop());
+    localStream.current = null;
+    Object.values(peerConnections.current).forEach(pc => pc.close());
     peerConnections.current = {};
-
-    // Announce to server
     socket.emit('seller-stop-live', { streamId });
-
     setIsLive(false);
     setStreamId(null);
+    setViewerCount(0);
     
     toast({ 
       title: "⏹️ Stream Ended", 
-      description: "You are no longer live." 
+      description: "Your live stream has ended." 
     });
-    
-    console.log('🔴 Stream ended');
   };
+
+  useEffect(() => {
+    return () => {
+      if (isLive) {
+        endLive();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive]);
 
   return (
     <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-      <div className="relative flex-1">
-        <Recorder stream={localStream.current} isLive={isLive} />
-      </div>
-      <div className="flex-shrink-0">
-        <StreamControls
-          isLive={isLive}
-          isStarting={isStarting}
-          onGoLive={goLive}
-          onEndLive={endLive}
-          streamId={streamId}
-        />
-      </div>
-      
-      {/* Debug info */}
-      <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-black">
-        <p><strong>Stream ID:</strong> {streamId || 'Not live'}</p>
-        <p><strong>Active Connections:</strong> {Object.keys(peerConnections.current).length}</p>
-        <p><strong>Seller Socket ID:</strong> {socket.id || 'Connecting...'}</p>
-      </div>
+        <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Live Stream Studio</h1>
+              <p className="text-sm text-muted-foreground">
+                Stream directly to your buyers
+              </p>
+            </div>
+            {isLive && (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full">
+                  <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
+                  <span className="font-semibold">LIVE</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4" />
+                  <span>{viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+            )}
+        </div>
+
+        <div className="relative flex-1 bg-black rounded-xl overflow-hidden">
+            <Recorder stream={localStream.current} isLive={isLive} />
+            {isStarting && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+                <div className="text-center text-white">
+                  <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+                  <p className="text-lg font-semibold">Preparing your live stream...</p>
+                  <p className="text-sm text-gray-300 mt-2">Please allow camera & microphone access</p>
+                </div>
+              </div>
+            )}
+        </div>
+
+        <div className="flex-shrink-0">
+            <StreamControls
+              isLive={isLive}
+              isStarting={isStarting}
+              onGoLive={goLive}
+              onEndLive={endLive}
+              streamId={streamId}
+            />
+        </div>
     </div>
   );
 }

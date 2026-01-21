@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -6,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { io } from 'socket.io-client';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev', {
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  reconnection: true
 });
 
 export default function BuyerWatchPage() {
@@ -18,11 +19,77 @@ export default function BuyerWatchPage() {
     const streamId = params.streamId as string;
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerConnection = useRef<RTCPeerConnection | null>(null);
-    const sellerSocketId = useRef<string | null>(null);
     const candidateQueue = useRef<RTCIceCandidateInit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [connectionState, setConnectionState] = useState<string>('disconnected');
+    const [connectionState, setConnectionState] = useState<string>('connecting');
     const [error, setError] = useState<string | null>(null);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [sellerName, setSellerName] = useState<string>('');
+
+    const initializePeerConnection = useCallback(() => {
+        console.log('Initializing peer connection...');
+        
+        const pc = new RTCPeerConnection({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ],
+            iceCandidatePoolSize: 10
+        });
+
+        peerConnection.current = pc;
+
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+
+        pc.ontrack = (event) => {
+            console.log('🎬 Stream track received:', event.track.kind);
+            if (videoRef.current && event.streams[0]) {
+                videoRef.current.srcObject = event.streams[0];
+                setIsLoading(false);
+                setConnectionState('connected');
+                toast({
+                    title: 'Connected!',
+                    description: 'You are now watching the live stream.',
+                    duration: 3000
+                });
+            }
+        };
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice-candidate', {
+                    to: socket.id, // This should be seller's socket ID, but server will handle it
+                    candidate: event.candidate
+                });
+            }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            const state = pc.iceConnectionState;
+            console.log('ICE Connection State:', state);
+            setConnectionState(state);
+            
+            if (state === 'failed' || state === 'disconnected') {
+                setError('Connection lost. Attempting to reconnect...');
+                setTimeout(() => {
+                    if (peerConnection.current) {
+                        peerConnection.current.restartIce();
+                    }
+                }, 2000);
+            }
+        };
+
+        pc.onsignalingstatechange = () => {
+            console.log('Signaling State:', pc.signalingState);
+        };
+
+        return pc;
+    }, []);
 
     const stopWatching = useCallback(() => {
         if (peerConnection.current) {
@@ -36,123 +103,53 @@ export default function BuyerWatchPage() {
         router.push('/buyer/live-stream');
     }, [streamId, router]);
 
-    const debugConnection = () => {
-        console.log('=== BUYER DEBUG INFO ===');
-        console.log('Stream ID:', streamId);
-        console.log('Seller Socket ID:', sellerSocketId.current);
-        console.log('Peer Connection State:', peerConnection.current?.connectionState);
-        console.log('ICE Gathering State:', peerConnection.current?.iceGatheringState);
-        console.log('Signaling State:', peerConnection.current?.signalingState);
-        
-        socket.emit('debug-info');
-    };
-
     useEffect(() => {
         if (!streamId) {
             setError('No stream ID provided');
+            setIsLoading(false);
             return;
         }
 
-        console.log('🎯 Initializing buyer for stream:', streamId);
-        
-        const pc = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-        });
+        console.log('🎯 Initializing for stream:', streamId);
 
-        // Add transceivers
-        pc.addTransceiver('video', { direction: 'recvonly' });
-        pc.addTransceiver('audio', { direction: 'recvonly' });
-
-        peerConnection.current = pc;
-        
-        pc.ontrack = (event) => {
-            console.log('🎬 Stream track received!', event.track.kind);
-            if (videoRef.current && event.streams[0]) {
-                videoRef.current.srcObject = event.streams[0];
-                setIsLoading(false);
-                setConnectionState('connected');
-                toast({
-                    title: 'Connected!',
-                    description: 'You are now watching the live stream.'
-                });
-            }
-        };
-        
-        pc.onicecandidate = (event) => {
-            if (event.candidate && sellerSocketId.current) {
-                console.log('🧊 Sending ICE candidate to seller:', sellerSocketId.current);
-                socket.emit('ice-candidate', { 
-                    to: sellerSocketId.current, 
-                    candidate: event.candidate 
-                });
-            }
-        };
-
-        pc.oniceconnectionstatechange = () => {
-            console.log('ICE Connection State:', pc.iceConnectionState);
-            setConnectionState(pc.iceConnectionState);
-        };
-
-        pc.onsignalingstatechange = () => {
-            console.log('Signaling State:', pc.signalingState);
-        };
-
-        pc.onconnectionstatechange = () => {
-            console.log('Connection State:', pc.connectionState);
-            if (pc.connectionState === 'failed') {
-                setError('Connection failed. Please try again.');
-            }
-        };
+        const pc = initializePeerConnection();
 
         const handleOffer = async (data: { from: string, offer: RTCSessionDescriptionInit }) => {
             console.log('📩 Received offer from seller:', data.from);
-            sellerSocketId.current = data.from;
-            const currentPC = peerConnection.current;
             
-            if (currentPC) {
-                try {
-                    console.log('Setting remote description...');
-                    await currentPC.setRemoteDescription(new RTCSessionDescription(data.offer));
-                    
-                    // Process queued ICE candidates
-                    while(candidateQueue.current.length > 0) {
-                        const candidate = candidateQueue.current.shift();
-                        if (candidate) {
-                            await currentPC.addIceCandidate(new RTCIceCandidate(candidate));
-                        }
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                
+                while(candidateQueue.current.length > 0) {
+                    const candidate = candidateQueue.current.shift();
+                    if (candidate) {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
                     }
-
-                    console.log('Creating answer...');
-                    const answer = await currentPC.createAnswer();
-                    await currentPC.setLocalDescription(answer);
-                    
-                    console.log('Sending answer to seller:', data.from);
-                    socket.emit('answer', { 
-                        to: data.from, 
-                        answer: currentPC.localDescription 
-                    });
-                    
-                } catch (e) {
-                    console.error("Error handling offer:", e);
-                    setError('Failed to connect to stream');
                 }
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                
+                socket.emit('answer', { 
+                    to: data.from, 
+                    answer: pc.localDescription 
+                });
+                
+                console.log('✅ Answer sent to seller');
+            } catch (e) {
+                console.error("Error handling offer:", e);
+                setError('Failed to connect to stream. Please try again.');
             }
         };
-        
+
         const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
-            console.log('🧊 Received ICE candidate from:', data.from);
-            const currentPC = peerConnection.current;
-            if (currentPC && data.candidate) {
-                if (!currentPC.remoteDescription) {
-                    // Buffer candidates
-                    console.log('Buffering ICE candidate...');
+            console.log('🧊 Received ICE candidate');
+            
+            if (pc && data.candidate) {
+                if (!pc.remoteDescription) {
                     candidateQueue.current.push(data.candidate);
                 } else {
-                    currentPC.addIceCandidate(new RTCIceCandidate(data.candidate))
+                    pc.addIceCandidate(new RTCIceCandidate(data.candidate))
                         .catch(e => console.error("Error adding ICE candidate:", e));
                 }
             }
@@ -161,7 +158,8 @@ export default function BuyerWatchPage() {
         const handleStreamEnded = () => {
             toast({ 
                 title: 'Stream Ended', 
-                description: 'The live stream has been ended by the seller.' 
+                description: 'The live stream has ended.', 
+                variant: 'destructive'
             });
             stopWatching();
         };
@@ -169,19 +167,21 @@ export default function BuyerWatchPage() {
         const handleStreamNotFound = () => {
             setError('Stream not found or seller is offline');
             setIsLoading(false);
+            toast({
+                title: 'Stream Not Found',
+                description: 'This stream is no longer available.',
+                variant: 'destructive'
+            });
         };
-        
-        // Socket event listeners
+
         socket.on('offer', handleOffer);
         socket.on('ice-candidate', handleIceCandidate);
         socket.on('seller-offline', handleStreamEnded);
         socket.on('stream-not-found', handleStreamNotFound);
 
-        // Join stream
         console.log('Joining stream:', streamId);
         socket.emit('buyer-join-stream', { streamId });
 
-        // Set timeout for connection
         const timeout = setTimeout(() => {
             if (connectionState !== 'connected' && isLoading) {
                 setError('Connection timeout. The seller might be offline.');
@@ -201,71 +201,129 @@ export default function BuyerWatchPage() {
             }
             socket.emit('buyer-leave-stream', { streamId });
         };
-    }, [streamId, stopWatching]);
+    }, [streamId, stopWatching, initializePeerConnection, isLoading, connectionState]);
+
+    const toggleMute = () => {
+        if (videoRef.current) {
+            videoRef.current.muted = !videoRef.current.muted;
+            setIsMuted(!isMuted);
+        }
+    };
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            videoRef.current?.parentElement?.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    };
+
+    const retryConnection = () => {
+        window.location.reload();
+    };
 
     return (
-        <div className="h-screen w-screen bg-black flex flex-col items-center justify-center p-4 relative">
-            <Button 
-                className="absolute top-4 left-4 z-10" 
-                variant="secondary" 
-                onClick={stopWatching}
-            >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Streams
-            </Button>
-            
-            <Button
-                className="absolute top-4 right-4 z-10"
-                variant="outline"
-                size="sm"
-                onClick={debugConnection}
-            >
-                Debug
-            </Button>
+        <div className="h-screen w-screen bg-black flex flex-col">
+            <div className="flex items-center justify-between p-4 bg-black/80 text-white z-10">
+                <Button 
+                    variant="secondary" 
+                    size="sm"
+                    onClick={stopWatching}
+                    className="flex items-center gap-2"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Streams
+                </Button>
+                
+                <div className="flex items-center gap-4">
+                    <Badge variant={connectionState === 'connected' ? 'default' : 'secondary'}>
+                        {connectionState === 'connected' ? '🟢 LIVE' : '🟡 ' + connectionState.toUpperCase()}
+                    </Badge>
+                </div>
+            </div>
 
-            <div className="w-full max-w-5xl aspect-video bg-black rounded-lg overflow-hidden relative">
+            <div className="flex-1 relative">
                 <video 
                     ref={videoRef} 
                     autoPlay 
                     playsInline 
-                    className="w-full h-full object-contain"
-                ></video>
+                    controls={false}
+                    className="w-full h-full object-contain bg-black"
+                />
                 
                 {isLoading && !error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white">
-                        <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                        <p className="font-semibold">Connecting to live stream...</p>
-                        <p className="text-sm text-gray-300 mt-2">Status: {connectionState}</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90">
+                        <Loader2 className="h-12 w-12 animate-spin text-white mb-4" />
+                        <p className="text-xl font-semibold text-white mb-2">Connecting to live stream...</p>
+                        <p className="text-sm text-gray-300">Status: {connectionState}</p>
                     </div>
                 )}
                 
                 {error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white">
-                        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-                        <p className="font-semibold text-lg mb-2">Connection Error</p>
-                        <p className="text-gray-300 mb-4">{error}</p>
-                        <div className="flex gap-4">
-                            <Button variant="secondary" onClick={stopWatching}>
-                                Go Back
-                            </Button>
-                            <Button variant="default" onClick={() => window.location.reload()}>
-                                Retry
-                            </Button>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90">
+                        <div className="text-center max-w-md">
+                            <div className="text-6xl mb-4">📡</div>
+                            <h2 className="text-2xl font-bold text-white mb-3">Connection Error</h2>
+                            <p className="text-gray-300 mb-6">{error}</p>
+                            <div className="flex gap-4 justify-center">
+                                <Button variant="secondary" onClick={stopWatching}>
+                                    Go Back
+                                </Button>
+                                <Button variant="default" onClick={retryConnection}>
+                                    Retry Connection
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}
+
+                {!isLoading && !error && (
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-sm rounded-full px-6 py-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-full text-white hover:bg-white/20"
+                            onClick={toggleMute}
+                        >
+                            {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                        </Button>
+                        
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-full text-white hover:bg-white/20"
+                            onClick={toggleFullscreen}
+                        >
+                            <Maximize2 className="h-5 w-5" />
+                        </Button>
+                        
+                        <Button
+                            variant="destructive"
+                            className="rounded-full px-6"
+                            onClick={stopWatching}
+                        >
+                            Leave Stream
+                        </Button>
+                    </div>
+                )}
             </div>
-            
-            {/* Connection status bar */}
-            <div className="mt-4 p-3 bg-gray-900 text-white rounded-lg text-sm">
+
+            <div className="p-4 bg-gray-900 text-white text-sm">
                 <div className="flex items-center justify-between">
-                    <span>Stream ID: <code className="bg-gray-800 px-2 py-1 rounded">{streamId}</code></span>
-                    <span className={`px-3 py-1 rounded ${
-                        connectionState === 'connected' ? 'bg-green-600' :
-                        connectionState === 'connecting' ? 'bg-yellow-600' :
-                        'bg-red-600'
-                    }`}>
-                        {connectionState.toUpperCase()}
-                    </span>
+                    <div>
+                        <p>Stream ID: <code className="ml-2 bg-gray-800 px-2 py-1 rounded">{streamId}</code></p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className={`px-3 py-1 rounded ${
+                            connectionState === 'connected' ? 'bg-green-600' :
+                            connectionState === 'checking' ? 'bg-yellow-600' :
+                            'bg-red-600'
+                        }`}>
+                            {connectionState.toUpperCase()}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
