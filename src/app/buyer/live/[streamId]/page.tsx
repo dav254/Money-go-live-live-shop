@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -23,9 +22,9 @@ export default function BuyerWatchPage() {
     const sellerSocketId = useRef<string | null>(null);
     const candidateQueue = useRef<RTCIceCandidateInit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [connectionState, setConnectionState] = useState<string>('disconnected');
+    const [connectionState, setConnectionState] = useState<string>('connecting');
     const [error, setError] = useState<string | null>(null);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const stopWatching = useCallback(() => {
@@ -43,6 +42,7 @@ export default function BuyerWatchPage() {
     useEffect(() => {
         if (!streamId) {
             setError('No stream ID provided');
+            setIsLoading(false);
             return;
         }
 
@@ -53,7 +53,8 @@ export default function BuyerWatchPage() {
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:stun2.l.google.com:19302' }
-            ]
+            ],
+            iceCandidatePoolSize: 10
         });
 
         pc.addTransceiver('video', { direction: 'recvonly' });
@@ -85,9 +86,11 @@ export default function BuyerWatchPage() {
         };
 
         pc.oniceconnectionstatechange = () => {
-            console.log('ICE Connection State:', pc.iceConnectionState);
-            setConnectionState(pc.iceConnectionState);
-             if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'closed') {
+            const state = pc.iceConnectionState;
+            console.log('ICE Connection State:', state);
+            setConnectionState(state);
+            
+            if (state === 'failed' || state === 'disconnected' || state === 'closed') {
                 setError('Connection to the stream has been lost.');
                 setIsLoading(false);
             }
@@ -97,6 +100,10 @@ export default function BuyerWatchPage() {
             console.log('Signaling State:', pc.signalingState);
         };
 
+        pc.onconnectionstatechange = () => {
+            console.log('Connection State:', pc.connectionState);
+        };
+
         const handleOffer = async (data: { from: string, offer: RTCSessionDescriptionInit }) => {
             console.log('📩 Received offer from seller:', data.from);
             sellerSocketId.current = data.from;
@@ -104,8 +111,10 @@ export default function BuyerWatchPage() {
             
             if (currentPC) {
                 try {
+                    console.log('Setting remote description...');
                     await currentPC.setRemoteDescription(new RTCSessionDescription(data.offer));
                     
+                    // Process queued ICE candidates
                     while(candidateQueue.current.length > 0) {
                         const candidate = candidateQueue.current.shift();
                         if (candidate) {
@@ -113,9 +122,11 @@ export default function BuyerWatchPage() {
                         }
                     }
 
+                    console.log('Creating answer...');
                     const answer = await currentPC.createAnswer();
                     await currentPC.setLocalDescription(answer);
                     
+                    console.log('Sending answer to seller:', data.from);
                     socket.emit('answer', { 
                         to: data.from, 
                         answer: currentPC.localDescription 
@@ -129,9 +140,12 @@ export default function BuyerWatchPage() {
         };
         
         const handleIceCandidate = (data: { from: string, candidate: RTCIceCandidateInit }) => {
+            console.log('🧊 Received ICE candidate from:', data.from);
             const currentPC = peerConnection.current;
             if (currentPC && data.candidate) {
                 if (!currentPC.remoteDescription) {
+                    // Buffer candidates until we have remote description
+                    console.log('Buffering ICE candidate...');
                     candidateQueue.current.push(data.candidate);
                 } else {
                     currentPC.addIceCandidate(new RTCIceCandidate(data.candidate))
@@ -152,18 +166,21 @@ export default function BuyerWatchPage() {
             setError('Stream not found or seller is offline');
             setIsLoading(false);
         };
-        
+
+        // Socket event listeners
         socket.on('offer', handleOffer);
         socket.on('ice-candidate', handleIceCandidate);
         socket.on('seller-offline', handleStreamEnded);
         socket.on('stream-not-found', handleStreamNotFound);
-        socket.on('connect_error', () => setError('Failed to connect to signaling server.'));
 
+        // Join stream
+        console.log('Joining stream:', streamId);
         socket.emit('buyer-join-stream', { streamId });
 
+        // Set timeout for connection
         const timeout = setTimeout(() => {
             if (connectionState !== 'connected' && isLoading) {
-                setError('Connection timeout. The seller might be offline or a network issue occurred.');
+                setError('Connection timeout. The seller might be offline.');
                 setIsLoading(false);
             }
         }, 15000);
@@ -174,14 +191,13 @@ export default function BuyerWatchPage() {
             socket.off('ice-candidate', handleIceCandidate);
             socket.off('seller-offline', handleStreamEnded);
             socket.off('stream-not-found', handleStreamNotFound);
-            socket.off('connect_error');
             
             if (peerConnection.current) {
                 peerConnection.current.close();
             }
             socket.emit('buyer-leave-stream', { streamId });
         };
-    }, [streamId, stopWatching, initializePeerConnection, isLoading, connectionState]);
+    }, [streamId, stopWatching]);
 
     const toggleMute = () => {
         if (videoRef.current) {
@@ -191,16 +207,20 @@ export default function BuyerWatchPage() {
     };
 
     const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            videoRef.current?.parentElement?.requestFullscreen();
+        const videoContainer = videoRef.current?.parentElement;
+        if (!document.fullscreenElement && videoContainer) {
+            videoContainer.requestFullscreen();
             setIsFullscreen(true);
-        } else {
+        } else if (document.fullscreenElement) {
             document.exitFullscreen();
             setIsFullscreen(false);
         }
     };
 
     const retryConnection = () => {
+        setError(null);
+        setIsLoading(true);
+        setConnectionState('connecting');
         window.location.reload();
     };
 

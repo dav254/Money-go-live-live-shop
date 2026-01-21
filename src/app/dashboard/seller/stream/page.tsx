@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -11,6 +10,8 @@ import { io } from 'socket.io-client';
 
 const socket = io('http://localhost:5000', {
   transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5
 });
 
 export default function SellerStreamPage() {
@@ -44,7 +45,11 @@ export default function SellerStreamPage() {
 
     try {
       const pc = new RTCPeerConnection({ 
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] 
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+        ]
       });
       
       peerConnections.current[buyerSocketId] = pc;
@@ -63,8 +68,8 @@ export default function SellerStreamPage() {
       };
 
       const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false
       });
       
       await pc.setLocalDescription(offer);
@@ -74,6 +79,8 @@ export default function SellerStreamPage() {
         offer: pc.localDescription 
       });
 
+      console.log(`✅ Created peer connection for ${buyerSocketId}`);
+
     } catch (error) {
       console.error('Error creating peer connection:', error);
     }
@@ -81,17 +88,17 @@ export default function SellerStreamPage() {
 
   useEffect(() => {
     const handleBuyerJoined = (data: { buyerSocketId: string }) => {
-      console.log(`🚀 Buyer joined: ${data.buyerSocketId}`);
-      if (localStream.current) {
-        createPeerConnection(data.buyerSocketId);
-      }
+      console.log(`🚀 New viewer joined: ${data.buyerSocketId}`);
+      createPeerConnection(data.buyerSocketId);
+      setViewerCount(prev => prev + 1);
     };
 
     const handleAnswer = async (data: { from: string, answer: RTCSessionDescriptionInit }) => {
       const pc = peerConnections.current[data.from];
-      if (pc) {
+      if (pc && pc.signalingState !== 'stable') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          console.log(`✅ Answer received from ${data.from}`);
         } catch (e) {
           console.error("Error setting remote description:", e);
         }
@@ -105,31 +112,63 @@ export default function SellerStreamPage() {
           .catch(e => console.error("Error adding ICE candidate:", e));
       }
     };
+    
+    const handleBuyerLeft = (data: { buyerSocketId: string }) => {
+        const pc = peerConnections.current[data.buyerSocketId];
+        if (pc) {
+          pc.close();
+          delete peerConnections.current[data.buyerSocketId];
+          setViewerCount(prev => Math.max(0, prev - 1));
+          console.log(`Buyer ${data.buyerSocketId} left, closed peer connection`);
+        }
+    };
 
     socket.on('buyer-joined', handleBuyerJoined);
+    socket.on('buyer-left', handleBuyerLeft);
     socket.on('answer', handleAnswer);
     socket.on('ice-candidate', handleIceCandidate);
 
     return () => {
       socket.off('buyer-joined', handleBuyerJoined);
+      socket.off('buyer-left', handleBuyerLeft);
       socket.off('answer', handleAnswer);
       socket.off('ice-candidate', handleIceCandidate);
     };
   }, [createPeerConnection]);
 
   const goLive = async () => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: "Error",
+        description: "Please login to start a live stream"
+      });
+      return;
+    }
+
     setIsStarting(true);
     try {
+      // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: { echoCancellation: true, noiseSuppression: true }
+        video: { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 60 }
+        },
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true,
+          autoGainControl: true
+        }
       });
+      
       localStream.current = stream;
 
+      // Generate stream ID
       const currentStreamId = generateStreamId();
       setStreamId(currentStreamId);
 
+      // Announce to server
       socket.emit('seller-go-live', { 
         streamId: currentStreamId, 
         sellerName: sellerName,
@@ -138,15 +177,18 @@ export default function SellerStreamPage() {
 
       setIsLive(true);
       toast({ 
-        title: "You are now live!", 
-        description: "Share this link with buyers: " + currentStreamId 
+        title: "🎥 You are now live!", 
+        description: "Share your stream ID with buyers" 
       });
-      
+
+      console.log('✅ Stream started with ID:', currentStreamId);
+
     } catch (error: any) {
+      console.error('Failed to start stream:', error);
       toast({ 
         variant: 'destructive', 
         title: "Error", 
-        description: error.message || "Could not start the live session." 
+        description: error.message || "Could not access camera/microphone. Please check permissions." 
       });
     } finally {
       setIsStarting(false);
@@ -154,26 +196,72 @@ export default function SellerStreamPage() {
   };
 
   const endLive = async () => {
-    if (!user || !streamId) return;
+    if (!streamId) return;
 
-    localStream.current?.getTracks().forEach(track => track.stop());
-    localStream.current = null;
-    Object.values(peerConnections.current).forEach(pc => pc.close());
+    // Stop media tracks
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      localStream.current = null;
+    }
+
+    // Close all peer connections
+    Object.values(peerConnections.current).forEach(pc => {
+      pc.close();
+    });
     peerConnections.current = {};
 
+    // Notify server
     socket.emit('seller-stop-live', { streamId });
 
+    // Reset state
     setIsLive(false);
     setStreamId(null);
     setViewerCount(0);
-    toast({ title: "Stream Ended", description: "You are no longer live." });
+    
+    toast({ 
+      title: "⏹️ Stream Ended", 
+      description: "Your live stream has ended." 
+    });
   };
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (isLive && streamId) {
+        endLive();
+      }
+    };
+  }, [isLive, streamId]);
 
   return (
     <div className="flex-1 p-4 lg:p-6 flex flex-col gap-4 h-[calc(100vh-4rem)] overflow-hidden">
-      <div className="relative flex-1">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Live Stream Studio</h1>
+          <p className="text-sm text-muted-foreground">
+            Stream directly to your buyers
+          </p>
+        </div>
+        {isLive && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full">
+              <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
+              <span className="font-semibold">LIVE</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="h-4 w-4" />
+              <span>{viewerCount} viewer{viewerCount !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="relative flex-1 bg-black rounded-xl overflow-hidden">
         <Recorder stream={localStream.current} isLive={isLive} />
       </div>
+
       <div className="flex-shrink-0">
         <StreamControls
           isLive={isLive}

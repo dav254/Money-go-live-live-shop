@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -13,7 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const socket = io('http://localhost:5000', {
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  timeout: 10000
 });
 
 export default function BuyerLiveListPage() {
@@ -23,12 +26,14 @@ export default function BuyerLiveListPage() {
     const router = useRouter();
     const { toast } = useToast();
 
+    // Handle sellers update
     const handleSellersUpdate = useCallback((updatedSellers: any[]) => {
         console.log('📡 Received sellers update:', updatedSellers);
         setSellers(updatedSellers);
         setLoading(false);
     }, []);
 
+    // Handle stream ended
     const handleStreamEnded = useCallback((data: { streamId: string }) => {
         toast({
             title: 'Stream Ended',
@@ -38,6 +43,7 @@ export default function BuyerLiveListPage() {
         setSellers(prev => prev.filter(seller => seller.streamId !== data.streamId));
     }, [toast]);
 
+    // Handle socket connection events
     useEffect(() => {
         const onConnect = () => {
             console.log('✅ Connected to socket server');
@@ -71,8 +77,10 @@ export default function BuyerLiveListPage() {
         socket.on('sellers-update', handleSellersUpdate);
         socket.on('seller-offline', handleStreamEnded);
 
+        // Request initial sellers list
         socket.emit('get-sellers');
 
+        // Auto-refresh every 10 seconds
         const refreshInterval = setInterval(() => {
             if (socket.connected) {
                 socket.emit('get-sellers');
@@ -98,6 +106,7 @@ export default function BuyerLiveListPage() {
     };
     
     const startWatching = (seller: any) => {
+        console.log('Navigating to stream:', seller.streamId);
         router.push(`/buyer/live/${seller.streamId}`);
     };
 
@@ -127,12 +136,14 @@ export default function BuyerLiveListPage() {
         if (diffHours < 24) return `${diffHours} hours ago`;
         
         const diffDays = Math.floor(diffHours / 24);
-        return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        if (diffDays === 1) return '1 day ago';
+        return `${diffDays} days ago`;
     };
 
     return (
         <BuyerLayout>
             <div className="container mx-auto p-4 md:p-6">
+                {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                     <div>
                         <h1 className="text-3xl font-bold mb-2">🎥 Live Streams</h1>
@@ -165,6 +176,7 @@ export default function BuyerLiveListPage() {
                     </div>
                 </div>
 
+                {/* Connection Status Alert */}
                 {connectionStatus !== 'connected' && (
                     <div className={`mb-6 p-4 rounded-lg ${
                         connectionStatus === 'connecting' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
@@ -182,6 +194,7 @@ export default function BuyerLiveListPage() {
                     </div>
                 )}
 
+                {/* Streams Grid */}
                 {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {[1, 2, 3, 4].map((i) => (
@@ -217,10 +230,12 @@ export default function BuyerLiveListPage() {
                                 className="overflow-hidden cursor-pointer hover:shadow-xl hover:border-primary/50 transition-all duration-300 group border-2"
                                 onClick={() => startWatching(seller)}
                             >
+                                {/* Stream Thumbnail */}
                                 <div className="relative bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 h-48 flex items-center justify-center">
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                                     <div className="text-6xl z-10">🎬</div>
                                     
+                                    {/* Live Badge */}
                                     <div className="absolute top-3 right-3 z-20">
                                         <div className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full">
                                             <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
@@ -228,11 +243,13 @@ export default function BuyerLiveListPage() {
                                         </div>
                                     </div>
 
+                                    {/* Viewers Count */}
                                     <div className="absolute bottom-3 left-3 z-20 bg-black/80 text-white text-sm px-3 py-1.5 rounded-full flex items-center gap-2">
                                         <Users className="h-3.5 w-3.5" />
                                         {seller.buyers || 0} watching
                                     </div>
                                     
+                                    {/* Hover Overlay */}
                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
                                         <div className="bg-white text-black px-6 py-2 rounded-full font-semibold transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                                             Watch Now
@@ -240,6 +257,7 @@ export default function BuyerLiveListPage() {
                                     </div>
                                 </div>
 
+                                {/* Stream Info */}
                                 <div className="p-5">
                                     <div className="flex justify-between items-start mb-3">
                                         <h3 className="font-bold text-lg truncate pr-2">
@@ -281,6 +299,7 @@ export default function BuyerLiveListPage() {
                     </div>
                 )}
 
+                {/* Info Footer */}
                 <div className="mt-12 pt-8 border-t text-center">
                     <p className="text-sm text-muted-foreground">
                         🔄 Streams update automatically every 10 seconds
