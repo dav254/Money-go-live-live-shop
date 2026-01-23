@@ -3,7 +3,7 @@
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileVideo, Upload, PlusCircle, Video } from 'lucide-react';
+import { FileVideo, Upload, PlusCircle, Video, Bot, Text, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 
 const studioFeatures = [
@@ -21,14 +21,24 @@ const studioFeatures = [
         icon: Upload,
         cta: "Upload Video",
     },
-     {
-        title: "My Recordings",
-        description: "View, manage, and see analytics for all your published product videos.",
-        href: "/dashboard/seller/studio/recordings",
-        icon: FileVideo,
-        cta: "View Recordings",
-    },
 ];
+
+const aiTools = [
+     {
+        title: "Text-to-Video Generator",
+        description: "Create a brand new video from a simple text description.",
+        href: "/dashboard/seller/ai-tools/text-to-video",
+        icon: Text,
+        cta: "Create with Text",
+    },
+    {
+        title: "Animate Product Image",
+        description: "Bring your static product images to life with AI-powered animation.",
+        href: "/dashboard/seller/ai-tools/video-enhancer",
+        icon: ImageIcon,
+        cta: "Animate Image",
+    }
+]
 
 export default function SellerStudioPage() {
     return (
@@ -39,28 +49,65 @@ export default function SellerStudioPage() {
                         Seller Studio
                     </h1>
                     <p className="text-lg text-muted-foreground">
-                        Create professional, shoppable videos that sell. Forget live streaming headaches.
+                        Create professional, shoppable videos that sell.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {studioFeatures.map(feature => (
-                        <Card key={feature.title} className="flex flex-col">
-                             <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <feature.icon className="h-6 w-6 text-primary" />
-                                    <span>{feature.title}</span>
-                                </CardTitle>
-                                <CardDescription>{feature.description}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex-grow flex items-end">
-                                <Button className="w-full" asChild>
-                                    <Link href={feature.href}>{feature.cta}</Link>
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+                <Card>
+                     <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            <Video className="h-6 w-6 text-primary" />
+                            <span>Manual Creation</span>
+                        </CardTitle>
+                        <CardDescription>Record or upload your own video content.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 gap-6">
+                        {studioFeatures.map(feature => (
+                            <Card key={feature.title} className="flex flex-col">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-3 text-xl">
+                                        <feature.icon className="h-5 w-5" />
+                                        <span>{feature.title}</span>
+                                    </CardTitle>
+                                    <CardDescription>{feature.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow flex items-end">
+                                    <Button className="w-full" asChild>
+                                        <Link href={feature.href}>{feature.cta}</Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                     <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            <Bot className="h-6 w-6 text-primary" />
+                            <span>AI Video Creation</span>
+                        </CardTitle>
+                        <CardDescription>Use AI to generate stunning video content for your products automatically.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 gap-6">
+                        {aiTools.map(tool => (
+                            <Card key={tool.title} className="flex flex-col">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-3 text-xl">
+                                        <tool.icon className="h-5 w-5" />
+                                        <span>{tool.title}</span>
+                                    </CardTitle>
+                                    <CardDescription>{tool.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow flex items-end">
+                                    <Button className="w-full" asChild>
+                                        <Link href={tool.href}>{tool.cta}</Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </CardContent>
+                </Card>
             </div>
         </SellerLayout>
     );
