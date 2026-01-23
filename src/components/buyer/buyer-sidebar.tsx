@@ -45,16 +45,8 @@ export function BuyerSidebar() {
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-stream')} tooltip="Live Feed">
             <Link href="/buyer/live-stream">
-              <Video />
-              <span>Live Streams</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/live')} tooltip="Product Feed">
-            <Link href="/live">
               <RadioTower />
-              <span>Product Feed</span>
+              <span>Live Feed</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -118,7 +110,7 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
         <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')}>
-            <Link href="/buyer/help">
+            <Link href="/dashboard/reseller/support/help-center">
                 <HelpCircle />
                 <span>Help Center</span>
             </Link>
