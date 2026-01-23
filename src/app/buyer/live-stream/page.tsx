@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query } from 'firebase/firestore';
+import { collection, doc, query, orderBy, limit } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -97,7 +98,8 @@ export default function BuyerLiveStreamPage() {
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'products'));
+        // Fetch the 10 most recent products, ordered by upload date
+        return query(collection(firestore, 'products'), orderBy('uploadDate', 'desc'), limit(10));
     }, [firestore]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
