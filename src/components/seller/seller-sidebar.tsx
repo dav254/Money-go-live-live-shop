@@ -185,7 +185,7 @@ export function SellerSidebar() {
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/stream')}>
               <Link href="/dashboard/seller/stream">
                 <RadioTower />
-                <span>Live Studio</span>
+                <span>Studio</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

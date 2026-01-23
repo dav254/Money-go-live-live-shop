@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ProductUploadForm } from "@/components/seller/product-upload-form";
