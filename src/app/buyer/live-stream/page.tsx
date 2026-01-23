@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useMemo } from 'react';
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
