@@ -21,6 +21,7 @@ const socket = io(SOCKET_URL, {
 export default function BuyerWatchPage() {
     const params = useParams();
     const router = useRouter();
+    const { toast } = useToast();
     const streamId = params.streamId as string;
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerConnection = useRef<RTCPeerConnection | null>(null);
@@ -254,7 +255,7 @@ export default function BuyerWatchPage() {
             
             socket.emit('buyer-leave-stream', { streamId });
         };
-    }, [streamId, stopWatching, initWebRTC]);
+    }, [streamId, stopWatching, initWebRTC, toast]);
 
     const toggleMute = () => {
         if (videoRef.current) {
@@ -389,3 +390,4 @@ export default function BuyerWatchPage() {
         </div>
     );
 }
+    
