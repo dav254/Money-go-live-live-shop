@@ -189,3 +189,4 @@ export function BuyerVideoCard({ liveSession, onScroll, isIntersecting }: BuyerV
         </div>
     );
 }
+
