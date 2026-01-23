@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -22,7 +23,7 @@ export default function PublishButton() {
     const signatureResponse = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paramsToSign }),
+      body: JSON.stringify(paramsToSign),
     });
 
     if (!signatureResponse.ok) {
