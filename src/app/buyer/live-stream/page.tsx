@@ -169,7 +169,7 @@ export default function BuyerLiveStreamPage() {
             >
             {products && products.length > 0 ? (
                 products.map((product) => (
-                    <div key={product.id} data-product-id={product.id}>
+                    <div key={product.id} data-product-id={product.id} className="h-full w-full snap-start flex-shrink-0">
                         <RealtimeVideoCard 
                             product={product} 
                             isIntersecting={intersectingCard === product.id}

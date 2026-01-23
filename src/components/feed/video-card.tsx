@@ -15,13 +15,15 @@ import { doc, increment, writeBatch, collection, addDoc, serverTimestamp, query,
 import { CommentDrawer } from './comment-drawer';
 import { WifiOff, ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 interface VideoCardProps {
   item: VideoFeedItem;
   onScroll?: (direction: 'up' | 'down') => void;
+  isIntersecting: boolean;
 }
 
-export function VideoCard({ item, onScroll }: VideoCardProps) {
+export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   const allMedia = useMemo(() => {
     if (!item.product) return [];
     
@@ -49,10 +51,8 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const [isIntersecting, setIsIntersecting] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
   
@@ -97,17 +97,6 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
         }
     }
   }, [isIntersecting, currentMedia]);
-  
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsIntersecting(entry.isIntersecting),
-      { threshold: 0.5 }
-    );
-
-    const currentCardRef = cardRef.current;
-    if (currentCardRef) observer.observe(currentCardRef);
-    return () => { if (currentCardRef) observer.unobserve(currentCardRef); };
-  }, []);
   
   // Reset media index when product changes
   useEffect(() => {
@@ -154,7 +143,7 @@ export function VideoCard({ item, onScroll }: VideoCardProps) {
   };
 
   return (
-    <div ref={cardRef} className="relative h-full w-full bg-black">
+    <div className="relative h-full w-full bg-black">
       <AnimatePresence initial={false}>
         <motion.div
           key={currentMedia.url}

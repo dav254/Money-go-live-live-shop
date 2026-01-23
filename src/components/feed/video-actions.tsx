@@ -32,10 +32,19 @@ export function VideoActions({
 }: VideoActionsProps) {
   const { toast } = useToast();
   const { user } = useUser();
-  const firestore = useFirestore();
-  const router = useRouter();
   const { userProfile } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
+  const [isLiked, setIsLiked] = useState(false);
   
+  // Placeholder logic for likes
+  const handleLike = () => {
+    setIsLiked(!isLiked);
+    // In a real app, you would also update the like count in Firestore
+    toast({
+        title: isLiked ? "Unliked" : "Liked!",
+    });
+  }
+
   const handleShare = () => {
     const url = `${window.location.origin}/products/${product.id}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -67,6 +76,12 @@ export function VideoActions({
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('up')}>
           <ChevronUp className="h-6 w-6 text-white" />
         </Button>
+      </div>
+      <div className="flex flex-col items-center">
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLike}>
+          <Heart className={`h-6 w-6 text-white transition-colors ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+        </Button>
+        <span className="text-sm font-semibold text-white drop-shadow-md">{product.likes || 0}</span>
       </div>
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>
