@@ -4,7 +4,7 @@
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -83,6 +83,8 @@ export default function PublishButton() {
       const productRef = doc(firestore, 'products', productId);
       await updateDoc(productRef, {
         videoUrls: arrayUnion(permanentUrl),
+        hasVideo: true,
+        updatedAt: serverTimestamp(),
       });
 
       toast({ title: 'Published!', description: 'Your video has been added to the product.' });

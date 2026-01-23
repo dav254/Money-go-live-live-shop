@@ -112,6 +112,8 @@ export interface Product {
         discount: number; // Percentage or fixed amount
         type: 'percentage' | 'fixed';
     };
+    hasVideo?: boolean;
+    updatedAt?: any;
 }
 
 export type Seller = {
@@ -471,3 +473,4 @@ export interface ResellActivity {
     sharedAt: Timestamp;
 }
     
+

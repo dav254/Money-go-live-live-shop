@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -217,6 +218,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           videoUrl: allVideoUrls[0] || '',
           imageUrls: allImageUrls,
           videoUrls: allVideoUrls,
+          hasVideo: allVideoUrls.length > 0,
           updatedAt: serverTimestamp(),
       };
 
