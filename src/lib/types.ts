@@ -319,6 +319,7 @@ export interface LiveSession {
     sellerId: string;
     title: string;
     status: 'upcoming' | 'live' | 'ended';
+    youtubeUrl?: string; // Add youtubeUrl
     productIds?: string[];
     viewerCount?: number;
     startTime: any;
