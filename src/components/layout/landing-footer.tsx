@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, Globe, MapPin, Heart } from 'lucide-react';
@@ -6,6 +5,14 @@ import Link from 'next/link';
 import { Logo } from '../logo';
 
 export function LandingFooter() {
+  const quickLinks = [
+    { label: "Home", href: "/" },
+    { label: "Features", href: "/#features" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "For Sellers", href: "/login" },
+    { label: "For Resellers", href: "/login" },
+    { label: "Blog", href: "#" }
+  ];
   return (
     <footer style={{ position: 'relative', background: 'hsl(240, 20%, 4%)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '5rem', paddingBottom: '2.5rem' }}>
         <div className="container" style={{ padding: '0 1rem' }}>
@@ -32,9 +39,9 @@ export function LandingFooter() {
             <div>
               <h4 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Quick Links</h4>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {["Home", "Features", "How It Works", "For Sellers", "For Resellers", "Blog"].map((link) => (
-                  <li key={link}>
-                    <a href="#" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link}</a>
+                {quickLinks.map((link) => (
+                  <li key={link.label}>
+                    <Link href={link.href} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link.label}</Link>
                   </li>
                 ))}
               </ul>

@@ -12,7 +12,8 @@ export function LandingHeader() {
   const navItems = [
     { label: "Features", href: "/#features" },
     { label: "How It Works", href: "/#how-it-works" },
-    { label: "For Sellers", href: "/#for-sellers" }
+    { label: "For Sellers", href: "/login" },
+    { label: "For Resellers", href: "/login" }
   ];
 
   return (
