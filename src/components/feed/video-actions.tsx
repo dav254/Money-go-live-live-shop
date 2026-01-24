@@ -1,12 +1,11 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown, Heart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useUserProfile } from '@/firebase';
-import { doc, setDoc, serverTimestamp, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { useUser, useFirestore, useUserProfile } from '@/firebase';
+import { doc, writeBatch, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
 
@@ -34,16 +33,62 @@ export function VideoActions({
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
+  const router = useRouter(); // For redirecting non-logged-in users
   const [isLiked, setIsLiked] = useState(false);
-  
-  // Placeholder logic for likes
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    // In a real app, you would also update the like count in Firestore
-    toast({
-        title: isLiked ? "Unliked" : "Liked!",
-    });
-  }
+  const [likeCount, setLikeCount] = useState(product.likes || 0);
+
+  // Set the initial liked state based on the user's profile
+  useEffect(() => {
+    if (userProfile?.wishlist?.includes(product.id)) {
+      setIsLiked(true);
+    } else {
+      setIsLiked(false);
+    }
+  }, [userProfile, product.id]);
+
+  const handleLike = async () => {
+    if (!user || !firestore) {
+        toast({
+            title: "Please log in to like videos.",
+            action: <Button onClick={() => router.push('/login')}>Login</Button>
+        });
+        return;
+    }
+    
+    const newIsLiked = !isLiked;
+
+    // Optimistic UI updates
+    setIsLiked(newIsLiked);
+    setLikeCount(prev => newIsLiked ? prev + 1 : prev - 1);
+
+    const productRef = doc(firestore, 'products', product.id);
+    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+
+    try {
+        const batch = writeBatch(firestore);
+        
+        if (newIsLiked) {
+            batch.update(productRef, { likes: increment(1) });
+            batch.update(userProfileRef, { wishlist: arrayUnion(product.id) });
+        } else {
+            batch.update(productRef, { likes: increment(-1) });
+            batch.update(userProfileRef, { wishlist: arrayRemove(product.id) });
+        }
+
+        await batch.commit();
+
+    } catch (error) {
+        console.error("Error updating like: ", error);
+        // Revert optimistic updates on failure
+        setIsLiked(!newIsLiked);
+        setLikeCount(prev => newIsLiked ? prev - 1 : prev + 1);
+        toast({
+            variant: "destructive",
+            title: "Something went wrong",
+            description: "Your like could not be saved. Please try again.",
+        });
+    }
+  };
 
   const handleShare = () => {
     const url = `${window.location.origin}/products/${product.id}`;
@@ -81,7 +126,7 @@ export function VideoActions({
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLike}>
           <Heart className={`h-6 w-6 text-white transition-colors ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
         </Button>
-        <span className="text-sm font-semibold text-white drop-shadow-md">{product.likes || 0}</span>
+        <span className="text-sm font-semibold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
       </div>
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>
