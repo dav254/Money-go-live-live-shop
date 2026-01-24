@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, Globe, MapPin, Heart } from 'lucide-react';
@@ -44,7 +45,7 @@ export function LandingFooter() {
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {[
                   { label: "Help Center", href: "#" },
-                  { label: "FAQs", href: "#" },
+                  { label: "FAQs", href: "/faq" },
                   { label: "Contact Us", href: "#" },
                   { label: "Privacy Policy", href: "/privacy" },
                   { label: "Terms of Service", href: "/terms" }
