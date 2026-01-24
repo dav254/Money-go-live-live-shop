@@ -42,9 +42,15 @@ export function LandingFooter() {
             <div>
               <h4 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Support</h4>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {["Help Center", "FAQs", "Contact Us", "Privacy Policy", "Terms of Service"].map((link) => (
-                  <li key={link}>
-                    <Link href="#" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link}</Link>
+                {[
+                  { label: "Help Center", href: "#" },
+                  { label: "FAQs", href: "#" },
+                  { label: "Contact Us", href: "#" },
+                  { label: "Privacy Policy", href: "/privacy" },
+                  { label: "Terms of Service", href: "/terms" }
+                ].map((link) => (
+                  <li key={link.label}>
+                    <Link href={link.href} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link.label}</Link>
                   </li>
                 ))}
               </ul>
