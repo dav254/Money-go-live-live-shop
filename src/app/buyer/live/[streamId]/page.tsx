@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -17,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { MainLayout } from '@/components/layout/main-layout';
+import { useParams } from 'next/navigation';
 
 const servers = {
   iceServers: [
@@ -190,3 +191,41 @@ export function BuyerVideoCard({ liveSession, onScroll, isIntersecting }: BuyerV
     );
 }
 
+export default function LiveStreamPage() {
+    const params = useParams();
+    const streamId = params.streamId as string;
+    const firestore = useFirestore();
+    const liveSessionRef = useMemoFirebase(() => {
+        if (!streamId) return null;
+        return doc(firestore, 'liveSessions', streamId);
+    }, [firestore, streamId]);
+    const { data: liveSession, isLoading } = useDoc<LiveSession>(liveSessionRef);
+
+    if (isLoading) {
+        return (
+             <MainLayout>
+                <div className="h-screen w-screen flex items-center justify-center bg-black">
+                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                </div>
+            </MainLayout>
+        )
+    }
+
+    if (!liveSession) {
+         return (
+            <MainLayout>
+                <div className="h-screen w-screen flex items-center justify-center bg-black text-white">
+                    <p>Live stream not found or has ended.</p>
+                </div>
+            </MainLayout>
+        )
+    }
+    
+    return (
+        <MainLayout>
+            <div className="h-screen w-screen bg-black">
+                <BuyerVideoCard liveSession={liveSession} onScroll={() => {}} isIntersecting={true} />
+            </div>
+        </MainLayout>
+    );
+}
