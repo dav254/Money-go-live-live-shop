@@ -55,6 +55,7 @@ import {
   XCircle,
   BadgeCent,
   RefreshCw,
+  Video,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,7 @@ import { formatDistanceToNow, addDays, isPast } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string, value: string, icon: React.ElementType, isLoading?: boolean }) => (
     <Card>
@@ -84,25 +86,37 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [caption, setCaption] = React.useState('');
     const [durationDays, setDurationDays] = React.useState(3);
-    const [videoUrl, setVideoUrl] = React.useState<string | null>(null);
-    const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+    const [selectedVideo, setSelectedVideo] = React.useState<{ productId: string, videoUrl: string, productName: string } | null>(null);
     const [age, setAge] = React.useState('18-35');
     const [counties, setCounties] = React.useState('');
     const [interests, setInterests] = React.useState('');
     const firestore = useFirestore();
     
-    const selectedProduct = products.find(p => p.id === selectedProductId);
-
+    const allVideos = React.useMemo(() => {
+        return products.flatMap(p => 
+            (p.videoUrls || (p.videoUrl ? [p.videoUrl] : [])).map(url => ({
+                productId: p.id,
+                productName: p.name,
+                videoUrl: url
+            }))
+        );
+    }, [products]);
+    
     const pointsCost = durationDays * 100;
     const hasEnoughPoints = (userProfile?.aiPoints || 0) >= pointsCost;
 
-    React.useEffect(() => {
-        setVideoUrl(null);
-    }, [selectedProductId]);
+    const resetForm = () => {
+        setCaption('');
+        setDurationDays(3);
+        setSelectedVideo(null);
+        setAge('18-35');
+        setCounties('');
+        setInterests('');
+    };
     
     const handleSubmit = async () => {
-        if (!videoUrl || !user || !selectedProductId || !firestore) {
-            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select a product and a video.' });
+        if (!selectedVideo || !user || !firestore) {
+            toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select a video to boost.' });
             return;
         }
         if (!hasEnoughPoints) {
@@ -116,9 +130,9 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
         try {
             const boostRequestData = {
                 sellerId: user.uid,
-                productId: selectedProductId,
-                videoUrl: videoUrl,
-                caption: caption,
+                productId: selectedVideo.productId,
+                videoUrl: selectedVideo.videoUrl,
+                caption: caption || `Check out this amazing product: ${selectedVideo.productName}`,
                 durationDays: durationDays,
                 pointsPaid: pointsCost,
                 target: {
@@ -141,15 +155,15 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                   requestResourceData: boostRequestData,
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                throw permissionError; // Rethrow to be caught by the outer catch block
+                throw permissionError;
             });
-
 
             toast({ title: 'Success!', description: 'Your boost request has been submitted for approval.' });
             if (typeof onBoostCreated === 'function') {
                 onBoostCreated();
             }
-            setIsOpen(false); 
+            setIsOpen(false);
+            resetForm();
 
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
@@ -160,7 +174,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
 
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(!open) resetForm(); }}>
             <DialogTrigger asChild>
                 <Button><PlusCircle className="mr-2 h-4 w-4" /> Create TikTok Boost</Button>
             </DialogTrigger>
@@ -174,41 +188,37 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                 <div className="space-y-4 py-4">
                     
                     <div className="space-y-2">
-                        <Label>1. Choose a Product</Label>
-                        <Select onValueChange={setSelectedProductId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a product..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {products.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                        {p.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Label>1. Choose a Video to Boost</Label>
+                        {products.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">You have no products to create boosts for.</p>
+                        ) : allVideos.length === 0 ? (
+                             <p className="text-sm text-muted-foreground">None of your products have videos. Upload one from the Products tab.</p>
+                        ) : (
+                            <ScrollArea className="h-48">
+                                <div className="grid grid-cols-3 gap-2 pr-4">
+                                    {allVideos.map((video, index) => (
+                                        <button 
+                                            key={index} 
+                                            onClick={() => setSelectedVideo(video)} 
+                                            className={cn('relative aspect-video rounded-md overflow-hidden border-2 group', selectedVideo?.videoUrl === video.videoUrl ? 'border-primary ring-2 ring-primary' : 'border-transparent')}>
+                                            <video src={video.videoUrl} className="w-full h-full object-cover" muted />
+                                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Video className="h-6 w-6 text-white/70" />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        )}
                     </div>
                     
-                    {selectedProduct && selectedProduct.videoUrls && selectedProduct.videoUrls.length > 0 && (
-                        <div className="space-y-2">
-                             <Label>2. Select a Video</Label>
-                             <div className="grid grid-cols-3 gap-2">
-                                 {selectedProduct.videoUrls.map((url, index) => (
-                                     <button key={index} onClick={() => setVideoUrl(url)} className={`relative aspect-video rounded-md overflow-hidden border-2 ${videoUrl === url ? 'border-primary' : 'border-transparent'}`}>
-                                         <video src={url} className="w-full h-full object-cover" muted />
-                                     </button>
-                                 ))}
-                             </div>
-                        </div>
-                    )}
-
                     <div className="space-y-2">
-                        <Label htmlFor="caption">3. Ad Caption</Label>
+                        <Label htmlFor="caption">2. Ad Caption</Label>
                         <Textarea id="caption" placeholder="e.g., 'Check out our new summer collection! #summerfashion'" value={caption} onChange={(e) => setCaption(e.target.value)} />
                     </div>
                     
                     <div className="space-y-2">
-                        <Label>4. Targeting Options</Label>
+                        <Label>3. Targeting Options</Label>
                         <div className="grid grid-cols-2 gap-4">
                             <Select value={age} onValueChange={setAge}>
                                 <SelectTrigger>
@@ -227,7 +237,7 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                     </div>
 
                     <div className="space-y-2">
-                        <Label>5. Campaign Duration</Label>
+                        <Label>4. Campaign Duration</Label>
                         <Select value={String(durationDays)} onValueChange={(val) => setDurationDays(Number(val))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Choose a duration..." />
@@ -261,8 +271,8 @@ const CreateBoostDialog = ({ products, onBoostCreated, userProfile }: { products
                     )}
                 </div>
                 <DialogFooter>
-                    <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                    <Button onClick={handleSubmit} disabled={isSubmitting || !videoUrl || !selectedProductId || !hasEnoughPoints}>
+                    <Button type="button" variant="ghost" onClick={() => { setIsOpen(false); resetForm(); }}>Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={isSubmitting || !selectedVideo || !hasEnoughPoints}>
                         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                         Submit for Approval ({pointsCost} Points)
                     </Button>
@@ -443,9 +453,8 @@ export default function SellerAdsPage() {
             }
             const updatedBoost = await response.json();
             
-            // Update local state
             setCampaigns(prev => prev.map(c => c.id === boostId ? updatedBoost : c));
-            setSelectedBoost(updatedBoost); // Also update the selected boost if it's being viewed
+            setSelectedBoost(updatedBoost);
             toast({ title: "Stats Updated!", description: "Latest analytics have been fetched." });
 
         } catch (error: any) {
