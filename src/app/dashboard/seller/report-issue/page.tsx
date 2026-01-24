@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useSearchParams } from 'next/navigation';
@@ -14,15 +13,21 @@ import { ShieldAlert, Upload, HelpCircle, User, Package, Bug, File as FileIcon, 
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { createComplaint } from '@/app/actions/complaint-actions';
+import { useUser } from '@/firebase';
 
 function ReportIssueForm() {
     const searchParams = useSearchParams();
     const issueType = searchParams.get('type') || 'bug';
     const { toast } = useToast();
+    const { user } = useUser();
     const [files, setFiles] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [subject, setSubject] = useState('');
+    const [description, setDescription] = useState('');
+    const [targetId, setTargetId] = useState('');
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -82,26 +87,43 @@ function ReportIssueForm() {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        // In a real app, you would gather form data here.
+        if (!user) {
+            toast({ variant: 'destructive', title: 'You must be logged in to submit a report.'});
+            return;
+        }
+        if (!subject || !description) {
+            toast({ variant: 'destructive', title: 'Please fill out all required fields.' });
+            return;
+        }
+        
         setIsUploading(true);
-        toast({ title: 'Submitting Report...', description: 'Please wait while we upload your files.' });
+        toast({ title: 'Submitting Report...', description: 'Please wait.' });
 
         try {
-            const uploadPromises = files.map(file => uploadToCloudinary(file));
-            const uploadedFiles = await Promise.all(uploadPromises);
+            const uploadedFileUrls = (await Promise.all(files.map(file => uploadToCloudinary(file)))).map(f => f.url);
 
-            // Now you have the URLs of the uploaded files in `uploadedFiles`.
-            // You can now submit these URLs along with the rest of the form data to your backend.
-            console.log('Uploaded files:', uploadedFiles);
+            const payload = {
+                complainantId: user.uid,
+                targetId: issueType === 'bug' ? 'system' : targetId,
+                targetType: issueType === 'bug' ? 'system' : (issueType === 'order' ? 'product' : 'user'),
+                reason: subject,
+                description,
+                orderId: issueType === 'order' ? targetId : undefined,
+                uploadedFileUrls,
+            };
 
-            toast({ title: 'Report Submitted', description: 'Thank you for your feedback. Our team will review it shortly.' });
-            // Reset form state
-            setFiles([]);
-            setUploadProgress({});
-            // Potentially reset other form fields as well.
-        } catch (error) {
+            const result = await createComplaint(payload as any);
+
+            if (result.success) {
+                toast({ title: 'Report Submitted', description: 'Thank you for your feedback. Our team will review it shortly.' });
+                setFiles([]);
+                setUploadProgress({});
+            } else {
+                throw new Error(result.error || 'Failed to submit report.');
+            }
+        } catch (error: any) {
             console.error("Error submitting report:", error);
-            toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not upload your files. Please try again.' });
+            toast({ variant: 'destructive', title: 'Submission Failed', description: error.message || 'Could not submit your report. Please try again.' });
         } finally {
             setIsUploading(false);
         }

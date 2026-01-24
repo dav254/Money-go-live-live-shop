@@ -207,10 +207,10 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/assist-boost')}>
-              <Link href="/dashboard/seller/assist-boost">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ads')}>
+              <Link href="/dashboard/seller/ads">
                 <Megaphone />
-                <span>Assist Boost</span>
+                <span>TikTok Boosts</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
