@@ -85,7 +85,7 @@ const HomePageContent = () => {
           <div className="container" style={{ position: 'relative', zIndex: 10, padding: '0 1rem', textAlign: 'center' }}>
             <div className="glass-card-strong cyber-border animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 500, marginBottom: '2rem' }}>
               <Sparkles style={{ width: '1rem', height: '1rem', color: 'hsl(55, 100%, 50%)' }} />
-              <span className="font-cyber" style={{ letterSpacing: '0.05em' }}>THE FUTURE OF AFRICAN COMMERCE</span>
+              <span className="font-cyber" style={{ letterSpacing: '0.05em' }}>THE FUTURE OF SOCIAL COMMERCE</span>
               <Globe className="animate-spin-slow" style={{ width: '1rem', height: '1rem', color: 'hsl(200, 100%, 55%)' }} />
             </div>
 
@@ -210,17 +210,20 @@ const HomePageContent = () => {
               <Heart style={{ width: '1rem', height: '1rem' }} />
               <span className="font-cyber">OUR PROMISE</span>
             </div>
+
             <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
-              Built for <span className="text-gradient">African Entrepreneurs</span>
+              Built for <span className="text-gradient">Entrepreneurs Everywhere</span>
             </h2>
+
             <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              GoEarn was built for the real hustlers of Africa. Your feedback shapes every update, every feature.
+              GoEarn was built for the real hustlers of the world. Your feedback shapes every update, every feature.
             </p>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem', maxWidth: '56rem', margin: '0 auto' }}>
               {[
                 { icon: Users, title: "Community First", description: "Every feature built on seller feedback" },
                 { icon: Handshake, title: "We Grow Together", description: "Your success is our success" },
-                { icon: Heart, title: "We Win Together", description: "A platform by Africans, for Africans" }
+                { icon: Heart, title: "We Win Together", description: "A platform for entrepreneurs, by entrepreneurs" }
               ].map((item, index) => (
                 <div key={index} style={{ textAlign: 'center' }}>
                   <div className="gradient-hero" style={{ width: '5rem', height: '5rem', borderRadius: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', boxShadow: '0 15px 40px rgba(0,0,0,0.4)' }}>
@@ -279,7 +282,7 @@ const HomePageContent = () => {
               Ready to Grow With<br /><span className="text-gradient glow-text">GoEarn</span>?
             </h2>
             <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              Join thousands of African entrepreneurs transforming their passion into profit.
+              Join thousands of global entrepreneurs transforming their passion into profit.
               <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}>The future of commerce starts now.</span>
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'center', alignItems: 'center', marginBottom: '3rem' }}>

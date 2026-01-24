@@ -17,7 +17,7 @@ export function LandingFooter() {
                 <span className="font-cyber text-gradient" style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.05em' }}>GoEarn</span>
               </Link>
               <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
-                Africa's next-generation social commerce platform. Where videos become income.
+                The world's next-generation social commerce platform. Where videos become income.
               </p>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
@@ -74,7 +74,7 @@ export function LandingFooter() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Made with</span>
               <Heart style={{ width: '1rem', height: '1rem', color: 'hsl(270, 100%, 65%)', fill: 'hsl(270, 100%, 65%)' }} />
-              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>in Africa</span>
+              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>for the World</span>
               <Globe className="animate-spin-slow" style={{ width: '1rem', height: '1rem', color: 'hsl(200, 100%, 55%)' }} />
             </div>
           </div>
