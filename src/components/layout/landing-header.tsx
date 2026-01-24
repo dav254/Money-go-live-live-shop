@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -11,10 +10,9 @@ export function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { label: "Features", href: "/features" },
-    { label: "How It Works", href: "/how-it-works" },
-    { label: "Pricing", href: "/pricing" },
-    { label: "For Sellers", href: "/dashboard/seller/about" }
+    { label: "Features", href: "/#features" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "For Sellers", href: "/#for-sellers" }
   ];
 
   return (
@@ -57,7 +55,7 @@ export function LandingHeader() {
         <div className="md:hidden animate-fade-in border-t border-white/5">
           <div className="container mx-auto px-4 py-6 flex flex-col gap-4">
             {navItems.map((item) => (
-              <Link key={item.label} href={item.href} className="text-muted-foreground hover:text-foreground transition-colors py-2">
+              <Link key={item.label} href={item.href} className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsMenuOpen(false)}>
                 {item.label}
               </Link>
             ))}
