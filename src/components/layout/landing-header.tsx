@@ -10,14 +10,14 @@ export function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { label: "Features", href: "/#features" },
+    { label: "Features", href: "/features" },
     { label: "How It Works", href: "/#how-it-works" },
     { label: "For Sellers", href: "/login" },
     { label: "For Resellers", href: "/login" }
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-xl border-b border-white/5">
+    <header className="sticky top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-xl border-b border-white/5">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3">

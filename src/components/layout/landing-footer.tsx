@@ -7,7 +7,7 @@ import { Logo } from '../logo';
 export function LandingFooter() {
   const quickLinks = [
     { label: "Home", href: "/" },
-    { label: "Features", href: "/#features" },
+    { label: "Features", href: "/features" },
     { label: "How It Works", href: "/#how-it-works" },
     { label: "For Sellers", href: "/login" },
     { label: "For Resellers", href: "/login" },
