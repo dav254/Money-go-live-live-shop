@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -210,7 +211,7 @@ export default function BuyerDashboardPage() {
             {isLoadingSellers ? <SellerCarouselSkeleton /> : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {liveSellers?.map((seller) => (
-                    <Link href={`/buyer/live/${seller.streamId}`} key={seller.streamId}>
+                    <Link href={`/sellers/${seller.streamId}`} key={seller.streamId}>
                         <Card className="group relative h-40 overflow-hidden">
                         <Image
                             src={`https://picsum.photos/seed/${seller.streamId}/600/400`}
