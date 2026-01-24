@@ -9,201 +9,6 @@ import {
   Twitter, Instagram, Youtube, Mail, Phone, Globe, Cpu, Layers, MapPin
 } from "lucide-react";
 
-// ===== EMBEDDED CSS STYLES =====
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Sora:wght@300;400;500;600;700;800&display=swap');
-  
-  :root {
-    --background: 240 20% 4%;
-    --foreground: 0 0% 98%;
-    --primary: 24 100% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 174 85% 40%;
-    --secondary-foreground: 0 0% 100%;
-    --accent: 320 100% 60%;
-    --gold: 45 100% 55%;
-    --gold-foreground: 0 0% 5%;
-    --neon-pink: 320 100% 60%;
-    --neon-green: 155 100% 50%;
-    --neon-blue: 200 100% 55%;
-    --neon-purple: 270 100% 65%;
-    --cyber-yellow: 55 100% 50%;
-    --dark-bg: 240 20% 4%;
-    --dark-card: 240 15% 8%;
-    --gradient-hero: linear-gradient(135deg, hsl(24, 100%, 55%) 0%, hsl(320, 100%, 60%) 50%, hsl(270, 100%, 65%) 100%);
-  }
-  
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  
-  body {
-    font-family: 'Sora', sans-serif;
-    background: hsl(240, 20%, 4%);
-    color: hsl(0, 0%, 98%);
-    -webkit-font-smoothing: antialiased;
-  }
-  
-  .font-cyber { font-family: 'Orbitron', sans-serif; }
-  .font-sora { font-family: 'Sora', sans-serif; }
-  
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(24, 100%, 55%) 0%, hsl(320, 100%, 60%) 50%, hsl(270, 100%, 65%) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .text-gradient-cyber {
-    background: linear-gradient(135deg, hsl(200, 100%, 55%) 0%, hsl(155, 100%, 50%) 50%, hsl(320, 100%, 60%) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .gradient-hero {
-    background: linear-gradient(135deg, hsl(24, 100%, 55%) 0%, hsl(320, 100%, 60%) 50%, hsl(270, 100%, 65%) 100%);
-  }
-  
-  .gradient-primary {
-    background: linear-gradient(135deg, hsl(24, 100%, 55%) 0%, hsl(45, 100%, 55%) 100%);
-  }
-  
-  .glass-card {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  
-  .glass-card-strong {
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
-  
-  .cyber-border {
-    position: relative;
-  }
-  .cyber-border::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    padding: 1px;
-    border-radius: inherit;
-    background: linear-gradient(135deg, hsl(24, 100%, 55%), hsl(320, 100%, 60%), hsl(200, 100%, 55%), hsl(155, 100%, 50%));
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-  }
-  
-  .glow-primary {
-    box-shadow: 0 0 60px hsla(24, 100%, 55%, 0.5);
-  }
-  
-  .glow-text {
-    text-shadow: 0 0 40px hsla(24, 100%, 55%, 0.6);
-  }
-  
-  .cyber-grid {
-    background-image: 
-      linear-gradient(rgba(0, 200, 255, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 200, 255, 0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
-  }
-  
-  @keyframes float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(2deg); } }
-  @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px hsla(24, 100%, 55%, 0.4); } 50% { box-shadow: 0 0 60px hsla(24, 100%, 55%, 0.8), 0 0 100px hsla(320, 100%, 60%, 0.4); } }
-  @keyframes slide-up { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes aurora { 0%, 100% { opacity: 0.5; transform: translateX(-10%) translateY(-10%) rotate(0deg) scale(1); } 50% { opacity: 0.6; transform: translateX(10%) translateY(-5%) rotate(180deg) scale(1); } }
-  @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes bounce-subtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-  
-  .animate-float-slow { animation: float 10s ease-in-out infinite; }
-  .animate-aurora { animation: aurora 15s ease-in-out infinite; }
-  .animate-slide-up { animation: slide-up 0.6s ease-out forwards; }
-  .animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
-  .animate-spin-slow { animation: spin-slow 20s linear infinite; }
-  .animate-bounce-subtle { animation: bounce-subtle 2s ease-in-out infinite; }
-  .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-  
-  .container { width: 100%; max-width: 1280px; margin: 0 auto; }
-  
-  .btn-hero {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem 2.5rem;
-    font-size: 1.125rem;
-    font-weight: 700;
-    border-radius: 1rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: linear-gradient(135deg, hsl(24, 100%, 55%) 0%, hsl(45, 100%, 55%) 100%);
-    color: white;
-    box-shadow: 0 0 60px hsla(24, 100%, 55%, 0.5);
-  }
-  .btn-hero:hover { transform: scale(1.05); }
-  
-  .btn-hero-outline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem 2.5rem;
-    font-size: 1.125rem;
-    font-weight: 600;
-    border-radius: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(10px);
-  }
-  .btn-hero-outline:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
-  
-  .btn-gold {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem 2.5rem;
-    font-size: 1.125rem;
-    font-weight: 700;
-    border-radius: 1rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: hsl(45, 100%, 55%);
-    color: hsl(0, 0%, 5%);
-    box-shadow: 0 0 60px hsla(45, 100%, 55%, 0.5);
-  }
-  .btn-gold:hover { transform: scale(1.05); }
-  
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 0.75rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.7);
-  }
-  .btn-ghost:hover { color: white; background: rgba(255, 255, 255, 0.05); }
-  
-  .btn-sm {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-`;
-
 const Index = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -280,7 +85,6 @@ const Index = () => {
 
   return (
     <>
-      <style>{styles}</style>
       <main style={{ minHeight: '100vh', overflowX: 'hidden', background: 'hsl(240, 20%, 4%)', color: 'hsl(0, 0%, 98%)' }}>
         <BackgroundEffects />
 
@@ -295,7 +99,7 @@ const Index = () => {
                 <span className="font-cyber text-gradient" style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '0.05em' }}>GoEarn</span>
               </div>
 
-              <div style={{ display: 'none', alignItems: 'center', gap: '2rem' }} className="nav-links md:flex">
+              <div className="hidden md:flex" style={{ alignItems: 'center', gap: '2rem' }}>
                 {["Features", "How It Works", "Pricing", "For Sellers"].map((item) => (
                   <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: '0.875rem', fontWeight: 500, transition: 'color 0.3s' }}>
                     {item}
@@ -303,7 +107,7 @@ const Index = () => {
                 ))}
               </div>
 
-              <div style={{ display: 'none', alignItems: 'center', gap: '0.75rem' }} className="nav-buttons md:flex">
+              <div className="hidden md:flex" style={{ alignItems: 'center', gap: '0.75rem' }}>
                 <button className="btn-ghost">Log In</button>
                 <button className="btn-hero btn-sm font-cyber">Start Selling</button>
               </div>
