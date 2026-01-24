@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -206,10 +207,10 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ads')}>
-              <Link href="/dashboard/seller/ads">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/assist-boost')}>
+              <Link href="/dashboard/seller/assist-boost">
                 <Megaphone />
-                <span>TikTok Boost</span>
+                <span>Assist Boost</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
