@@ -11,7 +11,7 @@ import { ProductDrawer } from '@/components/feed/product-drawer';
 import { CommentDrawer } from '@/components/feed/comment-drawer';
 import { ProductInfo } from '@/components/live/product-info';
 import { Loader2 } from 'lucide-react';
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
