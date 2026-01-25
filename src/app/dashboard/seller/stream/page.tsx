@@ -46,7 +46,7 @@ export default function SellerStudioPage() {
             <div className="flex-1 space-y-8 p-8 pt-6">
                 <div className="space-y-2">
                     <h1 className="font-headline text-3xl font-bold tracking-tight">
-                        Seller Studio
+                        Video Content Studio
                     </h1>
                     <p className="text-lg text-muted-foreground">
                         Create professional, shoppable videos that sell.
