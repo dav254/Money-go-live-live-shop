@@ -106,10 +106,10 @@ const HomePageContent = () => {
                 <span>Start Selling Now</span>
                 <ArrowRight style={{ width: '1.25rem', height: '1.25rem' }} />
               </Link>
-              <button className="btn-hero-outline cyber-border" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* <button className="btn-hero-outline cyber-border" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Play style={{ width: '1.25rem', height: '1.25rem', color: 'hsl(270, 100%, 65%)' }} />
                 <span>Watch Demo</span>
-              </button>
+              </button> */}
             </div>
 
             <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', maxWidth: '64rem', margin: '0 auto', animationDelay: '0.4s' }}>
@@ -324,3 +324,5 @@ export default function HomePage() {
     </LandingLayout>
   )
 }
+
+    
