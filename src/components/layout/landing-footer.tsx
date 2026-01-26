@@ -18,11 +18,8 @@ export function LandingFooter() {
         <div className="container" style={{ padding: '0 1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '3rem', marginBottom: '4rem' }}>
             <div>
-              <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', textDecoration: 'none' }}>
-                <div className="gradient-hero" style={{ width: '3rem', height: '3rem', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="font-cyber" style={{ fontWeight: 700, fontSize: '1.5rem' }}>G</span>
-                </div>
-                <span className="font-cyber text-gradient" style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.05em' }}>GoEarn</span>
+              <Link href="/" className="block mb-6">
+                <Logo className="h-12 w-auto" />
               </Link>
               <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
                 The world's next-generation social commerce platform. Where videos become income.
