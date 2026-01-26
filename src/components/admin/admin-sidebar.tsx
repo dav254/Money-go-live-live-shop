@@ -191,7 +191,6 @@ export function AdminSidebar() {
             { href: 'tickets', label: 'Support Tickets' },
             { href: 'chat-logs', label: 'Chat Logs' },
             { href: 'complaints', label: 'Resolve Complaints' },
-            { href: 'violations', label: 'Reports & Violations' },
           ]}
         />
 
