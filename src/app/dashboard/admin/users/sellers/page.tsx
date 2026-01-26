@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -63,7 +62,7 @@ type SellerRow = {
   totalSales: number; // Placeholder
   productCount: number; // Placeholder
   status: 'active' | 'pending' | 'suspended';
-  verified: boolean; // Placeholder
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
   avatarUrl?: string;
   aiPoints: number;
 };
@@ -174,6 +173,25 @@ export default function AdminSellersPage() {
   }, [firestore]);
 
   const { data: sellersData, isLoading } = useCollection<UserProfile>(sellersQuery);
+  
+  const handleVerificationUpdate = async (userId: string, newStatus: 'verified' | 'rejected') => {
+    if (!firestore) return;
+    const userRef = doc(firestore, 'userProfiles', userId);
+    try {
+      await updateDoc(userRef, { verificationStatus: newStatus });
+      toast({
+        title: 'Verification Status Updated',
+        description: `User has been ${newStatus}.`,
+      });
+    } catch (error) {
+       errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: userRef.path,
+        operation: 'update',
+        requestResourceData: { verificationStatus: newStatus }
+      }));
+    }
+  };
+
 
   const handleStatusUpdate = async (userId: string, newStatus: 'active' | 'suspended') => {
     if (!firestore) return;
@@ -215,7 +233,7 @@ export default function AdminSellersPage() {
       totalSales: 0, // Placeholder
       productCount: 0, // Placeholder
       status: profile.status || 'active',
-      verified: profile.verificationStatus === 'verified',
+      verificationStatus: profile.verificationStatus,
       avatarUrl: profile.profilePictureUrl,
       aiPoints: profile.aiPoints || 0,
     }));
@@ -265,11 +283,17 @@ export default function AdminSellersPage() {
         cell: ({ row }) => <div className="text-center font-medium">{row.original.aiPoints.toLocaleString()}</div>,
     },
     {
-        accessorKey: 'verified',
+        accessorKey: 'verificationStatus',
         header: 'Verification',
         cell: ({ row }) => {
-            const verified = row.getValue('verified') as boolean;
-            return <Badge variant={verified ? 'default' : 'secondary'} className={verified ? 'bg-blue-600/80' : ''}>{verified ? 'Verified' : 'Not Verified'}</Badge>;
+            const status = row.original.verificationStatus;
+            if (status === 'verified') {
+                return <Badge variant="default" className="bg-blue-600/80">Verified</Badge>;
+            }
+            if (status === 'pending') {
+                return <Badge variant="secondary" className="bg-yellow-500/80">Pending</Badge>;
+            }
+            return <Badge variant="outline">Not Verified</Badge>;
         },
     },
     {
@@ -312,7 +336,24 @@ export default function AdminSellersPage() {
                                 setIsPointsDialogOpen(true);
                             }}>Manage Points</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>Freeze Payouts</DropdownMenuItem>
+                             <DropdownMenuLabel>Verification</DropdownMenuLabel>
+                            {seller.verificationStatus !== 'verified' && (
+                                <DropdownMenuItem className="text-green-600" onClick={() => handleVerificationUpdate(seller.id, 'verified')}>
+                                    Approve Verification
+                                </DropdownMenuItem>
+                            )}
+                            {seller.verificationStatus === 'verified' && (
+                                <DropdownMenuItem className="text-yellow-600" onClick={() => handleVerificationUpdate(seller.id, 'rejected')}>
+                                    Revoke Verification
+                                </DropdownMenuItem>
+                            )}
+                            {seller.verificationStatus !== 'rejected' && seller.verificationStatus !== 'verified' && (
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleVerificationUpdate(seller.id, 'rejected')}>
+                                    Reject Verification
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>Account Status</DropdownMenuLabel>
                             {seller.status !== 'suspended' ? (
                                 <DropdownMenuItem className="text-yellow-600" onClick={() => handleStatusUpdate(seller.id, 'suspended')}>
                                 Suspend Seller
@@ -343,7 +384,7 @@ export default function AdminSellersPage() {
             );
         },
     },
-    ], [handleDeleteSeller, toast, handleStatusUpdate]);
+    ], [handleDeleteSeller, toast, handleStatusUpdate, handleVerificationUpdate]);
 
 
   const table = useReactTable({
