@@ -434,7 +434,7 @@ export default function MyOrdersPage() {
              {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
           </TabsContent>
           <TabsContent value="pending" className="space-y-4">
-             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No pending orders.</p>}
+             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No pending orders. If you just paid, check the "Active" tab.</p>}
           </TabsContent>
            <TabsContent value="shipped" className="space-y-4">
              {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No orders have been shipped yet.</p>}
