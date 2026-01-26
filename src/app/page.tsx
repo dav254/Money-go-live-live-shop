@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from "react";
@@ -6,7 +7,8 @@ import {
   TrendingUp, Radio, Users, MessageCircle, Share2, CheckCircle, Send, 
   Clock, Heart, Package, Truck, RotateCcw, BarChart3, DollarSign, Eye, 
   ShoppingBag, Shield, Lock, CreditCard, User, Handshake, Menu, X, Facebook, 
-  Twitter, Instagram, Youtube, Mail, Phone, Globe, Cpu, Layers, MapPin
+  Twitter, Instagram, Youtube, Mail, Phone, Globe, Cpu, Layers, MapPin,
+  RadioTower, Bot
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -58,14 +60,14 @@ const HomePageContent = () => {
   ];
 
   const features = [
-    { icon: Video, title: "Video-First Commerce", description: "Videos convert 10× more than images", gradient: "gradient-hero" },
-    { icon: Radio, title: "Go Live & Sell", description: "Real-time engagement like TikTok", gradient: "gradient-hero" },
-    { icon: Users, title: "Reseller Network", description: "Let others sell for you, pay on success", gradient: "gradient-hero" },
-    { icon: MessageCircle, title: "Direct Chat", description: "Instant messaging with buyers", gradient: "gradient-hero" },
-    { icon: Package, title: "Order Management", description: "Track everything in one dashboard", gradient: "gradient-hero" },
-    { icon: BarChart3, title: "AI Analytics", description: "Smart insights to grow faster", gradient: "gradient-hero" },
-    { icon: CreditCard, title: "Fast Payouts", description: "Get paid within 24-48 hours", gradient: "gradient-hero" },
-    { icon: Shield, title: "Seller Protection", description: "Secure & trusted platform", gradient: "gradient-hero" },
+    { icon: Video, title: "Video-First Commerce", description: "Engage buyers with authentic product videos, proven to increase conversion and trust.", gradient: "gradient-hero" },
+    { icon: RadioTower, title: "Live Shopping", description: "Host real-time selling events, interact with customers, and drive sales through live engagement.", gradient: "gradient-hero" },
+    { icon: Share2, title: "Reseller Network", description: "Amplify your reach by enabling a network of resellers to promote your products for a commission.", gradient: "gradient-hero" },
+    { icon: Bot, title: "AI-Powered Toolkit", description: "Leverage AI for content generation, sales strategy, and video creation to stay ahead of the curve.", gradient: "gradient-hero" },
+    { icon: Layers, title: "Seamless Platform", description: "Manage products, orders, and payouts from a single, intuitive dashboard designed for growth.", gradient: "gradient-hero" },
+    { icon: Users, title: "Direct Communication", description: "Build relationships and answer questions instantly with built-in chat between buyers and sellers.", gradient: "gradient-hero" },
+    { icon: CreditCard, title: "Fast & Secure Payouts", description: "Get your earnings quickly and securely through integrated payment and payout systems.", gradient: "gradient-hero" },
+    { icon: Shield, title: "Trusted & Secure", description: "Built on a secure foundation with seller verification and fraud detection to protect everyone.", gradient: "gradient-hero" },
   ];
 
   const roadmapSteps = [
@@ -180,7 +182,7 @@ const HomePageContent = () => {
             </div>
           </div>
         </Section>
-        <Section style={{ background: 'linear-gradient(to bottom, hsl(240, 20%, 4%), rgba(168, 85, 247, 0.05), hsl(240, 20%, 4%))' }}>
+        <Section style={{ background: 'linear-gradient(to bottom, hsl(240, 20%, 4%), rgba(59, 130, 246, 0.05), hsl(240, 20%, 4%))' }}>
           <div className="container" style={{ padding: '0 1rem', textAlign: 'center' }}>
             <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
               Why Sellers <span className="text-gradient">Love</span> GoEarn
