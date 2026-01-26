@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -25,6 +24,14 @@ const tools = [
     cta: 'Use Generator',
     points: 25,
     isTab: true,
+  },
+  {
+    title: 'AI Caption Generator',
+    description: 'Generate viral captions for TikTok, Instagram, and Facebook to boost engagement.',
+    icon: Sparkles,
+    href: '/dashboard/seller/ai-tools/caption-generator',
+    cta: 'Generate Caption',
+    points: 50,
   },
   {
     title: 'AI Live Selling Co-Pilot',

@@ -129,7 +129,7 @@ export default function CaptionGeneratorPage() {
                   />
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Generate Caption
+                    Generate Caption (50 Points)
                   </Button>
                 </form>
               </Form>
