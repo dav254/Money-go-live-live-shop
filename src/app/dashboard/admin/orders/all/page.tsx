@@ -46,7 +46,20 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -57,8 +70,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { Truck, Calendar, User, ShoppingCart, DollarSign, Home, Milestone, Camera } from 'lucide-react';
+import { Truck, Calendar, User, ShoppingCart, DollarSign, Home, Milestone, Camera, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { Label } from '@/components/ui/label';
 
 const DataTableSkeleton = () => (
     <div className="rounded-md border">
@@ -87,6 +101,7 @@ const getStatusBadge = (status: Order['orderStatus']) => {
         pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
         cancelled: { label: 'Cancelled', variant: 'destructive' as 'destructive' },
         disputed: { label: 'Disputed', variant: 'destructive' as 'destructive', className: 'bg-orange-500/80' },
+        refunded: { label: 'Refunded', variant: 'destructive' as 'destructive', className: 'bg-gray-500/80' },
     };
     const currentConfig = config[status] || { label: 'Unknown', className: 'bg-gray-400' };
 
@@ -183,6 +198,44 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
     );
 };
 
+const RefundDialog = ({ order, isOpen, onOpenChange, onConfirm }: { order: Order | null; isOpen: boolean; onOpenChange: (open: boolean) => void; onConfirm: (reason: string) => void }) => {
+    const [reason, setReason] = React.useState('');
+    const [isRefunding, setIsRefunding] = React.useState(false);
+
+    if (!order) return null;
+
+    const handleConfirm = async () => {
+        setIsRefunding(true);
+        await onConfirm(reason);
+        setIsRefunding(false);
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Issue Refund for Order #{order.id.substring(0, 6)}?</DialogTitle>
+                    <DialogDescription>
+                        This will reverse the transaction and update the order status to 'refunded'. This action cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Label htmlFor="refund-reason">Reason for Refund (Optional)</Label>
+                    <Input id="refund-reason" placeholder="e.g., Customer request" value={reason} onChange={(e) => setReason(e.target.value)} />
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={handleConfirm} disabled={isRefunding}>
+                        {isRefunding && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Confirm Refund
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 
 export default function AdminAllOrdersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -190,6 +243,8 @@ export default function AdminAllOrdersPage() {
   const [rowSelection, setRowSelection] = React.useState({});
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = React.useState(false);
+  
   const { toast } = useToast();
   
   const firestore = useFirestore();
@@ -198,7 +253,6 @@ export default function AdminAllOrdersPage() {
   const isAdmin = userProfile?.userRole === 'admin';
 
   const ordersQuery = useMemoFirebase(() => {
-    // Only fetch if the user is a confirmed admin
     if (!firestore || !isAdmin) return null;
     return query(collection(firestore, 'orders'));
   }, [firestore, isAdmin]);
@@ -223,6 +277,27 @@ export default function AdminAllOrdersPage() {
         toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
   };
+
+  const handleIssueRefund = async (reason: string) => {
+    if (!selectedOrder || !user) return;
+    
+    try {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/admin/orders/${selectedOrder.id}/refund`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ reason }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Failed to issue refund.');
+        
+        toast({ title: 'Refund Successful', description: result.message });
+        // Optionally, refetch data here or rely on real-time updates
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Refund Failed', description: error.message });
+    }
+  };
+
 
   const columns: ColumnDef<Order>[] = React.useMemo(() => [
     {
@@ -292,7 +367,9 @@ export default function AdminAllOrdersPage() {
                         </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">Issue Refund</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onSelect={() => { setSelectedOrder(row.original); setIsRefundDialogOpen(true);}}>
+                        Issue Refund
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
         ),
@@ -389,6 +466,7 @@ export default function AdminAllOrdersPage() {
           </div>
         </div>
         <OrderDetailsDialog order={selectedOrder} isOpen={isDetailsOpen} onOpenChange={setIsDetailsOpen} />
+        <RefundDialog order={selectedOrder} isOpen={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen} onConfirm={handleIssueRefund} />
       </div>
     </AdminLayout>
   );

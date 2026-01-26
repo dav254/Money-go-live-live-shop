@@ -213,7 +213,7 @@ export interface Order {
   totalAmount: number;
   orderDate: any; // Can be Timestamp or string
   shippingAddress: string;
-  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivery' | 'delivered' | 'cancelled' | 'disputed';
+  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivery' | 'delivered' | 'cancelled' | 'disputed' | 'refunded';
   paymentMethod: string;
   resellerId?: string;
   platformFee?: number;
@@ -473,4 +473,3 @@ export interface ResellActivity {
     sharedAt: Timestamp;
 }
     
-

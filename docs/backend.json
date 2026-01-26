@@ -543,7 +543,7 @@
         "orderStatus": {
           "type": "string",
           "description": "The current status of the order (e.g., pending, shipped, delivered, disputed).",
-          "enum": ["pending", "processing", "shipped", "delivery", "delivered", "cancelled", "disputed"]
+          "enum": ["pending", "processing", "shipped", "delivery", "delivered", "cancelled", "disputed", "refunded"]
         },
         "disputeReason": {
           "type": "string",
