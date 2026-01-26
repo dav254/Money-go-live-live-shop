@@ -66,7 +66,7 @@ export function LandingFooter() {
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {[
                   { icon: Mail, text: "hello@goearn.co.ke" },
-                  { icon: Phone, text: "+254 700 000 000" },
+                  { icon: Phone, text: "+254794598895" },
                   { icon: MapPin, text: "Nairobi, Kenya" },
                 ].map((item, index) => (
                   <li key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
