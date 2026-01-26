@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/firebase/server';
-import { writeBatch, collection, query, where, getDocs, doc } from 'firebase-admin/firestore';
+import { writeBatch, collection, query, where, getDocs, doc, addDoc, serverTimestamp } from 'firebase-admin/firestore';
 
 interface NotificationPayload {
     targetAudience: 'all' | 'buyers' | 'sellers' | 'resellers';
@@ -56,3 +56,33 @@ export async function sendBulkNotifications(payload: NotificationPayload): Promi
         return { success: false, error: 'Failed to send notifications. Check server logs.' };
     }
 }
+
+interface DirectNotificationPayload {
+    userId: string;
+    title: string;
+    message: string;
+    link?: string;
+}
+
+export async function sendDirectNotification(payload: DirectNotificationPayload): Promise<{ success: boolean; error?: string }> {
+    try {
+        const notificationRef = collection(db, 'notifications');
+        await addDoc(notificationRef, {
+            userId: payload.userId,
+            type: 'announcement',
+            title: payload.title,
+            message: payload.message,
+            link: payload.link || '',
+            status: 'unread',
+            timestamp: serverTimestamp(),
+        });
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error sending direct notification:", error);
+        return { success: false, error: 'Failed to send notification. Please check server logs.' };
+    }
+}
+
+    

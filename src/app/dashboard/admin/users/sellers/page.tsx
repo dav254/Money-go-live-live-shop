@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -52,6 +53,8 @@ import { Loader2 } from 'lucide-react';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { Textarea } from '@/components/ui/textarea';
+import { sendDirectNotification } from '@/app/actions/notification-actions';
 
 type SellerRow = {
   id: string;
@@ -156,12 +159,81 @@ const ManagePointsDialog = ({ user, isOpen, onOpenChange }: { user: SellerRow | 
     );
 };
 
+const SendNotificationDialog = ({ user, isOpen, onOpenChange }: { user: SellerRow | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) => {
+    const { toast } = useToast();
+    const [title, setTitle] = React.useState('');
+    const [message, setMessage] = React.useState('');
+    const [isSending, setIsSending] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!isOpen) {
+            setTitle('');
+            setMessage('');
+        }
+    }, [isOpen]);
+
+    if (!user) return null;
+
+    const handleSend = async () => {
+        if (!title || !message) {
+            toast({ variant: 'destructive', title: 'Title and message are required.' });
+            return;
+        }
+        setIsSending(true);
+        try {
+            const result = await sendDirectNotification({
+                userId: user.id,
+                title,
+                message,
+            });
+            if (result.success) {
+                toast({ title: 'Notification Sent!', description: `A notification has been sent to ${user.ownerName}.` });
+                onOpenChange(false);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Failed to Send', description: error.message });
+        } finally {
+            setIsSending(false);
+        }
+    };
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Send Notification to {user.ownerName}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="notif-title">Title</Label>
+                        <Input id="notif-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Welcome!" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="notif-message">Message</Label>
+                        <Textarea id="notif-message" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Your message here..." />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSend} disabled={isSending}>
+                        {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Send Notification
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 
 export default function AdminSellersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
   const [isPointsDialogOpen, setIsPointsDialogOpen] = React.useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<SellerRow | null>(null);
   
   const firestore = useFirestore();
@@ -221,6 +293,11 @@ export default function AdminSellersPage() {
       }));
     }
   };
+
+  const handleSendNotification = React.useCallback((user: SellerRow) => {
+    setSelectedUser(user);
+    setIsNotificationDialogOpen(true);
+  }, []);
 
   const data: SellerRow[] = React.useMemo(() => {
     if (!sellersData) return [];
@@ -293,6 +370,9 @@ export default function AdminSellersPage() {
             if (status === 'pending') {
                 return <Badge variant="secondary" className="bg-yellow-500/80">Pending</Badge>;
             }
+             if (status === 'rejected') {
+                return <Badge variant="destructive">Rejected</Badge>;
+            }
             return <Badge variant="outline">Not Verified</Badge>;
         },
     },
@@ -335,6 +415,7 @@ export default function AdminSellersPage() {
                                 setSelectedUser(seller);
                                 setIsPointsDialogOpen(true);
                             }}>Manage Points</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleSendNotification(seller)}>Send Notification</DropdownMenuItem>
                             <DropdownMenuSeparator />
                              <DropdownMenuLabel>Verification</DropdownMenuLabel>
                             {seller.verificationStatus !== 'verified' && (
@@ -384,7 +465,7 @@ export default function AdminSellersPage() {
             );
         },
     },
-    ], [handleDeleteSeller, toast, handleStatusUpdate, handleVerificationUpdate]);
+    ], [handleDeleteSeller, toast, handleStatusUpdate, handleVerificationUpdate, handleSendNotification]);
 
 
   const table = useReactTable({
@@ -475,8 +556,11 @@ export default function AdminSellersPage() {
             </Button>
           </div>
            <ManagePointsDialog user={selectedUser} isOpen={isPointsDialogOpen} onOpenChange={setIsPointsDialogOpen} />
+           <SendNotificationDialog user={selectedUser} isOpen={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen} />
         </div>
       </div>
     </AdminLayout>
   );
 }
+
+    

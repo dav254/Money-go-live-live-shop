@@ -8,12 +8,15 @@ service cloud.firestore {
     match /userProfiles/{userId} {
       allow read: if true;
       allow list: if request.auth != null && request.query.where[0][0] == 'referredBy' && request.query.where[0][2] == request.auth.uid;
-      // Allow user to update their own profile, OR an admin/backend function to update specific fields.
+      // Allow user to update their own profile, OR an admin to update specific fields.
       allow update: if request.auth.uid == userId ||
-                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin') ||
+                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
                       // Allow backend functions to increment points for referrals
                       (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
       allow create: if request.auth.uid != null;
+      // Allow admins to delete users. Note: This does not delete their Auth account.
+      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
       
       // A user can only read and write to their own cart.
       match /cart/{productId} {
