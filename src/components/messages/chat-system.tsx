@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -125,7 +124,7 @@ export function ChatSystem() {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex h-[70vh] w-full overflow-hidden rounded-xl border bg-card shadow-lg">
       <div className={cn("w-full md:w-auto md:flex-shrink-0 transition-transform duration-300", selectedChat ? "-translate-x-full md:translate-x-0" : "translate-x-0")}>
         <ConversationList
             chats={chatsWithParticipants}
