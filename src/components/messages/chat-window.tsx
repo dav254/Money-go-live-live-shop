@@ -472,39 +472,74 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="bg-background p-4">
+      <div className="bg-transparent p-4">
         {uploadProgress !== null && (
-          <div className="mb-2">
+          <div className="mb-2 px-2">
             <Progress value={uploadProgress} className="h-1" />
           </div>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative flex items-center rounded-full bg-muted p-1 border">
-            <div className="flex items-center">
-                 <Button type="button" size="icon" variant="ghost" onClick={triggerFileSelect} disabled={uploadProgress !== null}>
-                    {uploadProgress !== null ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlusCircle className="h-5 w-5" />}
-                 </Button>
-                 <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} disabled={uploadProgress !== null} />
-                {isSeller && (
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button type="button" size="icon" variant="ghost" disabled={uploadProgress !== null}>
-                                <Package className="h-5 w-5" />
-                            </Button>
-                        </DialogTrigger>
-                        <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                    </Dialog>
-                )}
-            </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendTextMessage();
+          }}
+          className="relative flex items-center rounded-2xl bg-card p-2 border shadow-lg"
+        >
+          <div className="flex items-center">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={triggerFileSelect}
+              disabled={uploadProgress !== null}
+            >
+              {uploadProgress !== null ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <PlusCircle className="h-5 w-5" />
+              )}
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={uploadProgress !== null}
+            />
+            {isSeller && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    disabled={uploadProgress !== null}
+                  >
+                    <Package className="h-5 w-5" />
+                  </Button>
+                </DialogTrigger>
+                <ShareProductDialog
+                  sellerId={currentUser.uid}
+                  onShare={handleShareProduct}
+                />
+              </Dialog>
+            )}
+          </div>
           <Input
             placeholder="Type your message..."
-            className="flex-1 bg-transparent border-0 h-9 focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="flex-1 border-0 bg-transparent h-9 focus-visible:ring-0 focus-visible:ring-offset-0"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             disabled={uploadProgress !== null}
           />
           <div className="flex items-center">
-            <Button type="submit" size="icon" variant="ghost" disabled={uploadProgress !== null}>
-                <Send className="h-5 w-5" />
+            <Button
+              type="submit"
+              size="icon"
+              variant="default"
+              disabled={uploadProgress !== null}
+            >
+              <Send className="h-5 w-5" />
             </Button>
           </div>
         </form>
