@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -398,6 +399,7 @@ export default function SellerSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="shop-name">Shop Name</Label>
                   <Input id="shop-name" placeholder="e.g., Aisha's Handbags" value={shopName} onChange={(e) => setShopName(e.target.value)} />
+                  <p className="text-sm text-muted-foreground">This also serves as your public username.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="shop-description">Shop Description</Label>
@@ -417,6 +419,7 @@ export default function SellerSettingsPage() {
                                 {isUploading === 'logo' ? 'Uploading...' : <><UploadCloud className="mr-2" /> Upload Logo</>}
                             </Button>
                         )}
+                        <p className="text-sm text-muted-foreground">This is also your main profile picture across the platform.</p>
                     </div>
                      <div className="space-y-2">
                         <Label>Shop Banner (3:1 ratio)</Label>

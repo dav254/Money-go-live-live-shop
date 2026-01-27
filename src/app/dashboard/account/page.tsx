@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Languages, Lock, Bell, Palette, User, Settings, Loader2, ShieldCheck, LogOut } from 'lucide-react';
+import { Camera, Languages, Lock, Bell, Palette, User, Settings, Loader2, ShieldCheck, LogOut, Store } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -42,6 +42,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { File as FileIcon, X, UploadCloud } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -256,6 +257,8 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
     const avatarInputRef = React.useRef<HTMLInputElement>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+    const isSeller = userProfile?.userRole === 'seller';
+
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
       resolver: zodResolver(passwordFormSchema),
       defaultValues: { oldPassword: '', newPassword: '', confirmPassword: '' },
@@ -365,23 +368,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         };
 
         try {
-            const batch = writeBatch(firestore);
-
-            // If the user is a seller, also update their shop name to match their username.
-            if (userProfile?.userRole === 'seller') {
-                const sellerShopRef = doc(firestore, 'sellerShops', user.uid);
-                const shopUpdates = {
-                    shopName: values.username, // Syncing username to shop name
-                    logoUrl: avatarUrl // Syncing avatar to shop logo
-                };
-                batch.set(sellerShopRef, shopUpdates, { merge: true });
-                dataToUpdate.shopName = values.username;
-            }
-            
-            batch.update(userRef, dataToUpdate);
-
-            await batch.commit();
-
+            await updateDoc(userRef, dataToUpdate);
             toast({ title: 'Profile Updated!', description: 'Your changes have been saved.' });
         } catch (error) {
             console.error("Profile update error:", error);
@@ -452,13 +439,22 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                            {isSeller && (
+                                <Alert>
+                                    <Store className="h-4 w-4" />
+                                    <AlertTitle>You're a Seller!</AlertTitle>
+                                    <AlertDescription>
+                                        Your username and profile picture are linked to your shop's branding. To change them, please go to your <Link href="/dashboard/seller/settings" className="font-semibold underline">Shop Settings</Link>.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                             <div className="flex items-center gap-6">
                                 <Avatar className="h-20 w-20">
                                     <AvatarImage src={avatarUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
                                     <AvatarFallback>{userProfile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
-                                <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()} disabled={isUploading}>
+                                <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()} disabled={isUploading || isSeller}>
                                     {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Camera className="mr-2 h-4 w-4" />}
                                     {isUploading ? 'Uploading...' : 'Change Picture'}
                                 </Button>
@@ -467,7 +463,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                                 <FormField control={profileForm.control} name="username" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Username</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl><Input {...field} disabled={isSeller} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
@@ -492,7 +488,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                                     </FormItem>
                                 )} />
                             </div>
-                            <Button type="submit" disabled={isProfileSaving || isUploading}>
+                            <Button type="submit" disabled={isProfileSaving || isUploading || isSeller}>
                                 {isProfileSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                 Save Changes
                             </Button>
