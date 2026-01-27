@@ -364,15 +364,15 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         try {
             const batch = writeBatch(firestore);
 
-            // If the user is a seller, also update their shop name to match their full name.
+            // If the user is a seller, also update their shop name to match their username.
             if (userProfile?.userRole === 'seller') {
                 const sellerShopRef = doc(firestore, 'sellerShops', user.uid);
                 const shopUpdates = {
-                    shopName: values.fullName, // Syncing full name to shop name
+                    shopName: values.username, // Syncing username to shop name
                     logoUrl: avatarUrl // Syncing avatar to shop logo
                 };
                 batch.set(sellerShopRef, shopUpdates, { merge: true });
-                dataToUpdate.shopName = values.fullName;
+                dataToUpdate.shopName = values.username;
             }
             
             batch.update(userRef, dataToUpdate);
