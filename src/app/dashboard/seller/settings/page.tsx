@@ -220,6 +220,7 @@ export default function SellerSettingsPage() {
         const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         batch.update(userProfileRef, {
             shopName: shopName,
+            username: shopName, // Sync shop name to username
             profilePictureUrl: logoUrl || ''
         });
 
