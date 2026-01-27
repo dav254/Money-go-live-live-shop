@@ -81,7 +81,7 @@ export function LandingFooter() {
           </div>
 
           <div style={{ paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>© 2025 GoEarn. All rights reserved.</p>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>© 2026 GoEarn. All rights reserved.</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Made with</span>
               <Heart style={{ width: '1rem', height: '1rem', color: 'hsl(270, 100%, 65%)', fill: 'hsl(270, 100%, 65%)' }} />
