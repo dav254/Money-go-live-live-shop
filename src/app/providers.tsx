@@ -8,6 +8,7 @@ import { GlobalErrorListener } from '@/components/GlobalErrorListener';
 import { Toaster } from '@/components/ui/toaster';
 import { Suspense } from 'react';
 import { PageProgressBar } from '@/components/page-progress-bar';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { firebaseApp, auth, firestore } = initializeFirebase();
@@ -27,6 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             </Suspense>
             {children}
             <Toaster />
+            <OfflineIndicator />
           </GlobalErrorBoundary>
       </FirebaseProvider>
     </ThemeProvider>

@@ -50,29 +50,11 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCommentDrawerOpen, setIsCommentDrawerOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useUser();
   const firestore = useFirestore();
   
   const currentMedia = allMedia[currentMediaIndex];
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    if (typeof navigator !== 'undefined') {
-      setIsOnline(navigator.onLine);
-    }
-
-    return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -178,14 +160,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
       </AnimatePresence>
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
-
-       {!isOnline && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
-          <WifiOff className="h-12 w-12 text-destructive" />
-          <p className="mt-4 font-semibold text-white">Connection Lost</p>
-          <p className="text-sm text-muted-foreground">Reconnecting...</p>
-        </div>
-      )}
 
       {allMedia.length > 1 && (
         <>
