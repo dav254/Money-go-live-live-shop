@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -143,9 +142,8 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
         <div className="mt-3 flex gap-2">
-            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="w-full bg-primary hover:bg-primary/90 text-white">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Add to Cart
+            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-white">
+                <ShoppingCart className="h-4 w-4" />
             </Button>
             <Button asChild size="icon" variant="outline" className="shrink-0 border-neutral-700 hover:bg-neutral-800">
                 <Link href={`/products/${product.id}`}><Eye className="h-4 w-4" /></Link>
