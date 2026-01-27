@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -471,14 +472,14 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="border-t bg-background p-3">
+      <div className="bg-background p-4">
         {uploadProgress !== null && (
           <div className="mb-2">
             <Progress value={uploadProgress} className="h-1" />
           </div>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative">
-            <div className="absolute left-1 top-1/2 -translate-y-1/2 flex items-center">
+        <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative flex items-center rounded-full bg-muted p-1 border">
+            <div className="flex items-center">
                  <Button type="button" size="icon" variant="ghost" onClick={triggerFileSelect} disabled={uploadProgress !== null}>
                     {uploadProgress !== null ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlusCircle className="h-5 w-5" />}
                  </Button>
@@ -496,12 +497,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
           <Input
             placeholder="Type your message..."
-            className={cn("pr-12", isSeller ? "pl-24" : "pl-12")}
+            className="flex-1 bg-transparent border-0 h-9 focus-visible:ring-0 focus-visible:ring-offset-0"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             disabled={uploadProgress !== null}
           />
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+          <div className="flex items-center">
             <Button type="submit" size="icon" variant="ghost" disabled={uploadProgress !== null}>
                 <Send className="h-5 w-5" />
             </Button>
@@ -511,3 +512,5 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     </div>
   );
 }
+
+    
