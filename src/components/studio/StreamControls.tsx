@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -25,7 +26,7 @@ export function StreamControls({
 
   const handleShare = () => {
     if (!streamId) return;
-    const url = `${window.location.origin}/buyer/live/${streamId}`;
+    const url = `https://goearnvid.shop/buyer/live/${streamId}`;
     navigator.clipboard.writeText(url).then(() => {
       toast({
         title: 'Stream Link Copied!',
