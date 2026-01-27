@@ -13,14 +13,11 @@ import {
   MessageSquare,
   Home,
   Package,
-  User,
-  Video,
   Info,
   HelpCircle,
   ShoppingCart,
   RadioTower,
   CreditCard,
-  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -88,14 +85,6 @@ export function BuyerSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')} tooltip="Account Settings">
-                <Link href="/dashboard/account">
-                  <User />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
 
@@ -110,7 +99,7 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
         <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')}>
-            <Link href="/dashboard/reseller/support/help-center">
+            <Link href="/buyer/help">
                 <HelpCircle />
                 <span>Help Center</span>
             </Link>
