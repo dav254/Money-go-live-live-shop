@@ -22,6 +22,7 @@ import {
   Info,
   Users as UsersIcon,
   Trophy,
+  MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -96,6 +97,14 @@ export function ResellerSidebar() {
               <span>Wallet & Payouts</span>
             </Link>
           </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+            <SidebarMenuButton asChild size="sm" isActive={isActive('/messages')} tooltip="Messages">
+            <Link href="/messages">
+                <MessageSquare />
+                <span>Messages</span>
+            </Link>
+            </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/support')}>

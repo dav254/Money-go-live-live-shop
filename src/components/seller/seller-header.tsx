@@ -66,7 +66,7 @@ export function SellerHeader() {
           </Link>
         </Button>
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/seller/live/chat">
+          <Link href="/messages">
             <MessageSquare />
             <span className="sr-only">Messages</span>
           </Link>
