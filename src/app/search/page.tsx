@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense } from 'react';
@@ -21,15 +20,20 @@ function SearchResults() {
     // In a real application, you would use this query to fetch data from your backend.
     // For this frontend-only implementation, we'll filter the mock data.
 
-    const filteredProducts = products.filter(p => 
-        p.name.toLowerCase().includes(query?.toLowerCase() || '') ||
-        p.description?.toLowerCase().includes(query?.toLowerCase() || '')
-    );
+    const filteredProducts = products.filter(p => {
+        const q = query?.toLowerCase() || '';
+        const nameMatch = p.name.toLowerCase().includes(q);
+        const descMatch = (p.description || '').toLowerCase().includes(q);
+        return nameMatch || descMatch;
+    });
 
-    const filteredSellers = sellers.filter(s =>
-        s.name.toLowerCase().includes(query?.toLowerCase() || '') ||
-        s.bio.toLowerCase().includes(query?.toLowerCase() || '')
-    );
+    const filteredSellers = sellers.filter(s => {
+        const q = query?.toLowerCase() || '';
+        const nameMatch = s.name.toLowerCase().includes(q);
+        const bioMatch = (s.bio || '').toLowerCase().includes(q);
+        return nameMatch || bioMatch;
+    });
+
 
     return (
         <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">

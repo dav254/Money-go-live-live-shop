@@ -30,10 +30,12 @@ export function BuyerHeader() {
   // Update search query in URL as user types
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`, { scroll: false });
-      } else if (searchParams.has('q')) {
-        // If search is cleared, remove the query param
+      const newQuery = searchQuery.trim();
+      const currentQuery = searchParams.get('q');
+      
+      if (newQuery && newQuery !== currentQuery) {
+        router.push(`/search?q=${encodeURIComponent(newQuery)}`, { scroll: false });
+      } else if (!newQuery && currentQuery) {
         router.push('/search', { scroll: false });
       }
     }, 300); // 300ms debounce
