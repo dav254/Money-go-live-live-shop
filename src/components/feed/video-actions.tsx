@@ -91,7 +91,7 @@ export function VideoActions({
   };
 
   const handleShare = () => {
-    const url = `${window.location.origin}/products/${product.id}`;
+    const url = `https://goearnvid.shop/products/${product.id}`;
     navigator.clipboard.writeText(url).then(() => {
         toast({
             title: "Link Copied!",
