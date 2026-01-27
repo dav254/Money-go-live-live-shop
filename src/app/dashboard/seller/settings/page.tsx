@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -31,6 +30,7 @@ import {
   Loader2,
   QrCode,
   Download,
+  Package,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -61,6 +61,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import jsPDF from 'jspdf';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
 
 const passwordFormSchema = z.object({
@@ -433,6 +435,17 @@ export default function SellerSettingsPage() {
                 </div>
               </CardContent>
             </Card>
+            <Alert>
+              <Package className="h-4 w-4" />
+              <AlertTitle>Looking for Product Images?</AlertTitle>
+              <AlertDescription>
+                To add or manage images for your products, please go to the{' '}
+                <Link href="/dashboard/products?tab=add-new" className="font-semibold underline">
+                  Products
+                </Link>{' '}
+                section. This page is for your shop's overall branding, like your logo and banner.
+              </AlertDescription>
+            </Alert>
           </TabsContent>
 
           {/* QR Code Tab */}
