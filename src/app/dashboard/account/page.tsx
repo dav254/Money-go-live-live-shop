@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, cloneElement } from 'react';
+import React, { useState, useEffect, cloneElement, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Languages, Lock, Bell, Palette, User, Settings, Loader2, ShieldCheck } from 'lucide-react';
+import { Camera, Languages, Lock, Bell, Palette, User, Settings, Loader2, ShieldCheck, LogOut } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -34,13 +34,14 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser, useFirestore, errorEmitter } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { File as FileIcon, X, UploadCloud } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -247,11 +248,13 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
     const { toast } = useToast();
     const auth = getAuth();
     const firestore = useFirestore();
+    const router = useRouter();
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
     const [isProfileSaving, setIsProfileSaving] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = React.useRef<HTMLInputElement>(null);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
       resolver: zodResolver(passwordFormSchema),
@@ -392,6 +395,28 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             setIsProfileSaving(false);
         }
     }
+
+    const handleSignOut = async () => {
+        setIsLoggingOut(true);
+        try {
+            await signOut(auth);
+            toast({
+                title: 'Signed Out',
+                description: 'You have been successfully signed out.',
+            });
+            router.push('/login');
+            router.refresh();
+        } catch (error) {
+            console.error("Sign out error", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error signing out',
+                description: 'There was a problem signing you out. Please try again.',
+            });
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
 
   return (
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -561,6 +586,20 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                             <p className="text-sm text-muted-foreground">Keep your account extra secure with a second verification step.</p>
                         </div>
                         <Button disabled>Enable</Button>
+                    </div>
+                </div>
+                <Separator />
+                <div>
+                    <h3 className="text-lg font-medium">Log Out</h3>
+                    <div className="flex items-center justify-between rounded-lg border p-4 mt-4">
+                        <div>
+                            <Label>End your current session</Label>
+                            <p className="text-sm text-muted-foreground">This will log you out from your account on this device.</p>
+                        </div>
+                        <Button variant="destructive" onClick={handleSignOut} disabled={isLoggingOut}>
+                            {isLoggingOut && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Log Out
+                        </Button>
                     </div>
                 </div>
               </CardContent>
