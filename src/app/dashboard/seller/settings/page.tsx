@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -29,6 +28,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  QrCode,
+  Download,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -57,6 +58,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -93,7 +95,9 @@ export default function SellerSettingsPage() {
   const [isUploading, setIsUploading] = useState<'logo' | 'banner' | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
-  
+  const [shopUrl, setShopUrl] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+
   useEffect(() => {
     if (shopData) {
         setShopName(shopData.shopName || '');
@@ -102,6 +106,12 @@ export default function SellerSettingsPage() {
         setBannerUrl(shopData.bannerUrl || null);
     }
   }, [shopData]);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined' && user) {
+        setShopUrl(`${window.location.origin}/sellers/${user.uid}`);
+    }
+  }, [user]);
   
   const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
       resolver: zodResolver(passwordFormSchema),
@@ -137,8 +147,8 @@ export default function SellerSettingsPage() {
 
   const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
     const timestamp = Math.round((new Date()).getTime() / 1000);
-    const paramsToSign = { timestamp };
-    
+    const paramsToSign = { timestamp, folder: 'avatars' };
+
     const signatureResponse = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,16 +161,16 @@ export default function SellerSettingsPage() {
     formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
     formData.append('timestamp', timestamp.toString());
     formData.append('signature', signature);
-    
+    formData.append('folder', 'avatars');
+
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
     const response = await fetch(uploadUrl, { method: 'POST', body: formData });
-    if (!response.ok) {
-        throw new Error('Cloudinary upload failed.');
-    }
+    if (!response.ok) throw new Error('Cloudinary upload failed.');
+    
     const uploadedData = await response.json();
-    return { url: uploadedData.secure_url, type: file.type };
+    return uploadedData.secure_url;
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
@@ -169,7 +179,7 @@ export default function SellerSettingsPage() {
 
       setIsUploading(type);
       try {
-          const { url } = await uploadToCloudinary(file);
+          const  url  = await uploadToCloudinary(file);
           if (type === 'logo') {
               setLogoUrl(url);
           } else {
@@ -229,6 +239,29 @@ export default function SellerSettingsPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not disconnect your account.' });
         }
     };
+
+    const handleDownload = async () => {
+        if (!shopUrl) return;
+        setIsDownloading(true);
+        try {
+            const response = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(shopUrl)}`);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${userProfile?.username || 'shop'}-qr-code.png`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            toast({ title: 'Download Started', description: 'Your QR code is being downloaded.' });
+        } catch (error) {
+            console.error('Failed to download QR code:', error);
+            toast({ variant: 'destructive', title: 'Download Failed', description: 'Could not download the QR code.' });
+        } finally {
+            setIsDownloading(false);
+        }
+    };
     
   return (
     <SellerLayout>
@@ -248,6 +281,9 @@ export default function SellerSettingsPage() {
             </TabsTrigger>
              <TabsTrigger value="connections">
               <LinkIcon className="mr-2 h-4 w-4" /> Connections
+            </TabsTrigger>
+             <TabsTrigger value="qr-code">
+              <QrCode className="mr-2 h-4 w-4" /> QR Code
             </TabsTrigger>
             <TabsTrigger value="location">
               <MapPin className="mr-2 h-4 w-4" /> Location
@@ -313,6 +349,36 @@ export default function SellerSettingsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* QR Code Tab */}
+          <TabsContent value="qr-code" className="space-y-4">
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Shop QR Code</CardTitle>
+                      <CardDescription>
+                          Download a QR code that links directly to your shop. Perfect for business cards, flyers, and offline marketing.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center gap-6">
+                      {shopUrl ? (
+                          <div className="p-4 bg-white rounded-lg">
+                              <Image
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(shopUrl)}`}
+                                  alt="Your Shop QR Code"
+                                  width={256}
+                                  height={256}
+                              />
+                          </div>
+                      ) : (
+                          <Skeleton className="h-[256px] w-[256px]" />
+                      )}
+                      <Button onClick={handleDownload} disabled={!shopUrl || isDownloading}>
+                          {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                          Download QR Code
+                      </Button>
+                  </CardContent>
+              </Card>
           </TabsContent>
 
           {/* Connections Tab */}
@@ -518,7 +584,7 @@ export default function SellerSettingsPage() {
                     <Textarea 
                         id="return-policy" 
                         rows={6} 
-                        defaultValue="We accept returns within 7 days for a full refund. Items must be unused and in original packaging. Buyer pays return shipping." 
+                        defaultValue="We accept returns within 7 days for a full refund. Items must be in unused and in original packaging. Buyer pays return shipping." 
                     />
                 </div>
                 <div className="space-y-2">
