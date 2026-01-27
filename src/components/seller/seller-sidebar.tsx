@@ -183,10 +183,10 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live')}>
-              <Link href="/dashboard/seller/live">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/buyer/live-stream')}>
+              <Link href="/buyer/live-stream">
                 <Video />
-                <span>Live Feed Preview</span>
+                <span>Live Feed</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
