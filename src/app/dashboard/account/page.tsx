@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, cloneElement } from 'react';
@@ -35,7 +36,7 @@ import { useUser, useFirestore, errorEmitter } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -355,16 +356,37 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         setIsProfileSaving(true);
         const userRef = doc(firestore, 'userProfiles', user.uid);
         
-        const dataToUpdate = {
+        const dataToUpdate: any = {
             ...values,
             profilePictureUrl: avatarUrl,
         };
 
         try {
-            await updateDoc(userRef, dataToUpdate);
+            const batch = writeBatch(firestore);
+
+            // If the user is a seller, also update their shop name to match their full name.
+            if (userProfile?.userRole === 'seller') {
+                const sellerShopRef = doc(firestore, 'sellerShops', user.uid);
+                const shopUpdates = {
+                    shopName: values.fullName, // Syncing full name to shop name
+                    logoUrl: avatarUrl // Syncing avatar to shop logo
+                };
+                batch.set(sellerShopRef, shopUpdates, { merge: true });
+                dataToUpdate.shopName = values.fullName;
+            }
+            
+            batch.update(userRef, dataToUpdate);
+
+            await batch.commit();
+
             toast({ title: 'Profile Updated!', description: 'Your changes have been saved.' });
         } catch (error) {
             console.error("Profile update error:", error);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: userRef.path,
+                operation: 'update',
+                requestResourceData: dataToUpdate
+            }));
             toast({ variant: 'destructive', title: 'Error', description: 'Could not save your profile.' });
         } finally {
             setIsProfileSaving(false);

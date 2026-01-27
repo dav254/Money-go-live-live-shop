@@ -35,7 +35,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useUser, useFirestore, useMemoFirebase, useUserProfile, errorEmitter } from '@/firebase';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import type { SellerShop } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -200,7 +200,7 @@ export default function SellerSettingsPage() {
 
 
   const handleSaveChanges = async () => {
-    if (!sellerShopRef) return;
+    if (!sellerShopRef || !user || !firestore) return;
     setIsSaving(true);
     
     const dataToSave: Partial<SellerShop> = {
@@ -211,7 +211,20 @@ export default function SellerSettingsPage() {
     };
 
     try {
-        await setDoc(sellerShopRef, dataToSave, { merge: true });
+        const batch = writeBatch(firestore);
+        
+        // Update sellerShops
+        batch.set(sellerShopRef, dataToSave, { merge: true });
+
+        // Update userProfiles for consistency
+        const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+        batch.update(userProfileRef, {
+            shopName: shopName,
+            profilePictureUrl: logoUrl || ''
+        });
+
+        await batch.commit();
+        
         toast({
             title: 'Settings Saved!',
             description: 'Your shop settings have been updated.',
