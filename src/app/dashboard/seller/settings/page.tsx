@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -59,6 +60,8 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import jsPDF from 'jspdf';
+
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -97,6 +100,8 @@ export default function SellerSettingsPage() {
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [shopUrl, setShopUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingPoster, setIsDownloadingPoster] = useState(false);
+
 
   useEffect(() => {
     if (shopData) {
@@ -108,8 +113,8 @@ export default function SellerSettingsPage() {
   }, [shopData]);
   
   useEffect(() => {
-    if (typeof window !== 'undefined' && user) {
-        setShopUrl(`${window.location.origin}/sellers/${user.uid}`);
+    if (user) {
+        setShopUrl(`https://goearnvid.shop/sellers/${user.uid}`);
     }
   }, [user]);
   
@@ -262,6 +267,71 @@ export default function SellerSettingsPage() {
             setIsDownloading(false);
         }
     };
+
+    const handleDownloadPoster = async () => {
+        if (!shopUrl || !userProfile) return;
+
+        setIsDownloadingPoster(true);
+        toast({ title: 'Generating Poster...', description: 'Your PDF poster is being created.' });
+
+        try {
+            const doc = new jsPDF('p', 'px', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+
+            // Background
+            const gradient = doc.context2d.createLinearGradient(0, 0, pageWidth, pageHeight);
+            gradient.addColorStop(0, '#1a2a6c');
+            gradient.addColorStop(1, '#b21f1f');
+            doc.context2d.fillStyle = gradient;
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            
+            // Title
+            doc.setFontSize(32);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#FFFFFF');
+            doc.text("Scan to Visit My Shop!", pageWidth / 2, 80, { align: 'center' });
+
+            // QR Code
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(shopUrl)}`;
+            const response = await fetch(qrCodeUrl);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            
+            const imageDataUrl = await new Promise<string>((resolve, reject) => {
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+
+            await doc.addImage(imageDataUrl, 'PNG', (pageWidth - 200) / 2, 120, 200, 200);
+
+            // Shop Name
+            doc.setFontSize(24);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#FFFFFF');
+            doc.text(shopName || userProfile.fullName, pageWidth / 2, 350, { align: 'center' });
+
+            // Shop URL
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#E5E7EB');
+            doc.text(shopUrl, pageWidth / 2, 370, { align: 'center' });
+
+            // "Powered by" text
+            doc.setFontSize(10);
+            doc.setTextColor('#D1D5DB');
+            doc.text("Powered by Go Earn", pageWidth / 2, pageHeight - 40, { align: 'center' });
+
+            doc.save(`${userProfile.username || 'shop'}-poster.pdf`);
+            toast({ title: 'Poster Downloaded!', description: 'Your PDF poster is ready.' });
+        } catch (error) {
+            console.error('Failed to generate PDF poster:', error);
+            toast({ variant: 'destructive', title: 'Download Failed', description: 'Could not generate the PDF poster.' });
+        } finally {
+            setIsDownloadingPoster(false);
+        }
+    };
     
   return (
     <SellerLayout>
@@ -373,10 +443,16 @@ export default function SellerSettingsPage() {
                       ) : (
                           <Skeleton className="h-[256px] w-[256px]" />
                       )}
-                      <Button onClick={handleDownload} disabled={!shopUrl || isDownloading}>
-                          {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                          Download QR Code
-                      </Button>
+                       <div className="flex flex-wrap justify-center gap-4">
+                            <Button onClick={handleDownload} disabled={!shopUrl || isDownloading}>
+                                {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                Download QR Code (PNG)
+                            </Button>
+                            <Button variant="secondary" onClick={handleDownloadPoster} disabled={!shopUrl || isDownloadingPoster}>
+                                {isDownloadingPoster ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                                Download Poster (PDF)
+                            </Button>
+                        </div>
                   </CardContent>
               </Card>
           </TabsContent>
