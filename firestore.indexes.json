@@ -131,11 +131,15 @@
         { "fieldPath": "to", "order": "ASCENDING" },
         { "fieldPath": "from", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
 }
-
-
-
-

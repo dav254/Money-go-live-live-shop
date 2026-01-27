@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -11,7 +10,7 @@ import { Package, MessageSquare, Tag, Bell, Check, Sparkles } from 'lucide-react
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, writeBatch, orderBy } from 'firebase/firestore';
 import type { Notification } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -64,7 +63,7 @@ export default function BuyerNotificationsPage() {
 
     const notificationsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
-        return query(collection(firestore, 'notifications'), where('userId', '==', user.uid));
+        return query(collection(firestore, 'notifications'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
     }, [firestore, user]);
 
     const { data: notifications, isLoading: isLoadingNotifications } = useCollection<Notification>(notificationsQuery);

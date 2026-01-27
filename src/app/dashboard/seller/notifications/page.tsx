@@ -12,8 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Notification } from '@/lib/types';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection } from '@/firebase';
-import { collection, query, where, writeBatch, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, writeBatch, doc, orderBy, updateDoc } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const notificationIcons: Record<string, React.ReactNode> = {
@@ -62,38 +62,22 @@ export default function SellerNotificationsPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    const notificationsQuery = React.useMemo(() => {
+    const notificationsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         return query(
             collection(firestore, 'notifications'), 
             where('userId', '==', user.uid),
+            orderBy('timestamp', 'desc')
         );
     }, [user, firestore]);
 
-    const { data: notificationsSnapshot, isLoading } = useCollection(notificationsQuery);
+    const { data: notifications, isLoading } = useCollection<Notification>(notificationsQuery);
     
-    const notifications = React.useMemo(() => {
-        const docs = notificationsSnapshot?.docs;
-        if (!docs) {
-            return [];
-        }
-        const mappedDocs = docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
-        // Sort on the client side
-        mappedDocs.sort((a, b) => {
-            const timeA = a.timestamp?.toDate().getTime() || 0;
-            const timeB = b.timestamp?.toDate().getTime() || 0;
-            return timeB - timeA; // descending order
-        });
-        return mappedDocs;
-    }, [notificationsSnapshot]);
-
     const handleMarkRead = async (id: string) => {
         if (!firestore) return;
         const notificationRef = doc(firestore, 'notifications', id);
         try {
-            const batch = writeBatch(firestore);
-            batch.update(notificationRef, { status: 'read' });
-            await batch.commit();
+            await updateDoc(notificationRef, { status: 'read' });
         } catch (e) {
             console.error("Error marking notification as read: ", e);
             toast({ title: 'Error', description: 'Could not mark notification as read.', variant: 'destructive' });
@@ -101,7 +85,7 @@ export default function SellerNotificationsPage() {
     };
     
     const handleMarkAllRead = async () => {
-        if (!firestore || !user) return;
+        if (!firestore || !user || !notifications) return;
         const unread = notifications.filter(n => n.status === 'unread');
         if (unread.length === 0) return;
 
@@ -120,10 +104,10 @@ export default function SellerNotificationsPage() {
         }
     };
     
-    const unreadNotifications = React.useMemo(() => notifications.filter(n => n.status === 'unread'), [notifications]);
-    const orderNotifications = React.useMemo(() => notifications.filter(n => n.type === 'order'), [notifications]);
-    const messageNotifications = React.useMemo(() => notifications.filter(n => n.type === 'message'), [notifications]);
-    const promotionNotifications = React.useMemo(() => notifications.filter(n => n.type === 'announcement'), [notifications]);
+    const unreadNotifications = React.useMemo(() => notifications?.filter(n => n.status === 'unread') || [], [notifications]);
+    const orderNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'order') || [], [notifications]);
+    const messageNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'message') || [], [notifications]);
+    const promotionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'announcement'), [notifications]);
     
     const unreadCount = unreadNotifications.length;
 
@@ -173,7 +157,7 @@ export default function SellerNotificationsPage() {
                         <ScrollArea className="flex-1">
                             <CardContent className="p-0">
                                 <TabsContent value="all">
-                                    {renderNotificationList(notifications)}
+                                    {renderNotificationList(notifications || [])}
                                 </TabsContent>
                                  <TabsContent value="unread">
                                     {renderNotificationList(unreadNotifications)}
