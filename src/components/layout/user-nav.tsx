@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase/auth/use-user';
@@ -6,11 +5,11 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuGroup } from '../ui/dropdown-menu';
 import { Skeleton } from '../ui/skeleton';
 import { Button } from '../ui/button';
 import Link from 'next/link';
-import { User } from 'lucide-react';
+import { User, Settings, LogOut } from 'lucide-react';
 
 export function UserNav() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -73,8 +72,18 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/account">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Account Settings</span>
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
-          Log out
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

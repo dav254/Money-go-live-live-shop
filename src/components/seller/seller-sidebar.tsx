@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -246,17 +245,6 @@ export function SellerSidebar() {
                     <span>View My Shop</span>
                 </Link>
             </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-           <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
-            <Link href="/dashboard/account">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={userProfile?.profilePictureUrl} />
-                <AvatarFallback>{userProfile?.fullName?.[0]}</AvatarFallback>
-              </Avatar>
-              <span className="truncate">{userProfile?.fullName || "My Account"}</span>
-            </Link>
-          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </>
