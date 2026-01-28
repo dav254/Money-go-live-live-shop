@@ -6,8 +6,8 @@ import { v2 as cloudinary } from 'cloudinary';
 export async function healthCheck() {
     // Configure Cloudinary inside the health check to validate credentials
     cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
+        cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
         api_secret: process.env.CLOUDINARY_API_SECRET,
     });
     const config = cloudinary.config();
@@ -21,14 +21,13 @@ export async function healthCheck() {
 export async function POST(request: Request) {
   // Configure Cloudinary with your credentials inside the handler
   cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
   });
 
   try {
-    const body = await request.json();
-    const paramsToSign = body;
+    const { paramsToSign } = await request.json();
 
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
     if (!apiSecret) {

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -7,6 +6,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { get as idbGet } from '@/lib/idb';
 
 export default function PublishButton() {
   const router = useRouter();
@@ -23,7 +23,7 @@ export default function PublishButton() {
     const signatureResponse = await fetch('/api/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(paramsToSign),
+      body: JSON.stringify({ paramsToSign }),
     });
 
     if (!signatureResponse.ok) {
@@ -61,11 +61,10 @@ export default function PublishButton() {
       return;
     }
 
-    const videoUrl = localStorage.getItem('videoUrl');
     const productId = localStorage.getItem('selectedProductId');
 
-    if (!videoUrl || !productId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Video or product data is missing. Please restart the process.' });
+    if (!productId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Product data is missing. Please restart the process.' });
       return;
     }
 
@@ -73,8 +72,12 @@ export default function PublishButton() {
     toast({ title: 'Publishing...', description: 'Uploading your video. This may take a moment.' });
 
     try {
-      // Fetch the blob from the local URL
-      const videoBlob = await fetch(videoUrl).then(res => res.blob());
+      // Get the blob from IndexedDB
+      const videoBlob = await idbGet<Blob>('videoStudioDB', 'videoClips', 'latestVideo');
+      
+      if (!videoBlob) {
+          throw new Error('Could not find the recorded video to upload.');
+      }
 
       // Upload to Cloudinary
       const permanentUrl = await uploadToCloudinary(videoBlob);
@@ -83,6 +86,7 @@ export default function PublishButton() {
       const productRef = doc(firestore, 'products', productId);
       await updateDoc(productRef, {
         videoUrls: arrayUnion(permanentUrl),
+        videoUrl: permanentUrl, // Also set the main videoUrl for compatibility
         hasVideo: true,
         updatedAt: serverTimestamp(),
       });
@@ -90,7 +94,6 @@ export default function PublishButton() {
       toast({ title: 'Published!', description: 'Your video has been added to the product.' });
       
       // Cleanup localStorage
-      localStorage.removeItem('videoUrl');
       localStorage.removeItem('selectedProductId');
 
       router.push('/dashboard/seller'); // Redirect to seller dashboard

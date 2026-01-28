@@ -1,5 +1,7 @@
 {
-  "placeholderImages": [],
+  "placeholderImages": [
+    "https://placehold.co/600x400/EEE/31343C?text=No_Image_Available"
+  ],
   "exchangeRates": {
     "USD": 1,
     "AED": 3.6725,

@@ -9,7 +9,7 @@ const nextConfig = {
   },
   devIndicators: {
     allowedDevOrigins: [
-      '6000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev',
+      '9002-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev',
     ],
   },
   async headers() {

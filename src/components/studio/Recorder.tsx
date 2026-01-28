@@ -7,6 +7,7 @@ import { LiveActivityFeed } from './LiveActivityFeed';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, VideoOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { set as idbSet } from '@/lib/idb';
 
 export default function Recorder() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -25,6 +26,10 @@ export default function Recorder() {
   }, []);
 
   const getCameraStream = useCallback(async (mode: 'environment' | 'user') => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
+        setHasCameraPermission(false);
+        return null;
+    }
     try {
       if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
@@ -71,11 +76,19 @@ export default function Recorder() {
     const mr = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
     recorderRef.current = mr;
     mr.ondataavailable = e => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
-    mr.onstop = () => {
+    mr.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-      const videoUrl = URL.createObjectURL(blob);
-      localStorage.setItem('videoUrl', videoUrl);
-      router.push('/seller/studio/edit');
+      try {
+        await idbSet('videoStudioDB', 'videoClips', 'latestVideo', blob);
+        router.push('/seller/studio/edit');
+      } catch (error) {
+        console.error("Failed to save video to IndexedDB:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Storage Error',
+          description: 'Could not save the recorded video. Please try again.',
+        });
+      }
     };
     mr.start(300);
     setRecording(true);

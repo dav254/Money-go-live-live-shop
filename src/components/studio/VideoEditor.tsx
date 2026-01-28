@@ -1,25 +1,43 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Scissors, Crop, Mic, Tag, Music, MessageSquare, UploadCloud, Sparkles, Wand2 } from 'lucide-react';
+import { get as idbGet } from '@/lib/idb';
 
 export default function VideoEditor() {
   const router = useRouter();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const url = localStorage.getItem('videoUrl');
-    if (url) {
-      setVideoUrl(url);
-    } else {
-      // If no video URL is found, redirect back to the start of the studio flow
-      router.push('/dashboard/seller/stream');
+    let objectUrl: string;
+    async function loadVideo() {
+      try {
+        const blob = await idbGet<Blob>('videoStudioDB', 'videoClips', 'latestVideo');
+        if (blob) {
+          objectUrl = URL.createObjectURL(blob);
+          setVideoUrl(objectUrl);
+        } else {
+          // If no video is found, go back to recording
+          router.push('/seller/studio/record');
+        }
+      } catch (error) {
+        console.error("Failed to load video from IndexedDB:", error);
+        router.push('/seller/studio/record');
+      }
+    }
+    loadVideo();
+    
+    // Cleanup the object URL when component unmounts
+    return () => {
+        if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+        }
     }
   }, [router]);
 
   function handleNext() {
-    // Navigate to the next step: linking a product
+    // The video blob is already in IndexedDB, so we can just proceed
     router.push('/seller/studio/product');
   }
 
@@ -28,8 +46,8 @@ export default function VideoEditor() {
       { name: 'Captions', icon: MessageSquare, action: () => alert('Feature coming soon: Auto-generate captions with AI!') },
       { name: 'Music', icon: Music, action: () => alert('Feature coming soon: Add background music!') },
       { name: 'Voiceover', icon: Mic, action: () => alert('Feature coming soon: Record a voiceover!') },
-      { name: 'Trim', icon: Scissors, action: () => {} },
-      { name: 'Crop', icon: Crop, action: () => {} },
+      { name: 'Trim', icon: Scissors, action: () => alert('Trimming functionality coming soon!') },
+      { name: 'Crop', icon: Crop, action: () => alert('Cropping functionality coming soon!') },
   ];
   
   const textOverlays = ["50% OFF", "New Arrival", "Limited Stock", "Sale"];
@@ -38,7 +56,6 @@ export default function VideoEditor() {
     <div className="bg-black text-white h-screen flex flex-col p-2 md:p-4">
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-hidden">
         
-        {/* Main Video Preview */}
         <div className="lg:col-span-2 h-full flex items-center justify-center bg-neutral-900 rounded-lg">
           {videoUrl ? (
             <video src={videoUrl} controls className="w-full max-h-full rounded-lg" />
@@ -47,9 +64,7 @@ export default function VideoEditor() {
           )}
         </div>
 
-        {/* Editing Tools Panel */}
         <div className="flex flex-col gap-4 overflow-y-auto pb-16">
-            {/* AI Tools */}
             <div className="bg-neutral-800/50 p-4 rounded-lg border border-primary/30">
                 <h3 className="text-lg font-bold flex items-center gap-2 mb-3"><Sparkles className="text-primary"/> AI Enhancements</h3>
                 <button onClick={() => alert('Coming soon!')} className="w-full text-left flex items-center gap-3 p-3 rounded-lg hover:bg-primary/10 transition-colors">
@@ -68,7 +83,6 @@ export default function VideoEditor() {
                 </button>
             </div>
             
-            {/* Manual Tools */}
             <div className="bg-neutral-800/50 p-4 rounded-lg">
                 <h3 className="text-lg font-bold mb-3">Editing Tools</h3>
                 <div className="grid grid-cols-3 gap-2">
@@ -81,7 +95,6 @@ export default function VideoEditor() {
                 </div>
             </div>
 
-            {/* Overlays */}
             <div className="bg-neutral-800/50 p-4 rounded-lg">
                 <h3 className="text-lg font-bold mb-3">Overlays</h3>
                  <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-700 transition-colors border border-dashed border-neutral-600">
@@ -96,11 +109,9 @@ export default function VideoEditor() {
                     ))}
                 </div>
             </div>
-
         </div>
       </div>
 
-      {/* Footer Actions */}
       <div className="py-2 flex justify-end">
         <button onClick={handleNext} className="bg-red-600 w-full md:w-auto px-8 py-3 rounded-lg text-white font-bold">
           Next
