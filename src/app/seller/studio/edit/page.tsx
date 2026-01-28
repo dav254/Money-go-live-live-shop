@@ -112,14 +112,28 @@ export default function VideoEditor() {
     }
   }, [selectedMusic]);
   
-  // Update audio src when music changes
+  // This is the new logic to handle muting the video when music is selected.
   useEffect(() => {
+    const video = videoRef.current;
     const audio = audioRef.current;
+
+    if (video) {
+      // If there's music, mute the video. Otherwise, unmute it.
+      video.muted = !!selectedMusic;
+    }
+    
     if (audio) {
         audio.src = selectedMusic?.src || '';
-        if(selectedMusic) audio.play();
+        if (selectedMusic && isPlaying) {
+             // Sync time and play if the main video is already playing
+            audio.currentTime = video?.currentTime || 0;
+            audio.play().catch(console.error);
+        } else {
+            audio.pause();
+        }
     }
-  }, [selectedMusic]);
+
+  }, [selectedMusic, isPlaying]);
 
 
   const handleSetStart = () => { if (videoRef.current) setStartTime(videoRef.current.currentTime); };
@@ -330,4 +344,3 @@ export default function VideoEditor() {
     </div>
   );
 }
-
