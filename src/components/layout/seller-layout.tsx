@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useMemo } from 'react';
@@ -20,6 +19,7 @@ import { doc } from 'firebase/firestore';
 import type { Seller, SellerShop, UserProfile } from '@/lib/types';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
+import { Loader2 } from 'lucide-react';
 
 export function SellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -44,7 +44,8 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
 
   if (isLoading || !user || (userProfile && userProfile.userRole !== 'seller')) {
     return (
-        <div className="flex h-screen w-full items-center justify-center">
+        <div className="flex h-screen w-full items-center justify-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
             <p>Loading Seller Dashboard...</p>
         </div>
     );

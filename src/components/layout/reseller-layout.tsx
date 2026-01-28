@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, cloneElement } from 'react';
@@ -17,6 +16,7 @@ import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Logo } from '../logo';
 import { ResellerHeader } from '../reseller/reseller-header';
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 export function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -37,8 +37,9 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <p>Loading Reseller Dashboard...</p>
+      <div className="flex h-screen w-full items-center justify-center gap-2">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Loading Reseller Dashboard...</span>
       </div>
     );
   }

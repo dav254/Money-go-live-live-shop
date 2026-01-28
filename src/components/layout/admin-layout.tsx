@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -17,6 +16,7 @@ import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { AdminHeader } from '../admin/admin-header';
 import { Logo } from '../logo';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
+import { Loader2 } from 'lucide-react';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -40,8 +40,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   // While loading, show a loading screen to prevent content flash
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <p>Verifying admin privileges...</p>
+      <div className="flex h-screen w-full items-center justify-center gap-2">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span>Verifying admin privileges...</span>
       </div>
     );
   }
