@@ -19,6 +19,7 @@ import {
   RadioTower,
   CreditCard,
   Radio,
+  Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -41,18 +42,18 @@ export function BuyerSidebar() {
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live')} tooltip="Live Shows">
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live')} tooltip="Live Feed">
             <Link href="/buyer/live">
-              <Radio className="text-red-600" />
-              <span>Live Shows</span>
+              <Video />
+              <span>Live Feed</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-stream')} tooltip="Live Feed">
-            <Link href="/buyer/live-stream">
-              <RadioTower />
-              <span>Live Feed</span>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-now')} tooltip="Live Shows">
+            <Link href="/buyer/live-now">
+              <Radio className="text-red-600" />
+              <span>Live Now</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

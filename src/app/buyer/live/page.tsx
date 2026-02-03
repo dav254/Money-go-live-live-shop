@@ -1,119 +1,190 @@
 
 'use client';
 
-import React from 'react';
-import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
-import type { LiveSession, UserProfile } from '@/lib/types';
-import { Radio, Users, Play, Loader2 } from 'lucide-react';
-import Link from 'next/link';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useDoc } from '@/firebase/firestore/use-doc';
-import { Badge } from '@/components/ui/badge';
+import { useCallback, useRef, useState, useEffect } from 'react';
+import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, doc, query, orderBy, limit } from 'firebase/firestore';
+import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
+import { useFirestore, useUser } from '@/firebase';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { VideoCard } from '@/components/feed/video-card';
+import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const SellerInfo = ({ sellerId }: { sellerId: string }) => {
-  const firestore = useFirestore();
-  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
-  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+export const dynamic = 'force-dynamic';
 
-  if (isLoading) return <Skeleton className="h-4 w-24" />;
-  return (
-    <div className="flex items-center gap-2">
-      <Avatar className="h-6 w-6">
-        <AvatarImage src={user?.profilePictureUrl} />
-        <AvatarFallback>{user?.fullName?.charAt(0)}</AvatarFallback>
-      </Avatar>
-      <span className="text-sm font-medium">{user?.fullName || 'Seller'}</span>
-    </div>
-  );
-};
+function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Product; isIntersecting: boolean, onScroll: (direction: 'up' | 'down') => void; }) {
+    const firestore = useFirestore();
+    
+    const sellerShopRef = useMemoFirebase(() => {
+        if (!firestore || !product.sellerId) return null;
+        return doc(firestore, 'sellerShops', product.sellerId);
+    }, [firestore, product.sellerId]);
+    
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !product.sellerId) return null;
+        return doc(firestore, 'userProfiles', product.sellerId);
+    }, [firestore, product.sellerId]);
 
-const StreamCard = ({ session }: { session: LiveSession }) => {
-  return (
-    <Card className="overflow-hidden group hover:border-primary/50 transition-all border-2">
-      <div className="relative aspect-video bg-black flex items-center justify-center">
-        <div className="absolute top-2 left-2 z-10">
-          <Badge className="bg-red-600 hover:bg-red-700 flex items-center gap-1 animate-pulse">
-            <Radio className="h-3 w-3" /> LIVE
-          </Badge>
+    const { data: sellerData, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
+    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+    if (isSellerLoading || isProfileLoading) {
+        return (
+             <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
+                <Skeleton className="h-full w-full" />
+            </div>
+        )
+    }
+    
+    const sellerName = sellerData?.shopName || userProfileData?.fullName || 'Seller Store';
+    const sellerFollowers = sellerData?.followers || 0;
+    const sellerReviews = sellerData?.reviewsCount || 0;
+
+    const seller: Seller = {
+        id: product.sellerId,
+        sellerId: product.sellerId,
+        name: sellerName,
+        avatar: {
+            id: 'avatar',
+            imageUrl: sellerData?.logoUrl || userProfileData?.profilePictureUrl || getPlaceholderImage(),
+            description: `${sellerName}'s avatar`,
+            imageHint: 'seller avatar'
+        },
+        banner: {
+            id: 'banner',
+            imageUrl: sellerData?.bannerUrl || getPlaceholderImage(),
+            description: `${sellerName}'s banner`,
+            imageHint: 'store banner'
+        },
+        bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
+        rating: 4.8, // Placeholder
+        followers: sellerFollowers,
+        reviewsCount: sellerReviews,
+        isVerified: true, // Placeholder
+        joinedDate: userProfileData?.joinDate || new Date().toISOString(),
+        location: sellerData?.location || userProfileData?.location || 'Unknown',
+        description: sellerData?.description || userProfileData?.bio || 'Welcome!',
+    };
+
+    const feedItem: VideoFeedItem = {
+        id: product.id,
+        product: product,
+        seller: seller,
+        video: {
+          id: product.id,
+          imageUrl: product.imageUrl || getPlaceholderImage(),
+          description: product.name || 'product media',
+          imageHint: 'product',
+          mediaType: product.videoUrl ? 'video' : 'image',
+        },
+        likes: product.likes || 0,
+        viewers: 0, 
+        comments: [],
+    };
+
+    return (
+        <div className="h-full w-full snap-start flex-shrink-0">
+          <VideoCard item={feedItem} isIntersecting={isIntersecting} onScroll={onScroll} />
         </div>
-        <div className="absolute bottom-2 left-2 z-10">
-          <Badge variant="secondary" className="bg-black/50 text-white border-none flex items-center gap-1">
-            <Users className="h-3 w-3" /> {session.viewerCount || 0}
-          </Badge>
+    );
+}
+
+export default function BuyerLiveFeedPage() {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const { user, isLoading: isUserLoading } = useUser();
+    const firestore = useFirestore();
+    const [intersectingCard, setIntersectingCard] = useState<string | null>(null);
+
+    const productsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        // Fetch the 10 most recent products
+        return query(collection(firestore, 'products'), orderBy('uploadDate', 'desc'), limit(10));
+    }, [firestore]);
+
+    const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+    const isLoading = isUserLoading || areProductsLoading;
+
+    const handleScroll = useCallback((direction: 'up' | 'down') => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const scrollAmount = container.clientHeight;
+        const currentScroll = container.scrollTop;
+
+        let targetScroll;
+        if (direction === 'down') {
+            targetScroll = currentScroll + scrollAmount;
+        } else {
+            targetScroll = currentScroll - scrollAmount;
+        }
+        
+        container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth',
+        });
+    }, []);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        setIntersectingCard(entry.target.getAttribute('data-product-id'));
+                    }
+                });
+            },
+            { threshold: 0.7 }
+        );
+
+        const cards = container.querySelectorAll('[data-product-id]');
+        cards.forEach(card => observer.observe(card));
+
+        return () => cards.forEach(card => observer.unobserve(card));
+
+    }, [products]);
+
+
+    if (isLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-black">
+                <p className="text-white">Loading the live feed...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative h-screen w-full bg-black">
+            <div 
+                ref={scrollContainerRef}
+                className={cn(
+                    "h-full w-full snap-y snap-mandatory overflow-y-scroll",
+                    "[&::-webkit-scrollbar]:hidden",
+                    "scrollbar-hide"
+                )}
+            >
+            {products && products.length > 0 ? (
+                products.map((product) => (
+                    <div key={product.id} data-product-id={product.id} className="h-full w-full snap-start flex-shrink-0">
+                        <RealtimeVideoCard 
+                            product={product} 
+                            isIntersecting={intersectingCard === product.id}
+                            onScroll={handleScroll}
+                        />
+                    </div>
+                ))
+            ) : (
+                <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
+                    <div className="text-center p-4">
+                        <h2 className="text-xl font-semibold text-white">The Live Feed is Currently Empty</h2>
+                        <p className="text-muted-foreground max-w-sm mx-auto">There are no videos or images to display at the moment. Please check back later for new content.</p>
+                    </div>
+                </div>
+            )}
+            </div>
         </div>
-        <Play className="h-12 w-12 text-white/50 group-hover:text-white group-hover:scale-110 transition-all" />
-      </div>
-      <CardHeader className="p-4">
-        <CardTitle className="text-lg line-clamp-1">{session.title}</CardTitle>
-        <CardDescription>
-          <SellerInfo sellerId={session.sellerId} />
-        </CardDescription>
-      </CardHeader>
-      <CardFooter className="p-4 pt-0">
-        <Button asChild className="w-full bg-primary hover:bg-primary/90 font-bold" size="sm">
-          <Link href={`/buyer/live/${session.id}`}>Watch Now</Link>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-};
-
-export default function BuyerLiveListingPage() {
-  const firestore = useFirestore();
-
-  const liveSessionsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-  }, [firestore]);
-
-  const { data: sessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
-
-  return (
-    <BuyerLayout>
-      <div className="flex-1 space-y-6 p-8 pt-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
-              <Radio className="h-8 w-8 text-red-600" />
-              Live Shopping Shows
-            </h1>
-            <p className="text-muted-foreground">Watch real sellers, ask questions, and shop live.</p>
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <Skeleton className="aspect-video w-full" />
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        ) : sessions && sessions.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {sessions.map(session => (
-              <StreamCard key={session.id} session={session} />
-            ))}
-          </div>
-        ) : (
-          <Card className="bg-muted/30 border-dashed border-2 py-24 text-center">
-            <CardContent>
-              <div className="mx-auto bg-muted p-4 rounded-full w-fit mb-4">
-                <VideoOff className="h-12 w-12 text-muted-foreground" />
-              </div>
-              <h2 className="text-xl font-bold">No active shows right now</h2>
-              <p className="text-muted-foreground">Check back later or follow your favorite sellers to get notified.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </BuyerLayout>
-  );
+    );
 }

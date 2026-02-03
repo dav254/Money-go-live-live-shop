@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video, Search, Menu, X } from 'lucide-react';
+import { Bell, MessageSquare, Video, Search, Menu, X, Radio } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
@@ -27,7 +28,6 @@ export function BuyerHeader() {
   const isLoading = isUserLoading || isProfileLoading;
   const buyerName = userProfile?.fullName || 'Valued Buyer';
   
-  // Update search query in URL as user types
   useEffect(() => {
     const timer = setTimeout(() => {
       const newQuery = searchQuery.trim();
@@ -38,12 +38,11 @@ export function BuyerHeader() {
       } else if (!newQuery && currentQuery) {
         router.push('/search', { scroll: false });
       }
-    }, 300); // 300ms debounce
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery, router, searchParams]);
 
-  // Sync state with URL on navigation
   useEffect(() => {
     setSearchQuery(searchParams.get('q') || '');
   }, [searchParams]);
@@ -52,14 +51,13 @@ export function BuyerHeader() {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setIsSearchOpen(false); // Close mobile search on submit
+      setIsSearchOpen(false);
     }
   };
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Mobile Sidebar */}
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" className="md:hidden">
@@ -81,7 +79,6 @@ export function BuyerHeader() {
           </SheetContent>
         </Sheet>
         
-        {/* Desktop Sidebar Trigger */}
         <SidebarTrigger className="hidden md:flex" />
 
         <div className="hidden md:block">
@@ -95,7 +92,6 @@ export function BuyerHeader() {
         </div>
       </div>
 
-      {/* Search Bar - Conditional Rendering */}
       <div className={cn(
           "absolute left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4 transition-opacity md:static md:w-full md:max-w-lg md:translate-x-0 md:translate-y-0 md:px-0 md:opacity-100",
           isSearchOpen ? "opacity-100 z-50" : "pointer-events-none opacity-0 md:pointer-events-auto"
@@ -124,24 +120,14 @@ export function BuyerHeader() {
             <span className="sr-only">Search</span>
         </Button>
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="hidden md:inline-flex relative" asChild>
-          <Link href="/buyer/notifications">
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
-            <span className="absolute top-1 right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
+        <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
+          <Link href="/buyer/live-now">
+            <Radio className="h-5 w-5 text-red-600" />
+            <span className="sr-only">Live Now</span>
           </Link>
         </Button>
         <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
-          <Link href="/messages">
-            <MessageSquare className="h-5 w-5" />
-            <span className="sr-only">Chat</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
-          <Link href="/live">
+          <Link href="/buyer/live">
             <Video className="h-5 w-5" />
             <span className="sr-only">Live Feed</span>
           </Link>
