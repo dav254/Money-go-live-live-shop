@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -30,7 +31,8 @@ import {
   Bell,
   Tag,
   Calculator,
-  Heart, // Added Heart icon here
+  Heart,
+  Radio,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -164,6 +166,14 @@ export function SellerSidebar() {
                     { href: 'analytics', label: 'Analytics' },
                 ]}
             />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/go-live')}>
+              <Link href="/dashboard/seller/go-live">
+                <Radio className="text-red-600" />
+                <span>Go Live</span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/stream')}>
