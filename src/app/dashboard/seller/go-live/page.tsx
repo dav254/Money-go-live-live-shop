@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Radio, StopCircle, Loader2, Video, VideoOff, Mic, MicOff, Settings } from 'lucide-react';
+import { Radio, StopCircle, Loader2, Video, VideoOff, Mic, MicOff, Settings, CheckCircle } from 'lucide-react';
 import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
 
 // --- Constants ---
