@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -70,7 +69,7 @@ interface ProductUploadFormProps {
 
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const [files, setFiles] = useState<File[]>([]);
-  const [existingImageUrls, setExistingImageUrls] = setExistingImageUrls([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);

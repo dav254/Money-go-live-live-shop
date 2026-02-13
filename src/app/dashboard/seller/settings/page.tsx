@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -32,6 +31,7 @@ import {
   QrCode,
   Download,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -363,6 +363,8 @@ export default function SellerSettingsPage() {
             setIsDownloadingPoster(false);
         }
     };
+
+    const isTikTokConfigured = !!process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
     
   return (
     <SellerLayout>
@@ -545,19 +547,30 @@ export default function SellerSettingsPage() {
                             </AlertDialog>
                         </div>
                     ) : (
-                        <div className="flex items-center justify-between rounded-lg border p-4">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-black rounded-lg border border-neutral-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 0 .15.02.22.04.53.15 1.02.44 1.43.82.38.35.66.78.85 1.25.08.2.13.4.14.61.01 1.3.02 2.6.02 3.91s-.01 2.61-.02 3.91c0 .08-.02.15-.04.22-.15.53-.44 1.02-.82 1.43-.35.38-.78.66-1.25.85-.2.08-.4.13-.61.14-1.3.01-2.6.02-3.91.02s-2.61-.01-3.91-.02c-.08 0-.15-.02-.22-.04-.53-.15-1.02-.44-1.43-.82-.38-.35-.66-.78-.85-1.25-.08-.2-.13-.4-.14-.61-.01-1.3-.02-2.6-.02-3.91s.01-2.61.02-3.91c0-.08.02-.15.04-.22.15-.53.44 1.02.82-1.43.35-.38.78-.66 1.25-.85.2-.08.4-.13.61-.14 1.3-.01 2.6-.02 3.91-.02zM12 15.35c-1.85 0-3.35-1.5-3.35-3.35s1.5-3.35 3.35-3.35 3.35 1.5 3.35 3.35-1.5 3.35-3.35 3.35zM12 10.1c-1.05 0-1.9.85-1.9 1.9s.85 1.9 1.9 1.9 1.9-.85 1.9-1.9-.85-1.9-1.9-1.9z" fill="white" /><path d="M16.95 3.05a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" fill="white" /></svg>
+                        <div className="flex flex-col gap-4">
+                            {!isTikTokConfigured && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Configuration Required</AlertTitle>
+                                    <AlertDescription>
+                                        The TikTok integration is not yet configured on this platform. Please contact the administrator.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-black rounded-lg border border-neutral-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 0 .15.02.22.04.53.15 1.02.44 1.43.82.38.35.66.78.85 1.25.08.2.13.4.14.61.01 1.3.02 2.6.02 3.91s-.01 2.61-.02 3.91c0 .08-.02.15-.04.22-.15.53-.44 1.02-.82 1.43-.35.38-.78.66-1.25.85-.2.08-.4.13-.61.14-1.3.01-2.6.02-3.91.02s-2.61-.01-3.91-.02c-.08 0-.15-.02-.22-.04-.53-.15-1.02-.44-1.43-.82-.38-.35-.66-.78-.85-1.25-.08-.2-.13-.4-.14-.61-.01-1.3-.02-2.6-.02-3.91s.01-2.61.02-3.91c0-.08.02-.15.04-.22.15-.53.44 1.02.82-1.43.35-.38.78-.66 1.25-.85.2-.08.4-.13.61-.14 1.3-.01 2.6-.02 3.91-.02zM12 15.35c-1.85 0-3.35-1.5-3.35-3.35s1.5-3.35 3.35-3.35 3.35 1.5 3.35 3.35-1.5 3.35-3.35 3.35zM12 10.1c-1.05 0-1.9.85-1.9 1.9s.85 1.9 1.9 1.9 1.9-.85 1.9-1.9-.85-1.9-1.9-1.9z" fill="white" /><path d="M16.95 3.05a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" fill="white" /></svg>
+                                    </div>
+                                    <div>
+                                        <Label className="text-lg font-bold">TikTok</Label>
+                                        <p className="text-sm text-muted-foreground">Allow Go Earn to post boosted videos directly to your TikTok account.</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <Label className="text-lg font-bold">TikTok</Label>
-                                    <p className="text-sm text-muted-foreground">Allow Go Earn to post boosted videos directly to your TikTok account.</p>
-                                </div>
+                                <Button asChild disabled={!isTikTokConfigured}>
+                                    <a href={isTikTokConfigured ? getTikTokAuthUrl(user?.uid || '') : '#'}>Connect with TikTok</a>
+                                </Button>
                             </div>
-                             <Button asChild>
-                                <a href={getTikTokAuthUrl(user?.uid || '')}>Connect with TikTok</a>
-                            </Button>
                         </div>
                     )}
                 </CardContent>

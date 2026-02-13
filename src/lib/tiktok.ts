@@ -1,8 +1,5 @@
-
-
 import type { BoostRequest } from './types';
 import axios from 'axios';
-import { Readable } from 'stream';
 
 const TIKTOK_AUTH_BASE_URL = 'https://www.tiktok.com/v2/auth/authorize';
 
@@ -14,9 +11,11 @@ const TIKTOK_AUTH_BASE_URL = 'https://www.tiktok.com/v2/auth/authorize';
 export function getTikTokAuthUrl(state: string): string {
     const clientKey = process.env.NEXT_PUBLIC_TIKTOK_CLIENT_KEY;
     if (!clientKey) {
-        throw new Error("TikTok client key is not configured in environment variables.");
+        console.warn("TikTok client key is not configured in environment variables.");
+        return "#";
     }
-    const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/api/tiktok/callback`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const redirectUri = `${baseUrl}/api/tiktok/callback`;
     
     const params = new URLSearchParams({
         client_key: clientKey,
