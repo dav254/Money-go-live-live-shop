@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -10,6 +9,7 @@ import { Skeleton } from '../ui/skeleton';
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { Pin, PinOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LiveProductShelfProps {
     sellerId: string;
@@ -20,24 +20,42 @@ interface LiveProductShelfProps {
 
 const ProductRow = ({ product, onPin, onUnpin, isPinned }: { product: Product; onPin: (p: Product) => void; onUnpin: () => void; isPinned: boolean; }) => {
     return (
-        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md">
-                <Image src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} alt={product.name || 'product'} fill className="object-cover" />
+        <div className={cn(
+            "flex flex-col gap-2 p-2 rounded-lg border transition-all duration-300",
+            isPinned ? "bg-primary/10 border-primary/50" : "hover:bg-white/5 border-transparent"
+        )}>
+            <div className="relative aspect-square w-full rounded-md overflow-hidden bg-neutral-800">
+                <Image 
+                    src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} 
+                    alt={product.name || 'product'} 
+                    fill 
+                    className="object-cover" 
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
+                    <p className="text-[10px] font-bold text-white text-center">${product.price.toLocaleString()}</p>
+                </div>
             </div>
-            <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-semibold">{product.name}</p>
-                <p className="text-xs font-bold text-primary">${product.price.toLocaleString()}</p>
-            </div>
-            <div className="flex gap-1">
-                {isPinned ? (
-                    <Button size="icon" variant="secondary" className="h-8 w-8" onClick={onUnpin}>
-                        <PinOff className="h-4 w-4" />
-                    </Button>
-                ) : (
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onPin(product)}>
-                        <Pin className="h-4 w-4" />
-                    </Button>
-                )}
+            <div className="flex flex-col gap-1 overflow-hidden">
+                <p className="truncate text-[11px] font-medium text-center">{product.name}</p>
+                <Button 
+                    size="sm" 
+                    variant={isPinned ? "secondary" : "default"} 
+                    className={cn(
+                        "h-7 w-full text-[10px] font-bold",
+                        isPinned ? "bg-red-600 hover:bg-red-700 text-white border-none" : "bg-primary text-primary-foreground"
+                    )}
+                    onClick={() => isPinned ? onUnpin() : onPin(product)}
+                >
+                    {isPinned ? (
+                        <>
+                            <PinOff className="h-3 w-3 mr-1" /> UNPIN
+                        </>
+                    ) : (
+                        <>
+                            <Pin className="h-3 w-3 mr-1" /> PIN
+                        </>
+                    )}
+                </Button>
             </div>
         </div>
     );
@@ -55,20 +73,29 @@ export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct, pinne
 
     if (isLoading) {
         return (
-            <div className="space-y-4">
-                <div className="flex items-center gap-3"><Skeleton className="h-12 w-12 rounded-md" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/4" /></div></div>
-                <div className="flex items-center gap-3"><Skeleton className="h-12 w-12 rounded-md" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-1/4" /></div></div>
+            <div className="space-y-4 p-2">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="space-y-2">
+                        <Skeleton className="aspect-square w-full rounded-md" />
+                        <Skeleton className="h-3 w-3/4 mx-auto" />
+                        <Skeleton className="h-7 w-full rounded-md" />
+                    </div>
+                ))}
             </div>
         )
     }
 
     if (!products || products.length === 0) {
-        return <p className="text-center text-sm text-muted-foreground">You have no products to display.</p>
+        return (
+            <div className="flex flex-col items-center justify-center h-48 px-4 text-center">
+                <p className="text-[11px] text-muted-foreground">You have no products to display. Add some in the Dashboard.</p>
+            </div>
+        )
     }
 
     return (
         <ScrollArea className="h-full">
-            <div className="space-y-2">
+            <div className="space-y-4 p-2">
                 {products.map(product => (
                     <ProductRow 
                         key={product.id} 
@@ -82,5 +109,3 @@ export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct, pinne
         </ScrollArea>
     )
 }
-
-    

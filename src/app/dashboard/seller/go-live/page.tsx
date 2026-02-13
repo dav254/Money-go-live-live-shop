@@ -12,6 +12,7 @@ import { Radio, Loader2, Video, Settings, CheckCircle, Package, Camera, ShieldCh
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -80,7 +81,6 @@ export default function SellerGoLivePage() {
     
     setIsStarting(true);
 
-    // 1. Request permissions directly
     try {
       setPermissionState('checking');
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -92,7 +92,6 @@ export default function SellerGoLivePage() {
       return;
     }
 
-    // 2. Create meeting
     const id = await createMeeting(token);
     if (!id) {
       setIsStarting(false);
@@ -136,7 +135,7 @@ export default function SellerGoLivePage() {
         status: 'ended',
         endTime: serverTimestamp(),
         pinnedProductId: null,
-        videosdkMeetingId: null, // Clear the meeting ID to prevent buyer access
+        videosdkMeetingId: null,
       });
       setMeetingId(null);
       setPinnedProductId(null);
@@ -171,7 +170,10 @@ export default function SellerGoLivePage() {
 
   return (
     <SellerLayout>
-      <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
+      <div className={cn(
+        "flex-1 space-y-6 p-4 pt-6 transition-all duration-500",
+        meetingId ? "md:p-2 max-w-full" : "md:p-8 max-w-7xl mx-auto"
+      )}>
         {!meetingId ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
             <div className="text-center space-y-2">
@@ -220,8 +222,8 @@ export default function SellerGoLivePage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-10rem)]">
-            <div className="lg:col-span-3 flex flex-col space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-6rem)]">
+            <div className="lg:col-span-10 flex flex-col space-y-4">
                 {token && (
                     <VideoSDKStudio 
                         meetingId={meetingId} 
@@ -232,12 +234,12 @@ export default function SellerGoLivePage() {
                     />
                 )}
             </div>
-            <div className="lg:col-span-1">
-                <Card className="h-full flex flex-col border-white/10 bg-neutral-900/50 backdrop-blur-sm">
-                    <CardHeader className="pb-3 border-b border-white/5">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Package className="h-5 w-5 text-primary" />
-                            Product Shelf
+            <div className="lg:col-span-2">
+                <Card className="h-full flex flex-col border-white/10 bg-neutral-900/50 backdrop-blur-sm shadow-xl">
+                    <CardHeader className="pb-3 border-b border-white/5 px-3">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider">
+                            <Package className="h-4 w-4 text-primary" />
+                            Products
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">
