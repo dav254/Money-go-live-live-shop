@@ -105,8 +105,6 @@ export default function SellerGoLivePage() {
     }
 
     setMeetingId(id);
-    // Note: We don't set Firestore to 'live' here anymore. 
-    // The VideoSDKStudio component will handle that once the connection is truly stable.
   };
 
   const handleStudioReady = async (mid: string) => {
@@ -138,6 +136,7 @@ export default function SellerGoLivePage() {
         status: 'ended',
         endTime: serverTimestamp(),
         pinnedProductId: null,
+        videosdkMeetingId: null, // Clear the meeting ID to prevent buyer access
       });
       setMeetingId(null);
       setPinnedProductId(null);

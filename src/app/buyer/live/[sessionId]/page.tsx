@@ -8,7 +8,7 @@ import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase
 import { doc, collection, query, where } from 'firebase/firestore';
 import type { LiveSession, UserProfile, Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, VideoOff, ChevronLeft, Users, ShoppingBag, X } from 'lucide-react';
+import { Loader2, VideoOff, ChevronLeft, Users, ShoppingBag, X, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -63,14 +63,20 @@ export default function BuyerLiveStreamViewPage() {
     );
   }
 
-  if (!session || session.status === 'ended') {
+  // STRICT VALIDATION: Only show content if status is 'live' and we have a valid meeting ID
+  if (!session || session.status !== 'live' || !session.videosdkMeetingId) {
     return (
       <BuyerLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-          <VideoOff className="h-16 w-16 text-muted-foreground mb-4" />
-          <h2 className="text-2xl font-bold">This stream has ended</h2>
-          <p className="text-muted-foreground mb-6">Check out other live shows on the platform.</p>
-          <Button onClick={() => router.push('/buyer/live-now')}>Browse Live Shows</Button>
+          <div className="bg-neutral-900 p-6 rounded-full mb-6 border border-white/5">
+            <VideoOff className="h-16 w-16 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-white mb-2 font-headline uppercase tracking-tight">Seller is Currently Offline</h2>
+          <p className="text-muted-foreground mb-8 max-w-sm">This live show has either ended or hasn't started yet. You can browse this seller's products or check other live shows.</p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button size="lg" className="font-bold min-w-[200px]" onClick={() => router.push('/buyer/live-now')}>Discover Live Shows</Button>
+            <Button size="lg" variant="outline" className="font-bold border-white/10 text-white min-w-[200px]" onClick={() => router.push(`/sellers/${sessionId}`)}>Visit Shop Profile</Button>
+          </div>
         </div>
       </BuyerLayout>
     );

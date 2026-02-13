@@ -78,11 +78,12 @@ const ViewerMeetingView = () => {
   }, [isMeetingJoined]);
 
   useEffect(() => {
+    // If we haven't joined within 45 seconds, it's likely a network issue
     joinTimer.current = setTimeout(() => {
         if (!isMeetingJoined && hasAttemptedJoin.current) {
             setError("The stream is taking too long to connect. This usually means the seller's broadcast signal is weak or your local network is restricted. Please try again.");
         }
-    }, 60000); 
+    }, 45000); 
     
     return () => {
         if (joinTimer.current) clearTimeout(joinTimer.current);
