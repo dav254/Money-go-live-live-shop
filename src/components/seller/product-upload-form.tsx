@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -45,6 +44,8 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/fi
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import type { Product } from '@/lib/types';
 import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { kenyaLocations } from '@/lib/location-data';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -55,7 +56,9 @@ const formSchema = z.object({
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
   tags: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  location: z.string().min(2, { message: 'Location is required.' }),
+  county: z.string().min(1, { message: 'County is required.' }),
+  subCounty: z.string().min(1, { message: 'Sub-county is required.' }),
+  area: z.string().min(2, { message: 'Area is required.' }),
   deliveryOptions: z.string().min(5, { message: 'Please describe delivery options.' }),
   enableDiscount: z.boolean().default(false),
 });
@@ -67,7 +70,7 @@ interface ProductUploadFormProps {
 
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const [files, setFiles] = useState<File[]>([]);
-  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = setExistingImageUrls([]);
   const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -89,11 +92,15 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       stock: 0,
       tags: '',
       description: '',
-      location: '',
+      county: '',
+      subCounty: '',
+      area: '',
       deliveryOptions: '',
       enableDiscount: false,
     },
   });
+
+  const selectedCounty = form.watch('county');
 
   useEffect(() => {
     if (isEditMode && productToEdit) {
@@ -107,7 +114,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         tags: productToEdit.tags || '',
         description: productToEdit.description || '',
         shippingCost: productToEdit.shippingCost || 0,
-        location: productToEdit.location || '',
+        county: productToEdit.county || '',
+        subCounty: productToEdit.subCounty || '',
+        area: productToEdit.area || '',
         deliveryOptions: productToEdit.deliveryOptions || '',
       });
       setExistingImageUrls(productToEdit.imageUrls || (productToEdit.imageUrl ? [productToEdit.imageUrl] : []));
@@ -142,7 +151,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     const signatureResponse = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paramsToSign),
+        body: JSON.stringify({ paramsToSign }),
     });
     const { signature } = await signatureResponse.json();
 
@@ -211,7 +220,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           tags: values.tags || '',
           description: values.description,
           shippingCost: values.shippingCost,
-          location: values.location,
+          county: values.county,
+          subCounty: values.subCounty,
+          area: values.area,
+          location: `${values.area}, ${values.subCounty}, ${values.county}`,
           deliveryOptions: values.deliveryOptions,
           sellerId: user.uid,
           imageUrl: allImageUrls[0] || '',
@@ -239,7 +251,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           const productsCollectionRef = collection(firestore, 'products');
           const newDocRef = await addDoc(productsCollectionRef, productData);
           toast({ title: 'Success!', description: 'Your product details have been saved.' });
-          // Store new product ID for the next step in the studio flow
           if (onFormSubmit) {
             localStorage.setItem('selectedProductId', newDocRef.id);
           }
@@ -272,9 +283,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-8">
-            {/* Single Column Layout */}
             <div className="flex flex-col gap-8">
-              {/* Main Info */}
               <div className="space-y-6">
                 <FormField
                   control={form.control}
@@ -304,7 +313,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 />
               </div>
 
-              {/* Media Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Media Uploads</CardTitle>
@@ -364,7 +372,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </CardContent>
               </Card>
 
-              {/* Pricing and Inventory */}
               <Card>
                 <CardHeader><CardTitle className="text-lg">Pricing & Inventory</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -401,9 +408,85 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </CardContent>
               </Card>
               
-               {/* Organization */}
               <Card>
-                  <CardHeader><CardTitle className="text-lg">Organization</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-lg">Location & Logistics</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="county"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>County</FormLabel>
+                                <Select onValueChange={(val) => { field.onChange(val); form.setValue('subCounty', ''); }} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select County" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {Object.keys(kenyaLocations).map(c => (
+                                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="subCounty"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Sub-county</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCounty}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Sub-county" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {selectedCounty && kenyaLocations[selectedCounty].map(s => (
+                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                      </div>
+                      <FormField
+                          control={form.control}
+                          name="area"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Specific Area / Pickup Spot</FormLabel>
+                              <FormControl><Input placeholder="e.g., Kimathi Street, CBD" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                       <FormField control={form.control} name="shippingCost" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Shipping Cost (USD)</FormLabel>
+                              <FormControl><Input type="number" placeholder="e.g., 5.00" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                       <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Delivery Options</FormLabel>
+                              <FormControl><Input placeholder="e.g., Standard, Express, Local Pickup" {...field} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )} />
+                  </CardContent>
+              </Card>
+
+              <Card>
+                  <CardHeader><CardTitle className="text-lg">Categorization</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                       <FormField
                           control={form.control}
@@ -428,34 +511,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                               </FormItem>
                           )}
                       />
-                  </CardContent>
-              </Card>
-
-              {/* Logistics */}
-              <Card>
-                  <CardHeader><CardTitle className="text-lg">Logistics</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                       <FormField control={form.control} name="shippingCost" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Shipping Cost (USD)</FormLabel>
-                              <FormControl><Input type="number" placeholder="e.g., 5.00" {...field} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                      )} />
-                       <FormField control={form.control} name="location" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Ships From (City, Country)</FormLabel>
-                              <FormControl><Input placeholder="e.g., Nairobi, Kenya" {...field} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                      )} />
-                       <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Delivery Options</FormLabel>
-                              <FormControl><Input placeholder="e.g., Standard, Express, Local Pickup" {...field} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                      )} />
                   </CardContent>
               </Card>
             </div>

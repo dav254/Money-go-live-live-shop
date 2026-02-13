@@ -3,7 +3,7 @@
 
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
-import { Verified, Star, Users } from 'lucide-react';
+import { Verified, Star, MapPin } from 'lucide-react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface VideoInfoProps {
@@ -11,7 +11,6 @@ interface VideoInfoProps {
 }
 
 export function VideoInfo({ seller }: VideoInfoProps) {
-  // Render a loading state or null if seller data is not yet available
   if (!seller) {
     return (
         <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent p-4 z-10">
@@ -32,7 +31,7 @@ export function VideoInfo({ seller }: VideoInfoProps) {
     <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent p-4 z-10">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-primary">
+          <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-primary shadow-lg">
             <Image
               src={avatarUrl}
               alt={seller.name || 'Seller Avatar'}
@@ -44,12 +43,23 @@ export function VideoInfo({ seller }: VideoInfoProps) {
           <div>
             <div className="flex items-center gap-2">
                 <h3 className="font-bold text-white text-lg drop-shadow-md">{seller.name || 'Seller Store'}</h3>
-                {seller.isVerified && <Verified className="h-4 w-4 text-blue-400 fill-current" />}
+                {seller.isVerified && <Verified className="h-4 w-4 text-blue-400 fill-current shadow-sm" />}
             </div>
-            <div className="flex items-center gap-2 text-xs text-neutral-300">
-                <span>{seller.rating?.toFixed(1) || 'N/A'} <Star className="h-3 w-3 inline-block -mt-1 text-yellow-400 fill-current"/></span>
-                <span>|</span>
-                <span>{(seller.followers || 0).toLocaleString()} followers</span>
+            <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2 text-xs text-neutral-200 drop-shadow-md">
+                    <span className="flex items-center gap-1">
+                        <Star className="h-3 w-3 text-yellow-400 fill-current"/>
+                        {seller.rating?.toFixed(1) || 'N/A'}
+                    </span>
+                    <span>|</span>
+                    <span>{(seller.followers || 0).toLocaleString()} followers</span>
+                </div>
+                {seller.location && (
+                    <div className="flex items-center gap-1 text-[10px] font-medium text-primary-foreground/90 drop-shadow-md">
+                        <MapPin className="h-3 w-3" />
+                        <span>{seller.location}</span>
+                    </div>
+                )}
             </div>
           </div>
         </div>

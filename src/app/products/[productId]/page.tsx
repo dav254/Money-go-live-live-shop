@@ -103,7 +103,6 @@ export default function BuyerProductPage() {
     useEffect(() => {
         if (firestore && productId && user) {
             const productRef = doc(firestore, 'products', productId);
-            // We use a non-blocking update for performance. This is a "fire-and-forget" operation.
             updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
         }
     }, [firestore, productId, user]);
@@ -159,17 +158,12 @@ export default function BuyerProductPage() {
         if (!product) return [];
         
         const media = [];
-        // Prioritize video
         if (product.videoUrl) media.push({ url: product.videoUrl, type: 'video' as 'video' });
         if (product.videoUrls) media.push(...product.videoUrls.map(url => ({ url, type: 'video' as 'video' })));
-        
-        // Then add images
         if (product.imageUrl) media.push({ url: product.imageUrl, type: 'image' as 'image' });
         if (product.imageUrls) media.push(...product.imageUrls.map(url => ({ url, type: 'image' as 'image' })));
         
-        // Remove duplicates just in case
         const uniqueMedia = Array.from(new Map(media.map(m => [m.url, m])).values());
-        
         return uniqueMedia;
     }, [product]);
 
@@ -237,11 +231,11 @@ export default function BuyerProductPage() {
                 imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200'
             }],
             subtotal: subtotal,
-            productPrice: subtotal, // for single item, this is the same
+            productPrice: subtotal,
             shippingCost: shippingCost,
             totalAmount: subtotal + shippingCost,
             orderDate: serverTimestamp() as any,
-            shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+            shippingAddress: '123 Placeholder Lane, Nairobi',
             orderStatus: 'pending',
             paymentMethod: 'pending',
             ...(resellerId && { resellerId: resellerId }),
@@ -249,14 +243,9 @@ export default function BuyerProductPage() {
 
         try {
           await setDoc(newOrderRef, newOrderData);
-          
-          if (resellerId) {
-             localStorage.removeItem('resellerRefId');
-          }
-
+          if (resellerId) localStorage.removeItem('resellerRefId');
           toast({ title: 'Order Created!', description: 'Redirecting you to checkout...' });
           router.push(`/checkout/${newOrderRef.id}`);
-
         } catch (error) {
            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: newOrderRef.path, operation: 'create', requestResourceData: newOrderData }));
         }
@@ -269,34 +258,18 @@ export default function BuyerProductPage() {
         }
 
         const newFollowingState = !isFollowing;
-        setIsFollowing(newFollowingState); // Optimistic UI update
+        setIsFollowing(newFollowingState);
 
         try {
             const token = await user.getIdToken();
             const response = await fetch('/api/follow', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    sellerId: sellerId,
-                    action: newFollowingState ? 'follow' : 'unfollow',
-                }),
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sellerId: sellerId, action: newFollowingState ? 'follow' : 'unfollow' }),
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to update follow status.');
-            }
-
-            toast({
-                title: newFollowingState ? 'Followed!' : 'Unfollowed',
-                description: `You are now ${newFollowingState ? 'following' : 'no longer following'} this shop.`,
-            });
-
+            if (!response.ok) throw new Error('Failed to update follow status.');
+            toast({ title: newFollowingState ? 'Followed!' : 'Unfollowed', description: `You are now ${newFollowingState ? 'following' : 'no longer following'} this shop.` });
         } catch (error) {
-            console.error('Error updating follow status:', error);
-            // Revert optimistic UI update on error
             setIsFollowing(!newFollowingState);
             toast({ variant: 'destructive', title: 'Something went wrong' });
         }
@@ -338,25 +311,14 @@ export default function BuyerProductPage() {
                 router.push(`/messages?chatWith=${sellerId}`);
             }
         } catch (error) {
-            console.error("Error handling message seller: ", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat.' });
         }
     };
     
     const handleShare = () => {
-        const productUrl = `https://goearnvid.shop/products/${productId}`;
+        const productUrl = window.location.href;
         navigator.clipboard.writeText(productUrl).then(() => {
-            toast({
-                title: "Link Copied!",
-                description: "Product link copied to your clipboard.",
-            });
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
-            toast({
-                variant: "destructive",
-                title: "Failed to Copy",
-                description: "Could not copy the link.",
-            });
+            toast({ title: "Link Copied!", description: "Product link copied to your clipboard." });
         });
     };
 
@@ -392,7 +354,6 @@ export default function BuyerProductPage() {
     return (
         <LayoutComponent>
             <div className="bg-black text-white pb-24">
-                {/* 1. Product Media Section */}
                 <div className="relative w-full">
                     <div className="aspect-square md:aspect-[16/10] w-full bg-black">
                         {selectedMedia?.type === 'video' ? (
@@ -426,17 +387,21 @@ export default function BuyerProductPage() {
                 )}
 
                 <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
-                    {/* 2. Product Title + Rating + Sold Count */}
                     <div>
                         <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
                         <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
-                        <div className="flex items-center gap-4 mt-1 text-sm">
+                        <div className="flex items-center gap-4 mt-1 text-sm text-neutral-400">
                             <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
-                            {reviews && reviews.length > 0 && <span className="text-neutral-400">Sold {product.salesCount || 0}</span>}
+                            <span>Sold {product.salesCount || 0}</span>
+                            {product.location && (
+                                <span className="flex items-center gap-1 font-medium text-red-400">
+                                    <MapPin className="h-3 w-3" />
+                                    {product.location}
+                                </span>
+                            )}
                         </div>
                     </div>
 
-                    {/* 3. Price Section */}
                      <div>
                         <p className="text-3xl font-bold text-red-500">USD ${product.price.toLocaleString()}</p>
                     </div>
@@ -452,16 +417,14 @@ export default function BuyerProductPage() {
                     )}
 
 
-                    {/* 4. Delivery & Location Section */}
                     <Card className="bg-[#2a2a2a] border-neutral-800">
                         <CardContent className="p-4 space-y-3 text-sm">
-                            <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-neutral-400" /> <span>Ships to <strong>Nairobi, Kenya</strong></span> <Button variant="link" className="p-0 h-auto text-red-500">Change</Button></div>
-                            <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-neutral-400" /> <span>Standard Delivery (1-2 days) - <strong className="text-white">USD ${product.shippingCost?.toLocaleString() || '0'}</strong></span></div>
-                            <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-neutral-400" /> <span>7-day return policy</span></div>
+                            <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-neutral-400" /> <span>Pickup / Ship from: <strong>{product.location || 'Kenya'}</strong></span></div>
+                            <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-neutral-400" /> <span>Delivery: <strong className="text-white">{product.deliveryOptions || 'Standard Shipping'}</strong> - <strong className="text-white">USD ${product.shippingCost?.toLocaleString() || '0'}</strong></span></div>
+                            <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-neutral-400" /> <span>Buyer protection active</span></div>
                         </CardContent>
                     </Card>
 
-                    {/* 5. Variants & Quantity */}
                     <div className="flex items-center justify-between">
                         <p className="font-semibold">Quantity</p>
                         <div className="flex items-center gap-2">
@@ -473,14 +436,16 @@ export default function BuyerProductPage() {
                     {product.stock != null && product.stock <= 5 && <p className="text-red-500 text-sm font-semibold">Only {product.stock} left in stock!</p>}
 
 
-                    {/* 6. Seller Shop Info Block */}
                     {!isResellerPage && (
                         <Card className="bg-[#2a2a2a] border-neutral-800">
                             <CardContent className="p-4 flex items-center gap-4">
                                 <Avatar className="h-12 w-12 border"><AvatarImage src={sellerLogo} /><AvatarFallback>{sellerName?.charAt(0)}</AvatarFallback></Avatar>
                                 <div className="flex-1">
                                     <p className="font-bold">{sellerName}</p>
-                                    <p className="text-xs text-neutral-400">{sellerFollowers.toLocaleString()} followers</p>
+                                    <div className="flex items-center gap-2 text-xs text-neutral-400">
+                                        <span>{sellerFollowers.toLocaleString()} followers</span>
+                                        {sellerShop?.location && <span>• {sellerShop.location}</span>}
+                                    </div>
                                 </div>
                                 <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow'}</Button>
                                 <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" asChild>
@@ -491,12 +456,10 @@ export default function BuyerProductPage() {
                     )}
 
                     <Accordion type="single" collapsible className="w-full" defaultValue="description">
-                        {/* 7. Product Description */}
                         <AccordionItem value="description">
                             <AccordionTrigger>Product Description</AccordionTrigger>
                             <AccordionContent className="prose prose-sm dark:prose-invert text-neutral-300">{product.description}</AccordionContent>
                         </AccordionItem>
-                        {/* 8. Reviews & Ratings */}
                         <AccordionItem value="reviews">
                             <AccordionTrigger>Reviews & Ratings ({reviews?.length || 0})</AccordionTrigger>
                             <AccordionContent>
@@ -509,22 +472,13 @@ export default function BuyerProductPage() {
                                 )}
                             </AccordionContent>
                         </AccordionItem>
-                        {/* 9. Q&A */}
-                         <AccordionItem value="qa">
-                            <AccordionTrigger>Questions & Answers</AccordionTrigger>
-                            <AccordionContent>
-                                <p className="text-neutral-400 text-sm text-center py-4">No questions yet.</p>
-                            </AccordionContent>
-                        </AccordionItem>
                     </Accordion>
                     
-                    {/* 10. More from this Seller */}
                     <div>
                         <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from this Seller</h2>
                          {areRecsLoading ? (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <Skeleton className="h-64 w-full" />
-                                <Skeleton className="h-64 w-full" />
+                                <Skeleton className="h-64 w-full" /><Skeleton className="h-64 w-full" />
                             </div>
                          ) : filteredRecommendedProducts.length > 0 ? (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -537,7 +491,6 @@ export default function BuyerProductPage() {
                 </div>
             </div>
 
-            {/* 12. Bottom Sticky Action Bar */}
             {!isResellerPage && (
                 <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-sm border-t border-neutral-800 p-2 flex items-center gap-2">
                     <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center p-2">
@@ -555,7 +508,3 @@ export default function BuyerProductPage() {
         </LayoutComponent>
     );
 }
-
-    
-
-    

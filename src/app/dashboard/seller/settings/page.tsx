@@ -64,6 +64,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import jsPDF from 'jspdf';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { kenyaLocations } from '@/lib/location-data';
 
 
 const passwordFormSchema = z.object({
@@ -105,6 +107,11 @@ export default function SellerSettingsPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingPoster, setIsDownloadingPoster] = useState(false);
 
+  // Location State
+  const [county, setCounty] = useState('');
+  const [subCounty, setSubCounty] = useState('');
+  const [area, setArea] = useState('');
+
 
   useEffect(() => {
     if (shopData) {
@@ -112,6 +119,9 @@ export default function SellerSettingsPage() {
         setShopDescription(shopData.description || '');
         setLogoUrl(shopData.logoUrl || null);
         setBannerUrl(shopData.bannerUrl || null);
+        setCounty(shopData.county || '');
+        setSubCounty(shopData.subCounty || '');
+        setArea(shopData.area || '');
     }
   }, [shopData]);
   
@@ -178,7 +188,7 @@ export default function SellerSettingsPage() {
     if (!response.ok) throw new Error('Cloudinary upload failed.');
     
     const uploadedData = await response.json();
-    return uploadedData.secure_url;
+    return { url: uploadedData.secure_url, type: file.type };
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
@@ -187,7 +197,7 @@ export default function SellerSettingsPage() {
 
       setIsUploading(type);
       try {
-          const  url  = await uploadToCloudinary(file);
+          const { url } = await uploadToCloudinary(file);
           if (type === 'logo') {
               setLogoUrl(url);
           } else {
@@ -211,6 +221,10 @@ export default function SellerSettingsPage() {
         description: shopDescription,
         logoUrl: logoUrl || '',
         bannerUrl: bannerUrl || '',
+        county,
+        subCounty,
+        area,
+        location: `${area}, ${subCounty}, ${county}, Kenya`, // Flattened string for legacy compatibility
     };
 
     try {
@@ -556,26 +570,54 @@ export default function SellerSettingsPage() {
               <CardHeader>
                 <CardTitle>Business Location</CardTitle>
                 <CardDescription>
-                  Help customers know where you are based.
+                  Help customers know where you are based. Localized data increases buyer trust.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <Label htmlFor="country">Country</Label>
-                        <Input id="country" defaultValue="Kenya" />
+                        <Label>Country</Label>
+                        <Input value="Kenya" disabled className="bg-muted" />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="city">County / City</Label>
-                        <Input id="city" placeholder="e.g., Nairobi" />
+                        <Label>County</Label>
+                        <Select value={county} onValueChange={(val) => { setCounty(val); setSubCounty(''); }}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select County" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.keys(kenyaLocations).map(c => (
+                                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="address">Building & Floor / Exact Area</Label>
-                    <Input id="address" placeholder="e.g., ABC Towers, 3rd Floor" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label>Sub-county / Constituency</Label>
+                        <Select value={subCounty} onValueChange={setSubCounty} disabled={!county}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Sub-county" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {county && kenyaLocations[county].map(s => (
+                                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="area">Specific Area / Estate / Building</Label>
+                        <Input id="area" placeholder="e.g., Garden City, 3rd Floor" value={area} onChange={(e) => setArea(e.target.value)} />
+                    </div>
                 </div>
-                 <div className="h-64 w-full rounded-md bg-muted flex items-center justify-center">
-                    <p className="text-muted-foreground">Google Map Preview</p>
+                 <div className="h-64 w-full rounded-md bg-muted flex items-center justify-center border-2 border-dashed">
+                    <div className="text-center text-muted-foreground">
+                        <MapPin className="mx-auto h-10 w-10 mb-2" />
+                        <p>Google Map Integration Coming Soon</p>
+                        <p className="text-xs">{area || subCounty || county ? `${area} ${subCounty} ${county}` : 'Enter your location details above'}</p>
+                    </div>
                 </div>
               </CardContent>
             </Card>
