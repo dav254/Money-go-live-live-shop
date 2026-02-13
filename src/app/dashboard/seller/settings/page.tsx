@@ -32,6 +32,9 @@ import {
   Download,
   Package,
   AlertTriangle,
+  Facebook,
+  Instagram,
+  Twitter,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -112,6 +115,14 @@ export default function SellerSettingsPage() {
   const [subCounty, setSubCounty] = useState('');
   const [area, setArea] = useState('');
 
+  // Contact & Social State
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactWhatsapp, setContactWhatsapp] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+
 
   useEffect(() => {
     if (shopData) {
@@ -122,6 +133,12 @@ export default function SellerSettingsPage() {
         setCounty(shopData.county || '');
         setSubCounty(shopData.subCounty || '');
         setArea(shopData.area || '');
+        setContactPhone(shopData.contactPhone || '');
+        setContactWhatsapp(shopData.contactWhatsapp || '');
+        setContactEmail(shopData.contactEmail || '');
+        setFacebookUrl(shopData.facebookUrl || '');
+        setInstagramUrl(shopData.instagramUrl || '');
+        setTwitterUrl(shopData.twitterUrl || '');
     }
   }, [shopData]);
   
@@ -225,6 +242,12 @@ export default function SellerSettingsPage() {
         subCounty,
         area,
         location: `${area}, ${subCounty}, ${county}, Kenya`, // Flattened string for legacy compatibility
+        contactPhone,
+        contactWhatsapp,
+        contactEmail,
+        facebookUrl,
+        instagramUrl,
+        twitterUrl,
     };
 
     try {
@@ -392,7 +415,7 @@ export default function SellerSettingsPage() {
               <MapPin className="mr-2 h-4 w-4" /> Location
             </TabsTrigger>
             <TabsTrigger value="contact">
-              <Mail className="mr-2 h-4 w-4" /> Contact
+              <Mail className="mr-2 h-4 w-4" /> Contact & Social
             </TabsTrigger>
             <TabsTrigger value="security">
               <Lock className="mr-2 h-4 w-4" /> Security
@@ -640,26 +663,67 @@ export default function SellerSettingsPage() {
           <TabsContent value="contact" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Contact & WhatsApp</CardTitle>
+                <CardTitle>Contact & Social Media</CardTitle>
                 <CardDescription>
-                  Manage how buyers can contact you.
+                  Manage how buyers can reach you and follow your brand across platforms.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="phone">Primary Phone</Label>
-                        <Input id="phone" type="tel" placeholder="+254 712 345 678" />
+              <CardContent className="space-y-8">
+                 <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">Direct Contact</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="phone">Primary Phone</Label>
+                            <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="phone" type="tel" placeholder="+254 712 345 678" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="whatsapp">WhatsApp Number</Label>
+                            <div className="relative">
+                                <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="whatsapp" type="tel" placeholder="+254 712 345 678" value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="whatsapp">WhatsApp Number</Label>
-                        <Input id="whatsapp" type="tel" placeholder="+254 712 345 678" />
+                        <Label htmlFor="contact-email">Public Email</Label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="contact-email" type="email" placeholder="support@yourshop.co.ke" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className="pl-9" />
+                        </div>
                     </div>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="email">Public Email</Label>
-                    <Input id="email" type="email" placeholder="support@aishabags.co.ke" />
-                </div>
+                 </div>
+
+                 <Separator />
+
+                 <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">Social Media Profiles</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="facebook">Facebook URL</Label>
+                            <div className="relative">
+                                <Facebook className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600" />
+                                <Input id="facebook" placeholder="https://facebook.com/yourshop" value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="instagram">Instagram URL</Label>
+                            <div className="relative">
+                                <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-600" />
+                                <Input id="instagram" placeholder="https://instagram.com/yourshop" value={instagramUrl} onChange={(e) => setInstagramUrl(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="twitter">Twitter / X URL</Label>
+                            <div className="relative">
+                                <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sky-500" />
+                                <Input id="twitter" placeholder="https://twitter.com/yourshop" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} className="pl-9" />
+                            </div>
+                        </div>
+                    </div>
+                 </div>
               </CardContent>
             </Card>
           </TabsContent>

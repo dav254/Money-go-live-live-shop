@@ -1,5 +1,3 @@
-
-
 import { Timestamp } from 'firebase/firestore';
 
 // Represents the user's public profile
@@ -144,6 +142,12 @@ export type Seller = {
   deliveryPolicy?: string;
   storeHours?: string;
   deliversFast?: boolean;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  contactWhatsapp?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 };
 
 export type Comment = {
@@ -305,6 +309,15 @@ export interface SellerShop {
     location: string;
     isVerified: boolean;
     rating: number;
+    county?: string;
+    subCounty?: string;
+    area?: string;
+    facebookUrl?: string;
+    instagramUrl?: string;
+    twitterUrl?: string;
+    contactWhatsapp?: string;
+    contactPhone?: string;
+    contactEmail?: string;
 }
 
 export interface ResellerApplication {
@@ -326,6 +339,7 @@ export interface LiveSession {
     viewerCount?: number;
     startTime: any;
     endTime?: any;
+    videosdkMeetingId?: string;
 }
 
 export interface SupportTicket {
@@ -472,4 +486,3 @@ export interface ResellActivity {
     sellerId: string;
     sharedAt: Timestamp;
 }
-    
