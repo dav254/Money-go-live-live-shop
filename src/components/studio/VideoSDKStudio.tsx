@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle, RefreshCcw } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle, RefreshCcw, SignalHigh } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -79,19 +79,24 @@ const LiveStudioControls = ({ onEnd }: { onEnd: () => void }) => {
 };
 
 const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
-  const { join, localParticipant, isMeetingJoined } = useMeeting();
+  const { join, localParticipant, isMeetingJoined, mMeeting } = useMeeting();
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Preparing media...");
+  const [statusMessage, setStatusMessage] = useState("Initializing...");
   const joinedRef = useRef(false);
+  const [retryCount, setRefreshingCount] = useState(0);
+
+  const handleJoin = useCallback(() => {
+    setError(null);
+    setStatusMessage("Authenticating with bridge...");
+    join();
+  }, [join]);
 
   useEffect(() => {
     if (!isMeetingJoined && !joinedRef.current) {
-      console.log("Attempting to join meeting...");
-      setStatusMessage("Connecting to server...");
-      join();
+      handleJoin();
       joinedRef.current = true;
     }
-  }, [join, isMeetingJoined]);
+  }, [handleJoin, isMeetingJoined]);
 
   useEffect(() => {
     if (isMeetingJoined) {
@@ -99,27 +104,33 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
     }
   }, [isMeetingJoined]);
 
-  // Handle connection timeouts
+  // Extended timeout for mobile stability
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!isMeetingJoined) {
-            setError("Connection timed out. This can happen on slow networks. Please refresh and try again.");
+            setError("Connection timed out. Mobile networks can sometimes block WebRTC. Try switching from data to Wi-Fi or vice-versa.");
         }
-    }, 25000); // 25 seconds timeout for mobile stability
+    }, 60000); // 60 seconds timeout
     return () => clearTimeout(timer);
-  }, [isMeetingJoined]);
+  }, [isMeetingJoined, retryCount]);
+
+  const handleManualRetry = () => {
+      joinedRef.current = false;
+      setRefreshingCount(prev => prev + 1);
+      window.location.reload(); // Hard refresh is often the only way to reset failed WebRTC stacks on mobile
+  };
 
   if (error) {
       return (
           <div className="space-y-4">
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="border-red-900/50 bg-red-950/20">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Connection Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertTitle>Connection Problem</AlertTitle>
+                <AlertDescription className="text-sm">{error}</AlertDescription>
             </Alert>
-            <Button className="w-full" onClick={() => window.location.reload()}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Reload Studio
+            <Button className="w-full h-14 text-lg font-bold" onClick={handleManualRetry}>
+                <RefreshCcw className="mr-2 h-5 w-5" />
+                Refresh & Retry Connection
             </Button>
           </div>
       )
@@ -131,12 +142,13 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
         {isMeetingJoined && localParticipant ? (
           <ParticipantView participantId={localParticipant.id} />
         ) : (
-          <Card className="aspect-video flex flex-col items-center justify-center bg-muted">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="font-bold text-lg">{statusMessage}</p>
-            <p className="text-xs text-muted-foreground mt-2 px-8 text-center">
-                Please stay on this page and ensure your internet is active.
-            </p>
+          <Card className="aspect-video flex flex-col items-center justify-center bg-muted border-2 border-primary/10">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="font-bold text-xl">{statusMessage}</p>
+            <div className="flex items-center gap-2 mt-4 text-xs text-neutral-500 bg-black/20 px-4 py-2 rounded-full">
+                <SignalHigh className="h-3 w-3" />
+                <span>Mobile users: Stay on this page for best results.</span>
+            </div>
           </Card>
         )}
       </div>
@@ -154,7 +166,11 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         webcamEnabled: true,
         name: participantName,
         mode: "CONFERENCE",
-        multiStream: false, // Better for mobile stability
+        multiStream: false, 
+        notification: {
+            title: "Go Earn Live",
+            message: "Broadcasting your store...",
+        }
       }}
       token={token}
     >

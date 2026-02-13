@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { VideoOff, Loader2, AlertCircle, RefreshCw, Signal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '../ui/button';
 
@@ -30,8 +30,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-white">
           <VideoOff className="h-12 w-12 text-muted-foreground mb-2" />
-          <p className="font-semibold">Seller is checking something...</p>
-          <p className="text-xs text-muted-foreground">Video will resume shortly</p>
+          <p className="font-semibold text-lg text-center px-4">Seller is pausing the feed...</p>
+          <p className="text-sm text-neutral-400 mt-1">Video will resume shortly</p>
         </div>
       )}
     </div>
@@ -41,32 +41,38 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 const ViewerMeetingView = () => {
   const { join, participants, isMeetingJoined } = useMeeting();
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Connecting...");
+  const [statusMessage, setStatusMessage] = useState("Connecting to Stream...");
   const joinedRef = useRef(false);
+  const [retryCount, setRetryCount] = useState(0);
   
+  const handleJoin = useCallback(() => {
+    setError(null);
+    setStatusMessage("Searching for media bridge...");
+    join();
+  }, [join]);
+
   useEffect(() => {
     if (!isMeetingJoined && !joinedRef.current) {
-      console.log("Viewer attempting to join meeting...");
-      join();
+      handleJoin();
       joinedRef.current = true;
     }
-  }, [join, isMeetingJoined]);
+  }, [handleJoin, isMeetingJoined]);
 
   useEffect(() => {
     if (isMeetingJoined) {
-        setStatusMessage("Joining stream...");
+        setStatusMessage("Joining live session...");
     }
   }, [isMeetingJoined]);
 
-  // Timeout for joining
+  // Increased timeout for mobile network stability
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!isMeetingJoined) {
-            setError("We're having trouble connecting to the stream. Your internet might be slow or the seller just went offline.");
+            setError("We're having trouble connecting to the stream. This often happens on unstable mobile networks. Please ensure your connection is strong.");
         }
-    }, 25000); // 25 seconds timeout for mobile
+    }, 60000); // 60 seconds timeout
     return () => clearTimeout(timer);
-  }, [isMeetingJoined]);
+  }, [isMeetingJoined, retryCount]);
 
   // Find the host (the seller)
   const participantsArray = Array.from(participants.values());
@@ -77,10 +83,10 @@ const ViewerMeetingView = () => {
           <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-neutral-950 rounded-xl">
             <Alert variant="destructive" className="max-w-md border-red-900/50 bg-red-950/20">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Connection Problem</AlertTitle>
+                <AlertTitle>Network Problem</AlertTitle>
                 <AlertDescription className="text-xs mt-1">{error}</AlertDescription>
             </Alert>
-            <Button variant="outline" className="mt-6 border-white/10 text-white hover:bg-white/5" onClick={() => window.location.reload()}>
+            <Button variant="outline" className="mt-6 border-white/10 text-white h-12 px-8 font-bold" onClick={() => window.location.reload()}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Try Reconnecting
             </Button>
@@ -93,12 +99,13 @@ const ViewerMeetingView = () => {
       {isMeetingJoined && host ? (
         <ParticipantView participantId={host.id} />
       ) : (
-        <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-white font-bold text-lg">{statusMessage}</p>
-          <p className="text-xs text-neutral-500 mt-2 px-8 text-center">
-              Waiting for the seller to start broadcasting.
-          </p>
+        <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5 p-8 text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
+          <p className="text-white font-bold text-xl">{statusMessage}</p>
+          <div className="flex items-center gap-2 mt-6 text-sm text-neutral-500 bg-neutral-900 px-4 py-2 rounded-full">
+              <Signal className="h-4 w-4" />
+              <span>Stabilizing connection for mobile...</span>
+          </div>
         </div>
       )}
     </div>
@@ -127,7 +134,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-white font-bold">Securely Connecting...</p>
+        <p className="text-white font-bold">Connecting Securely...</p>
       </div>
     );
   }
@@ -140,7 +147,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         webcamEnabled: false,
         name: "Buyer Viewer",
         mode: "VIEWER",
-        multiStream: false, // Essential for mobile performance
+        multiStream: false, 
       }}
       token={token}
     >
