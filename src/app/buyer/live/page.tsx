@@ -10,6 +10,10 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Search, ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +98,9 @@ export default function BuyerLiveFeedPage() {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
+    const router = useRouter();
     const [intersectingCard, setIntersectingCard] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -147,6 +153,13 @@ export default function BuyerLiveFeedPage() {
 
     }, [products]);
 
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        }
+    };
+
 
     if (isLoading) {
         return (
@@ -157,7 +170,32 @@ export default function BuyerLiveFeedPage() {
     }
 
     return (
-        <div className="relative h-screen w-full bg-black">
+        <div className="relative h-screen w-full bg-black overflow-hidden">
+            {/* Floating Header / Search Section */}
+            <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-white bg-black/20 hover:bg-black/40 rounded-full"
+                    onClick={() => router.push('/buyer/dashboard')}
+                >
+                    <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md mx-auto">
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search products or sellers..." 
+                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10 rounded-full focus:bg-white/20 focus:border-primary/50 backdrop-blur-md transition-all h-10 md:h-11"
+                        />
+                    </div>
+                </form>
+                {/* Spacer for symmetry on mobile */}
+                <div className="w-10 md:hidden" />
+            </div>
+
             <div 
                 ref={scrollContainerRef}
                 className={cn(
