@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -176,10 +175,10 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/stream')}>
-              <Link href="/dashboard/seller/stream">
+            <SidebarMenuButton size="sm" asChild isActive={pathname === '/dashboard/products' && new URLSearchParams(window.location.search).get('tab') === 'studio'}>
+              <Link href="/dashboard/products?tab=studio">
                 <RadioTower />
-                <span>Studio</span>
+                <span>Video Studio</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

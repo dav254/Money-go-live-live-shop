@@ -8,7 +8,9 @@ import { MyProductsTable } from '@/components/seller/my-products-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DiscountedProductsTable } from '@/components/seller/discounted-products-table';
 import { LogisticsTable } from '@/components/seller/logistics-table';
-import Recorder from '@/components/studio/Recorder';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Video, Upload, Bot, Text, Image as ImageIcon, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 function ProductsPageContent() {
@@ -18,25 +20,87 @@ function ProductsPageContent() {
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Product Management
-        </h1>
+        <div className="flex items-center justify-between">
+            <h1 className="font-headline text-3xl font-bold tracking-tight">
+            Product Management
+            </h1>
+        </div>
+        
         <Tabs defaultValue={defaultTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="my-products">My Products</TabsTrigger>
-            <TabsTrigger value="add-new">Add / Edit Product</TabsTrigger>
-            <TabsTrigger value="discounts">Discounts</TabsTrigger>
-            <TabsTrigger value="logistics">Logistics</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
+            <TabsTrigger value="my-products" className="py-2">My Products</TabsTrigger>
+            <TabsTrigger value="studio" className="py-2">Video Studio</TabsTrigger>
+            <TabsTrigger value="add-new" className="py-2">Add / Edit</TabsTrigger>
+            <TabsTrigger value="discounts" className="py-2">Discounts</TabsTrigger>
+            <TabsTrigger value="logistics" className="py-2">Logistics</TabsTrigger>
           </TabsList>
+
           <TabsContent value="my-products" className="space-y-4">
             <MyProductsTable />
           </TabsContent>
+
+          <TabsContent value="studio" className="space-y-6 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="border-primary/20 bg-primary/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            <Video className="h-6 w-6 text-primary" />
+                            <span>Manual Video Studio</span>
+                        </CardTitle>
+                        <CardDescription>Record or upload your own authentic product videos.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" asChild>
+                            <Link href="/seller/studio/record">
+                                <Video className="mr-3 h-5 w-5 text-primary" /> Record New Product Video
+                            </Link>
+                        </Button>
+                        <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" disabled>
+                            <Upload className="mr-3 h-5 w-5 text-muted-foreground" /> Upload Existing File (Coming Soon)
+                        </Button>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-purple-500/20 bg-purple-500/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            <Bot className="h-6 w-6 text-purple-500" />
+                            <span>AI Video Creation</span>
+                        </CardTitle>
+                        <CardDescription>Let AI generate high-converting video content for you.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                        <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" asChild>
+                            <Link href="/dashboard/seller/ai-tools/text-to-video">
+                                <Text className="mr-3 h-5 w-5 text-purple-500" /> Create Video from Text
+                            </Link>
+                        </Button>
+                        <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" asChild>
+                            <Link href="/dashboard/seller/ai-tools/video-enhancer">
+                                <ImageIcon className="mr-3 h-5 w-5 text-purple-500" /> Animate Product Photo
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <Alert className="bg-yellow-500/10 border-yellow-500/30">
+                <Sparkles className="h-4 w-4 text-yellow-500" />
+                <AlertTitle className="font-bold">Pro Tip</AlertTitle>
+                <AlertDescription>
+                    Products with video content have a <span className="font-bold">10x higher conversion rate</span>. Use the studio to bring your items to life!
+                </AlertDescription>
+            </Alert>
+          </TabsContent>
+
           <TabsContent value="add-new" className="space-y-4">
             <ProductUploadForm />
           </TabsContent>
+
           <TabsContent value="discounts" className="space-y-4">
              <DiscountedProductsTable />
           </TabsContent>
+
            <TabsContent value="logistics" className="space-y-4">
              <LogisticsTable />
           </TabsContent>
@@ -45,7 +109,6 @@ function ProductsPageContent() {
     </SellerLayout>
   );
 }
-
 
 export default function ProductsPage() {
   return (
