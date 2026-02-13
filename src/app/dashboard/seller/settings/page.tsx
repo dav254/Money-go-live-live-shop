@@ -35,6 +35,8 @@ import {
   Facebook,
   Instagram,
   Twitter,
+  Phone,
+  MessageSquare,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
