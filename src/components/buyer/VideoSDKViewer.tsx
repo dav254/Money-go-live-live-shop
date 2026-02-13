@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, AlertCircle, RefreshCw, Signal } from 'lucide-react';
+import { VideoOff, Loader2, AlertCircle, RefreshCw, Signal, SignalHigh } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '../ui/button';
 
@@ -15,7 +15,11 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       const mediaStream = new MediaStream();
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
-      videoRef.current.play().catch((err) => console.error("video play failed", err));
+      videoRef.current.play().catch((err) => {
+          if (err.name !== 'AbortError') {
+              console.error("video play failed", err);
+          }
+      });
     }
   }, [webcamStream, webcamOn]);
 
@@ -43,13 +47,18 @@ const ViewerMeetingView = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Connecting to Stream...");
   const hasAttemptedJoin = useRef(false);
+  const joinTimer = useRef<NodeJS.Timeout | null>(null);
   
   const handleJoin = useCallback(() => {
     if (hasAttemptedJoin.current) return;
     setError(null);
     setStatusMessage("Searching for media bridge...");
     hasAttemptedJoin.current = true;
-    join();
+    
+    // Slight delay to allow SDK internal state to settle
+    setTimeout(() => {
+        join();
+    }, 500);
   }, [join]);
 
   useEffect(() => {
@@ -61,16 +70,23 @@ const ViewerMeetingView = () => {
   useEffect(() => {
     if (isMeetingJoined) {
         setStatusMessage("Joining live session...");
+        if (joinTimer.current) {
+            clearTimeout(joinTimer.current);
+            joinTimer.current = null;
+        }
     }
   }, [isMeetingJoined]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    joinTimer.current = setTimeout(() => {
         if (!isMeetingJoined && hasAttemptedJoin.current) {
-            setError("We're having trouble connecting to the stream. This often happens on unstable mobile networks. Please ensure your connection is strong.");
+            setError("The stream is taking too long to connect. This usually means the seller's broadcast signal is weak or your local network is restricted. Please try again.");
         }
-    }, 60000); // 60 seconds timeout
-    return () => clearTimeout(timer);
+    }, 60000); 
+    
+    return () => {
+        if (joinTimer.current) clearTimeout(joinTimer.current);
+    }
   }, [isMeetingJoined]);
 
   const participantsArray = Array.from(participants.values());
@@ -86,7 +102,7 @@ const ViewerMeetingView = () => {
             </Alert>
             <Button variant="outline" className="mt-6 border-white/10 text-white h-12 px-8 font-bold" onClick={() => window.location.reload()}>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Try Reconnecting
+                Hard Refresh & Retry
             </Button>
           </div>
       )
@@ -100,9 +116,9 @@ const ViewerMeetingView = () => {
         <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5 p-8 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
           <p className="text-white font-bold text-xl">{statusMessage}</p>
-          <div className="flex items-center gap-2 mt-6 text-sm text-neutral-500 bg-neutral-900 px-4 py-2 rounded-full">
-              <Signal className="h-4 w-4" />
-              <span>Stabilizing connection for mobile...</span>
+          <div className="flex items-center gap-2 mt-6 text-sm text-neutral-500 bg-neutral-900 px-4 py-2 rounded-full border border-white/5">
+              <SignalHigh className="h-4 w-4 text-green-500" />
+              <span>Optimizing for your network...</span>
           </div>
         </div>
       )}
@@ -128,11 +144,11 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     fetchToken();
   }, []);
 
-  if (!token) {
+  if (!token || !meetingId) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-white font-bold">Connecting Securely...</p>
+        <p className="text-white font-bold">Initializing Connection...</p>
       </div>
     );
   }

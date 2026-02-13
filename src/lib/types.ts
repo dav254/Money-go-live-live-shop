@@ -133,6 +133,7 @@ export type Seller = {
   bio: string;
   description: string;
   isVerified: boolean;
+  isLive?: boolean;
   rating: number;
   reviewsCount: number;
   followers: number;

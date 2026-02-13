@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, orderBy, limit } from 'firebase/firestore';
-import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
+import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem, LiveSession } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { VideoCard } from '@/components/feed/video-card';
@@ -29,9 +29,16 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         return doc(firestore, 'userProfiles', product.sellerId);
     }, [firestore, product.sellerId]);
 
+    const liveSessionRef = useMemoFirebase(() => {
+        if (!firestore || !product.sellerId) return null;
+        return doc(firestore, 'liveSessions', product.sellerId);
+    }, [firestore, product.sellerId]);
+
     const { data: sellerData } = useDoc<SellerShop>(sellerShopRef);
     const { data: userProfileData } = useDoc<UserProfile>(userProfileRef);
+    const { data: liveSession } = useDoc<LiveSession>(liveSessionRef);
 
+    const isLive = liveSession?.status === 'live';
     const sellerName = sellerData?.shopName || userProfileData?.fullName || 'Seller Store';
     const sellerFollowers = sellerData?.followers || 0;
     const sellerReviews = sellerData?.reviewsCount || 0;
@@ -53,10 +60,11 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
             imageHint: 'store banner'
         },
         bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
-        rating: 4.8, // Placeholder
+        rating: 4.8, 
         followers: sellerFollowers,
         reviewsCount: sellerReviews,
         isVerified: userProfileData?.verificationStatus === 'verified',
+        isLive: isLive,
         joinedDate: userProfileData?.joinDate || new Date().toISOString(),
         location: sellerData?.location || userProfileData?.location || 'Unknown',
         description: sellerData?.description || userProfileData?.bio || 'Welcome!',
@@ -74,7 +82,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
           mediaType: (product.videoUrl && product.videoUrl.trim() !== "") ? 'video' : 'image',
         },
         likes: product.likes || 0,
-        viewers: 0, 
+        viewers: isLive ? (liveSession?.viewerCount || 0) : 0, 
         comments: [],
     };
 
