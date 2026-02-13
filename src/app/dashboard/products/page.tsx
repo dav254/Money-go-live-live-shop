@@ -10,6 +10,7 @@ import { DiscountedProductsTable } from '@/components/seller/discounted-products
 import { LogisticsTable } from '@/components/seller/logistics-table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Video, Upload, Bot, Text, Image as ImageIcon, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
