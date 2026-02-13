@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle, RefreshCcw, SignalHigh } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle, RefreshCw, SignalHigh } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -35,7 +35,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         </div>
       )}
       <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-xs text-white backdrop-blur-md">
-        {local ? "You (Host)" : "Participant"}
+        {local ? "Live Feed (You)" : "Participant"}
       </div>
     </div>
   );
@@ -72,22 +72,21 @@ const LiveStudioControls = ({ onEnd }: { onEnd: () => void }) => {
         onClick={handleEnd}
         className="rounded-full font-bold px-6"
       >
-        <StopCircle className="mr-2 h-4 w-4" /> End Live
+        <StopCircle className="mr-2 h-4 w-4" /> End Stream
       </Button>
     </div>
   );
 };
 
 const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
-  const { join, localParticipant, isMeetingJoined, mMeeting } = useMeeting();
+  const { join, localParticipant, isMeetingJoined } = useMeeting();
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Initializing...");
+  const [statusMessage, setStatusMessage] = useState("Authenticating...");
   const joinedRef = useRef(false);
-  const [retryCount, setRefreshingCount] = useState(0);
 
   const handleJoin = useCallback(() => {
     setError(null);
-    setStatusMessage("Authenticating with bridge...");
+    setStatusMessage("Negotiating Connection...");
     join();
   }, [join]);
 
@@ -100,24 +99,23 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
 
   useEffect(() => {
     if (isMeetingJoined) {
-        setStatusMessage("Live!");
+        setStatusMessage("Broadcast Ready");
     }
   }, [isMeetingJoined]);
 
-  // Extended timeout for mobile stability
+  // Extended timeout for mobile network stability
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!isMeetingJoined) {
-            setError("Connection timed out. Mobile networks can sometimes block WebRTC. Try switching from data to Wi-Fi or vice-versa.");
+            setError("Connection timed out. This usually happens on unstable mobile networks. Try switching your connection or refreshing the page.");
         }
     }, 60000); // 60 seconds timeout
     return () => clearTimeout(timer);
-  }, [isMeetingJoined, retryCount]);
+  }, [isMeetingJoined]);
 
   const handleManualRetry = () => {
-      joinedRef.current = false;
-      setRefreshingCount(prev => prev + 1);
-      window.location.reload(); // Hard refresh is often the only way to reset failed WebRTC stacks on mobile
+      // Reloading is the most effective way to reset the WebRTC stack on mobile
+      window.location.reload();
   };
 
   if (error) {
@@ -125,12 +123,12 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
           <div className="space-y-4">
             <Alert variant="destructive" className="border-red-900/50 bg-red-950/20">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Connection Problem</AlertTitle>
+                <AlertTitle>Connection Error</AlertTitle>
                 <AlertDescription className="text-sm">{error}</AlertDescription>
             </Alert>
             <Button className="w-full h-14 text-lg font-bold" onClick={handleManualRetry}>
-                <RefreshCcw className="mr-2 h-5 w-5" />
-                Refresh & Retry Connection
+                <RefreshCw className="mr-2 h-5 w-5" />
+                Hard Refresh & Retry
             </Button>
           </div>
       )
@@ -147,7 +145,7 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
             <p className="font-bold text-xl">{statusMessage}</p>
             <div className="flex items-center gap-2 mt-4 text-xs text-neutral-500 bg-black/20 px-4 py-2 rounded-full">
                 <SignalHigh className="h-3 w-3" />
-                <span>Mobile users: Stay on this page for best results.</span>
+                <span>Stabilizing for mobile network...</span>
             </div>
           </Card>
         )}
@@ -166,7 +164,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         webcamEnabled: true,
         name: participantName,
         mode: "CONFERENCE",
-        multiStream: false, 
+        multiStream: false, // Vital for mobile stability
         notification: {
             title: "Go Earn Live",
             message: "Broadcasting your store...",

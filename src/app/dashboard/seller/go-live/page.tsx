@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Radio, Loader2, Video, Settings, CheckCircle, Package, Camera, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Radio, Loader2, Video, Settings, CheckCircle, Package, Camera, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -56,8 +56,12 @@ export default function SellerGoLivePage() {
   const checkPermissions = async () => {
     setPermissionState('checking');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      // Stop the test stream immediately
+      // Direct access request
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+        audio: true 
+      });
+      // Stop the test stream immediately to release hardware for the SDK
       stream.getTracks().forEach(track => track.stop());
       setPermissionState('granted');
       return true;
@@ -96,7 +100,7 @@ export default function SellerGoLivePage() {
       toast({
         variant: "destructive",
         title: "Initialization Error",
-        description: "Secure token is not ready. Please refresh the page."
+        description: "The secure connection token is still loading. Please wait a moment."
       });
       return;
     }
@@ -114,7 +118,11 @@ export default function SellerGoLivePage() {
     const id = await createMeeting(token);
     if (!id) {
       setIsStarting(false);
-      toast({ variant: "destructive", title: "API Error", description: "Failed to create a live room. Check your internet connection." });
+      toast({ 
+        variant: "destructive", 
+        title: "Network Error", 
+        description: "Could not establish a connection to the media server. Please check your signal strength." 
+      });
       return;
     }
 
@@ -133,10 +141,10 @@ export default function SellerGoLivePage() {
       }, { merge: true });
 
       setMeetingId(id);
-      toast({ title: "You are Live!", description: "Buyers can now discover your stream." });
+      toast({ title: "Live Session Started", description: "You are now broadcasting to Go Earn!" });
     } catch (error) {
       console.error(error);
-      toast({ variant: "destructive", title: "Database Error", description: "Could not save session. Check your connection." });
+      toast({ variant: "destructive", title: "Database Error", description: "Your session was created but could not be registered. Please try again." });
     } finally {
       setIsStarting(false);
     }
@@ -153,7 +161,7 @@ export default function SellerGoLivePage() {
       });
       setMeetingId(null);
       setPinnedProductId(null);
-      toast({ title: "Stream Ended", description: "Your live session has been closed." });
+      toast({ title: "Broadcast Ended", description: "Your live session is now closed." });
     } catch (error) {
       console.error(error);
     }
@@ -189,10 +197,10 @@ export default function SellerGoLivePage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
-              <Radio className="h-8 w-8 text-red-600 animate-pulse" />
-              Live Studio
+              <Radio className="h-8 w-8 text-red-600" />
+              Live Selling Studio
             </h1>
-            <p className="text-muted-foreground">Broadcast real-time shopping events to your followers.</p>
+            <p className="text-muted-foreground">Go live directly to your customers and boost your sales.</p>
           </div>
         </div>
 
@@ -201,21 +209,21 @@ export default function SellerGoLivePage() {
             {permissionState === 'denied' && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Action Required</AlertTitle>
+                <AlertTitle>Permission Denied</AlertTitle>
                 <AlertDescription>
-                  Camera and Microphone access was denied. Please click the camera icon in your browser address bar to reset permissions, then refresh the page.
+                  Go Earn needs camera and microphone access to start your stream. Please check your browser's site settings and ensure access is allowed.
                 </AlertDescription>
               </Alert>
             )}
 
-            <Card className="border-dashed border-2 bg-muted/30">
+            <Card className="border-dashed border-2 bg-card/50">
               <CardHeader className="text-center">
-                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                <div className="mx-auto bg-primary/10 p-6 rounded-full w-fit mb-4">
                   <Video className="h-12 w-12 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Ready to go live?</CardTitle>
+                <CardTitle className="text-2xl">Start Your Broadcast</CardTitle>
                 <CardDescription>
-                  Ensure you are in a well-lit area with a stable internet connection.
+                  We recommend a well-lit area and a stable 4G/LTE or Wi-Fi connection.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center pb-8 gap-4">
@@ -230,12 +238,12 @@ export default function SellerGoLivePage() {
                   ) : (
                     <Radio className="mr-2 h-6 w-6" />
                   )}
-                  {isStarting ? "Setting up Stream..." : !token ? "Preparing Studio..." : "Start Live Stream"}
+                  {isStarting ? "Validating Connection..." : "Go Live Now"}
                 </Button>
                 
                 {isStarting && (
                   <p className="text-sm text-muted-foreground animate-pulse">
-                    Please allow camera/mic access if prompted by your browser.
+                    Connecting to the media bridge...
                   </p>
                 )}
               </CardContent>
@@ -254,13 +262,13 @@ export default function SellerGoLivePage() {
                 )}
             </div>
             <div className="space-y-6">
-                <Card className="h-[500px] flex flex-col">
-                    <CardHeader className="pb-3 border-b">
+                <Card className="h-[500px] flex flex-col border-primary/20">
+                    <CardHeader className="pb-3 border-b bg-muted/30">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <Package className="h-5 w-5 text-primary" />
                             Live Product Shelf
                         </CardTitle>
-                        <CardDescription>Pin a product to highlight it for buyers.</CardDescription>
+                        <CardDescription>Select a product to highlight it for buyers.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0 pt-2">
                         {user && (
@@ -277,26 +285,35 @@ export default function SellerGoLivePage() {
           </div>
         )}
 
-        <Card>
+        <Card className="bg-muted/30">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Stream Setup Tips
+              Pro Tips for Success
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span><strong>Stable Connection</strong>: Mobile data works great, but try to stay in an area with full bars for the best quality.</span>
+            <ul className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+              <li className="space-y-2">
+                <div className="flex items-center gap-2 font-bold text-foreground">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Stable Signal
+                </div>
+                <p className="text-muted-foreground">If you see a "Connection Timeout," try moving to an area with better 4G/5G coverage or switch to Wi-Fi.</p>
               </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span><strong>Audio Quality</strong>: Find a quiet spot. Viewers buy more when they can hear you clearly!</span>
+              <li className="space-y-2">
+                <div className="flex items-center gap-2 font-bold text-foreground">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Great Lighting
+                </div>
+                <p className="text-muted-foreground">Viewers are 80% more likely to buy when they can see product details clearly.</p>
               </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                <span><strong>Engagement</strong>: Keep an eye on the chat and mention the products you have pinned!</span>
+              <li className="space-y-2">
+                <div className="flex items-center gap-2 font-bold text-foreground">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    Pin Your Products
+                </div>
+                <p className="text-muted-foreground">Always pin the product you are talking about so buyers can "Add to Cart" instantly.</p>
               </li>
             </ul>
           </CardContent>
