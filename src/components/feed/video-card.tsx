@@ -235,15 +235,15 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
            ))}
        </div>
 
-       {/* Media Previews / Thumbnails (Bottom Left, above product info) */}
+       {/* Media Previews / Thumbnails (Centered, above product info) */}
        {allMedia.length > 1 && (
-           <div className="absolute bottom-32 left-4 z-20 flex gap-2">
+           <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                {allMedia.map((media, index) => (
                    <button
                     key={index}
                     onClick={() => setCurrentMediaIndex(index)}
                     className={cn(
-                        "relative h-12 w-12 rounded-lg overflow-hidden border-2 transition-all transform hover:scale-110",
+                        "relative h-[50px] w-[50px] rounded-lg overflow-hidden border-2 transition-all transform hover:scale-110",
                         index === currentMediaIndex ? "border-primary scale-110 shadow-lg" : "border-white/20 opacity-70"
                     )}
                    >
