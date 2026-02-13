@@ -1,0 +1,78 @@
+'use client';
+
+import React, { useRef, useEffect } from 'react';
+import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
+import { VideoOff, Loader2 } from 'lucide-react';
+
+const VIDEOSDK_TOKEN = process.env.NEXT_PUBLIC_VIDEOSDK_TOKEN || "";
+
+const ParticipantView = ({ participantId }: { participantId: string }) => {
+  const { webcamStream, webcamOn } = useMeeting();
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && webcamStream) {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(webcamStream.track);
+      videoRef.current.srcObject = mediaStream;
+      videoRef.current.play().catch((err) => console.error("video play failed", err));
+    }
+  }, [webcamStream, webcamOn]);
+
+  return (
+    <div className="relative h-full w-full bg-black overflow-hidden rounded-xl border">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        className="h-full w-full object-contain"
+      />
+      {!webcamOn && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-white">
+          <VideoOff className="h-12 w-12 text-muted-foreground mb-2" />
+          <p>The seller has paused their video</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ViewerMeetingView = () => {
+  const { participants, isMeetingJoined } = useMeeting();
+  
+  // Find the host (first person in meeting)
+  const participantsArray = Array.from(participants.values());
+  const host = participantsArray[0];
+
+  return (
+    <div className="h-full w-full flex flex-col">
+      {isMeetingJoined && host ? (
+        <ParticipantView participantId={host.id} />
+      ) : (
+        <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+          <p className="text-white font-bold">Connecting to Stream...</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
+  return (
+    <MeetingProvider
+      config={{
+        meetingId,
+        micEnabled: false,
+        webcamEnabled: false,
+        name: "Buyer Viewer",
+        mode: "VIEWER",
+      }}
+      token={VIDEOSDK_TOKEN}
+    >
+      <MeetingConsumer>
+        {() => <ViewerMeetingView />}
+      </MeetingConsumer>
+    </MeetingProvider>
+  );
+}

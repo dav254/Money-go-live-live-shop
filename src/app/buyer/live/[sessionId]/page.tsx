@@ -1,72 +1,27 @@
-
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import dynamic from 'next/dynamic';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useParams, useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
-import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { Loader2, Radio, VideoOff, ChevronLeft, Users, MessageSquare } from 'lucide-react';
+import { Loader2, VideoOff, ChevronLeft, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { LiveChat } from '@/components/buyer/LiveChat';
 
-const VIDEOSDK_TOKEN = process.env.NEXT_PUBLIC_VIDEOSDK_TOKEN || "";
-
-const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn } = useMeeting();
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-
-  React.useEffect(() => {
-    if (videoRef.current && webcamStream) {
-      const mediaStream = new MediaStream();
-      mediaStream.addTrack(webcamStream.track);
-      videoRef.current.srcObject = mediaStream;
-      videoRef.current.play().catch((err) => console.error("video play failed", err));
-    }
-  }, [webcamStream, webcamOn]);
-
-  return (
-    <div className="relative h-full w-full bg-black overflow-hidden rounded-xl border">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className="h-full w-full object-contain"
-      />
-      {!webcamOn && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-white">
-          <VideoOff className="h-12 w-12 text-muted-foreground mb-2" />
-          <p>The seller has paused their video</p>
-        </div>
-      )}
+const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
+      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+      <p className="text-white font-bold">Loading video player...</p>
     </div>
-  );
-};
-
-const ViewerMeetingView = () => {
-  const { participants, isMeetingJoined } = useMeeting();
-  
-  // Find the host (first person in meeting)
-  const participantsArray = Array.from(participants.values());
-  const host = participantsArray[0];
-
-  return (
-    <div className="h-full w-full flex flex-col">
-      {isMeetingJoined && host ? (
-        <ParticipantView participantId={host.id} />
-      ) : (
-        <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-white font-bold">Connecting to Stream...</p>
-        </div>
-      )}
-    </div>
-  );
-};
+  ),
+});
 
 export default function BuyerLiveStreamViewPage() {
   const params = useParams();
@@ -131,20 +86,9 @@ export default function BuyerLiveStreamViewPage() {
           </div>
 
           <div className="flex-1 overflow-hidden relative">
-            <MeetingProvider
-              config={{
-                meetingId: session.videosdkMeetingId,
-                micEnabled: false,
-                webcamEnabled: false,
-                name: "Buyer Viewer",
-                mode: "VIEWER",
-              }}
-              token={VIDEOSDK_TOKEN}
-            >
-              <MeetingConsumer>
-                {() => <ViewerMeetingView />}
-              </MeetingConsumer>
-            </MeetingProvider>
+            {session.videosdkMeetingId && (
+              <VideoSDKViewer meetingId={session.videosdkMeetingId} />
+            )}
           </div>
         </div>
 
