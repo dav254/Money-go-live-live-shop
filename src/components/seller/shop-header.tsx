@@ -1,15 +1,14 @@
-
 'use client';
 
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Plus, Share2, Eye } from 'lucide-react';
+import { MessageSquare, Plus, Share2, Facebook, Instagram, Twitter, MessageCircle } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, updateDoc, arrayUnion, arrayRemove, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -64,7 +63,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     }
 
     const newFollowingState = !isFollowing;
-    setIsFollowing(newFollowingState); // Optimistic UI update
+    setIsFollowing(newFollowingState);
 
     try {
         const token = await user.getIdToken();
@@ -91,7 +90,6 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
 
     } catch (error) {
         console.error('Error updating follow status:', error);
-        // Revert optimistic UI update on error
         setIsFollowing(!newFollowingState);
         toast({ variant: 'destructive', title: 'Something went wrong' });
     }
@@ -139,7 +137,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     };
     
   const handleShare = () => {
-    const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
+    const shopUrl = window.location.origin + `/sellers/${seller.id}`;
     navigator.clipboard.writeText(shopUrl).then(() => {
       toast({
         title: "Link Copied!",
@@ -177,7 +175,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="mt-4 md:mt-0 md:pb-4">
-            <h1 className="font-headline text-3xl md:text-4xl font-bold">{seller.name}</h1>
+            <h1 className="font-headline text-3xl md:text-4xl font-bold text-white">{seller.name}</h1>
             <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-neutral-400 mt-1">
               <span>{seller.rating.toFixed(1)} Rating</span>
               <span className="font-bold">&middot;</span>
@@ -186,10 +184,34 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
               <span>{seller.reviewsCount.toLocaleString()} Reviews</span>
             </div>
             <SellerBadges seller={seller} />
+            
+            {/* Social Media Row */}
+            <div className="flex items-center justify-center md:justify-start gap-4 mt-4">
+                {seller.facebookUrl && (
+                    <a href={seller.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-blue-500 transition-colors">
+                        <Facebook className="h-5 w-5" />
+                    </a>
+                )}
+                {seller.instagramUrl && (
+                    <a href={seller.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-pink-500 transition-colors">
+                        <Instagram className="h-5 w-5" />
+                    </a>
+                )}
+                {seller.twitterUrl && (
+                    <a href={seller.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-sky-400 transition-colors">
+                        <Twitter className="h-5 w-5" />
+                    </a>
+                )}
+                {seller.contactWhatsapp && (
+                    <a href={`https://wa.me/${seller.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-green-500 transition-colors">
+                        <MessageCircle className="h-5 w-5" />
+                    </a>
+                )}
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-2">
+        <div className="mt-6 flex flex-wrap items-center justify-center md:justify-start gap-2">
           <Button onClick={handleFollow} className="font-bold bg-primary hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" />
             {isFollowing ? 'Following' : 'Follow'}
@@ -201,7 +223,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           )}
           <Button onClick={handleMessageSeller} variant="secondary" className="font-bold">
             <MessageSquare className="mr-2 h-4 w-4" />
-            Message
+            Chat
           </Button>
           <Button onClick={handleShare} variant="secondary" className="font-bold">
             <Share2 className="mr-2 h-4 w-4" />

@@ -54,8 +54,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
@@ -349,7 +347,7 @@ export default function SellerSettingsPage() {
             doc.text("Scan to Visit My Shop!", pageWidth / 2, 80, { align: 'center' });
 
             // QR Code
-            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(shopUrl)}`;
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(shopUrl)}`;
             const response = await fetch(qrCodeUrl);
             const blob = await response.blob();
             const reader = new FileReader();

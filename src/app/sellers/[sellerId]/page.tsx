@@ -1,4 +1,3 @@
-
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -55,6 +54,12 @@ export default function SellerShopPage() {
         deliveryPolicy: "Ships nationwide in 2-3 business days.", // Placeholder
         storeHours: "9 AM - 5 PM, Mon-Fri", // Placeholder
         deliversFast: true, // Placeholder
+        facebookUrl: shopData.facebookUrl,
+        instagramUrl: shopData.instagramUrl,
+        twitterUrl: shopData.twitterUrl,
+        contactWhatsapp: shopData.contactWhatsapp,
+        contactPhone: shopData.contactPhone,
+        contactEmail: shopData.contactEmail,
       };
       setSeller(composedSeller);
     }
