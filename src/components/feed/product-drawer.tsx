@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -9,7 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import Link from 'next/link';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, serverTimestamp, increment, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, increment, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
@@ -20,7 +19,7 @@ interface ProductDrawerProps {
 }
 
 export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerProps) {
-  const imageUrl = product.imageUrl || getPlaceholderImage();
+  const imageUrl = (product.imageUrl && product.imageUrl !== "") ? product.imageUrl : getPlaceholderImage();
   const imageHint = product.image?.imageHint || 'product image';
   const { user } = useUser();
   const firestore = useFirestore();
@@ -43,10 +42,10 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     const cartItemData = {
       productId: product.id,
       sellerId: product.sellerId,
-      buyerId: user.uid, // Add buyerId for querying
-      quantity: increment(1), // Atomically increment quantity
+      buyerId: user.uid,
+      quantity: increment(1),
       price: product.price,
-      name: product.name || '', // Fallback to empty string if name is undefined
+      name: product.name || '',
       imageUrl: imageUrl,
       addedAt: serverTimestamp(),
     };
@@ -81,14 +80,12 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     }
 
     const ordersCollectionRef = collection(firestore, 'orders');
-    
-    // Create a new document reference with an auto-generated ID
     const newOrderRef = doc(ordersCollectionRef);
     const shippingCost = product.shippingCost || 0;
     const productPrice = product.price || 0;
 
     const newOrderData = {
-        id: newOrderRef.id, // Store the ID within the document
+        id: newOrderRef.id,
         buyerId: user.uid,
         sellerId: product.sellerId,
         productId: product.id,
@@ -98,23 +95,19 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
         shippingCost: shippingCost,
         totalAmount: productPrice + shippingCost,
         orderDate: serverTimestamp(),
-        shippingAddress: '123 Placeholder Lane, Nairobi', // Placeholder
+        shippingAddress: '123 Placeholder Lane, Nairobi',
         orderStatus: 'pending',
         paymentMethod: 'pending',
-        quantity: 1, // Assuming quantity of 1 for "Buy Now"
+        quantity: 1,
     };
 
     try {
-      // Use setDoc with the pre-generated ref
       await setDoc(newOrderRef, newOrderData);
-
       toast({
         title: 'Order Created!',
         description: 'Redirecting you to checkout...',
       });
-      
       router.push(`/checkout/${newOrderRef.id}`);
-
     } catch (error) {
        console.error("Failed to place order:", error);
        const permissionError = new FirestorePermissionError({
@@ -135,21 +128,23 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
         <div className="py-4">
             <div className="flex items-start gap-4">
               <div className="relative h-24 w-24 overflow-hidden rounded-lg">
-                <Image 
-                  src={imageUrl} 
-                  alt={product.name || 'Product Image'} 
-                  fill 
-                  className="object-cover" 
-                  data-ai-hint={imageHint}
-                />
+                {imageUrl && (
+                  <Image 
+                    src={imageUrl} 
+                    alt={product.name || 'Product Image'} 
+                    fill 
+                    className="object-cover" 
+                    data-ai-hint={imageHint}
+                  />
+                )}
               </div>
               <div className="flex-1">
                 <h3 className="font-headline text-lg font-semibold">{product.name}</h3>
                 <div className="text-xl font-bold text-primary mt-1">
                   ${product.price.toLocaleString()}
-                  {product.originalPrice && (
+                  {product.wasPrice && (
                     <span className="ml-2 text-sm text-muted-foreground line-through">
-                      ${product.originalPrice.toLocaleString()}
+                      ${product.wasPrice.toLocaleString()}
                     </span>
                   )}
                 </div>

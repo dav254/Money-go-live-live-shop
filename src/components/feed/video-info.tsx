@@ -25,20 +25,25 @@ export function VideoInfo({ seller }: VideoInfoProps) {
     );
   }
 
-  const avatarUrl = seller.avatar?.imageUrl || getPlaceholderImage();
+  // Ensure avatarUrl is never an empty string
+  const avatarUrl = (seller.avatar?.imageUrl && seller.avatar.imageUrl !== "") 
+    ? seller.avatar.imageUrl 
+    : getPlaceholderImage();
 
   return (
     <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent p-4 z-10">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-primary shadow-lg">
-            <Image
-              src={avatarUrl}
-              alt={seller.name || 'Seller Avatar'}
-              fill
-              className="object-cover"
-              data-ai-hint={seller.avatar?.imageHint || 'seller avatar'}
-            />
+            {avatarUrl && (
+              <Image
+                src={avatarUrl}
+                alt={seller.name || 'Seller Avatar'}
+                fill
+                className="object-cover"
+                data-ai-hint={seller.avatar?.imageHint || 'seller avatar'}
+              />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">

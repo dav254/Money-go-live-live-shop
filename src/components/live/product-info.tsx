@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { Product, Review } from '@/lib/types';
@@ -34,20 +33,25 @@ export function ProductInfo({ product }: ProductInfoProps) {
     return total / reviews.length;
   }, [reviews]);
 
-  const imageUrl = product.imageUrl || getPlaceholderImage();
+  // Ensure imageUrl is never an empty string
+  const imageUrl = (product.imageUrl && product.imageUrl !== "") 
+    ? product.imageUrl 
+    : getPlaceholderImage();
 
   return (
     <div className="bg-black/50 p-3 rounded-lg shadow-lg backdrop-blur-md max-w-sm w-full mx-auto">
         <div className="flex items-center gap-3">
             <div className="relative h-16 w-16 rounded-md overflow-hidden border border-neutral-700">
-                <Image 
-                    src={imageUrl}
-                    alt={product.name || 'Product Image'}
-                    fill
-                    sizes="100vw"
-                    priority
-                    className="object-cover"
-                />
+                {imageUrl && (
+                  <Image 
+                      src={imageUrl}
+                      alt={product.name || 'Product Image'}
+                      fill
+                      sizes="100vw"
+                      priority
+                      className="object-cover"
+                  />
+                )}
             </div>
             <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-bold text-white truncate">{product.name}</h3>
