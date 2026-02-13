@@ -37,11 +37,16 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 };
 
 const ViewerMeetingView = () => {
-  const { participants, isMeetingJoined } = useMeeting();
+  const { join, participants, isMeetingJoined } = useMeeting();
   
-  // Find the host (first person in meeting)
+  // CRITICAL: Join the meeting as a viewer when the component mounts
+  useEffect(() => {
+    join();
+  }, [join]);
+
+  // Find the host (usually the first participant in a one-to-many broadcast)
   const participantsArray = Array.from(participants.values());
-  const host = participantsArray[0];
+  const host = participantsArray.find(p => p.id !== "local"); // The seller
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -51,6 +56,7 @@ const ViewerMeetingView = () => {
         <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
           <p className="text-white font-bold">Connecting to Stream...</p>
+          <p className="text-xs text-neutral-500 mt-2">Waiting for host to broadcast</p>
         </div>
       )}
     </div>

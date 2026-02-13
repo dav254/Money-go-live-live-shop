@@ -79,7 +79,15 @@ const LiveStudioControls = ({ onEnd }: { onEnd: () => void }) => {
 };
 
 const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
-  const { localParticipant, isMeetingJoined } = useMeeting();
+  const { join, localParticipant, isMeetingJoined } = useMeeting();
+
+  // CRITICAL: Join the meeting when the component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      join();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [join]);
 
   return (
     <div className="space-y-6">
@@ -89,7 +97,8 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
         ) : (
           <Card className="aspect-video flex flex-col items-center justify-center bg-muted">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-            <p>Initializing Studio...</p>
+            <p className="font-bold">Joining Stream...</p>
+            <p className="text-xs text-muted-foreground">Please allow camera/mic access if prompted</p>
           </Card>
         )}
       </div>
