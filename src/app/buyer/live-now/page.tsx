@@ -72,6 +72,28 @@ export default function BuyerLiveNowPage() {
 
   const { data: sessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
 
+  // Deduplicate sessions by sellerId, keeping the most recent one
+  const uniqueSessions = React.useMemo(() => {
+    if (!sessions) return [];
+    
+    const sessionsBySeller: Record<string, LiveSession> = {};
+    
+    sessions.forEach(session => {
+      const sellerId = session.sellerId;
+      const currentStored = sessionsBySeller[sellerId];
+      
+      // If we don't have this seller yet, or this session is newer than the stored one
+      if (!currentStored || 
+          (session.startTime?.toMillis?.() || 0) > (currentStored.startTime?.toMillis?.() || 0)) {
+        sessionsBySeller[sellerId] = session;
+      }
+    });
+    
+    return Object.values(sessionsBySeller).sort((a, b) => 
+      (b.startTime?.toMillis?.() || 0) - (a.startTime?.toMillis?.() || 0)
+    );
+  }, [sessions]);
+
   return (
     <BuyerLayout>
       <div className="flex-1 space-y-6 p-8 pt-6 max-w-7xl mx-auto">
@@ -97,9 +119,9 @@ export default function BuyerLiveNowPage() {
               </Card>
             ))}
           </div>
-        ) : sessions && sessions.length > 0 ? (
+        ) : uniqueSessions.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {sessions.map(session => (
+            {uniqueSessions.map(session => (
               <StreamCard key={session.id} session={session} />
             ))}
           </div>
