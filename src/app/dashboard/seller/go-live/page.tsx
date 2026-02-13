@@ -9,8 +9,6 @@ import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Radio, Loader2, Video, Settings, CheckCircle, Package, Camera, ShieldCheck, AlertCircle, RefreshCw, StopCircle } from 'lucide-react';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import type { Product } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +31,6 @@ export default function SellerGoLivePage() {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [permissionState, setPermissionState] = useState<'idle' | 'checking' | 'granted' | 'denied'>('idle');
 
   useEffect(() => {
@@ -138,35 +135,11 @@ export default function SellerGoLivePage() {
         videosdkMeetingId: null,
       });
       setMeetingId(null);
-      setPinnedProductId(null);
       toast({ title: "Broadcast Ended" });
     } catch (error) {
       console.error(error);
     }
   };
-
-  const handlePinProduct = async (product: Product) => {
-      if (!user || !firestore) return;
-      const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      try {
-          await updateDoc(sessionRef, { pinnedProductId: product.id });
-          setPinnedProductId(product.id);
-          toast({ title: "Product Pinned!" });
-      } catch (e) {
-          console.error(e);
-      }
-  };
-
-  const handleUnpinProduct = async () => {
-      if (!user || !firestore) return;
-      const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      try {
-          await updateDoc(sessionRef, { pinnedProductId: null });
-          setPinnedProductId(null);
-      } catch (e) {
-          console.error(e);
-      }
-  }
 
   return (
     <SellerLayout>
@@ -175,10 +148,10 @@ export default function SellerGoLivePage() {
         meetingId ? "h-[calc(100vh-4rem)] overflow-hidden bg-black" : "p-4 md:p-8 max-w-7xl mx-auto space-y-6"
       )}>
         {!meetingId ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
-            <div className="text-center space-y-2">
-                <h1 className="font-headline text-4xl font-bold tracking-tight text-white">Live Selling Studio</h1>
-                <p className="text-muted-foreground text-lg">Your stage is ready. Connect with buyers in real-time.</p>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 text-center">
+            <div className="space-y-2">
+                <h1 className="font-headline text-4xl font-bold tracking-tight">Direct Live Broadcast</h1>
+                <p className="text-muted-foreground text-lg">Connect instantly with your audience.</p>
             </div>
 
             {permissionState === 'denied' && (
@@ -202,14 +175,14 @@ export default function SellerGoLivePage() {
                 ) : (
                 <Radio className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />
                 )}
-                {isStarting ? "Preparing Studio..." : "Open Studio & Go Live"}
+                {isStarting ? "Going Live..." : "Go Live Now"}
             </Button>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
                 {[
                     { icon: Camera, title: "Pro Lighting", text: "Ensure your face and products are well-lit." },
-                    { icon: ShieldCheck, title: "Stable Signal", text: "Use 4G/5G or high-speed Wi-Fi for best results." },
-                    { icon: Package, title: "Product Ready", text: "Have your items nearby to show the details." }
+                    { icon: ShieldCheck, title: "Stable Signal", text: "Use high-speed Wi-Fi for best results." },
+                    { icon: RefreshCw, title: "Instant Connect", text: "One-click connection to media servers." }
                 ].map((item, i) => (
                     <Card key={i} className="bg-card/50 border-white/5">
                         <CardContent className="pt-6 text-center space-y-2">
@@ -222,31 +195,16 @@ export default function SellerGoLivePage() {
             </div>
           </div>
         ) : (
-          <div className="relative flex-1 flex flex-col md:flex-row h-full">
-            {/* Main Broadcast Area */}
-            <div className="flex-1 relative bg-black">
-                {token && (
-                    <VideoSDKStudio 
-                        meetingId={meetingId} 
-                        participantName={userProfile?.fullName || "Seller"} 
-                        token={token}
-                        onEnd={handleEndLive}
-                        onReady={() => handleStudioReady(meetingId)}
-                    />
-                )}
-            </div>
-
-            {/* Product Shelf - Horizontal on mobile, vertical sidebar on desktop */}
-            <div className="h-24 md:h-full w-full md:w-20 shrink-0 border-t md:border-t-0 md:border-l border-white/10 bg-neutral-900/80 backdrop-blur-md z-40">
-                {user && (
-                    <LiveProductShelf 
-                        sellerId={user.uid} 
-                        onPinProduct={handlePinProduct} 
-                        onUnpinProduct={handleUnpinProduct}
-                        pinnedProductId={pinnedProductId}
-                    />
-                )}
-            </div>
+          <div className="relative flex-1 h-full w-full bg-black">
+            {token && (
+                <VideoSDKStudio 
+                    meetingId={meetingId} 
+                    participantName={userProfile?.fullName || "Seller"} 
+                    token={token}
+                    onEnd={handleEndLive}
+                    onReady={() => handleStudioReady(meetingId)}
+                />
+            )}
           </div>
         )}
       </div>
