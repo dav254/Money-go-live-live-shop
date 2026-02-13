@@ -2,11 +2,11 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
+import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { VideoOff, Loader2 } from 'lucide-react';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn } = useMeeting();
+  const { webcamStream, webcamOn } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -38,15 +38,18 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 
 const ViewerMeetingView = () => {
   const { join, participants, isMeetingJoined } = useMeeting();
+  const joinedRef = useRef(false);
   
-  // CRITICAL: Join the meeting as a viewer when the component mounts
   useEffect(() => {
-    join();
-  }, [join]);
+    if (!isMeetingJoined && !joinedRef.current) {
+      join();
+      joinedRef.current = true;
+    }
+  }, [join, isMeetingJoined]);
 
-  // Find the host (usually the first participant in a one-to-many broadcast)
+  // Find the host (the seller)
   const participantsArray = Array.from(participants.values());
-  const host = participantsArray.find(p => p.id !== "local"); // The seller
+  const host = participantsArray.find(p => !p.local); 
 
   return (
     <div className="h-full w-full flex flex-col">

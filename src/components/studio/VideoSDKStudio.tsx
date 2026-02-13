@@ -2,13 +2,13 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
+import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn, isLocal } = useMeeting();
+  const { webcamStream, webcamOn, local } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         ref={videoRef}
         autoPlay
         playsInline
-        muted={isLocal}
+        muted={local}
         className="h-full w-full object-cover"
       />
       {!webcamOn && (
@@ -34,8 +34,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <VideoOff className="h-12 w-12 text-muted-foreground" />
         </div>
       )}
-      <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-xs">
-        {isLocal ? "You (Host)" : "Participant"}
+      <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-xs text-white">
+        {local ? "You (Host)" : "Participant"}
       </div>
     </div>
   );
@@ -80,14 +80,14 @@ const LiveStudioControls = ({ onEnd }: { onEnd: () => void }) => {
 
 const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
   const { join, localParticipant, isMeetingJoined } = useMeeting();
+  const joinedRef = useRef(false);
 
-  // CRITICAL: Join the meeting when the component mounts
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (!isMeetingJoined && !joinedRef.current) {
       join();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [join]);
+      joinedRef.current = true;
+    }
+  }, [join, isMeetingJoined]);
 
   return (
     <div className="space-y-6">
@@ -115,6 +115,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         micEnabled: true,
         webcamEnabled: true,
         name: participantName,
+        mode: "CONFERENCE",
       }}
       token={token}
     >
