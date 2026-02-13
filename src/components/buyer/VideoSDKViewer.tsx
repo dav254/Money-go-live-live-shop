@@ -55,10 +55,8 @@ const ViewerMeetingView = () => {
     setStatusMessage("Searching for media bridge...");
     hasAttemptedJoin.current = true;
     
-    // Slight delay to allow SDK internal state to settle
-    setTimeout(() => {
-        join();
-    }, 500);
+    // SPEED OPTIMIZATION: Immediate join for buyers
+    join();
   }, [join]);
 
   useEffect(() => {

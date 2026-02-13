@@ -77,30 +77,37 @@ export default function SellerGoLivePage() {
     }
     
     setIsStarting(true);
+    setPermissionState('checking');
 
     try {
-      setPermissionState('checking');
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // SPEED OPTIMIZATION: Create meeting and check permissions in parallel
+      const [id, stream] = await Promise.all([
+        createMeeting(token),
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      ]);
+
+      if (!id) {
+        throw new Error("Could not reach the media server.");
+      }
+
+      // Close temporary stream immediately after validation
       stream.getTracks().forEach(track => track.stop());
       setPermissionState('granted');
-    } catch (err) {
-      setPermissionState('denied');
-      setIsStarting(false);
-      return;
-    }
+      setMeetingId(id);
 
-    const id = await createMeeting(token);
-    if (!id) {
+    } catch (err: any) {
+      console.error("Failed to start live:", err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setPermissionState('denied');
+      } else {
+        toast({ 
+          variant: "destructive", 
+          title: "Connection Failed", 
+          description: err.message || "Could not start broadcast. Please check your signal." 
+        });
+      }
       setIsStarting(false);
-      toast({ 
-        variant: "destructive", 
-        title: "Connection Failed", 
-        description: "Could not reach the media server. Please check your signal." 
-      });
-      return;
     }
-
-    setMeetingId(id);
   };
 
   const handleStudioReady = async (mid: string) => {
@@ -138,6 +145,8 @@ export default function SellerGoLivePage() {
       toast({ title: "Broadcast Ended" });
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsStarting(false);
     }
   };
 

@@ -95,6 +95,7 @@ const MeetingView = ({ onEnd, onReady }: { onEnd: () => void, onReady: () => voi
     if (hasAttemptedJoin.current) return;
     setError(null);
     hasAttemptedJoin.current = true;
+    // SPEED OPTIMIZATION: Immediate join without artificial delay
     join();
 
     joinTimeoutRef.current = setTimeout(() => {
