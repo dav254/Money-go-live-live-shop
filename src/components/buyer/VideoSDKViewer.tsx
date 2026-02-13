@@ -1,10 +1,9 @@
+
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
 import { VideoOff, Loader2 } from 'lucide-react';
-
-const VIDEOSDK_TOKEN = process.env.NEXT_PUBLIC_VIDEOSDK_TOKEN || "";
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn } = useMeeting();
@@ -59,6 +58,32 @@ const ViewerMeetingView = () => {
 };
 
 export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const res = await fetch('/api/videosdk/token');
+        const data = await res.json();
+        if (data.token) {
+          setToken(data.token);
+        }
+      } catch (err) {
+        console.error("Error fetching VideoSDK token for viewer:", err);
+      }
+    };
+    fetchToken();
+  }, []);
+
+  if (!token) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-white font-bold">Fetching Access Token...</p>
+      </div>
+    );
+  }
+
   return (
     <MeetingProvider
       config={{
@@ -68,7 +93,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         name: "Buyer Viewer",
         mode: "VIEWER",
       }}
-      token={VIDEOSDK_TOKEN}
+      token={token}
     >
       <MeetingConsumer>
         {() => <ViewerMeetingView />}

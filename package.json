@@ -55,6 +55,7 @@
     "formidable": "^3.5.1",
     "framer-motion": "^11.5.7",
     "genkit": "^1.0.0",
+    "jsonwebtoken": "^9.0.2",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.475.0",
@@ -75,6 +76,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.8",
     "@types/node": "^20",
     "@types/node-fetch": "^2.6.11",
     "@types/nprogress": "^0.2.3",

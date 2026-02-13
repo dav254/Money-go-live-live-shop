@@ -1,12 +1,11 @@
+
 'use client';
 
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Radio, StopCircle, Loader2, Video, VideoOff, Mic, MicOff } from 'lucide-react';
-
-const VIDEOSDK_TOKEN = process.env.NEXT_PUBLIC_VIDEOSDK_TOKEN || "";
+import { Card, CardContent } from '@/components/ui/card';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, isLocal } = useMeeting();
@@ -99,7 +98,7 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
   );
 };
 
-export default function VideoSDKStudio({ meetingId, participantName, onEnd }: { meetingId: string, participantName: string, onEnd: () => void }) {
+export default function VideoSDKStudio({ meetingId, participantName, token, onEnd }: { meetingId: string, participantName: string, token: string, onEnd: () => void }) {
   return (
     <MeetingProvider
       config={{
@@ -108,7 +107,7 @@ export default function VideoSDKStudio({ meetingId, participantName, onEnd }: { 
         webcamEnabled: true,
         name: participantName,
       }}
-      token={VIDEOSDK_TOKEN}
+      token={token}
     >
       <MeetingConsumer>
         {() => <MeetingView onEnd={onEnd} />}

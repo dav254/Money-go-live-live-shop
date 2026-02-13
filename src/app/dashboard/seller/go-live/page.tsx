@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
@@ -20,8 +21,6 @@ const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'
   ),
 });
 
-const VIDEOSDK_TOKEN = process.env.NEXT_PUBLIC_VIDEOSDK_TOKEN || "";
-
 export default function SellerGoLivePage() {
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
@@ -30,22 +29,32 @@ export default function SellerGoLivePage() {
 
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
-  const createMeeting = async () => {
-    if (!VIDEOSDK_TOKEN) {
-      toast({
-        variant: "destructive",
-        title: "Configuration Missing",
-        description: "VideoSDK Token is not configured. Please add it to your environment variables."
-      });
-      return null;
-    }
+  // Fetch the secure token on mount
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const res = await fetch('/api/videosdk/token');
+        const data = await res.json();
+        if (data.token) {
+          setToken(data.token);
+        } else {
+          console.error("Token fetch failed:", data.error);
+        }
+      } catch (err) {
+        console.error("Error fetching VideoSDK token:", err);
+      }
+    };
+    fetchToken();
+  }, []);
 
+  const createMeeting = async (authToken: string) => {
     try {
       const res = await fetch("https://api.videosdk.live/v2/rooms", {
         method: "POST",
         headers: {
-          authorization: VIDEOSDK_TOKEN,
+          authorization: authToken,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({}),
@@ -53,18 +62,27 @@ export default function SellerGoLivePage() {
       const { roomId } = await res.json();
       return roomId;
     } catch (e) {
-      console.error(e);
+      console.error("Failed to create room:", e);
       return null;
     }
   };
 
   const handleStartLive = async () => {
-    if (!user || !firestore) return;
+    if (!user || !firestore || !token) {
+      toast({
+        variant: "destructive",
+        title: "Initialization Error",
+        description: "Secure token is not ready. Please refresh the page."
+      });
+      return;
+    }
+    
     setIsStarting(true);
 
-    const id = await createMeeting();
+    const id = await createMeeting(token);
     if (!id) {
       setIsStarting(false);
+      toast({ variant: "destructive", title: "API Error", description: "Failed to create a live room. Check your API keys." });
       return;
     }
 
@@ -85,7 +103,7 @@ export default function SellerGoLivePage() {
       toast({ title: "You are Live!", description: "Buyers can now discover your stream." });
     } catch (error) {
       console.error(error);
-      toast({ variant: "destructive", title: "Failed to go live", description: "Database error. Please try again." });
+      toast({ variant: "destructive", title: "Database Error", description: "Could not save session. Check permissions." });
     } finally {
       setIsStarting(false);
     }
@@ -135,23 +153,26 @@ export default function SellerGoLivePage() {
                 size="lg"
                 className="font-bold text-lg px-12 bg-red-600 hover:bg-red-700 h-16 rounded-xl shadow-xl hover:shadow-red-600/20 transition-all"
                 onClick={handleStartLive}
-                disabled={isStarting}
+                disabled={isStarting || !token}
               >
                 {isStarting ? (
                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                 ) : (
                   <Radio className="mr-2 h-6 w-6" />
                 )}
-                {isStarting ? "Initializing..." : "Start Live Stream"}
+                {isStarting ? "Initializing..." : !token ? "Fetching Token..." : "Start Live Stream"}
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <VideoSDKStudio 
-            meetingId={meetingId} 
-            participantName={userProfile?.fullName || "Seller"} 
-            onEnd={handleEndLive} 
-          />
+          token && (
+            <VideoSDKStudio 
+              meetingId={meetingId} 
+              participantName={userProfile?.fullName || "Seller"} 
+              token={token}
+              onEnd={handleEndLive} 
+            />
+          )
         )}
 
         <Card>
