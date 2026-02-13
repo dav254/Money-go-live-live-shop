@@ -3,7 +3,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { FlipHorizontal, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { LiveActivityFeed } from './LiveActivityFeed';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, VideoOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -112,7 +111,7 @@ export default function Recorder() {
                 {!hasCameraPermission && isClient && (
                     <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 text-center">
                         <VideoOff className="h-12 w-12 text-destructive" />
-                        <h3 className="mt-4 text-lg font-semibold">Camera Access Denied</h3>
+                        <h3 className="mt-4 text-lg font-semibold">Camera Access Required</h3>
                         <p className="text-sm text-muted-foreground">Please grant camera and microphone permissions in your browser settings to record.</p>
                     </div>
                 )}
@@ -149,10 +148,6 @@ export default function Recorder() {
                     className="w-full h-full p-2 bg-neutral-900 rounded-md text-white text-sm resize-none"
                     placeholder="Enter your script here..."
                 />
-            </div>
-             <div className="bg-neutral-800/50 p-4 rounded-lg flex-1 flex flex-col">
-                <h3 className="text-lg font-bold mb-3">Live Activity (Simulation)</h3>
-                <LiveActivityFeed liveSessionId={null} />
             </div>
         </div>
     </div>
