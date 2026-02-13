@@ -11,7 +11,7 @@ import { LogisticsTable } from '@/components/seller/logistics-table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Video, Upload, Bot, Text, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Video, Upload, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 function ProductsPageContent() {
@@ -41,7 +41,7 @@ function ProductsPageContent() {
           </TabsContent>
 
           <TabsContent value="studio" className="space-y-6 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="max-w-2xl">
                 <Card className="border-primary/20 bg-primary/5">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3">
@@ -58,28 +58,6 @@ function ProductsPageContent() {
                         </Button>
                         <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" disabled>
                             <Upload className="mr-3 h-5 w-5 text-muted-foreground" /> Upload Existing File (Coming Soon)
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-purple-500/20 bg-purple-500/5">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3">
-                            <Bot className="h-6 w-6 text-purple-500" />
-                            <span>AI Video Creation</span>
-                        </CardTitle>
-                        <CardDescription>Let AI generate high-converting video content for you.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                        <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" asChild>
-                            <Link href="/dashboard/seller/ai-tools/text-to-video">
-                                <Text className="mr-3 h-5 w-5 text-purple-500" /> Create Video from Text
-                            </Link>
-                        </Button>
-                        <Button className="w-full justify-start h-14 text-base font-semibold" variant="outline" asChild>
-                            <Link href="/dashboard/seller/ai-tools/video-enhancer">
-                                <ImageIcon className="mr-3 h-5 w-5 text-purple-500" /> Animate Product Photo
-                            </Link>
                         </Button>
                     </CardContent>
                 </Card>
