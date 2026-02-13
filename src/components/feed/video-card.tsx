@@ -7,14 +7,14 @@ import { VideoInfo } from './video-info';
 import { VideoActions } from './video-actions';
 import { ProductDrawer } from './product-drawer';
 import { Button } from '../ui/button';
-import Link from 'next/link';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { ProductInfo } from '../live/product-info';
-import { doc, increment, writeBatch, collection, addDoc, serverTimestamp, query, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { CommentDrawer } from './comment-drawer';
-import { WifiOff, ChevronLeft, ChevronRight, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface VideoCardProps {
   item: VideoFeedItem;
@@ -23,27 +23,48 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
+  // Collect all available media for the product
   const allMedia = useMemo(() => {
     if (!item.product) return [];
     
     const media: {url: string, type: 'video' | 'image'}[] = [];
-    // Prioritize video
-    if (item.product.videoUrl) media.push({ url: item.product.videoUrl, type: 'video' as 'video' });
-    if (item.product.videoUrls) media.push(...item.product.videoUrls.map(url => ({ url, type: 'video' as 'video' })));
     
-    // Then add images
-    if (item.product.imageUrl) media.push({ url: item.product.imageUrl, type: 'image' as 'image' });
-    if (item.product.imageUrls) media.push(...item.product.imageUrls.map(url => ({ url, type: 'image' as 'image' })));
+    // Add primary video if exists
+    if (item.product.videoUrl) {
+      media.push({ url: item.product.videoUrl, type: 'video' });
+    }
     
-    // Remove duplicates just in case
-    const uniqueMedia = Array.from(new Map(media.map(m => [m.url, m])).values());
+    // Add additional videos
+    if (item.product.videoUrls && Array.isArray(item.product.videoUrls)) {
+      item.product.videoUrls.forEach(url => {
+        if (url && !media.some(m => m.url === url)) {
+          media.push({ url, type: 'video' });
+        }
+      });
+    }
+    
+    // Add primary image
+    if (item.product.imageUrl) {
+      if (!media.some(m => m.url === item.product.imageUrl)) {
+        media.push({ url: item.product.imageUrl, type: 'image' });
+      }
+    }
+    
+    // Add additional images
+    if (item.product.imageUrls && Array.isArray(item.product.imageUrls)) {
+      item.product.imageUrls.forEach(url => {
+        if (url && !media.some(m => m.url === url)) {
+          media.push({ url, type: 'image' });
+        }
+      });
+    }
     
     // Fallback if no media is present
-    if (uniqueMedia.length === 0) {
-        uniqueMedia.push({ url: 'https://picsum.photos/seed/placeholder/1000/1000', type: 'image' });
+    if (media.length === 0) {
+        media.push({ url: getPlaceholderImage(), type: 'image' });
     }
 
-    return uniqueMedia;
+    return media;
   }, [item.product]);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -56,9 +77,10 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   
   const currentMedia = allMedia[currentMediaIndex];
 
+  // Handle Autoplay and Muting
   useEffect(() => {
     const videoElement = videoRef.current;
-    if (!videoElement || currentMedia.type !== 'video') return;
+    if (!videoElement || currentMedia?.type !== 'video') return;
 
     if (isIntersecting) {
         const playPromise = videoElement.play();
@@ -72,10 +94,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
     } else {
         videoElement.pause();
         videoElement.currentTime = 0;
-        if (!videoElement.muted) {
-            videoElement.muted = true;
-            setIsMuted(true);
-        }
     }
   }, [isIntersecting, currentMedia]);
   
@@ -124,16 +142,18 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   };
 
   return (
-    <div className="relative h-full w-full bg-black">
-      <AnimatePresence initial={false}>
+    <div className="relative h-full w-full bg-black overflow-hidden">
+      {/* Main Media Container */}
+      <AnimatePresence mode="wait">
         <motion.div
-          key={currentMedia.url}
+          key={currentMedia?.url}
           className="absolute inset-0 z-0"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          {currentMedia.type === 'video' ? (
+          {currentMedia?.type === 'video' ? (
             <video 
               ref={videoRef}
               src={currentMedia.url}
@@ -142,51 +162,112 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
               muted={isMuted}
               loop 
               playsInline
-              key={currentMedia.url} // Force re-mount on src change
+              key={currentMedia.url}
               onClick={toggleMute}
             />
           ) : (
-            <Image
-              src={currentMedia.url}
-              alt={item.video.description || item.product.name || 'Product image'}
-              fill
-              sizes="100vw"
-              className="object-contain"
-              priority
-              data-ai-hint={item.video.imageHint}
-            />
+            <div className="relative h-full w-full">
+                <Image
+                src={currentMedia?.url || getPlaceholderImage()}
+                alt={item.product.name || 'Product item'}
+                fill
+                sizes="100vw"
+                className="object-contain"
+                priority
+                />
+            </div>
           )}
         </motion.div>
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30" />
+      {/* Overlay Gradients */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40 pointer-events-none" />
 
+      {/* Horizontal Navigation Controls */}
       {allMedia.length > 1 && (
         <>
-          <Button onClick={() => handleHorizontalScroll('left')} size="icon" variant="ghost" className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/50 hover:bg-black/70"><ChevronLeft className="h-6 w-6 text-white" /></Button>
-          <Button onClick={() => handleHorizontalScroll('right')} size="icon" variant="ghost" className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/50 hover:bg-black/70"><ChevronRight className="h-6 w-6 text-white" /></Button>
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1">
+          <Button 
+            onClick={() => handleHorizontalScroll('left')} 
+            size="icon" 
+            variant="ghost" 
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/30 hover:bg-black/50 text-white"
+          >
+            <ChevronLeft className="h-8 w-8" />
+          </Button>
+          <Button 
+            onClick={() => handleHorizontalScroll('right')} 
+            size="icon" 
+            variant="ghost" 
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/30 hover:bg-black/50 text-white"
+          >
+            <ChevronRight className="h-8 w-8" />
+          </Button>
+          
+          {/* Media Indicators (Dots) */}
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex gap-1.5 p-2 rounded-full bg-black/20 backdrop-blur-sm">
             {allMedia.map((_, i) => (
-                <div key={i} className={`h-1.5 w-6 rounded-full ${i === currentMediaIndex ? 'bg-white' : 'bg-white/50'}`}/>
+                <div 
+                    key={i} 
+                    className={cn(
+                        "h-1.5 transition-all rounded-full",
+                        i === currentMediaIndex ? "w-6 bg-primary" : "w-1.5 bg-white/50"
+                    )}
+                />
             ))}
           </div>
         </>
       )}
       
+      {/* Seller Info (Top Left) */}
       <VideoInfo seller={item.seller} />
 
-       <div className="absolute bottom-24 left-4 z-20 pointer-events-auto flex flex-col gap-2 max-h-48 overflow-y-auto">
-           {comments?.slice(-5).map(c => (
-               <div key={c.id} className="bg-black/50 text-white px-3 py-2 rounded-xl text-sm shadow-lg backdrop-blur-sm max-w-xs">
-                   <span className="font-bold mr-2">{c.userName}:</span>{c.text}
-               </div>
+      {/* Comments Feed Snippet (Bottom Left) */}
+       <div className="absolute bottom-40 left-4 z-20 pointer-events-none flex flex-col gap-2 max-h-32 overflow-hidden">
+           {comments?.slice(-3).map(c => (
+               <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                key={c.id} 
+                className="bg-black/40 text-white px-3 py-1.5 rounded-xl text-xs shadow-lg backdrop-blur-md max-w-[240px] border border-white/5"
+               >
+                   <span className="font-bold mr-2 text-primary">{c.userName}:</span>{c.text}
+               </motion.div>
            ))}
        </div>
 
-       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
+       {/* Media Previews / Thumbnails (Bottom Left, above product info) */}
+       {allMedia.length > 1 && (
+           <div className="absolute bottom-32 left-4 z-20 flex gap-2">
+               {allMedia.map((media, index) => (
+                   <button
+                    key={index}
+                    onClick={() => setCurrentMediaIndex(index)}
+                    className={cn(
+                        "relative h-12 w-12 rounded-lg overflow-hidden border-2 transition-all transform hover:scale-110",
+                        index === currentMediaIndex ? "border-primary scale-110 shadow-lg" : "border-white/20 opacity-70"
+                    )}
+                   >
+                       {media.type === 'video' ? (
+                           <div className="relative h-full w-full bg-neutral-800">
+                               <video src={media.url} className="h-full w-full object-cover" muted />
+                               <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                   <Video className="h-4 w-4 text-white" />
+                               </div>
+                           </div>
+                       ) : (
+                           <Image src={media.url} alt="Preview" fill className="object-cover" />
+                       )}
+                   </button>
+               ))}
+           </div>
+       )}
+
+       {/* Floating Product Info Card (Bottom) */}
+       <div className="absolute bottom-6 left-4 right-16 z-10 pointer-events-auto">
             {item.product && <ProductInfo product={item.product} />}
        </div>
 
+      {/* Side Action Buttons */}
       <VideoActions 
         product={item.product}
         commentCount={comments?.length || 0}
@@ -197,6 +278,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
         onMuteToggle={toggleMute}
       />
 
+      {/* Overlays/Drawers */}
       <ProductDrawer 
         product={item.product}
         isOpen={isDrawerOpen}
