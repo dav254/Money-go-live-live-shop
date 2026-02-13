@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle, RefreshCcw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -34,7 +34,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <VideoOff className="h-12 w-12 text-muted-foreground" />
         </div>
       )}
-      <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-xs text-white">
+      <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-xs text-white backdrop-blur-md">
         {local ? "You (Host)" : "Participant"}
       </div>
     </div>
@@ -81,33 +81,47 @@ const LiveStudioControls = ({ onEnd }: { onEnd: () => void }) => {
 const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
   const { join, localParticipant, isMeetingJoined } = useMeeting();
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("Preparing media...");
   const joinedRef = useRef(false);
 
   useEffect(() => {
     if (!isMeetingJoined && !joinedRef.current) {
       console.log("Attempting to join meeting...");
+      setStatusMessage("Connecting to server...");
       join();
       joinedRef.current = true;
     }
   }, [join, isMeetingJoined]);
 
-  // Timeout for joining
+  useEffect(() => {
+    if (isMeetingJoined) {
+        setStatusMessage("Live!");
+    }
+  }, [isMeetingJoined]);
+
+  // Handle connection timeouts
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!isMeetingJoined) {
-            setError("Connection timed out. Please check your internet and refresh.");
+            setError("Connection timed out. This can happen on slow networks. Please refresh and try again.");
         }
-    }, 15000); // 15 seconds timeout
+    }, 25000); // 25 seconds timeout for mobile stability
     return () => clearTimeout(timer);
   }, [isMeetingJoined]);
 
   if (error) {
       return (
-          <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Connection Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div className="space-y-4">
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Connection Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            <Button className="w-full" onClick={() => window.location.reload()}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Reload Studio
+            </Button>
+          </div>
       )
   }
 
@@ -118,9 +132,11 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
           <ParticipantView participantId={localParticipant.id} />
         ) : (
           <Card className="aspect-video flex flex-col items-center justify-center bg-muted">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-            <p className="font-bold">Joining Stream...</p>
-            <p className="text-xs text-muted-foreground">Please allow camera/mic access if prompted</p>
+            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+            <p className="font-bold text-lg">{statusMessage}</p>
+            <p className="text-xs text-muted-foreground mt-2 px-8 text-center">
+                Please stay on this page and ensure your internet is active.
+            </p>
           </Card>
         )}
       </div>
@@ -138,6 +154,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         webcamEnabled: true,
         name: participantName,
         mode: "CONFERENCE",
+        multiStream: false, // Better for mobile stability
       }}
       token={token}
     >

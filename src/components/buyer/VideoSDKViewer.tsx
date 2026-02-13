@@ -2,8 +2,9 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, AlertCircle } from 'lucide-react';
+import { VideoOff, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '../ui/button';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn } = useParticipant(participantId);
@@ -29,7 +30,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 text-white">
           <VideoOff className="h-12 w-12 text-muted-foreground mb-2" />
-          <p>The seller has paused their video</p>
+          <p className="font-semibold">Seller is checking something...</p>
+          <p className="text-xs text-muted-foreground">Video will resume shortly</p>
         </div>
       )}
     </div>
@@ -39,6 +41,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 const ViewerMeetingView = () => {
   const { join, participants, isMeetingJoined } = useMeeting();
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState("Connecting...");
   const joinedRef = useRef(false);
   
   useEffect(() => {
@@ -49,13 +52,19 @@ const ViewerMeetingView = () => {
     }
   }, [join, isMeetingJoined]);
 
+  useEffect(() => {
+    if (isMeetingJoined) {
+        setStatusMessage("Joining stream...");
+    }
+  }, [isMeetingJoined]);
+
   // Timeout for joining
   useEffect(() => {
     const timer = setTimeout(() => {
         if (!isMeetingJoined) {
-            setError("Could not connect to the stream. The seller might be offline.");
+            setError("We're having trouble connecting to the stream. Your internet might be slow or the seller just went offline.");
         }
-    }, 20000); // 20 seconds timeout for viewers
+    }, 25000); // 25 seconds timeout for mobile
     return () => clearTimeout(timer);
   }, [isMeetingJoined]);
 
@@ -65,12 +74,16 @@ const ViewerMeetingView = () => {
 
   if (error) {
       return (
-          <div className="h-full w-full flex items-center justify-center p-6">
-            <Alert variant="destructive" className="max-w-md">
+          <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-neutral-950 rounded-xl">
+            <Alert variant="destructive" className="max-w-md border-red-900/50 bg-red-950/20">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Stream Offline</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertTitle>Connection Problem</AlertTitle>
+                <AlertDescription className="text-xs mt-1">{error}</AlertDescription>
             </Alert>
+            <Button variant="outline" className="mt-6 border-white/10 text-white hover:bg-white/5" onClick={() => window.location.reload()}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Try Reconnecting
+            </Button>
           </div>
       )
   }
@@ -82,8 +95,10 @@ const ViewerMeetingView = () => {
       ) : (
         <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-white font-bold">Connecting to Stream...</p>
-          <p className="text-xs text-neutral-500 mt-2">Waiting for host to broadcast</p>
+          <p className="text-white font-bold text-lg">{statusMessage}</p>
+          <p className="text-xs text-neutral-500 mt-2 px-8 text-center">
+              Waiting for the seller to start broadcasting.
+          </p>
         </div>
       )}
     </div>
@@ -112,7 +127,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-white font-bold">Fetching Access Token...</p>
+        <p className="text-white font-bold">Securely Connecting...</p>
       </div>
     );
   }
@@ -125,6 +140,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         webcamEnabled: false,
         name: "Buyer Viewer",
         mode: "VIEWER",
+        multiStream: false, // Essential for mobile performance
       }}
       token={token}
     >
