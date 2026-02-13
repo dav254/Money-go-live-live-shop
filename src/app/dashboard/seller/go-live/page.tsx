@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
   loading: () => (
-    <Card className="aspect-video flex flex-col items-center justify-center bg-black border-none shadow-2xl">
+    <Card className="h-full w-full flex flex-col items-center justify-center bg-black border-none shadow-2xl">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
       <p className="text-white/70 font-medium">Entering Studio...</p>
     </Card>
@@ -171,8 +171,8 @@ export default function SellerGoLivePage() {
   return (
     <SellerLayout>
       <div className={cn(
-        "flex-1 space-y-6 p-4 pt-6 transition-all duration-500",
-        meetingId ? "md:p-1 max-w-full" : "md:p-8 max-w-7xl mx-auto"
+        "flex-1 flex flex-col transition-all duration-500",
+        meetingId ? "h-[calc(100vh-4rem)] overflow-hidden bg-black" : "p-4 md:p-8 max-w-7xl mx-auto space-y-6"
       )}>
         {!meetingId ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
@@ -222,8 +222,9 @@ export default function SellerGoLivePage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 h-[calc(100vh-4rem)]">
-            <div className="lg:col-span-11 flex flex-col space-y-4">
+          <div className="relative flex-1 flex flex-col md:flex-row h-full">
+            {/* Main Broadcast Area */}
+            <div className="flex-1 relative bg-black">
                 {token && (
                     <VideoSDKStudio 
                         meetingId={meetingId} 
@@ -234,24 +235,17 @@ export default function SellerGoLivePage() {
                     />
                 )}
             </div>
-            <div className="lg:col-span-1">
-                <Card className="h-full flex flex-col border-white/10 bg-neutral-900/50 backdrop-blur-sm shadow-xl">
-                    <CardHeader className="pb-2 border-b border-white/5 px-1 flex justify-center">
-                        <CardTitle className="flex justify-center">
-                            <Package className="h-5 w-5 text-primary" />
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden p-0">
-                        {user && (
-                            <LiveProductShelf 
-                                sellerId={user.uid} 
-                                onPinProduct={handlePinProduct} 
-                                onUnpinProduct={handleUnpinProduct}
-                                pinnedProductId={pinnedProductId}
-                            />
-                        )}
-                    </CardContent>
-                </Card>
+
+            {/* Product Shelf - Horizontal on mobile, vertical sidebar on desktop */}
+            <div className="h-24 md:h-full w-full md:w-20 shrink-0 border-t md:border-t-0 md:border-l border-white/10 bg-neutral-900/80 backdrop-blur-md z-40">
+                {user && (
+                    <LiveProductShelf 
+                        sellerId={user.uid} 
+                        onPinProduct={handlePinProduct} 
+                        onUnpinProduct={handleUnpinProduct}
+                        pinnedProductId={pinnedProductId}
+                    />
+                )}
             </div>
           </div>
         )}

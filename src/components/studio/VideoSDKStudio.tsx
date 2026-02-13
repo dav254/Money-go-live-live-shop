@@ -26,18 +26,18 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   }, [webcamStream, webcamOn]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-black border border-white/10 shadow-2xl">
+    <div className="relative h-full w-full bg-black">
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={local}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain md:object-cover"
       />
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
-          <VideoOff className="h-16 w-16 text-muted-foreground mb-4" />
-          <p className="text-white text-xl font-bold">Camera is Paused</p>
+          <VideoOff className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground mb-4" />
+          <p className="text-white text-lg md:text-xl font-bold">Camera is Paused</p>
         </div>
       )}
     </div>
@@ -53,30 +53,32 @@ const LiveStudioControls = ({ onEnd, isMeetingJoined }: { onEnd: () => void, isM
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 p-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-30">
+    <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-1.5 md:p-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl z-50">
       <Button
         size="icon"
         variant={micOn ? "secondary" : "destructive"}
         onClick={() => toggleMic()}
-        className="rounded-xl h-12 w-12"
+        className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
-        {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+        {micOn ? <Mic className="h-4 w-4 md:h-5 md:w-5" /> : <MicOff className="h-4 w-4 md:h-5 md:w-5" />}
       </Button>
       <Button
         size="icon"
         variant={webcamOn ? "secondary" : "destructive"}
         onClick={() => toggleWebcam()}
-        className="rounded-xl h-12 w-12"
+        className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
-        {webcamOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+        {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5" />}
       </Button>
-      <div className="w-px h-8 bg-white/10 mx-2" />
+      <div className="w-px h-6 md:h-8 bg-white/10 mx-1 md:mx-2" />
       <Button
         variant="destructive"
         onClick={handleEnd}
-        className="rounded-xl font-bold px-8 h-12 text-base shadow-lg shadow-red-600/20"
+        className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-sm md:text-base shadow-lg shadow-red-600/20"
       >
-        <StopCircle className="mr-2 h-5 w-5" /> End Broadcast
+        <StopCircle className="mr-2 h-4 w-4 md:h-5 md:w-5" /> 
+        <span className="hidden sm:inline">End Broadcast</span>
+        <span className="sm:hidden">End</span>
       </Button>
     </div>
   );
@@ -122,7 +124,7 @@ const MeetingView = ({ onEnd, onReady }: { onEnd: () => void, onReady: () => voi
 
   if (error) {
       return (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 bg-neutral-950 rounded-2xl border border-red-900/20">
+          <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-neutral-950">
             <div className="p-4 bg-red-500/10 rounded-full mb-6">
                 <AlertCircle className="h-12 w-12 text-red-500" />
             </div>
@@ -136,30 +138,32 @@ const MeetingView = ({ onEnd, onReady }: { onEnd: () => void, onReady: () => voi
   }
 
   return (
-    <div className="relative flex-1 flex flex-col bg-neutral-950 rounded-2xl overflow-hidden group border border-white/5">
-      {/* Top Status Bar */}
-      <div className="absolute top-0 left-0 right-0 z-30 p-4 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-auto">
+    <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden group">
+      {/* Top Status Bar - Compact for Mobile */}
+      <div className="absolute top-0 left-0 right-0 z-30 p-2 md:p-4 flex items-center justify-between pointer-events-none">
+          <div className="flex items-center gap-1.5 md:gap-2 pointer-events-auto">
               <div className={cn(
-                  "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-md border",
+                  "px-2 md:px-3 py-1 rounded-lg text-[8px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 md:gap-2 backdrop-blur-md border",
                   isMeetingJoined ? "bg-red-600/90 text-white border-red-500 animate-pulse" : "bg-neutral-800/90 text-neutral-400 border-white/5"
               )}>
-                  <div className={cn("h-1.5 w-1.5 rounded-full", isMeetingJoined ? "bg-white" : "bg-neutral-600")} />
-                  {isMeetingJoined ? "LIVE BROADCAST" : "PREPARING SIGNAL"}
+                  <div className={cn("h-1 md:h-1.5 w-1 md:w-1.5 rounded-full", isMeetingJoined ? "bg-white" : "bg-neutral-600")} />
+                  {isMeetingJoined ? "LIVE" : "SIGNAL"}
               </div>
               {isMeetingJoined && (
-                  <div className="px-3 py-1 rounded-lg bg-black/40 text-white text-[10px] font-bold border border-white/5 backdrop-blur-md flex items-center gap-2">
-                      <Globe className="h-3 w-3 text-blue-400" />
-                      GLOBAL ACCESS ACTIVE
+                  <div className="px-2 md:px-3 py-1 rounded-lg bg-black/40 text-white text-[8px] md:text-[10px] font-bold border border-white/5 backdrop-blur-md flex items-center gap-1.5 md:gap-2">
+                      <Globe className="h-2.5 w-2.5 md:h-3 md:w-3 text-blue-400" />
+                      <span className="hidden xs:inline">GLOBAL ACCESS</span>
+                      <span className="xs:hidden">GLOBAL</span>
                   </div>
               )}
           </div>
           
           <div className="pointer-events-auto">
               {!isMeetingJoined && (
-                  <div className="flex items-center gap-2 text-xs text-white/50 font-medium bg-black/40 px-3 py-1.5 rounded-lg border border-white/5 backdrop-blur-md">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Connecting viewers...
+                  <div className="flex items-center gap-1.5 text-[8px] md:text-xs text-white/50 font-medium bg-black/40 px-2 py-1 rounded-lg border border-white/5 backdrop-blur-md">
+                      <Loader2 className="h-2.5 w-2.5 md:h-3 md:w-3 animate-spin" />
+                      <span className="hidden xs:inline">Connecting viewers...</span>
+                      <span className="xs:hidden">Connecting...</span>
                   </div>
               )}
           </div>
@@ -178,14 +182,14 @@ const MeetingView = ({ onEnd, onReady }: { onEnd: () => void, onReady: () => voi
         {/* Signal Optimization Overlay */}
         {!isMeetingJoined && localParticipant && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-                <div className="bg-neutral-900/90 p-6 rounded-2xl border border-white/10 shadow-2xl flex flex-col items-center text-center space-y-4 max-w-xs">
+                <div className="bg-neutral-900/90 p-6 rounded-2xl border border-white/10 shadow-2xl flex flex-col items-center text-center space-y-4 max-w-[200px] md:max-w-xs">
                     <div className="relative">
-                        <Radio className="h-10 w-10 text-primary animate-ping absolute" />
-                        <Radio className="h-10 w-10 text-primary relative" />
+                        <Radio className="h-8 w-8 md:h-10 md:w-10 text-primary animate-ping absolute" />
+                        <Radio className="h-8 w-8 md:h-10 md:w-10 text-primary relative" />
                     </div>
                     <div className="space-y-1">
-                        <p className="text-white font-bold">Negotiating Link</p>
-                        <p className="text-[10px] text-neutral-400 uppercase tracking-widest">Optimising for mobile network</p>
+                        <p className="text-white text-sm md:text-base font-bold">Establishing Link</p>
+                        <p className="text-[8px] md:text-[10px] text-neutral-400 uppercase tracking-widest">Optimising Network</p>
                     </div>
                 </div>
             </div>
