@@ -16,6 +16,7 @@ import { PinnedProduct } from '@/components/live/PinnedProduct';
 import { LiveProductCard } from '@/components/buyer/LiveProductCard';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -88,11 +89,11 @@ export default function BuyerLiveStreamViewPage() {
                 </Button>
                 <div className="flex items-center gap-3 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/10 pr-4">
                 <Avatar className="h-9 w-9 border-2 border-primary">
-                    <AvatarImage src={seller?.profilePictureUrl} />
-                    <AvatarFallback>{seller?.fullName?.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={seller?.profilePictureUrl || getPlaceholderImage()} />
+                    <AvatarFallback>{seller?.fullName?.charAt(0) || 'S'}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="text-xs font-bold text-white leading-none">{seller?.shopName || seller?.fullName}</p>
+                    <p className="text-xs font-bold text-white leading-none">{seller?.shopName || seller?.fullName || 'Seller'}</p>
                     <div className="flex items-center gap-2 mt-1">
                     <Badge className="h-3.5 bg-red-600 px-1 text-[9px] animate-pulse border-none">LIVE</Badge>
                     <span className="text-[10px] text-neutral-300 flex items-center gap-1">
@@ -123,7 +124,7 @@ export default function BuyerLiveStreamViewPage() {
                                 {allProducts?.map(p => (
                                     <div key={p.id} className="flex gap-3 bg-white/5 p-2 rounded-lg border border-white/5">
                                         <div className="relative h-16 w-16 rounded-md overflow-hidden shrink-0">
-                                            <img src={p.imageUrl} alt={p.name} className="object-cover h-full w-full" />
+                                            <img src={p.imageUrl || getPlaceholderImage()} alt={p.name} className="object-cover h-full w-full" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold truncate">{p.name}</p>

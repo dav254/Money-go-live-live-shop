@@ -29,27 +29,27 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
     
     const media: {url: string, type: 'video' | 'image'}[] = [];
     
-    // 1. Add all videos
-    if (item.product.videoUrl) {
+    // 1. Add all valid videos
+    if (item.product.videoUrl && item.product.videoUrl.trim() !== "") {
       media.push({ url: item.product.videoUrl, type: 'video' });
     }
     if (item.product.videoUrls && Array.isArray(item.product.videoUrls)) {
       item.product.videoUrls.forEach(url => {
-        if (url && !media.some(m => m.url === url)) {
+        if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
           media.push({ url, type: 'video' });
         }
       });
     }
     
-    // 2. Add all images
-    if (item.product.imageUrl) {
+    // 2. Add all valid images
+    if (item.product.imageUrl && item.product.imageUrl.trim() !== "") {
       if (!media.some(m => m.url === item.product.imageUrl)) {
         media.push({ url: item.product.imageUrl, type: 'image' });
       }
     }
     if (item.product.imageUrls && Array.isArray(item.product.imageUrls)) {
       item.product.imageUrls.forEach(url => {
-        if (url && !media.some(m => m.url === url)) {
+        if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
           media.push({ url, type: 'image' });
         }
       });
@@ -152,9 +152,9 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
           {currentMedia?.type === 'video' ? (
             <video 
               ref={videoRef}
-              src={currentMedia.url}
+              src={currentMedia.url || undefined}
               className="h-full w-full object-contain" 
-              poster={item.product.imageUrl}
+              poster={item.product.imageUrl || getPlaceholderImage()}
               muted={isMuted}
               loop 
               playsInline
@@ -245,13 +245,13 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
                    >
                        {media.type === 'video' ? (
                            <div className="relative h-full w-full bg-neutral-800">
-                               <video src={media.url} className="h-full w-full object-cover" muted />
+                               <video src={media.url || undefined} className="h-full w-full object-cover" muted />
                                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                                    <Video className="h-4 w-4 text-white" />
                                </div>
                            </div>
                        ) : (
-                           <Image src={media.url} alt="Preview" fill className="object-cover" />
+                           <Image src={media.url || getPlaceholderImage()} alt="Preview" fill className="object-cover" />
                        )}
                    </button>
                ))}

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useRef, useState, useEffect } from 'react';
@@ -30,17 +29,9 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         return doc(firestore, 'userProfiles', product.sellerId);
     }, [firestore, product.sellerId]);
 
-    const { data: sellerData, isLoading: isSellerLoading } = useDoc<SellerShop>(sellerShopRef);
-    const { data: userProfileData, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+    const { data: sellerData } = useDoc<SellerShop>(sellerShopRef);
+    const { data: userProfileData } = useDoc<UserProfile>(userProfileRef);
 
-    if (isSellerLoading || isProfileLoading) {
-        return (
-             <div className="h-full w-full snap-start flex-shrink-0 bg-black flex items-center justify-center">
-                <Skeleton className="h-full w-full" />
-            </div>
-        )
-    }
-    
     const sellerName = sellerData?.shopName || userProfileData?.fullName || 'Seller Store';
     const sellerFollowers = sellerData?.followers || 0;
     const sellerReviews = sellerData?.reviewsCount || 0;
@@ -65,7 +56,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         rating: 4.8, // Placeholder
         followers: sellerFollowers,
         reviewsCount: sellerReviews,
-        isVerified: true, // Placeholder
+        isVerified: userProfileData?.verificationStatus === 'verified',
         joinedDate: userProfileData?.joinDate || new Date().toISOString(),
         location: sellerData?.location || userProfileData?.location || 'Unknown',
         description: sellerData?.description || userProfileData?.bio || 'Welcome!',
@@ -80,7 +71,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
           imageUrl: product.imageUrl || getPlaceholderImage(),
           description: product.name || 'product media',
           imageHint: 'product',
-          mediaType: product.videoUrl ? 'video' : 'image',
+          mediaType: (product.videoUrl && product.videoUrl.trim() !== "") ? 'video' : 'image',
         },
         likes: product.likes || 0,
         viewers: 0, 
