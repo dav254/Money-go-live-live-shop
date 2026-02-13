@@ -25,16 +25,14 @@ interface VideoCardProps {
 export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   // Collect all available media for the product
   const allMedia = useMemo(() => {
-    if (!item.product) return [];
+    if (!item.product) return [{ url: getPlaceholderImage(), type: 'image' as const }];
     
     const media: {url: string, type: 'video' | 'image'}[] = [];
     
-    // Add primary video if exists
+    // 1. Add all videos
     if (item.product.videoUrl) {
       media.push({ url: item.product.videoUrl, type: 'video' });
     }
-    
-    // Add additional videos
     if (item.product.videoUrls && Array.isArray(item.product.videoUrls)) {
       item.product.videoUrls.forEach(url => {
         if (url && !media.some(m => m.url === url)) {
@@ -43,14 +41,12 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
       });
     }
     
-    // Add primary image
+    // 2. Add all images
     if (item.product.imageUrl) {
       if (!media.some(m => m.url === item.product.imageUrl)) {
         media.push({ url: item.product.imageUrl, type: 'image' });
       }
     }
-    
-    // Add additional images
     if (item.product.imageUrls && Array.isArray(item.product.imageUrls)) {
       item.product.imageUrls.forEach(url => {
         if (url && !media.some(m => m.url === url)) {
@@ -87,7 +83,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
         if (playPromise !== undefined) {
             playPromise.catch(error => {
                 if (error.name !== 'AbortError') {
-                    console.error("Autoplay was prevented:", error);
+                    console.warn("Autoplay prevented:", error);
                 }
             });
         }
@@ -235,7 +231,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
            ))}
        </div>
 
-       {/* Media Previews / Thumbnails (Centered, above product info) */}
+       {/* Media Previews / Thumbnails */}
        {allMedia.length > 1 && (
            <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                {allMedia.map((media, index) => (

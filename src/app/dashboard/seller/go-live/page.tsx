@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Radio, Loader2, Video, Settings, CheckCircle } from 'lucide-react';
+import { Radio, Loader2, Video, Settings, CheckCircle, Package } from 'lucide-react';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
+import type { Product } from '@/lib/types';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -30,6 +31,7 @@ export default function SellerGoLivePage() {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
 
   // Fetch the secure token on mount
   useEffect(() => {
@@ -97,6 +99,7 @@ export default function SellerGoLivePage() {
         videosdkMeetingId: id,
         startTime: serverTimestamp(),
         viewerCount: 0,
+        pinnedProductId: null,
       }, { merge: true });
 
       setMeetingId(id);
@@ -116,17 +119,43 @@ export default function SellerGoLivePage() {
       await updateDoc(sessionRef, {
         status: 'ended',
         endTime: serverTimestamp(),
+        pinnedProductId: null,
       });
       setMeetingId(null);
+      setPinnedProductId(null);
       toast({ title: "Stream Ended", description: "Your live session has been closed." });
     } catch (error) {
       console.error(error);
     }
   };
 
+  const handlePinProduct = async (product: Product) => {
+      if (!user || !firestore) return;
+      const sessionRef = doc(firestore, 'liveSessions', user.uid);
+      try {
+          await updateDoc(sessionRef, { pinnedProductId: product.id });
+          setPinnedProductId(product.id);
+          toast({ title: "Product Pinned!", description: `${product.name} is now highlighted for viewers.` });
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
+  const handleUnpinProduct = async () => {
+      if (!user || !firestore) return;
+      const sessionRef = doc(firestore, 'liveSessions', user.uid);
+      try {
+          await updateDoc(sessionRef, { pinnedProductId: null });
+          setPinnedProductId(null);
+          toast({ title: "Product Unpinned" });
+      } catch (e) {
+          console.error(e);
+      }
+  }
+
   return (
     <SellerLayout>
-      <div className="flex-1 space-y-6 p-8 pt-6 max-w-4xl mx-auto">
+      <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -165,14 +194,39 @@ export default function SellerGoLivePage() {
             </CardContent>
           </Card>
         ) : (
-          token && (
-            <VideoSDKStudio 
-              meetingId={meetingId} 
-              participantName={userProfile?.fullName || "Seller"} 
-              token={token}
-              onEnd={handleEndLive} 
-            />
-          )
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                {token && (
+                    <VideoSDKStudio 
+                    meetingId={meetingId} 
+                    participantName={userProfile?.fullName || "Seller"} 
+                    token={token}
+                    onEnd={handleEndLive} 
+                    />
+                )}
+            </div>
+            <div className="space-y-6">
+                <Card className="h-[500px] flex flex-col">
+                    <CardHeader className="pb-3 border-b">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Package className="h-5 w-5 text-primary" />
+                            Live Product Shelf
+                        </CardTitle>
+                        <CardDescription>Pin a product to highlight it for buyers.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-hidden p-0 pt-2">
+                        {user && (
+                            <LiveProductShelf 
+                                sellerId={user.uid} 
+                                onPinProduct={handlePinProduct} 
+                                onUnpinProduct={handleUnpinProduct}
+                                pinnedProductId={pinnedProductId}
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+          </div>
         )}
 
         <Card>
@@ -186,15 +240,11 @@ export default function SellerGoLivePage() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                <span>**Internet Connection**: Use a stable Wi-Fi or 4G/5G connection.</span>
+                <span><strong>Stable Internet</strong>: Use Wi-Fi or 4G/5G for the best quality.</span>
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                <span>**Lighting**: Face a window or a bright light so buyers can see products clearly.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                <span>**Engagement**: Greet people as they join and answer questions from the chat.</span>
+                <span><strong>Engagement</strong>: Mention the products you have pinned to drive sales!</span>
               </li>
             </ul>
           </CardContent>

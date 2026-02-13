@@ -334,8 +334,9 @@ export interface LiveSession {
     sellerId: string;
     title: string;
     status: 'upcoming' | 'live' | 'ended';
-    youtubeUrl?: string; // Add youtubeUrl
+    youtubeUrl?: string; 
     productIds?: string[];
+    pinnedProductId?: string | null;
     viewerCount?: number;
     startTime: any;
     endTime?: any;

@@ -1,11 +1,11 @@
-
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local } = useParticipant(participantId);
@@ -80,14 +80,36 @@ const LiveStudioControls = ({ onEnd }: { onEnd: () => void }) => {
 
 const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
   const { join, localParticipant, isMeetingJoined } = useMeeting();
+  const [error, setError] = useState<string | null>(null);
   const joinedRef = useRef(false);
 
   useEffect(() => {
     if (!isMeetingJoined && !joinedRef.current) {
+      console.log("Attempting to join meeting...");
       join();
       joinedRef.current = true;
     }
   }, [join, isMeetingJoined]);
+
+  // Timeout for joining
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        if (!isMeetingJoined) {
+            setError("Connection timed out. Please check your internet and refresh.");
+        }
+    }, 15000); // 15 seconds timeout
+    return () => clearTimeout(timer);
+  }, [isMeetingJoined]);
+
+  if (error) {
+      return (
+          <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Connection Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+          </Alert>
+      )
+  }
 
   return (
     <div className="space-y-6">
