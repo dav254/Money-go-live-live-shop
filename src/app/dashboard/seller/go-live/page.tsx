@@ -172,7 +172,7 @@ export default function SellerGoLivePage() {
     <SellerLayout>
       <div className={cn(
         "flex-1 space-y-6 p-4 pt-6 transition-all duration-500",
-        meetingId ? "md:p-2 max-w-full" : "md:p-8 max-w-7xl mx-auto"
+        meetingId ? "md:p-1 max-w-full" : "md:p-8 max-w-7xl mx-auto"
       )}>
         {!meetingId ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
@@ -222,8 +222,8 @@ export default function SellerGoLivePage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-6rem)]">
-            <div className="lg:col-span-10 flex flex-col space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 h-[calc(100vh-4rem)]">
+            <div className="lg:col-span-11 flex flex-col space-y-4">
                 {token && (
                     <VideoSDKStudio 
                         meetingId={meetingId} 
@@ -234,12 +234,11 @@ export default function SellerGoLivePage() {
                     />
                 )}
             </div>
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-1">
                 <Card className="h-full flex flex-col border-white/10 bg-neutral-900/50 backdrop-blur-sm shadow-xl">
-                    <CardHeader className="pb-3 border-b border-white/5 px-3">
-                        <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider">
-                            <Package className="h-4 w-4 text-primary" />
-                            Products
+                    <CardHeader className="pb-2 border-b border-white/5 px-1 flex justify-center">
+                        <CardTitle className="flex justify-center">
+                            <Package className="h-5 w-5 text-primary" />
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="flex-1 overflow-hidden p-0">
