@@ -42,19 +42,19 @@ const ViewerMeetingView = () => {
   const { join, participants, isMeetingJoined } = useMeeting();
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Connecting to Stream...");
-  const joinedRef = useRef(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const hasAttemptedJoin = useRef(false);
   
   const handleJoin = useCallback(() => {
+    if (hasAttemptedJoin.current) return;
     setError(null);
     setStatusMessage("Searching for media bridge...");
+    hasAttemptedJoin.current = true;
     join();
   }, [join]);
 
   useEffect(() => {
-    if (!isMeetingJoined && !joinedRef.current) {
+    if (!isMeetingJoined && !hasAttemptedJoin.current) {
       handleJoin();
-      joinedRef.current = true;
     }
   }, [handleJoin, isMeetingJoined]);
 
@@ -64,17 +64,15 @@ const ViewerMeetingView = () => {
     }
   }, [isMeetingJoined]);
 
-  // Increased timeout for mobile network stability
   useEffect(() => {
     const timer = setTimeout(() => {
-        if (!isMeetingJoined) {
+        if (!isMeetingJoined && hasAttemptedJoin.current) {
             setError("We're having trouble connecting to the stream. This often happens on unstable mobile networks. Please ensure your connection is strong.");
         }
     }, 60000); // 60 seconds timeout
     return () => clearTimeout(timer);
-  }, [isMeetingJoined, retryCount]);
+  }, [isMeetingJoined]);
 
-  // Find the host (the seller)
   const participantsArray = Array.from(participants.values());
   const host = participantsArray.find(p => !p.local); 
 

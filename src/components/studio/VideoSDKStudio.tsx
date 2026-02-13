@@ -82,18 +82,19 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
   const { join, localParticipant, isMeetingJoined } = useMeeting();
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Authenticating...");
-  const joinedRef = useRef(false);
+  const hasAttemptedJoin = useRef(false);
 
   const handleJoin = useCallback(() => {
+    if (hasAttemptedJoin.current) return;
     setError(null);
     setStatusMessage("Negotiating Connection...");
+    hasAttemptedJoin.current = true;
     join();
   }, [join]);
 
   useEffect(() => {
-    if (!isMeetingJoined && !joinedRef.current) {
+    if (!isMeetingJoined && !hasAttemptedJoin.current) {
       handleJoin();
-      joinedRef.current = true;
     }
   }, [handleJoin, isMeetingJoined]);
 
@@ -103,18 +104,16 @@ const MeetingView = ({ onEnd }: { onEnd: () => void }) => {
     }
   }, [isMeetingJoined]);
 
-  // Extended timeout for mobile network stability
   useEffect(() => {
     const timer = setTimeout(() => {
-        if (!isMeetingJoined) {
-            setError("Connection timed out. This usually happens on unstable mobile networks. Try switching your connection or refreshing the page.");
+        if (!isMeetingJoined && hasAttemptedJoin.current) {
+            setError("Connection timed out. This often happens on unstable mobile networks. Try switching your connection or refreshing the page.");
         }
     }, 60000); // 60 seconds timeout
     return () => clearTimeout(timer);
   }, [isMeetingJoined]);
 
   const handleManualRetry = () => {
-      // Reloading is the most effective way to reset the WebRTC stack on mobile
       window.location.reload();
   };
 
@@ -164,7 +163,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         webcamEnabled: true,
         name: participantName,
         mode: "CONFERENCE",
-        multiStream: false, // Vital for mobile stability
+        multiStream: false,
         notification: {
             title: "Go Earn Live",
             message: "Broadcasting your store...",
