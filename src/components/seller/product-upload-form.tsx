@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -45,6 +46,7 @@ import type { Product } from '@/lib/types';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { kenyaLocations } from '@/lib/location-data';
+import { PRODUCT_CATEGORIES } from '@/lib/constants';
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -493,7 +495,18 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                           render={({ field }) => (
                           <FormItem>
                               <FormLabel>Category</FormLabel>
-                              <FormControl><Input placeholder="e.g., Apparel" {...field} /></FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Select Category" />
+                                      </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                      {PRODUCT_CATEGORIES.map(c => (
+                                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
                               <FormMessage />
                           </FormItem>
                           )}

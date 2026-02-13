@@ -12,7 +12,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Package, Video, CreditCard } from 'lucide-react';
+import { Package, Video, CreditCard, LayoutGrid, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -21,9 +21,21 @@ import type { Product, SellerShop, HomepageSlide, LiveSession } from '@/lib/type
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { PRODUCT_CATEGORIES } from '@/lib/constants';
 
 const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev');
 
+const categoryIcons: Record<string, React.ElementType> = {
+    "Fashion & Apparel": ShoppingBag,
+    "Electronics & Gadgets": Laptop,
+    "Home & Living": HomeIcon,
+    "Beauty & Personal Care": Heart,
+    "Food & Groceries": Apple,
+    "Sports & Outdoors": Dumbbell,
+    "Art & Collectibles": Palette,
+    "Books & Stationery": Book,
+    "Other": LayoutGrid
+};
 
 const shortcuts = [
   {
@@ -120,8 +132,7 @@ export default function BuyerDashboardPage() {
   const [isLoadingSellers, setIsLoadingSellers] = useState(true);
 
   useEffect(() => {
-    const categories = ['Fashion', 'Electronics', 'Home Goods', 'Beauty'];
-    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+    const randomCategory = PRODUCT_CATEGORIES[Math.floor(Math.random() * PRODUCT_CATEGORIES.length)];
     setLastViewedCategory(randomCategory);
   }, []);
 
@@ -177,6 +188,27 @@ export default function BuyerDashboardPage() {
                 </Link>
                 </Card>
             ))}
+            </div>
+
+            {/* Categories Section */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="font-headline text-2xl font-bold">Shop by Category</h2>
+                    <Button variant="link" asChild><Link href="/categories">View All</Link></Button>
+                </div>
+                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                    {PRODUCT_CATEGORIES.slice(0, 8).map((cat) => {
+                        const Icon = categoryIcons[cat] || LayoutGrid;
+                        return (
+                            <Link key={cat} href={`/search?q=${encodeURIComponent(cat)}`} className="flex flex-col items-center gap-2 group flex-shrink-0">
+                                <div className="h-16 w-16 rounded-2xl bg-muted group-hover:bg-primary group-hover:text-primary-foreground transition-all flex items-center justify-center border">
+                                    <Icon className="h-8 w-8" />
+                                </div>
+                                <span className="text-xs font-medium text-center w-20 line-clamp-2">{cat}</span>
+                            </Link>
+                        )
+                    })}
+                </div>
             </div>
 
             <div className="space-y-4">
