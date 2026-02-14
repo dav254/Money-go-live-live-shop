@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -63,6 +62,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
         senderName: identifiedName,
         senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
         messageText: messageText,
+        senderRole: userData?.userRole || 'buyer',
         timestamp: new Date(),
         isSending: true
     };
@@ -76,6 +76,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
             senderName: identifiedName,
             senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
             messageText: messageText,
+            senderRole: userData?.userRole || 'buyer',
             timestamp: serverTimestamp(),
         });
     } catch (error) {
@@ -115,37 +116,49 @@ export function LiveChat({ streamId }: LiveChatProps) {
                   ))}
                 </div>
               )}
-              {allMessages.map((msg: any) => (
-                  <div key={msg.id} className={cn("flex items-start gap-2 group transition-opacity", msg.isSending && "opacity-70")}>
-                      <Avatar className="h-7 w-7 border border-white/10 shrink-0">
-                        <AvatarImage src={msg.senderAvatar} />
-                        <AvatarFallback className="bg-neutral-800 text-[10px]"><User className="h-3 w-3" /></AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                            <button 
-                                onClick={() => handleReply(msg.senderName)}
-                                className="text-[10px] font-black text-neutral-500 uppercase tracking-tight mb-0.5 hover:text-primary transition-colors text-left truncate"
-                            >
-                                {msg.senderName}
-                            </button>
-                            {msg.isSending ? (
-                                <Loader2 className="h-2 w-2 animate-spin text-primary" />
-                            ) : (
-                                <button 
-                                    onClick={() => handleReply(msg.senderName)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
-                                >
-                                    <Reply className="h-3 w-3" />
-                                </button>
-                            )}
+              {allMessages.map((msg: any) => {
+                  const isProvider = msg.senderRole === 'seller' || msg.senderRole === 'admin';
+                  const alignRight = !isProvider; // Buyers & Resellers on Right
+
+                  return (
+                    <div key={msg.id} className={cn("flex flex-col", alignRight ? "items-end" : "items-start", msg.isSending && "opacity-70")}>
+                        <div className={cn("flex max-w-[85%] gap-2", alignRight ? "flex-row-reverse text-right" : "flex-row text-left")}>
+                            <Avatar className="h-7 w-7 border border-white/10 shrink-0">
+                                <AvatarImage src={msg.senderAvatar} />
+                                <AvatarFallback className="bg-neutral-800 text-[10px]"><User className="h-3 w-3" /></AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <div className={cn("flex items-center gap-2 mb-0.5", alignRight ? "flex-row-reverse" : "flex-row")}>
+                                    <button 
+                                        onClick={() => handleReply(msg.senderName)}
+                                        className="text-[10px] font-black text-neutral-500 uppercase tracking-tight hover:text-primary transition-colors truncate"
+                                    >
+                                        {msg.senderName}
+                                    </button>
+                                    {msg.isSending ? (
+                                        <Loader2 className="h-2 w-2 animate-spin text-primary" />
+                                    ) : (
+                                        <button 
+                                            onClick={() => handleReply(msg.senderName)}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
+                                        >
+                                            <Reply className="h-3 w-3" />
+                                        </button>
+                                    )}
+                                </div>
+                                <p className={cn(
+                                    "text-sm leading-tight p-2 rounded-lg border shadow-sm",
+                                    alignRight 
+                                        ? "bg-primary text-primary-foreground border-primary rounded-tr-none" 
+                                        : "bg-white/5 text-neutral-200 border-white/5 rounded-tl-none"
+                                )}>
+                                    {msg.messageText}
+                                </p>
+                            </div>
                         </div>
-                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none border border-white/5 shadow-sm">
-                            {msg.messageText}
-                        </p>
-                      </div>
-                  </div>
-              ))}
+                    </div>
+                  );
+              })}
           </div>
         </ScrollArea>
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -453,12 +452,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
             // MARKETPLACE ALIGNMENT: Buyers/Resellers locked RIGHT, Sellers/Admins locked LEFT
-            const isBuyerRole = senderProfile?.userRole === 'buyer' || senderProfile?.userRole === 'reseller';
-            const alignRight = isBuyerRole;
+            const isProvider = senderProfile?.userRole === 'seller' || senderProfile?.userRole === 'admin';
+            const alignRight = !isProvider;
             
             return (
                 <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start", msg.isOptimistic && "opacity-70")}>
-                    <div className={cn("flex max-w-[85%] flex-col gap-1", alignRight ? "items-end" : "items-start")}>
+                    <div className={cn("flex max-w-[85%] flex-col gap-1", alignRight ? "items-end text-right" : "items-start text-left")}>
                         {msg.messageType === 'product' && msg.productId ? (
                             <SharedProductCard productId={msg.productId} />
                         ) : (msg.messageType === 'image' || msg.messageType === 'video' || msg.messageType === 'file') && msg.mediaUrl ? (
@@ -474,7 +473,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                                 <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className="absolute -right-10 top-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                    className={cn("absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8", alignRight ? "-left-10" : "-right-10")}
                                     onClick={() => handleReplyTag(senderProfile?.fullName || '')}
                                 >
                                     <Reply className="h-4 w-4" />
@@ -483,7 +482,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                             <p>{msg.messageText}</p>
                             </div>
                         ) : null}
-                        <div className="flex items-center gap-2 px-1">
+                        <div className={cn("flex items-center gap-2 px-1", alignRight ? "flex-row-reverse" : "flex-row")}>
                             <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">
                                 {senderProfile?.userRole}
                             </span>

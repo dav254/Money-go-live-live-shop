@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -42,7 +41,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
 
   const handleEndClick = () => {
-    // Correctly leave the meeting and trigger the parent's cleanup
     leave();
     onEnd();
   };

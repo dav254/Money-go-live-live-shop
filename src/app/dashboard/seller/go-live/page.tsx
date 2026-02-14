@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -23,6 +22,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+
+const SESSION_LIMIT_MS = 68 * 60 * 1000; // 1 hour 8 minutes
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -151,6 +152,9 @@ export default function SellerGoLivePage() {
   const [error, setError] = useState<string | null>(null);
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [wantsToSetup, setWantsToSetup] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number>(SESSION_LIMIT_MS);
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -167,6 +171,35 @@ export default function SellerGoLivePage() {
   useEffect(() => {
     fetchToken();
   }, [fetchToken]);
+
+  // Session timer logic
+  useEffect(() => {
+    if (isLive) {
+      timerRef.current = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1000) {
+            handleEndLive(true);
+            return 0;
+          }
+          return prev - 1000;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isLive]);
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours > 0 ? hours + ':' : ''}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   const createMeeting = async (authToken: string) => {
     try {
@@ -232,13 +265,14 @@ export default function SellerGoLivePage() {
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
       await updateDoc(sessionRef, { status: 'live' });
       setIsLive(true);
-      toast({ title: "You are LIVE!", description: "Your broadcast is now global." });
+      setTimeRemaining(SESSION_LIMIT_MS);
+      toast({ title: "You are LIVE!", description: "Your broadcast is now global for 68 minutes." });
     } catch (e) {
       console.error("Failed to go live:", e);
     }
   };
 
-  const handleEndLive = async () => {
+  const handleEndLive = async (isTimeout = false) => {
     if (!user || !firestore) return;
     try {
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
@@ -252,7 +286,16 @@ export default function SellerGoLivePage() {
       setIsLive(false);
       setPinnedProductId(null);
       setWantsToSetup(false);
-      toast({ title: "Broadcast Ended" });
+      
+      if (isTimeout) {
+        toast({
+          variant: "destructive",
+          title: "Session Expired",
+          description: "Your points session has ended (1 hour 8 minutes limit). Buy more points to start a new show.",
+        });
+      } else {
+        toast({ title: "Broadcast Ended" });
+      }
     } catch (error) {
       console.error(error);
     }
@@ -335,7 +378,7 @@ export default function SellerGoLivePage() {
                           </div>
                           <div className="space-y-2">
                               <CardTitle className="font-headline text-3xl font-black uppercase tracking-tighter">Ready to Sell Live?</CardTitle>
-                              <CardDescription className="text-base">Host a 60-minute shopping show and sell directly to your audience.</CardDescription>
+                              <CardDescription className="text-base">Host a 68-minute shopping show and sell directly to your audience.</CardDescription>
                           </div>
                       </CardHeader>
                       <CardContent className="space-y-8">
@@ -423,10 +466,25 @@ export default function SellerGoLivePage() {
               token={token}
               isLive={isLive}
               onBroadcast={handleBroadcastStart}
-              onEnd={handleEndLive}
+              onEnd={() => handleEndLive(false)}
             />
           )}
         </div>
+
+        {/* TIME LIMIT HUD */}
+        {isLive && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60]">
+                <div className={cn(
+                    "px-4 py-2 rounded-full backdrop-blur-xl border flex items-center gap-3 transition-colors duration-500",
+                    timeRemaining < (5 * 60 * 1000) ? "bg-red-600/80 border-red-500 animate-pulse" : "bg-black/40 border-white/10"
+                )}>
+                    <Clock className={cn("h-4 w-4", timeRemaining < (5 * 60 * 1000) ? "text-white" : "text-primary")} />
+                    <span className="text-sm font-black tracking-widest text-white uppercase tabular-nums">
+                        {formatTime(timeRemaining)}
+                    </span>
+                </div>
+            </div>
+        )}
         
         {/* HUD: LEFT HAND - Product Pinning */}
         <div className="absolute left-4 bottom-32 z-[60]">
