@@ -48,9 +48,12 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
+    // Use identified name from profile or fallback to display name, then generic title. Never "Anonymous".
+    const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Verified User';
+
     const messageData = {
       senderId: user.uid,
-      senderName: userData?.shopName || userData?.fullName || user.displayName || 'Buyer',
+      senderName: identifiedName,
       senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
       messageText: newMessage.trim(),
       timestamp: serverTimestamp(),
@@ -62,14 +65,14 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   return (
       <div className="flex flex-col h-full bg-black border-l border-white/10">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-neutral-950/50">
             <p className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <MessageSquare className="h-3 w-3 text-primary" /> 
-                Live Chat
+                Live Engagement
             </p>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-3 w-3 text-green-500" />
-                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
+                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Identified</span>
             </div>
         </div>
         
@@ -93,14 +96,14 @@ export function LiveChat({ streamId }: LiveChatProps) {
                       </Avatar>
                       <div className="flex-1 overflow-hidden">
                         <p className="text-[10px] font-black text-neutral-500 uppercase tracking-tight mb-0.5 group-hover:text-primary transition-colors">{msg.senderName}</p>
-                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none">{msg.messageText}</p>
+                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none border border-white/5">{msg.messageText}</p>
                       </div>
                   </div>
               ))}
               {!isLoading && (!messages || messages.length === 0) && (
                   <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
                       <MessageSquare className="h-10 w-10 text-neutral-500 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest">No messages yet</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Waiting for engagement...</p>
                   </div>
               )}
           </div>
@@ -111,7 +114,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
                 <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={user ? "Type a message..." : "Log in to chat"}
+                    placeholder={user ? "Reply to buyers..." : "Log in to chat"}
                     className="bg-neutral-900 border-white/5 text-white placeholder:text-neutral-600 rounded-xl h-11"
                     disabled={!user}
                 />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe } from 'lucide-react';
@@ -38,7 +38,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
   const handleEnd = () => {
-    // Explicitly release media devices
+    // Forcibly stop all tracks before leaving
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
@@ -90,14 +90,14 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, localParticipant, enableWebcam, unmuteMic, isMeetingJoined } = useMeeting();
+  const { join, enableWebcam, unmuteMic } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Warm up hardware instantly
+        // Standardized VideoSDK API for enabling hardware
         setTimeout(() => {
             if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
@@ -126,14 +126,19 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
       </div>
 
       <div className="flex-1 relative">
-        {localParticipant ? (
-          <ParticipantView participantId={localParticipant.id} />
-        ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center bg-black">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Syncing Production Bridge...</p>
-          </div>
-        )}
+        <MeetingConsumer>
+          {({ participants }) => {
+            const localParticipant = Array.from(participants.values()).find(p => p.local);
+            return localParticipant ? (
+              <ParticipantView participantId={localParticipant.id} />
+            ) : (
+              <div className="h-full w-full flex flex-col items-center justify-center bg-black">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Syncing Studio Bridge...</p>
+              </div>
+            );
+          }}
+        </MeetingConsumer>
       </div>
 
       <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
@@ -161,9 +166,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
       }}
       token={token}
     >
-      <MeetingConsumer>
-        {() => <MeetingView onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />}
-      </MeetingConsumer>
+      <MeetingView onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
     </MeetingProvider>
   );
 }

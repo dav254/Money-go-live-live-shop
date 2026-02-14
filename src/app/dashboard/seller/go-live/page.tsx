@@ -11,13 +11,14 @@ import { Loader2, RefreshCw, AlertCircle, MessageSquare } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
   loading: () => (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-white/70 font-medium">Initializing Direct Stream...</p>
+      <p className="text-white/70 font-medium uppercase tracking-widest text-xs">Initializing Signal...</p>
     </div>
   ),
 });
@@ -115,7 +116,7 @@ export default function SellerGoLivePage() {
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
       await updateDoc(sessionRef, { status: 'live' });
       setIsLive(true);
-      toast({ title: "You are LIVE!", description: "Buyers can now see your broadcast." });
+      toast({ title: "You are LIVE!", description: "Your broadcast is now global." });
     } catch (e) {
       console.error("Failed to go live:", e);
     }
@@ -159,12 +160,12 @@ export default function SellerGoLivePage() {
   return (
     <SellerLayout>
       <div className={cn(
-        "flex-1 flex flex-col lg:flex-row bg-black transition-all duration-500",
+        "flex-1 relative bg-black transition-all duration-500",
         meetingId ? "h-[calc(100vh-4rem)] overflow-hidden" : "p-8"
       )}>
         {meetingId ? (
           <>
-            <div className="flex-1 relative h-full w-full">
+            <div className="h-full w-full">
               {token && (
                 <VideoSDKStudio 
                   meetingId={meetingId} 
@@ -177,9 +178,26 @@ export default function SellerGoLivePage() {
               )}
             </div>
             
-            {/* Seller Chat Panel */}
-            <div className="w-full lg:w-80 h-1/3 lg:h-full border-t lg:border-t-0 lg:border-l border-white/10 shrink-0 bg-neutral-950">
-                <LiveChat streamId={user?.uid || ''} />
+            {/* Mobile-First Floating Chat HUD */}
+            <div className="absolute right-4 top-20 z-[60]">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl animate-bounce-subtle border-2 border-white/20">
+                            <MessageSquare className="h-6 w-6" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:w-80 bg-black border-white/10 text-white p-0">
+                        <SheetHeader className="p-4 border-b border-white/10">
+                            <SheetTitle className="text-white flex items-center gap-2">
+                                <MessageSquare className="text-primary" />
+                                Sales Engagement
+                            </SheetTitle>
+                        </SheetHeader>
+                        <div className="h-[calc(100vh-5rem)]">
+                            <LiveChat streamId={user?.uid || ''} />
+                        </div>
+                    </SheetContent>
+                </Sheet>
             </div>
           </>
         ) : (
@@ -189,8 +207,8 @@ export default function SellerGoLivePage() {
                 <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Direct Signal</h1>
-              <p className="text-muted-foreground text-sm font-medium">Authenticating hardware bridge...</p>
+              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Studio Signal</h1>
+              <p className="text-muted-foreground text-sm font-medium">Connecting to direct stream bridge...</p>
             </div>
           </div>
         )}
