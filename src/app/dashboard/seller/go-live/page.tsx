@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -16,6 +16,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -26,6 +29,13 @@ const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'
     </div>
   ),
 });
+
+const promoIdeas = [
+    "🔥 Join my LIVE show now for exclusive deals you won't find anywhere else! Tap here to watch:",
+    "🎥 I'm selling LIVE right now! Come ask me questions and see the products in action:",
+    "⚡ FLASH SALE happening LIVE! Join now to grab your favorites before they sell out:",
+    "👋 Hey everyone! Starting my live show on Go Earn. Come hang out and shop with me:"
+];
 
 export default function SellerGoLivePage() {
   const { user } = useUser();
@@ -41,7 +51,6 @@ export default function SellerGoLivePage() {
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const hasTriggeredSetup = useRef(false);
 
-  // Fetch token with safety catch
   const fetchToken = useCallback(async () => {
     try {
       const res = await fetch('/api/videosdk/token');
@@ -76,7 +85,6 @@ export default function SellerGoLivePage() {
     }
   };
 
-  // Automatic Setup on Load (Mirror Preview)
   const handleSetupPreview = useCallback(async () => {
     if (!user || !firestore || !token || hasTriggeredSetup.current) return;
     
@@ -112,6 +120,7 @@ export default function SellerGoLivePage() {
     } catch (err: any) {
       console.error("Setup failed:", err);
       setError(err.message || "Connection failed.");
+      hasAttemptedJoin.current = false;
       hasTriggeredSetup.current = false;
     } finally {
       setIsStarting(false);
@@ -180,6 +189,13 @@ export default function SellerGoLivePage() {
       }
   };
 
+  const copyToClipboard = (text: string, label: string) => {
+      navigator.clipboard.writeText(text);
+      toast({ title: "Copied!", description: `${label} ready to paste.` });
+  };
+
+  const streamUrl = `https://goearnvid.shop/buyer/live/${user?.uid}`;
+
   if (error) {
     return (
       <SellerLayout>
@@ -235,7 +251,7 @@ export default function SellerGoLivePage() {
                         <SheetHeader className="p-4 border-b border-white/10">
                             <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
                                 <ShoppingBag className="text-blue-500 h-4 w-4" />
-                                Pin a Product
+                                Product Bag
                             </SheetTitle>
                         </SheetHeader>
                         <div className="h-[calc(100vh-5rem)]">
@@ -246,6 +262,60 @@ export default function SellerGoLivePage() {
                                 pinnedProductId={pinnedProductId}
                             />
                         </div>
+                    </SheetContent>
+                </Sheet>
+            </div>
+
+            {/* HUD: CENTER - Share Hub */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-[60]">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button size="icon" className="h-14 w-14 rounded-full bg-green-600 hover:bg-green-700 shadow-2xl border-2 border-white/20">
+                            <Share2 className="h-7 w-7" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="h-[80vh] bg-neutral-950 border-t-white/10 text-white rounded-t-3xl p-0">
+                        <SheetHeader className="p-6 border-b border-white/10">
+                            <SheetTitle className="text-white flex items-center gap-3 text-xl font-black uppercase tracking-tighter">
+                                <Share2 className="text-green-500 h-6 w-6" />
+                                Share & Grow Your Audience
+                            </SheetTitle>
+                        </SheetHeader>
+                        <ScrollArea className="h-full">
+                            <div className="p-6 space-y-8 pb-24">
+                                <section className="space-y-3">
+                                    <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest">Your Direct Stream Link</Label>
+                                    <div className="flex gap-2">
+                                        <Input readOnly value={streamUrl} className="bg-neutral-900 border-white/10 h-12" />
+                                        <Button className="h-12 px-6 bg-green-600 hover:bg-green-700" onClick={() => copyToClipboard(streamUrl, 'Link')}>
+                                            <Copy className="h-4 w-4 mr-2" /> Copy
+                                        </Button>
+                                    </div>
+                                </section>
+
+                                <section className="space-y-4">
+                                    <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 text-primary" />
+                                        High-Conversion Templates
+                                    </Label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {promoIdeas.map((idea, i) => (
+                                            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/30 transition-colors group">
+                                                <p className="text-sm text-neutral-300 mb-3 leading-relaxed">"{idea}"</p>
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="sm" 
+                                                    className="w-full text-[10px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-white"
+                                                    onClick={() => copyToClipboard(`${idea}\n${streamUrl}`, 'Template')}
+                                                >
+                                                    Copy Template + Link
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+                        </ScrollArea>
                     </SheetContent>
                 </Sheet>
             </div>

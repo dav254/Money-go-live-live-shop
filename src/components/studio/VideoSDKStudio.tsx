@@ -4,7 +4,7 @@
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -30,8 +30,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
             <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
-          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest">Camera Preview Offline</p>
-          <p className="text-neutral-500 text-xs mt-2 uppercase tracking-widest font-bold">Toggle the camera icon below to start your setup</p>
+          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest">Camera Offline</p>
+          <p className="text-neutral-500 text-xs mt-2 uppercase tracking-widest font-bold">Initializing direct stream signal...</p>
         </div>
       )}
     </div>
@@ -40,11 +40,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 
 const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
   const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
-
-  const handleEndInternal = () => {
-    leave();
-    onEnd();
-  };
 
   return (
     <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
@@ -77,7 +72,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       ) : (
         <Button
           variant="destructive"
-          onClick={handleEndInternal}
+          onClick={() => { leave(); onEnd(); }}
           className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:text-sm"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
@@ -88,12 +83,12 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, participants, isMeetingJoined } = useMeeting();
-  const hasInitialized = useRef(false);
+  const { join, isMeetingJoined, participants } = useMeeting();
+  const hasAttemptedJoin = useRef(false);
 
   useEffect(() => {
-    if (!hasInitialized.current && !isMeetingJoined) {
-        hasInitialized.current = true;
+    if (!isMeetingJoined && !hasAttemptedJoin.current) {
+        hasAttemptedJoin.current = true;
         join();
     }
   }, [join, isMeetingJoined]);

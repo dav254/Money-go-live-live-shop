@@ -424,11 +424,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
             const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
-            // MARKETPLACE PERSPECTIVE ALIGNMENT: 
-            // Buyer/Reseller = Always RIGHT
-            // Seller/Admin = Always LEFT
-            const isMsgFromBuyerRole = senderProfile?.userRole === 'buyer' || senderProfile?.userRole === 'reseller';
-            const alignRight = isMsgFromBuyerRole;
+            // ROLE-BASED ALIGNMENT: Buyers/Resellers locked RIGHT, Sellers/Admins locked LEFT
+            const isBuyerRole = senderProfile?.userRole === 'buyer' || senderProfile?.userRole === 'reseller';
+            const alignRight = isBuyerRole;
             
             return (
                 <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
