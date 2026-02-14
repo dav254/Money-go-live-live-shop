@@ -217,7 +217,7 @@ export default function SellerGoLivePage() {
               )}
             </div>
             
-            {/* HUD: Left Hand Side - Product Pinning */}
+            {/* HUD: LEFT HAND - Product Pinning */}
             <div className="absolute left-4 bottom-32 z-[60]">
                 <Sheet>
                     <SheetTrigger asChild>
@@ -244,7 +244,7 @@ export default function SellerGoLivePage() {
                 </Sheet>
             </div>
 
-            {/* HUD: Right Hand Side - Sales Chat */}
+            {/* HUD: RIGHT HAND - Sales Chat */}
             <div className="absolute right-4 bottom-32 z-[60]">
                 <Sheet>
                     <SheetTrigger asChild>

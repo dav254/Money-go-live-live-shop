@@ -49,8 +49,8 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
-    // Use identified name from profile or fallback to display name, then generic title.
-    const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Verified User';
+    // Identified user logic - removed "Anonymous" fallback
+    const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Verified Member';
 
     const messageData = {
       senderId: user.uid,

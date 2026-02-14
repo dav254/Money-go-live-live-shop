@@ -26,9 +26,12 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
     <div className="relative h-full w-full bg-black">
       <video ref={videoRef} autoPlay playsInline muted={local} className="h-full w-full object-contain md:object-cover" />
       {!webcamOn && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
-          <VideoOff className="h-12 md:h-16 md:w-16 text-muted-foreground mb-4" />
-          <p className="text-white text-lg md:text-xl font-bold font-headline uppercase tracking-tight">Camera Off</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 backdrop-blur-sm">
+          <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
+            <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
+          </div>
+          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest">Signal Paused</p>
+          <p className="text-neutral-500 text-xs mt-2 uppercase tracking-widest font-bold">Calibration in progress...</p>
         </div>
       )}
     </div>
@@ -98,7 +101,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Delay hardware start slightly to ensure bridge is ready
+        // Automatic handshake for instant preview calibration
         setTimeout(() => {
             if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
