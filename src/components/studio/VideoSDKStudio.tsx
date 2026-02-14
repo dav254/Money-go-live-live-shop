@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -39,7 +38,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
   const handleEnd = () => {
-    // Forcibly stop all tracks before leaving
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
@@ -98,7 +96,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Use standardized VideoSDK methods to enable hardware immediately
         setTimeout(() => {
             if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
@@ -142,7 +139,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         </MeetingConsumer>
       </div>
 
-      <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
+      <StudioControls onEnd={handleEnd} onBroadcast={onBroadcast} isLive={isLive} />
     </div>
   );
 };

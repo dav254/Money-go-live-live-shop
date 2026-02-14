@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -9,7 +8,7 @@ import { ScrollArea, ScrollBar } from '../ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
 import Image from 'next/image';
 import { Button } from '../ui/button';
-import { Pin, PinOff } from 'lucide-react';
+import { Pin, PinOff, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LiveProductShelfProps {
