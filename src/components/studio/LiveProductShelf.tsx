@@ -1,7 +1,8 @@
+
 'use client';
 
 import React from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { ScrollArea, ScrollBar } from '../ui/scroll-area';
@@ -21,42 +22,40 @@ interface LiveProductShelfProps {
 const ProductRow = ({ product, onPin, onUnpin, isPinned }: { product: Product; onPin: (p: Product) => void; onUnpin: () => void; isPinned: boolean; }) => {
     return (
         <div className={cn(
-            "relative aspect-square w-16 md:w-full rounded-lg overflow-hidden border transition-all duration-300 group shrink-0",
-            isPinned ? "border-primary ring-2 ring-primary" : "border-white/10"
+            "relative w-full rounded-xl overflow-hidden border transition-all duration-300 group bg-neutral-900",
+            isPinned ? "border-primary ring-2 ring-primary bg-primary/5" : "border-white/5"
         )}>
-            <Image 
-                src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} 
-                alt={product.name || 'product'} 
-                fill 
-                className="object-cover" 
-            />
-            
-            {/* Actions Overlay - Touch friendly for mobile */}
-            <div className={cn(
-                "absolute inset-0 bg-black/60 flex items-center justify-center p-1 transition-opacity",
-                isPinned ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
-            )}>
+            <div className="flex p-2 gap-3 items-center">
+                <div className="relative h-14 w-14 rounded-lg overflow-hidden shrink-0 border border-white/10">
+                    <Image 
+                        src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} 
+                        alt={product.name || 'product'} 
+                        fill 
+                        className="object-cover" 
+                    />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white truncate uppercase tracking-tight">{product.name}</p>
+                    <p className="text-[10px] font-black text-primary mt-0.5">${product.price.toLocaleString()}</p>
+                </div>
+
                 <Button 
-                    size="icon" 
+                    size="sm" 
                     variant={isPinned ? "destructive" : "default"} 
-                    className="h-7 w-7 md:h-8 md:w-8 rounded-full shadow-lg"
+                    className="h-8 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest"
                     onClick={() => isPinned ? onUnpin() : onPin(product)}
                 >
-                    {isPinned ? <PinOff className="h-3 w-3 md:h-4 md:w-4" /> : <Pin className="h-3 w-3 md:h-4 md:w-4" />}
+                    {isPinned ? <PinOff className="h-3 w-3 mr-1.5" /> : <Pin className="h-3 w-3 mr-1.5" />}
+                    {isPinned ? 'Unpin' : 'Pin'}
                 </Button>
             </div>
 
-            {/* Indicator Badge */}
             {isPinned && (
-                <div className="absolute top-0 right-0 bg-primary p-0.5 rounded-bl-md">
-                    <Pin className="h-2 w-2 text-white" />
+                <div className="absolute top-0 left-0 bg-primary px-1.5 py-0.5 rounded-br-md">
+                    <span className="text-[8px] font-black text-white uppercase">Active</span>
                 </div>
             )}
-            
-            {/* Price Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-0.5 text-[7px] md:text-[8px] text-center font-black text-white truncate px-1">
-                ${product.price.toLocaleString()}
-            </div>
         </div>
     );
 };
@@ -73,9 +72,9 @@ export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct, pinne
 
     if (isLoading) {
         return (
-            <div className="flex md:flex-col gap-2 p-2">
+            <div className="flex flex-col gap-3 p-4">
                 {[...Array(4)].map((_, i) => (
-                    <Skeleton key={i} className="aspect-square w-16 md:w-full rounded-lg" />
+                    <Skeleton key={i} className="h-16 w-full rounded-xl" />
                 ))}
             </div>
         )
@@ -83,15 +82,16 @@ export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct, pinne
 
     if (!products || products.length === 0) {
         return (
-            <div className="flex items-center justify-center h-full w-full p-2 text-center">
-                <p className="text-[10px] text-muted-foreground leading-tight uppercase font-bold">No Items</p>
+            <div className="flex flex-col items-center justify-center py-20 text-center px-6 opacity-30">
+                <ShoppingBag className="h-12 w-12 text-neutral-500 mb-4" />
+                <p className="text-[10px] text-muted-foreground leading-tight uppercase font-black tracking-widest">No Items in Catalog</p>
             </div>
         )
     }
 
     return (
         <ScrollArea className="h-full w-full">
-            <div className="flex md:flex-col gap-2 p-2 min-w-max md:min-w-0">
+            <div className="flex flex-col gap-3 p-4">
                 {products.map(product => (
                     <ProductRow 
                         key={product.id} 
@@ -102,7 +102,6 @@ export function LiveProductShelf({ sellerId, onPinProduct, onUnpinProduct, pinne
                     />
                 ))}
             </div>
-            <ScrollBar orientation="horizontal" className="md:hidden" />
         </ScrollArea>
     )
 }

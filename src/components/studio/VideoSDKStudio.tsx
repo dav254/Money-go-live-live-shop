@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -97,7 +98,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Standardized VideoSDK API for enabling hardware
+        // Use standardized VideoSDK methods to enable hardware immediately
         setTimeout(() => {
             if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();

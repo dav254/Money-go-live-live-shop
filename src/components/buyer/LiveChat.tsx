@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -48,7 +49,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
-    // Use identified name from profile or fallback to display name, then generic title. Never "Anonymous".
+    // Use identified name from profile or fallback to display name, then generic title.
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Verified User';
 
     const messageData = {
@@ -64,7 +65,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
   };
 
   return (
-      <div className="flex flex-col h-full bg-black border-l border-white/10">
+      <div className="flex flex-col h-full bg-black">
         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-neutral-950/50">
             <p className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <MessageSquare className="h-3 w-3 text-primary" /> 

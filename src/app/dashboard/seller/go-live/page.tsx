@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
+import type { Product } from '@/lib/types';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -34,6 +37,7 @@ export default function SellerGoLivePage() {
   const [isLive, setIsLive] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const hasTriggeredSetup = useRef(false);
 
   // 1. Fetch token
@@ -92,6 +96,7 @@ export default function SellerGoLivePage() {
         videosdkMeetingId: id,
         startTime: serverTimestamp(),
         viewerCount: 0,
+        pinnedProductId: null,
       }, { merge: true });
 
       setMeetingId(id);
@@ -129,15 +134,48 @@ export default function SellerGoLivePage() {
       await updateDoc(sessionRef, {
         status: 'ended',
         videosdkMeetingId: null,
+        pinnedProductId: null,
       });
       
+      // Forcibly release hardware at browser level
+      if (navigator.mediaDevices) {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+              .then(stream => stream.getTracks().forEach(t => t.stop()))
+              .catch(() => {});
+      }
+
       setMeetingId(null);
       setIsLive(false);
+      setPinnedProductId(null);
       hasTriggeredSetup.current = false;
       toast({ title: "Broadcast Ended" });
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const handlePinProduct = async (product: Product) => {
+      if (!user || !firestore) return;
+      try {
+          const sessionRef = doc(firestore, 'liveSessions', user.uid);
+          await updateDoc(sessionRef, { pinnedProductId: product.id });
+          setPinnedProductId(product.id);
+          toast({ title: "Product Pinned", description: `${product.name} is now featured.` });
+      } catch (e) {
+          console.error("Failed to pin product:", e);
+      }
+  };
+
+  const handleUnpinProduct = async () => {
+      if (!user || !firestore) return;
+      try {
+          const sessionRef = doc(firestore, 'liveSessions', user.uid);
+          await updateDoc(sessionRef, { pinnedProductId: null });
+          setPinnedProductId(null);
+          toast({ title: "Product Unpinned" });
+      } catch (e) {
+          console.error("Failed to unpin:", e);
+      }
   };
 
   if (error) {
@@ -178,8 +216,9 @@ export default function SellerGoLivePage() {
               )}
             </div>
             
-            {/* Mobile-First Floating Chat HUD */}
-            <div className="absolute right-4 top-20 z-[60]">
+            {/* Mobile-First Floating HUD */}
+            <div className="absolute right-4 top-20 z-[60] flex flex-col gap-4">
+                {/* Chat Action */}
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl animate-bounce-subtle border-2 border-white/20">
@@ -195,6 +234,31 @@ export default function SellerGoLivePage() {
                         </SheetHeader>
                         <div className="h-[calc(100vh-5rem)]">
                             <LiveChat streamId={user?.uid || ''} />
+                        </div>
+                    </SheetContent>
+                </Sheet>
+
+                {/* Product Bag Action */}
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-xl border-2 border-white/20">
+                            <ShoppingBag className="h-6 w-6" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
+                        <SheetHeader className="p-4 border-b border-white/10">
+                            <SheetTitle className="text-white flex items-center gap-2">
+                                <ShoppingBag className="text-blue-500" />
+                                Pin a Product
+                            </SheetTitle>
+                        </SheetHeader>
+                        <div className="h-[calc(100vh-5rem)]">
+                            <LiveProductShelf 
+                                sellerId={user?.uid || ''} 
+                                onPinProduct={handlePinProduct} 
+                                onUnpinProduct={handleUnpinProduct}
+                                pinnedProductId={pinnedProductId}
+                            />
                         </div>
                     </SheetContent>
                 </Sheet>
