@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -88,8 +88,8 @@ export default function SellerGoLivePage() {
   const handleSetupPreview = useCallback(async () => {
     if (!user || !firestore || !token || hasTriggeredSetup.current) return;
     
-    if ((userProfile?.aiPoints || 0) < 20) {
-        setError("You need at least 20 AI Points to start a live show.");
+    if ((userProfile?.aiPoints || 0) < 100) {
+        setError("You need at least 100 AI Points ($1.00) to start a live show.");
         return;
     }
 
@@ -120,7 +120,6 @@ export default function SellerGoLivePage() {
     } catch (err: any) {
       console.error("Setup failed:", err);
       setError(err.message || "Connection failed.");
-      hasAttemptedJoin.current = false;
       hasTriggeredSetup.current = false;
     } finally {
       setIsStarting(false);
@@ -351,7 +350,7 @@ export default function SellerGoLivePage() {
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-neutral-900 rounded-full border border-white/5">
                 <BadgeCent className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Cost: 20 Points per session</span>
+                <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Cost: 100 Points per session ($1.00)</span>
             </div>
           </div>
         )}

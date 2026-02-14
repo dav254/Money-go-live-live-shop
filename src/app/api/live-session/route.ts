@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
-const GO_LIVE_COST = 20;
+const GO_LIVE_COST = 100; // Increased to 100 points ($1.00 USD)
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
@@ -23,14 +23,14 @@ async function verifyUser(request: Request) {
 
 /**
  * POST handler to create a new live session.
- * Charges 20 points per session.
+ * Charges 100 points per session ($1.00).
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
   if ('error' in verification) {
     return NextResponse.json({ error: verification.error }, { status: verification.status });
   }
-  const sellerId = verification.uid;
+  const sellerId = (verification as { uid: string }).uid;
 
   try {
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
-            details: `You need ${GO_LIVE_COST} points to start a live show. Your balance is ${currentPoints}.`,
+            details: `You need ${GO_LIVE_COST} points ($1.00) to start a live show. Your balance is ${currentPoints}.`,
             needsPoints: true 
         }, { status: 402 });
     }
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
     const batch = db.batch();
     
-    // Deduct 20 points for the session
+    // Deduct points for the session
     batch.update(userProfileRef, {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
@@ -91,7 +91,7 @@ export async function PUT(request: Request) {
   if ('error' in verification) {
     return NextResponse.json({ error: verification.error }, { status: verification.status });
   }
-  const sellerId = verification.uid;
+  const sellerId = (verification as { uid: string }).uid;
 
   const { liveSessionId } = await request.json();
 
