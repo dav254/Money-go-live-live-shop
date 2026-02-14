@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -19,6 +18,9 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -30,11 +32,108 @@ const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'
   ),
 });
 
+const BuyPointsDialog = () => {
+    const { user } = useUser();
+    const { toast } = useToast();
+    const router = useRouter();
+    const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
+
+    const pointPackages = [
+        { points: 500, price: 5, description: 'Get started' },
+        { points: 1200, price: 10, description: 'Best value' },
+        { points: 3000, price: 25, description: 'Power user' },
+    ];
+
+    const handlePayment = async (gateway: 'paystack' | 'paypal', points: number, price: number) => {
+        if (!user?.email) {
+            toast({
+                variant: 'destructive',
+                title: 'Cannot initiate payment',
+                description: 'User email is missing.',
+            });
+            return;
+        }
+        setIsLoadingPayment(gateway);
+
+        try {
+            const response = await fetch('/api/create-payment-intent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transactionType: 'points-purchase',
+                    amount: price,
+                    email: user.email,
+                    gateway: gateway,
+                    metadata: {
+                        userId: user.uid,
+                        points: points
+                    }
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'Failed to create payment intent.');
+            }
+
+            const data = await response.json();
+            
+            if (data.checkoutUrl) {
+                router.push(data.checkoutUrl);
+            } else {
+                throw new Error('No checkout URL received.');
+            }
+
+        } catch (err: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Payment Error',
+                description: err.message || 'Could not initiate payment. Please try again.',
+            });
+            setIsLoadingPayment(null);
+        }
+    };
+
+    return (
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Buy AI Points</DialogTitle>
+                <DialogDescription>
+                    Points are used to power your AI tools and Live Shows. Choose a package to top up.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+                {pointPackages.map(pkg => (
+                    <Card key={pkg.points}>
+                        <CardContent className="p-4 flex items-center justify-between">
+                            <div>
+                                <p className="font-bold text-lg">{pkg.points.toLocaleString()} Points</p>
+                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xl font-bold text-primary">${pkg.price}</p>
+                                <div className="flex gap-2 mt-1">
+                                    <Button size="sm" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                        {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Paystack'}
+                                    </Button>
+                                    <Button size="sm" variant="secondary" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                         {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </DialogContent>
+    );
+};
+
 const promoIdeas = [
-    "🔥 Join my LIVE show now for exclusive deals you won't find anywhere else! Tap here to watch:",
-    "🎥 I'm selling LIVE right now! Come ask me questions and see the products in action:",
-    "⚡ FLASH SALE happening LIVE! Join now to grab your favorites before they sell out:",
-    "👋 Hey everyone! Starting my live show on Go Earn. Come hang out and shop with me:"
+    "🔥 Join my LIVE shopping show now for exclusive deals! Tap here:",
+    "🎥 I'm selling LIVE right now! Come hung out and shop with me:",
+    "⚡ FLASH SALE happening LIVE! Join now before items sell out:",
+    "👋 Hey everyone! Starting my live show on Go Earn. Tap to watch:"
 ];
 
 export default function SellerGoLivePage() {
@@ -89,7 +188,7 @@ export default function SellerGoLivePage() {
     if (!user || !firestore || !token || hasTriggeredSetup.current) return;
     
     if ((userProfile?.aiPoints || 0) < 100) {
-        setError("You need at least 100 AI Points ($1.00) to start a live show.");
+        setError("Insufficient AI Points. You need 100 points ($1.00) to start a show.");
         return;
     }
 
@@ -196,20 +295,32 @@ export default function SellerGoLivePage() {
   const streamUrl = `https://goearnvid.shop/buyer/live/${user?.uid}`;
 
   if (error) {
+    const isLowPoints = error.toLowerCase().includes("points");
     return (
       <SellerLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
           <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Connection Interrupted</AlertTitle>
+            <AlertTitle>{isLowPoints ? "Points Balance Low" : "Connection Interrupted"}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="flex gap-4 mt-6">
-            <Button className="font-black" onClick={() => window.location.reload()}>
-                <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
-            </Button>
+            {isLowPoints ? (
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button className="font-black bg-primary">
+                            <BadgeCent className="mr-2 h-4 w-4" /> BUY AI POINTS
+                        </Button>
+                    </DialogTrigger>
+                    <BuyPointsDialog />
+                </Dialog>
+            ) : (
+                <Button className="font-black" onClick={() => window.location.reload()}>
+                    <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
+                </Button>
+            )}
             <Button variant="outline" asChild>
-                <Link href="/dashboard/reseller/toolkit">Buy Points</Link>
+                <Link href="/dashboard/seller">Return to Dashboard</Link>
             </Button>
           </div>
         </div>
@@ -342,15 +453,38 @@ export default function SellerGoLivePage() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20 bg-neutral-950 rounded-2xl border border-white/5 mx-auto max-w-4xl">
+          <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20 bg-neutral-950 rounded-2xl border border-white/5 mx-auto max-w-4xl shadow-2xl">
             <Loader2 className="h-16 w-16 animate-spin text-primary" />
             <div className="space-y-2">
               <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Studio Signal</h1>
               <p className="text-muted-foreground text-sm font-medium">Validating AI Points & Media Bridge...</p>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-neutral-900 rounded-full border border-white/5">
-                <BadgeCent className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Cost: 100 Points per session ($1.00)</span>
+            
+            <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-2 px-6 py-3 bg-neutral-900 rounded-2xl border border-white/5 shadow-inner">
+                    <BadgeCent className="h-5 w-5 text-primary" />
+                    <div className="text-left">
+                        <p className="text-[10px] text-neutral-500 uppercase font-black tracking-widest leading-none mb-1">Your Points Balance</p>
+                        {isProfileLoading ? <Skeleton className="h-4 w-12" /> : (
+                            <p className={cn("text-lg font-black tracking-tight", (userProfile?.aiPoints || 0) < 100 ? "text-red-500" : "text-white")}>
+                                {(userProfile?.aiPoints || 0).toLocaleString()} <span className="text-xs font-normal text-neutral-500">Available</span>
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-xl border-primary/20 text-primary hover:bg-primary hover:text-white font-bold h-10 px-6">
+                            <CreditCard className="mr-2 h-4 w-4" /> Top Up Points
+                        </Button>
+                    </DialogTrigger>
+                    <BuyPointsDialog />
+                </Dialog>
+            </div>
+
+            <div className="text-[9px] text-neutral-600 uppercase font-black tracking-widest bg-white/5 px-4 py-1.5 rounded-full">
+                Cost: 100 Points per 60min session ($1.00)
             </div>
           </div>
         )}

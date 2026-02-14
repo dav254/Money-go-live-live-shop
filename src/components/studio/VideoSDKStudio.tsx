@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -41,6 +40,12 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
   const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
 
+  const handleEndClick = () => {
+    // Correctly leave the meeting and trigger the parent's cleanup
+    leave();
+    onEnd();
+  };
+
   return (
     <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
       <Button
@@ -72,7 +77,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       ) : (
         <Button
           variant="destructive"
-          onClick={() => { leave(); onEnd(); }}
+          onClick={handleEndClick}
           className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:text-sm"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
