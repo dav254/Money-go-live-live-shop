@@ -4,7 +4,7 @@
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { ProductCard } from '@/components/products/product-card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Carousel,
   CarouselContent,
@@ -12,18 +12,18 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Package, Video, CreditCard, LayoutGrid, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book } from 'lucide-react';
+import { Package, Video, CreditCard, LayoutGrid, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, Radio, Users } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, limit, orderBy, where } from 'firebase/firestore';
-import type { Product, SellerShop, HomepageSlide, LiveSession } from '@/lib/types';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, limit, orderBy, where, doc } from 'firebase/firestore';
+import type { Product, SellerShop, HomepageSlide, LiveSession, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
-
-const socket = io('https://5000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev');
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 const categoryIcons: Record<string, React.ElementType> = {
     "Fashion & Apparel": ShoppingBag,
@@ -51,12 +51,67 @@ const shortcuts = [
     color: 'bg-green-500/20 text-green-500',
   },
   {
-    title: 'Live Shows',
-    icon: Video,
-    href: '/buyer/live-stream',
-    color: 'bg-purple-500/20 text-purple-500',
+    title: 'Live Now',
+    icon: Radio,
+    href: '/buyer/live-now',
+    color: 'bg-red-500/20 text-red-500',
   },
 ];
+
+const SellerInfo = ({ sellerId }: { sellerId: string }) => {
+  const firestore = useFirestore();
+  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+
+  if (isLoading) return <Skeleton className="h-4 w-24" />;
+  return (
+    <div className="flex items-center gap-2">
+      <Avatar className="h-5 w-5 border border-white/10">
+        <AvatarImage src={user?.profilePictureUrl || getPlaceholderImage()} />
+        <AvatarFallback className="text-[8px]">{user?.fullName?.charAt(0) || 'S'}</AvatarFallback>
+      </Avatar>
+      <span className="text-xs font-bold text-neutral-300 truncate max-w-[100px]">
+        {user?.shopName || user?.fullName || 'Seller'}
+      </span>
+    </div>
+  );
+};
+
+const StreamCard = ({ session }: { session: LiveSession }) => {
+  return (
+    <Link href={`/buyer/live/${session.id}`}>
+        <Card className="group relative h-48 overflow-hidden border-none bg-neutral-900 ring-1 ring-white/10 hover:ring-primary/50 transition-all duration-300 shadow-2xl">
+            <div className="absolute inset-0">
+                <Image
+                    src={`https://picsum.photos/seed/${session.id}/600/400`}
+                    alt={session.title}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-110 opacity-60"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+            </div>
+            
+            <div className="absolute top-3 left-3 z-10">
+                <Badge className="bg-red-600 hover:bg-red-700 flex items-center gap-1 animate-pulse border-none text-[10px] font-black px-2 py-0.5">
+                    <Radio className="h-3 w-3" /> LIVE
+                </Badge>
+            </div>
+
+            <div className="absolute bottom-3 left-3 right-3 z-10 space-y-2">
+                <h3 className="font-headline text-sm font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
+                    {session.title}
+                </h3>
+                <div className="flex items-center justify-between">
+                    <SellerInfo sellerId={session.sellerId} />
+                    <div className="flex items-center gap-1 text-[10px] font-black text-white/70">
+                        <Users className="h-3 w-3 text-primary" /> {session.viewerCount || 0}
+                    </div>
+                </div>
+            </div>
+        </Card>
+    </Link>
+  );
+};
 
 const HomepageCarousel = () => {
     const firestore = useFirestore();
@@ -116,39 +171,19 @@ const ProductCarouselSkeleton = () => (
     </div>
 );
 
-const SellerCarouselSkeleton = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 w-full" />
-        ))}
-    </div>
-);
-
-
 export default function BuyerDashboardPage() {
   const firestore = useFirestore();
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
-  const [liveSellers, setLiveSellers] = useState<any[]>([]);
-  const [isLoadingSellers, setIsLoadingSellers] = useState(true);
 
   useEffect(() => {
     const randomCategory = PRODUCT_CATEGORIES[Math.floor(Math.random() * PRODUCT_CATEGORIES.length)];
     setLastViewedCategory(randomCategory);
   }, []);
 
-  useEffect(() => {
-    socket.emit('get-sellers');
-    
-    socket.on('sellers-update', (updatedSellers) => {
-        setLiveSellers(updatedSellers.slice(0, 4)); // Take only the first 4
-        setIsLoadingSellers(false);
-    });
-
-    return () => {
-        socket.off('sellers-update');
-    };
-  }, []);
-
+  const liveSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'), limit(10));
+  }, [firestore]);
 
   const dealsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -160,6 +195,7 @@ export default function BuyerDashboardPage() {
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
   }, [firestore, lastViewedCategory]);
 
+  const { data: liveSessions, isLoading: isLoadingSellers } = useCollection<LiveSession>(liveSessionsQuery);
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
   
@@ -189,6 +225,27 @@ export default function BuyerDashboardPage() {
                 </Card>
             ))}
             </div>
+
+            {/* LIVE NOW SECTION - TRENDING */}
+            {liveSessions && liveSessions.length > 0 && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </div>
+                            <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">Trending Live Shows</h2>
+                        </div>
+                        <Button variant="link" asChild className="font-bold text-red-500"><Link href="/buyer/live-now">View All</Link></Button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {liveSessions.map((session) => (
+                            <StreamCard key={session.id} session={session} />
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Categories Section */}
             <div className="space-y-4">
@@ -233,36 +290,6 @@ export default function BuyerDashboardPage() {
                     <CarouselPrevious className="hidden md:flex" />
                     <CarouselNext className="hidden md:flex" />
                 </Carousel>
-            )}
-            </div>
-
-            <div className="space-y-4">
-            <h2 className="font-headline text-2xl font-bold">
-                Trending Live Shows
-            </h2>
-            {isLoadingSellers ? <SellerCarouselSkeleton /> : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {liveSellers?.map((seller) => (
-                    <Link href={`/sellers/${seller.streamId}`} key={seller.streamId}>
-                        <Card className="group relative h-40 overflow-hidden">
-                        <Image
-                            src={`https://picsum.photos/seed/${seller.streamId}/600/400`}
-                            alt={seller.sellerName || 'Live stream from seller'}
-                            fill
-                            sizes="(max-width: 768px) 50vw, 25vw"
-                            className="object-cover transition-transform group-hover:scale-105"
-                            data-ai-hint="store banner"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                        <CardHeader className="absolute bottom-0 left-0 z-10 p-4">
-                            <CardTitle className="font-headline text-lg text-white">
-                            {seller.sellerName || 'Live Stream'}
-                            </CardTitle>
-                        </CardHeader>
-                        </Card>
-                    </Link>
-                    ))}
-                </div>
             )}
             </div>
 

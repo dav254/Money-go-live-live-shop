@@ -88,15 +88,15 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, participants } = useMeeting();
+  const { join, participants, isMeetingJoined } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (!hasInitialized.current) {
+    if (!hasInitialized.current && !isMeetingJoined) {
         hasInitialized.current = true;
         join();
     }
-  }, [join]);
+  }, [join, isMeetingJoined]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
