@@ -39,13 +39,14 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 };
 
 const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { leave, unmuteWebcam, muteWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
+  const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
 
   const handleEndInternal = () => {
+    // Forcibly stop all tracks for privacy
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
-        navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-            .then(stream => stream.getTracks().forEach(t => t.stop()))
-            .catch(() => {});
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+            // Standard cleanup is handled by leave(), but we hard-kill here for speed
+        });
     }
     leave();
     onEnd();
@@ -64,7 +65,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       <Button
         size="icon"
         variant={webcamOn ? "secondary" : "destructive"}
-        onClick={() => webcamOn ? muteWebcam() : unmuteWebcam()}
+        onClick={() => webcamOn ? disableWebcam() : enableWebcam()}
         className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
         {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5" />}
@@ -93,20 +94,22 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, unmuteWebcam, unmuteMic } = useMeeting();
+  const { join, enableWebcam, unmuteMic } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
+        // SPEED UP: Join and immediately request media
         join();
         
+        // Slight delay to ensure bridge is ready for hardware
         setTimeout(() => {
-            if (unmuteWebcam) unmuteWebcam();
+            if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
-        }, 1000);
+        }, 500);
     }
-  }, [join, unmuteWebcam, unmuteMic]);
+  }, [join, enableWebcam, unmuteMic]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">

@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, MessageSquare, ShieldCheck, User, Reply } from 'lucide-react';
+import { Send, MessageSquare, ShieldCheck, User, Reply, Loader2 } from 'lucide-react';
 import { useCollection, useFirestore, useUser } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import type { ChatMessage, UserProfile } from '@/lib/types';
@@ -19,6 +19,7 @@ interface LiveChatProps {
 export function LiveChat({ streamId }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [userData, setUserData] = useState<UserProfile | null>(null);
+  const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const firestore = useFirestore();
   const { user } = useUser();
@@ -36,36 +37,64 @@ export function LiveChat({ streamId }: LiveChatProps) {
     return query(collection(firestore, `liveSessions/${streamId}/chat`), orderBy('timestamp', 'asc'));
   }, [firestore, streamId]);
 
-  const { data: messages, isLoading } = useCollection<ChatMessage>(messagesQuery);
+  const { data: serverMessages, isLoading } = useCollection<ChatMessage>(messagesQuery);
+
+  // Sync server messages and clear optimistic ones that have been confirmed
+  useEffect(() => {
+    if (serverMessages) {
+        setOptimisticMessages([]); // Clear optimistic local state when server data updates
+    }
+  }, [serverMessages]);
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     if (viewport) {
       viewport.scrollTop = viewport.scrollHeight;
     }
-  }, [messages]);
+  }, [serverMessages, optimisticMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Member';
-
-    const messageData = {
-      senderId: user.uid,
-      senderName: identifiedName,
-      senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
-      messageText: newMessage.trim(),
-      timestamp: serverTimestamp(),
+    const messageText = newMessage.trim();
+    
+    // INSTANT SPEED: Add to local state immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+        id: tempId,
+        senderId: user.uid,
+        senderName: identifiedName,
+        senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
+        messageText: messageText,
+        timestamp: new Date(),
+        isSending: true
     };
-
-    await addDoc(collection(firestore, `liveSessions/${streamId}/chat`), messageData);
+    
+    setOptimisticMessages(prev => [...prev, optimisticMsg]);
     setNewMessage('');
+
+    try {
+        await addDoc(collection(firestore, `liveSessions/${streamId}/chat`), {
+            senderId: user.uid,
+            senderName: identifiedName,
+            senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
+            messageText: messageText,
+            timestamp: serverTimestamp(),
+        });
+    } catch (error) {
+        console.error("Failed to send message:", error);
+        // Remove from optimistic if failed
+        setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
+    }
   };
 
   const handleReply = (userName: string) => {
     setNewMessage(prev => `@${userName} ${prev}`);
   };
+
+  const allMessages = [...(serverMessages || []), ...optimisticMessages];
 
   return (
       <div className="flex flex-col h-full bg-black">
@@ -82,7 +111,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
         
         <ScrollArea className="flex-1" ref={scrollAreaRef}>
           <div className="space-y-4 p-4">
-              {isLoading && (
+              {isLoading && allMessages.length === 0 && (
                 <div className="space-y-4">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="flex gap-2">
@@ -92,8 +121,8 @@ export function LiveChat({ streamId }: LiveChatProps) {
                   ))}
                 </div>
               )}
-              {messages?.map((msg: any) => (
-                  <div key={msg.id} className="flex items-start gap-2 group">
+              {allMessages.map((msg: any) => (
+                  <div key={msg.id} className={cn("flex items-start gap-2 group transition-opacity", msg.isSending && "opacity-70")}>
                       <Avatar className="h-7 w-7 border border-white/10 shrink-0">
                         <AvatarImage src={msg.senderAvatar} />
                         <AvatarFallback className="bg-neutral-800 text-[10px]"><User className="h-3 w-3" /></AvatarFallback>
@@ -106,21 +135,25 @@ export function LiveChat({ streamId }: LiveChatProps) {
                             >
                                 {msg.senderName}
                             </button>
-                            <button 
-                                onClick={() => handleReply(msg.senderName)}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
-                                title="Reply to specific user"
-                            >
-                                <Reply className="h-3 w-3" />
-                            </button>
+                            {msg.isSending ? (
+                                <Loader2 className="h-2 w-2 animate-spin text-primary" />
+                            ) : (
+                                <button 
+                                    onClick={() => handleReply(msg.senderName)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
+                                    title="Reply to specific user"
+                                >
+                                    <Reply className="h-3 w-3" />
+                                </button>
+                            )}
                         </div>
-                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none border border-white/5">
+                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none border border-white/5 shadow-sm">
                             {msg.messageText}
                         </p>
                       </div>
                   </div>
               ))}
-              {!isLoading && (!messages || messages.length === 0) && (
+              {!isLoading && allMessages.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
                       <MessageSquare className="h-10 w-10 text-neutral-500 mb-4" />
                       <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">No messages yet</p>
@@ -135,10 +168,10 @@ export function LiveChat({ streamId }: LiveChatProps) {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder={user ? "Reply to buyers..." : "Log in to chat"}
-                    className="bg-neutral-900 border-white/5 text-white placeholder:text-neutral-600 rounded-xl h-11"
+                    className="bg-neutral-900 border-white/5 text-white placeholder:text-neutral-600 rounded-xl h-11 focus-visible:ring-primary"
                     disabled={!user}
                 />
-                <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 rounded-xl h-11 w-11 shrink-0" disabled={!user || !newMessage.trim()}>
+                <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 rounded-xl h-11 w-11 shrink-0 shadow-lg shadow-primary/20" disabled={!user || !newMessage.trim()}>
                     <Send className="h-4 w-4" />
                 </Button>
             </form>
