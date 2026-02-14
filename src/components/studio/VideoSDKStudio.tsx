@@ -97,7 +97,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Zero-latency hardware activation
+        // Fast-track hardware activation
         setTimeout(() => {
             enableWebcam();
             unmuteMic();

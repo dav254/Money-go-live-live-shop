@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { VideoOff, Loader2, AlertCircle, RefreshCw, SignalHigh } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -68,8 +68,12 @@ const ViewerMeetingView = () => {
     }
   }, [isMeetingJoined]);
 
-  const participantsArray = Array.from(participants.values());
-  const host = participantsArray.find(p => !p.local); 
+  // Robust host detection: Look for any participant that is NOT local
+  const host = useMemo(() => {
+    const participantsArray = Array.from(participants.values());
+    // In VIEWER mode, localParticipant is present but host is usually the other one
+    return participantsArray.find(p => !p.local) || null;
+  }, [participants]);
 
   if (error) {
       return (
