@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -26,7 +26,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       <video ref={videoRef} autoPlay playsInline muted={local} className="h-full w-full object-contain md:object-cover" />
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900">
-          <VideoOff className="h-12 w-12 md:h-16 md:w-16 text-muted-foreground mb-4" />
+          <VideoOff className="h-12 md:h-16 md:w-16 text-muted-foreground mb-4" />
           <p className="text-white text-lg md:text-xl font-bold font-headline uppercase tracking-tight">Camera Off</p>
         </div>
       )}
@@ -38,8 +38,8 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
   const handleEnd = () => {
-    // Aggressive track cleanup
-    if (typeof navigator !== 'undefined') {
+    // Explicit hardware track cleanup
+    if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
             .catch(() => {});
@@ -90,24 +90,23 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, localParticipant, enableWebcam, unmuteMic } = useMeeting();
+  const { join, localParticipant, enableWebcam, unmuteMic, isMeetingJoined } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Fast-track hardware activation
+        // Force-trigger hardware signals after join request
         setTimeout(() => {
             enableWebcam();
             unmuteMic();
-        }, 100);
+        }, 500);
     }
   }, [join, enableWebcam, unmuteMic]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
-      {/* HUD Header */}
       <div className="absolute top-0 left-0 right-0 z-30 p-4 flex items-center justify-between pointer-events-none">
           <div className="flex items-center gap-2 pointer-events-auto">
               <div className={cn(
@@ -132,7 +131,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-black">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-white/50 text-sm font-medium">Opening Hardware Bridge...</p>
+            <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Opening Hardware Bridge...</p>
           </div>
         )}
       </div>

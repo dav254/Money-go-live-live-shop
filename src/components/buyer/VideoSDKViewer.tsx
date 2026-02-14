@@ -27,8 +27,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/90 backdrop-blur-sm">
           <VideoOff className="h-16 w-16 text-muted-foreground mb-4" />
-          <p className="font-headline text-xl font-bold text-white uppercase tracking-tighter text-center px-8">Direct Stream Paused</p>
-          <p className="text-neutral-400 mt-2">The seller is adjusting their setup...</p>
+          <p className="font-headline text-xl font-bold text-white uppercase tracking-tighter text-center px-8">Signal Paused</p>
+          <p className="text-neutral-400 mt-2">The seller is adjusting their framing...</p>
         </div>
       )}
     </div>
@@ -45,7 +45,6 @@ const ViewerMeetingView = () => {
     if (hasAttemptedJoin.current) return;
     setError(null);
     hasAttemptedJoin.current = true;
-    // Zero-latency join
     join();
   }, [join]);
 
@@ -56,22 +55,21 @@ const ViewerMeetingView = () => {
   }, [handleJoin, isMeetingJoined]);
 
   useEffect(() => {
-    // Signal timeout for direct stream feel
     joinTimer.current = setTimeout(() => {
         if (!isMeetingJoined && hasAttemptedJoin.current) {
             setError("The direct stream connection timed out. Please refresh the signal.");
         }
-    }, 25000); 
+    }, 20000); 
     
     return () => {
         if (joinTimer.current) clearTimeout(joinTimer.current);
     }
   }, [isMeetingJoined]);
 
-  // Robust host detection: Look for any participant that is NOT local
+  // HOST DETECTION: Zero-latency check for the producer
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
-    // In VIEWER mode, localParticipant is present but host is usually the other one
+    // Find the first non-local participant (the seller)
     return participantsArray.find(p => !p.local) || null;
   }, [participants]);
 
@@ -80,7 +78,7 @@ const ViewerMeetingView = () => {
           <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-neutral-950 rounded-xl">
             <Alert variant="destructive" className="max-w-md border-red-900/50 bg-red-950/20">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Bridge Latency</AlertTitle>
+                <AlertTitle>Connection Stalled</AlertTitle>
                 <AlertDescription className="text-xs mt-1">{error}</AlertDescription>
             </Alert>
             <Button variant="outline" className="mt-6 border-white/10 text-white font-black" onClick={() => window.location.reload()}>
@@ -131,7 +129,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-white font-black uppercase tracking-widest text-xs">Authenticating Signal...</p>
+        <p className="text-white font-black uppercase tracking-widest text-xs">Authenticating Bridge...</p>
       </div>
     );
   }
@@ -142,7 +140,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         meetingId,
         micEnabled: false,
         webcamEnabled: false,
-        name: "Identified Viewer",
+        name: "Viewer",
         mode: "VIEWER",
         multiStream: false, 
       }}

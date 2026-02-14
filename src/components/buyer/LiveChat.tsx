@@ -22,7 +22,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  // Load identified user profile
   useEffect(() => {
     if (user && firestore) {
         getDoc(doc(firestore, 'userProfiles', user.uid)).then(snap => {
@@ -49,10 +48,9 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
-    // Identified Payload - Strictly pulls names from profile
     const messageData = {
       senderId: user.uid,
-      senderName: userData?.shopName || userData?.fullName || user.displayName || 'Identified User',
+      senderName: userData?.shopName || userData?.fullName || user.displayName || 'Buyer',
       senderAvatar: userData?.profilePictureUrl || user.photoURL || '',
       messageText: newMessage.trim(),
       timestamp: serverTimestamp(),
@@ -67,11 +65,11 @@ export function LiveChat({ streamId }: LiveChatProps) {
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
             <p className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <MessageSquare className="h-3 w-3 text-primary" /> 
-                Direct Chat
+                Live Chat
             </p>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-3 w-3 text-green-500" />
-                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified Feed</span>
+                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
             </div>
         </div>
         
