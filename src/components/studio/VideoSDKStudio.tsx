@@ -90,7 +90,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, localParticipant, enableWebcam, enableMic, isMeetingJoined } = useMeeting();
+  const { join, localParticipant, unmuteWebcam, unmuteMic, isMeetingJoined } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
@@ -99,11 +99,11 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         join();
         // Standardized VideoSDK API calls
         setTimeout(() => {
-            enableWebcam();
-            enableMic();
+            if (unmuteWebcam) unmuteWebcam();
+            if (unmuteMic) unmuteMic();
         }, 500);
     }
-  }, [join, enableWebcam, enableMic]);
+  }, [join, unmuteWebcam, unmuteMic]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
