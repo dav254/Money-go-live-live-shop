@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe, AlertCircle } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -90,20 +90,20 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, localParticipant, enableWebcam, unmuteMic, isMeetingJoined } = useMeeting();
+  const { join, localParticipant, enableWebcam, enableMic, isMeetingJoined } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Force-trigger hardware signals after join request
+        // Standardized VideoSDK API calls
         setTimeout(() => {
             enableWebcam();
-            unmuteMic();
+            enableMic();
         }, 500);
     }
-  }, [join, enableWebcam, unmuteMic]);
+  }, [join, enableWebcam, enableMic]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">

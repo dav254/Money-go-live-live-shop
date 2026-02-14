@@ -66,7 +66,7 @@ const ViewerMeetingView = () => {
     }
   }, [isMeetingJoined]);
 
-  // HOST DETECTION: Zero-latency check for the producer
+  // FAST SIGNAL DETECTION: CONFERENCE mode allows for faster participant discovery
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
     // Find the first non-local participant (the seller)
@@ -141,7 +141,8 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         micEnabled: false,
         webcamEnabled: false,
         name: "Viewer",
-        mode: "VIEWER",
+        // CONFERENCE mode is faster for participant discovery in smaller rooms
+        mode: "CONFERENCE",
         multiStream: false, 
       }}
       token={token}
