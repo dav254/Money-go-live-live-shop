@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,13 +8,16 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Radio } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -27,7 +31,7 @@ const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'
 
 export default function SellerGoLivePage() {
   const { user } = useUser();
-  const { userProfile } = useUserProfile(user?.uid);
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -39,23 +43,28 @@ export default function SellerGoLivePage() {
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const hasTriggeredSetup = useRef(false);
 
-  // 1. Fetch token with safety catch
-  useEffect(() => {
-    const fetchToken = async () => {
-      try {
-        const res = await fetch('/api/videosdk/token');
-        if (!res.ok) throw new Error("Authentication failure");
-        const data = await res.json();
-        if (data.token) {
-          setToken(data.token);
-        }
-      } catch (err) {
-        console.error("Error fetching VideoSDK token:", err);
-        setError("Failed to fetch media token. Please check your connection.");
+  // 1. Fetch token with safety catch and retry logic
+  const fetchToken = useCallback(async (retryCount = 0) => {
+    try {
+      const res = await fetch('/api/videosdk/token');
+      if (!res.ok) throw new Error("Authentication failure");
+      const data = await res.json();
+      if (data.token) {
+        setToken(data.token);
       }
-    };
-    fetchToken();
+    } catch (err) {
+      console.error("Error fetching VideoSDK token:", err);
+      if (retryCount < 2) {
+          setTimeout(() => fetchToken(retryCount + 1), 2000);
+      } else {
+          setError("Network latency detected. Please check your internet connection and try again.");
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    fetchToken();
+  }, [fetchToken]);
 
   const createMeeting = async (authToken: string) => {
     try {
@@ -75,32 +84,47 @@ export default function SellerGoLivePage() {
     }
   };
 
-  // 2. Automatic Setup on Load
+  // 2. Automatic Setup on Load (Mirror Preview)
   const handleSetupPreview = useCallback(async () => {
     if (!user || !firestore || !token || hasTriggeredSetup.current) return;
     
+    // Check points before allowing setup
+    if ((userProfile?.aiPoints || 0) < 20) {
+        setError("You need at least 20 AI Points to start a live show.");
+        return;
+    }
+
     hasTriggeredSetup.current = true;
     setIsStarting(true);
     setError(null);
 
     try {
+      // Deduct points and register session via API
+      const response = await fetch('/api/live-session', {
+          method: 'POST',
+          headers: {
+              'Authorization': `Bearer ${await user.getIdToken()}`,
+              'Content-Type': 'application/json'
+          }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+          throw new Error(result.details || result.error || "Could not start session.");
+      }
+
       const id = await createMeeting(token);
       if (!id) throw new Error("Could not reach media bridge.");
       
-      // Register session as 'upcoming' privately
+      // Update session with the real meeting ID
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      await setDoc(sessionRef, {
-        id: user.uid,
-        sellerId: user.uid,
-        title: `${userProfile?.shopName || userProfile?.fullName || 'Seller'}'s Live Show`,
-        status: 'upcoming',
+      await updateDoc(sessionRef, {
         videosdkMeetingId: id,
-        startTime: serverTimestamp(),
-        viewerCount: 0,
-        pinnedProductId: null,
-      }, { merge: true });
+      });
 
       setMeetingId(id);
+      toast({ title: "Studio Ready", description: "Camera calibrated. You are in private preview." });
     } catch (err: any) {
       console.error("Setup failed:", err);
       setError(err.message || "Connection failed. Please refresh.");
@@ -108,13 +132,13 @@ export default function SellerGoLivePage() {
     } finally {
       setIsStarting(false);
     }
-  }, [user, firestore, token, userProfile]);
+  }, [user, firestore, token, userProfile, toast]);
 
   useEffect(() => {
-    if (token && user && !meetingId) {
+    if (token && user && !meetingId && !isProfileLoading) {
       handleSetupPreview();
     }
-  }, [token, user, meetingId, handleSetupPreview]);
+  }, [token, user, meetingId, handleSetupPreview, isProfileLoading]);
 
   const handleBroadcastStart = async () => {
     if (!user || !firestore) return;
@@ -186,12 +210,17 @@ export default function SellerGoLivePage() {
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
           <Alert variant="destructive" className="max-w-md border-red-900/50 bg-red-950/20">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Bridge Latency</AlertTitle>
+            <AlertTitle>Connection Interrupted</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button className="mt-6 font-black uppercase tracking-widest" onClick={() => window.location.reload()}>
-            <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
-          </Button>
+          <div className="flex gap-4 mt-6">
+            <Button className="font-black uppercase tracking-widest" onClick={() => window.location.reload()}>
+                <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
+            </Button>
+            <Button variant="outline" asChild>
+                <Link href="/dashboard/reseller/toolkit">Buy Points</Link>
+            </Button>
+          </div>
         </div>
       </SellerLayout>
     );
@@ -218,6 +247,14 @@ export default function SellerGoLivePage() {
               )}
             </div>
             
+            {/* Points Status Overlay */}
+            <div className="absolute top-4 right-4 z-50 pointer-events-none">
+                <div className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-xl">
+                    <BadgeCent className="h-4 w-4 text-primary" />
+                    <span className="text-[10px] font-black text-white uppercase">{(userProfile?.aiPoints || 0).toLocaleString()}</span>
+                </div>
+            </div>
+
             {/* HUD: LEFT HAND - Product Pinning */}
             <div className="absolute left-4 bottom-32 z-[60]">
                 <Sheet>
@@ -268,14 +305,18 @@ export default function SellerGoLivePage() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20">
+          <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20 bg-neutral-950 rounded-2xl border border-white/5 mx-auto max-w-4xl">
             <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                 <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
             </div>
             <div className="space-y-2">
               <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Studio Signal</h1>
-              <p className="text-muted-foreground text-sm font-medium">Connecting to direct stream bridge...</p>
+              <p className="text-muted-foreground text-sm font-medium">Validating AI Points & Media Bridge...</p>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-neutral-900 rounded-full border border-white/5">
+                <BadgeCent className="h-4 w-4 text-primary" />
+                <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Cost: 20 Points per session</span>
             </div>
           </div>
         )}
