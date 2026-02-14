@@ -38,7 +38,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
-  const handleEnd = () => {
+  const handleEndInternal = () => {
     // Forcibly stop all tracks at browser level for privacy
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
@@ -80,7 +80,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       ) : (
         <Button
           variant="destructive"
-          onClick={handleEnd}
+          onClick={handleEndInternal}
           className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:text-sm"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
