@@ -39,7 +39,7 @@ export default function SellerGoLivePage() {
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const hasTriggeredSetup = useRef(false);
 
-  // 1. Fetch token
+  // 1. Fetch token with safety catch
   useEffect(() => {
     const fetchToken = async () => {
       try {

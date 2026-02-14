@@ -10,7 +10,7 @@ import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDocs } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
@@ -192,6 +192,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [otherParticipantProfile, setOtherParticipantProfile] = useState<UserProfile | null>(null);
   const prevMessagesCountRef = useRef<number>(0);
 
 
@@ -202,6 +203,17 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
   
+  useEffect(() => {
+    if (chat && currentUser && firestore) {
+        const otherId = chat.participantIds.find(id => id !== currentUser.uid);
+        if (otherId) {
+            getDoc(doc(firestore, 'userProfiles', otherId)).then(snap => {
+                if (snap.exists()) setOtherParticipantProfile(snap.data() as UserProfile);
+            });
+        }
+    }
+  }, [chat, currentUser, firestore]);
+
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
     if (viewport) {
@@ -391,8 +403,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     );
   }
 
-  const otherParticipant = chat.otherParticipant;
-  const isSeller = userProfile?.userRole === 'seller';
+  const isSellerPortal = userProfile?.userRole === 'seller';
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -402,14 +413,14 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-9 w-9 border-2 border-primary/20">
-            <AvatarImage src={otherParticipant?.profilePictureUrl} alt={otherParticipant?.fullName} />
-            <AvatarFallback className="bg-muted text-xs font-bold">{otherParticipant?.fullName?.charAt(0)}</AvatarFallback>
+            <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName} />
+            <AvatarFallback className="bg-muted text-xs font-bold">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="overflow-hidden">
-            <p className="font-black text-sm uppercase tracking-tight truncate">{otherParticipant?.fullName}</p>
+            <p className="font-black text-sm uppercase tracking-tight truncate">{otherParticipantProfile?.fullName}</p>
             <div className="flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{otherParticipant?.userRole}</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{otherParticipantProfile?.userRole}</span>
             </div>
           </div>
         </div>
@@ -455,12 +466,17 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           )}
           {messages?.map((msg) => {
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
-            const senderRole = senderIsCurrentUser ? userProfile?.userRole : otherParticipant?.userRole;
             
             // MARKETPLACE PERSPECTIVE ALIGNMENT:
-            // Buyers and Resellers are ALWAYS on the Right (primary color)
-            // Sellers and Admins are ALWAYS on the Left (card color)
-            const alignRight = senderRole === 'buyer' || senderRole === 'reseller';
+            // The sender's role determines position. 
+            // We need to know the role of the sender of THIS specific message.
+            const isMsgFromBuyerOrReseller = (senderIsCurrentUser && (userProfile?.userRole === 'buyer' || userProfile?.userRole === 'reseller')) ||
+                                            (!senderIsCurrentUser && (otherParticipantProfile?.userRole === 'buyer' || otherParticipantProfile?.userRole === 'reseller'));
+            
+            // Buyers/Resellers = Always Right (Primary Color)
+            // Sellers/Admins = Always Left (Card Color)
+            const alignRight = isMsgFromBuyerOrReseller;
+            const roleLabel = senderIsCurrentUser ? userProfile?.userRole : otherParticipantProfile?.userRole;
             
             return (
                 <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
@@ -481,7 +497,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                         ) : null}
                         <div className="flex items-center gap-2 px-1">
                             <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">
-                                {senderRole}
+                                {roleLabel}
                             </span>
                             <span className="text-[9px] font-medium text-muted-foreground/40">
                                 {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -533,7 +549,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
               onChange={handleFileChange}
               disabled={uploadProgress !== null}
             />
-            {isSeller && (
+            {isSellerPortal && (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button

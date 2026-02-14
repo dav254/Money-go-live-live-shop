@@ -1,11 +1,10 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, MessageSquare, ShieldCheck, User } from 'lucide-react';
+import { Send, MessageSquare, ShieldCheck, User, Reply } from 'lucide-react';
 import { useCollection, useFirestore, useUser } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import type { ChatMessage, UserProfile } from '@/lib/types';
@@ -49,7 +48,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
-    // Identified user logic - removed "Anonymous" fallback
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Verified Member';
 
     const messageData = {
@@ -62,6 +60,10 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
     await addDoc(collection(firestore, `liveSessions/${streamId}/chat`), messageData);
     setNewMessage('');
+  };
+
+  const handleReply = (userName: string) => {
+    setNewMessage(prev => `@${userName} ${prev}`);
   };
 
   return (
@@ -91,13 +93,29 @@ export function LiveChat({ streamId }: LiveChatProps) {
               )}
               {messages?.map((msg: any) => (
                   <div key={msg.id} className="flex items-start gap-2 group">
-                      <Avatar className="h-7 w-7 border border-white/10">
+                      <Avatar className="h-7 w-7 border border-white/10 shrink-0">
                         <AvatarImage src={msg.senderAvatar} />
                         <AvatarFallback className="bg-neutral-800 text-[10px]"><User className="h-3 w-3" /></AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="text-[10px] font-black text-neutral-500 uppercase tracking-tight mb-0.5 group-hover:text-primary transition-colors">{msg.senderName}</p>
-                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none border border-white/5">{msg.messageText}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                            <button 
+                                onClick={() => handleReply(msg.senderName)}
+                                className="text-[10px] font-black text-neutral-500 uppercase tracking-tight mb-0.5 hover:text-primary transition-colors text-left truncate"
+                            >
+                                {msg.senderName}
+                            </button>
+                            <button 
+                                onClick={() => handleReply(msg.senderName)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
+                                title="Reply to specific user"
+                            >
+                                <Reply className="h-3 w-3" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-neutral-200 leading-tight bg-white/5 p-2 rounded-lg rounded-tl-none border border-white/5">
+                            {msg.messageText}
+                        </p>
                       </div>
                   </div>
               ))}
