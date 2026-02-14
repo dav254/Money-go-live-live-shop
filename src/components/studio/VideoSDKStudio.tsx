@@ -30,8 +30,8 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
             <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
-          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest">Camera Offline</p>
-          <p className="text-neutral-500 text-xs mt-2 uppercase tracking-widest font-bold">Initializing direct stream signal...</p>
+          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">Camera Preview Offline</p>
+          <p className="text-neutral-500 text-[10px] md:text-xs mt-3 uppercase tracking-widest font-bold max-w-[200px]">Toggle the camera icon below to start your setup.</p>
         </div>
       )}
     </div>

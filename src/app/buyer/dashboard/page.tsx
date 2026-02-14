@@ -235,7 +235,7 @@ export default function BuyerDashboardPage() {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                             </div>
-                            <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">Trending Live Shows</h2>
+                            <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">Trending Live Shopping</h2>
                         </div>
                         <Button variant="link" asChild className="font-bold text-red-500"><Link href="/buyer/live-now">View All</Link></Button>
                     </div>
