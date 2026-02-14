@@ -138,10 +138,11 @@ export default function SellerGoLivePage() {
       });
       
       // Forcibly release hardware at browser level
-      if (navigator.mediaDevices) {
-          navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-              .then(stream => stream.getTracks().forEach(t => t.stop()))
-              .catch(() => {});
+      if (typeof window !== 'undefined' && navigator.mediaDevices) {
+          try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+              stream.getTracks().forEach(t => t.stop());
+          } catch (e) {}
       }
 
       setMeetingId(null);
@@ -216,39 +217,18 @@ export default function SellerGoLivePage() {
               )}
             </div>
             
-            {/* Mobile-First Floating HUD */}
-            <div className="absolute right-4 top-20 z-[60] flex flex-col gap-4">
-                {/* Chat Action */}
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl animate-bounce-subtle border-2 border-white/20">
-                            <MessageSquare className="h-6 w-6" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="w-full sm:w-80 bg-black border-white/10 text-white p-0">
-                        <SheetHeader className="p-4 border-b border-white/10">
-                            <SheetTitle className="text-white flex items-center gap-2">
-                                <MessageSquare className="text-primary" />
-                                Sales Engagement
-                            </SheetTitle>
-                        </SheetHeader>
-                        <div className="h-[calc(100vh-5rem)]">
-                            <LiveChat streamId={user?.uid || ''} />
-                        </div>
-                    </SheetContent>
-                </Sheet>
-
-                {/* Product Bag Action */}
+            {/* HUD: Left Hand Side - Product Pinning */}
+            <div className="absolute left-4 bottom-32 z-[60]">
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-xl border-2 border-white/20">
                             <ShoppingBag className="h-6 w-6" />
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="right" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
+                    <SheetContent side="left" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
                         <SheetHeader className="p-4 border-b border-white/10">
-                            <SheetTitle className="text-white flex items-center gap-2">
-                                <ShoppingBag className="text-blue-500" />
+                            <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
+                                <ShoppingBag className="text-blue-500 h-4 w-4" />
                                 Pin a Product
                             </SheetTitle>
                         </SheetHeader>
@@ -259,6 +239,28 @@ export default function SellerGoLivePage() {
                                 onUnpinProduct={handleUnpinProduct}
                                 pinnedProductId={pinnedProductId}
                             />
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            </div>
+
+            {/* HUD: Right Hand Side - Sales Chat */}
+            <div className="absolute right-4 bottom-32 z-[60]">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl animate-bounce-subtle border-2 border-white/20">
+                            <MessageSquare className="h-6 w-6" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-full sm:w-80 bg-black border-white/10 text-white p-0">
+                        <SheetHeader className="p-4 border-b border-white/10">
+                            <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
+                                <MessageSquare className="text-primary h-4 w-4" />
+                                Sales Engagement
+                            </SheetTitle>
+                        </SheetHeader>
+                        <div className="h-[calc(100vh-5rem)]">
+                            <LiveChat streamId={user?.uid || ''} />
                         </div>
                     </SheetContent>
                 </Sheet>
