@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe, Radio } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -90,7 +90,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, localParticipant, isMeetingJoined, enableWebcam, unmuteMic } = useMeeting();
+  const { join, localParticipant, enableWebcam, unmuteMic } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {

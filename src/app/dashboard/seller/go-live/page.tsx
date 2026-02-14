@@ -4,11 +4,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Radio, Loader2, VideoOff, AlertCircle, RefreshCw, StopCircle, SignalHigh, Globe } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +16,7 @@ const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'
   loading: () => (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-white/70 font-medium">Calibrating Studio...</p>
+      <p className="text-white/70 font-medium">Initializing Direct Stream...</p>
     </div>
   ),
 });
@@ -129,6 +128,8 @@ export default function SellerGoLivePage() {
         status: 'ended',
         videosdkMeetingId: null,
       });
+      
+      // Hardware release is handled inside VideoSDKStudio component
       setMeetingId(null);
       setIsLive(false);
       hasTriggeredSetup.current = false;
@@ -142,13 +143,13 @@ export default function SellerGoLivePage() {
     return (
       <SellerLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
-          <Alert variant="destructive" className="max-w-md">
+          <Alert variant="destructive" className="max-w-md border-red-900/50 bg-red-950/20">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Connection Error</AlertTitle>
+            <AlertTitle>Bridge Latency</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <Button className="mt-6" onClick={() => window.location.reload()}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Retry Connection
+          <Button className="mt-6 font-black uppercase tracking-widest" onClick={() => window.location.reload()}>
+            <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
           </Button>
         </div>
       </SellerLayout>
@@ -176,10 +177,13 @@ export default function SellerGoLivePage() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full space-y-6 text-center py-20">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
+            </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-white">Direct Stream Initialization</h1>
-              <p className="text-muted-foreground">Opening high-speed media bridge...</p>
+              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Direct Signal Link</h1>
+              <p className="text-muted-foreground text-sm font-medium">Opening hardware bridge to Go Earn Cloud...</p>
             </div>
           </div>
         )}

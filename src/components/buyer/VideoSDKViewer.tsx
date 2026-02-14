@@ -56,10 +56,10 @@ const ViewerMeetingView = () => {
   }, [handleJoin, isMeetingJoined]);
 
   useEffect(() => {
-    // Aggressive signal timeout for "Direct Stream" feel
+    // Signal timeout for direct stream feel
     joinTimer.current = setTimeout(() => {
         if (!isMeetingJoined && hasAttemptedJoin.current) {
-            setError("The direct stream connection timed out. This may be due to a weak seller signal or network restrictions.");
+            setError("The direct stream connection timed out. Please refresh the signal.");
         }
     }, 25000); 
     
@@ -127,7 +127,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-white font-black uppercase tracking-widest text-xs">Authenticating...</p>
+        <p className="text-white font-black uppercase tracking-widest text-xs">Authenticating Signal...</p>
       </div>
     );
   }

@@ -49,7 +49,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
-    // Identified Payload
+    // Identified Payload - Strictly pulls names from profile
     const messageData = {
       senderId: user.uid,
       senderName: userData?.shopName || userData?.fullName || user.displayName || 'Identified User',
