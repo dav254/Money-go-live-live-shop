@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { LiveChat } from '@/components/buyer/LiveChat';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -129,7 +130,6 @@ export default function SellerGoLivePage() {
         videosdkMeetingId: null,
       });
       
-      // Hardware release is handled inside VideoSDKStudio component
       setMeetingId(null);
       setIsLive(false);
       hasTriggeredSetup.current = false;
@@ -159,31 +159,38 @@ export default function SellerGoLivePage() {
   return (
     <SellerLayout>
       <div className={cn(
-        "flex-1 flex flex-col bg-black transition-all duration-500",
+        "flex-1 flex flex-col lg:flex-row bg-black transition-all duration-500",
         meetingId ? "h-[calc(100vh-4rem)] overflow-hidden" : "p-8"
       )}>
         {meetingId ? (
-          <div className="relative flex-1 h-full w-full">
-            {token && (
-              <VideoSDKStudio 
-                meetingId={meetingId} 
-                participantName={userProfile?.shopName || userProfile?.fullName || "Seller"} 
-                token={token}
-                isLive={isLive}
-                onBroadcast={handleBroadcastStart}
-                onEnd={handleEndLive}
-              />
-            )}
-          </div>
+          <>
+            <div className="flex-1 relative h-full w-full">
+              {token && (
+                <VideoSDKStudio 
+                  meetingId={meetingId} 
+                  participantName={userProfile?.shopName || userProfile?.fullName || "Seller"} 
+                  token={token}
+                  isLive={isLive}
+                  onBroadcast={handleBroadcastStart}
+                  onEnd={handleEndLive}
+                />
+              )}
+            </div>
+            
+            {/* Seller Chat Panel */}
+            <div className="w-full lg:w-80 h-1/3 lg:h-full border-t lg:border-t-0 lg:border-l border-white/10 shrink-0 bg-neutral-950">
+                <LiveChat streamId={user?.uid || ''} />
+            </div>
+          </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full space-y-6 text-center py-20">
+          <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20">
             <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                 <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Direct Signal Link</h1>
-              <p className="text-muted-foreground text-sm font-medium">Opening hardware bridge to Go Earn Cloud...</p>
+              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Direct Signal</h1>
+              <p className="text-muted-foreground text-sm font-medium">Authenticating hardware bridge...</p>
             </div>
           </div>
         )}

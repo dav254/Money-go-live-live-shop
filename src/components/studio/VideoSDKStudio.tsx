@@ -38,6 +38,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
   const handleEnd = () => {
+    // Explicitly release media devices
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
@@ -96,6 +97,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
+        // Warm up hardware instantly
         setTimeout(() => {
             if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
@@ -129,7 +131,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         ) : (
           <div className="h-full w-full flex flex-col items-center justify-center bg-black">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Opening Hardware Bridge...</p>
+            <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Syncing Production Bridge...</p>
           </div>
         )}
       </div>
