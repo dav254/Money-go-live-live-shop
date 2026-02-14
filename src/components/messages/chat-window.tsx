@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2, ArrowLeft, MessageSquare, Reply } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
@@ -279,6 +280,10 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       }
   };
 
+  const handleReplyTag = (name: string) => {
+      setNewMessage(prev => `@${name} ${prev}`);
+  };
+
   const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
     const timestamp = Math.round((new Date()).getTime() / 1000);
     const paramsToSign = { timestamp };
@@ -447,7 +452,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
             const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
-            // ROLE-BASED ALIGNMENT: Buyers/Resellers locked RIGHT, Sellers/Admins locked LEFT
+            // MARKETPLACE ALIGNMENT: Buyers/Resellers locked RIGHT, Sellers/Admins locked LEFT
             const isBuyerRole = senderProfile?.userRole === 'buyer' || senderProfile?.userRole === 'reseller';
             const alignRight = isBuyerRole;
             
@@ -460,11 +465,21 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                             <MediaMessage message={msg} />
                         ) : msg.messageText ? (
                             <div className={cn(
-                            "rounded-2xl p-3 text-sm shadow-sm font-medium leading-relaxed border",
+                            "rounded-2xl p-3 text-sm shadow-sm font-medium leading-relaxed border relative group",
                             alignRight
                                 ? "bg-primary text-primary-foreground rounded-tr-none border-primary shadow-primary/10"
                                 : "bg-card text-card-foreground rounded-tl-none border-border shadow-black/5"
                             )}>
+                            {!senderIsCurrentUser && (
+                                <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="absolute -right-10 top-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                    onClick={() => handleReplyTag(senderProfile?.fullName || '')}
+                                >
+                                    <Reply className="h-4 w-4" />
+                                </Button>
+                            )}
                             <p>{msg.messageText}</p>
                             </div>
                         ) : null}
