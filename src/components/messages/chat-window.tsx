@@ -458,8 +458,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             const senderRole = senderIsCurrentUser ? userProfile?.userRole : otherParticipant?.userRole;
             
             // MARKETPLACE PERSPECTIVE ALIGNMENT:
-            // Buyers are ALWAYS on the Right (justify-end)
-            // Sellers are ALWAYS on the Left (justify-start)
+            // Buyers and Resellers are ALWAYS on the Right (primary color)
+            // Sellers and Admins are ALWAYS on the Left (card color)
             const alignRight = senderRole === 'buyer' || senderRole === 'reseller';
             
             return (

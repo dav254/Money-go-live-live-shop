@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -45,12 +44,14 @@ export default function SellerGoLivePage() {
     const fetchToken = async () => {
       try {
         const res = await fetch('/api/videosdk/token');
+        if (!res.ok) throw new Error("Authentication failure");
         const data = await res.json();
         if (data.token) {
           setToken(data.token);
         }
       } catch (err) {
         console.error("Error fetching VideoSDK token:", err);
+        setError("Failed to fetch media token. Please check your connection.");
       }
     };
     fetchToken();
