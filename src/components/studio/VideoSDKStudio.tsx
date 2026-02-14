@@ -38,6 +38,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
   const handleEnd = () => {
+    // Forcibly stop all tracks at browser level for privacy
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
@@ -96,6 +97,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
+        // Delay hardware start slightly to ensure bridge is ready
         setTimeout(() => {
             if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
@@ -139,7 +141,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         </MeetingConsumer>
       </div>
 
-      <StudioControls onEnd={handleEnd} onBroadcast={onBroadcast} isLive={isLive} />
+      <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
     </div>
   );
 };
@@ -164,7 +166,9 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
       }}
       token={token}
     >
-      <MeetingView onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
+      <MeetingConsumer>
+        {() => <MeetingView onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />}
+      </MeetingConsumer>
     </MeetingProvider>
   );
 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -104,7 +103,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
               {!isLoading && (!messages || messages.length === 0) && (
                   <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
                       <MessageSquare className="h-10 w-10 text-neutral-500 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Waiting for engagement...</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">No messages yet</p>
                   </div>
               )}
           </div>
