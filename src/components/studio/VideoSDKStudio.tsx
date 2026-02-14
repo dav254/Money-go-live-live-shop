@@ -1,10 +1,10 @@
 
 'use client';
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -17,7 +17,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
       videoRef.current.play().catch((err) => {
-          if (err.name !== 'AbortError') console.error("Playback failed:", err);
+          if (err.name !== 'AbortError') console.error("Studio play failed:", err);
       });
     }
   }, [webcamStream, webcamOn]);
@@ -121,7 +121,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
             ) : (
               <div className="h-full w-full flex flex-col items-center justify-center bg-black">
                 <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Syncing Studio Bridge...</p>
+                <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Studio Signal Sync...</p>
               </div>
             );
           }}

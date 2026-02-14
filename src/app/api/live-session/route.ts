@@ -21,10 +21,9 @@ async function verifyUser(request: Request) {
   }
 }
 
-
 /**
  * POST handler to create a new live session.
- * Now includes a 20-point deduction logic.
+ * Charges 20 points per session.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -44,11 +43,10 @@ export async function POST(request: Request) {
     const userProfile = userProfileDoc.data();
     const currentPoints = userProfile?.aiPoints || 0;
 
-    // 1. Check if the seller has enough points
     if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
-            details: `You need ${GO_LIVE_COST} points to go live. Your current balance is ${currentPoints}.`,
+            details: `You need ${GO_LIVE_COST} points to start a live show. Your balance is ${currentPoints}.`,
             needsPoints: true 
         }, { status: 402 });
     }
@@ -56,9 +54,9 @@ export async function POST(request: Request) {
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
     const newSessionRef = db.collection('liveSessions').doc(sellerId);
 
-    // 2. Atomic transaction: Deduct points and create/reset session
     const batch = db.batch();
     
+    // Deduct 20 points for the session
     batch.update(userProfileRef, {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
@@ -67,7 +65,7 @@ export async function POST(request: Request) {
       id: sellerId,
       sellerId: sellerId,
       title: `${sellerName}'s Live Show`,
-      status: 'upcoming', // Starts as upcoming for the preview phase
+      status: 'upcoming',
       productIds: [],
       viewerCount: 0,
       startTime: Timestamp.now(),
@@ -88,9 +86,6 @@ export async function POST(request: Request) {
   }
 }
 
-/**
- * PUT handler to end a live session.
- */
 export async function PUT(request: Request) {
   const verification = await verifyUser(request);
   if ('error' in verification) {
@@ -106,22 +101,22 @@ export async function PUT(request: Request) {
 
   try {
     const sessionRef = db.collection('liveSessions').doc(liveSessionId);
-
     const sessionDoc = await sessionRef.get();
+    
     if (!sessionDoc.exists || sessionDoc.data()?.sellerId !== sellerId) {
-        return NextResponse.json({ error: 'Forbidden: You do not own this live session.' }, { status: 403 });
+        return NextResponse.json({ error: 'Forbidden: Access denied.' }, { status: 403 });
     }
 
     await sessionRef.update({
       status: 'ended',
       endTime: Timestamp.now(),
-      videosdkMeetingId: null, // Clear the meeting ID on end
+      videosdkMeetingId: null,
     });
 
     return NextResponse.json({ success: true, message: 'Live session ended.' });
 
   } catch (error: any) {
     console.error('Error ending live session:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

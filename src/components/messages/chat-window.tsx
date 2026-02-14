@@ -174,7 +174,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [otherParticipantProfile, setOtherParticipantProfile] = useState<UserProfile | null>(null);
-  const prevMessagesCountRef = useRef<number>(0);
 
 
   const messagesQuery = useMemoFirebase(() => {
@@ -325,7 +324,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       toast({ title: 'Upload complete!', description: `${file.name} sent.` });
     } catch (error) {
       console.error("Upload failed:", error);
-      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your file. Please try again.' });
+      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your file.' });
     } finally {
       setUploadProgress(null);
       if (fileInputRef.current) {
@@ -423,17 +422,13 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           )}
           {messages?.map((msg) => {
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
+            const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
-            // LOGIC: Role-based perspective alignment
-            // Find if the sender of this message is a Buyer/Reseller or a Seller/Admin
-            const isMsgFromBuyerSide = (senderIsCurrentUser && (userProfile?.userRole === 'buyer' || userProfile?.userRole === 'reseller')) ||
-                                       (!senderIsCurrentUser && (otherParticipantProfile?.userRole === 'buyer' || otherParticipantProfile?.userRole === 'reseller'));
-            
-            // MARKETPLACE PERSPECTIVE: 
-            // Buyer Side = Always Right (Primary Orange)
-            // Seller Side = Always Left (Card Gray)
-            const alignRight = isMsgFromBuyerSide;
-            const roleLabel = senderIsCurrentUser ? userProfile?.userRole : otherParticipantProfile?.userRole;
+            // MARKETPLACE PERSPECTIVE ALIGNMENT: 
+            // Buyer/Reseller = Always RIGHT
+            // Seller/Admin = Always LEFT
+            const isMsgFromBuyerRole = senderProfile?.userRole === 'buyer' || senderProfile?.userRole === 'reseller';
+            const alignRight = isMsgFromBuyerRole;
             
             return (
                 <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
@@ -454,7 +449,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                         ) : null}
                         <div className="flex items-center gap-2 px-1">
                             <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">
-                                {roleLabel}
+                                {senderProfile?.userRole}
                             </span>
                             <span className="text-[9px] font-medium text-muted-foreground/40">
                                 {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
