@@ -38,7 +38,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
 
   const handleEnd = () => {
-    // Explicit hardware track cleanup
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
@@ -90,20 +89,19 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, localParticipant, unmuteWebcam, unmuteMic, isMeetingJoined } = useMeeting();
+  const { join, localParticipant, enableWebcam, unmuteMic, isMeetingJoined } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Standardized VideoSDK API calls
         setTimeout(() => {
-            if (unmuteWebcam) unmuteWebcam();
+            if (enableWebcam) enableWebcam();
             if (unmuteMic) unmuteMic();
         }, 500);
     }
-  }, [join, unmuteWebcam, unmuteMic]);
+  }, [join, enableWebcam, unmuteMic]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
