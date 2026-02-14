@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
-const GO_LIVE_COST = 100; // Increased to 100 points ($1.00 USD)
+const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
@@ -23,7 +23,7 @@ async function verifyUser(request: Request) {
 
 /**
  * POST handler to create a new live session.
- * Charges 100 points per session ($1.00).
+ * Deducts 100 points AT THE START to secure the 68-minute session.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
-            details: `You need ${GO_LIVE_COST} points ($1.00) to start a live show. Your balance is ${currentPoints}.`,
+            details: `You need ${GO_LIVE_COST} points ($1.00) to start a 68-minute show. Your balance is ${currentPoints}.`,
             needsPoints: true 
         }, { status: 402 });
     }
@@ -56,20 +56,22 @@ export async function POST(request: Request) {
 
     const batch = db.batch();
     
-    // Deduct points for the session
+    // 1. Deduct points IMMEDIATELY to secure the session
     batch.update(userProfileRef, {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
 
+    // 2. Initialize or reset the session document
     batch.set(newSessionRef, {
       id: sellerId,
       sellerId: sellerId,
       title: `${sellerName}'s Live Show`,
-      status: 'upcoming',
+      status: 'upcoming', // Starts as upcoming during setup/preview
       productIds: [],
       viewerCount: 0,
       startTime: Timestamp.now(),
       pointsCharged: GO_LIVE_COST,
+      sessionLimitMs: 68 * 60 * 1000, // Store limit for reference
     }, { merge: true });
 
     await batch.commit();
@@ -86,6 +88,9 @@ export async function POST(request: Request) {
   }
 }
 
+/**
+ * PUT handler to end a live session.
+ */
 export async function PUT(request: Request) {
   const verification = await verifyUser(request);
   if ('error' in verification) {
@@ -111,6 +116,7 @@ export async function PUT(request: Request) {
       status: 'ended',
       endTime: Timestamp.now(),
       videosdkMeetingId: null,
+      pinnedProductId: null,
     });
 
     return NextResponse.json({ success: true, message: 'Live session ended.' });

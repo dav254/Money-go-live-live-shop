@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -55,6 +56,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Member';
     const messageText = newMessage.trim();
     
+    // INSTANT RESPONSE: Create an optimistic message
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg = {
         id: tempId,
@@ -118,10 +120,11 @@ export function LiveChat({ streamId }: LiveChatProps) {
               )}
               {allMessages.map((msg: any) => {
                   const isProvider = msg.senderRole === 'seller' || msg.senderRole === 'admin';
-                  const alignRight = !isProvider; // Buyers & Resellers on Right
+                  // MARKETPLACE PERSPECTIVE: Buyers & Resellers align RIGHT
+                  const alignRight = !isProvider; 
 
                   return (
-                    <div key={msg.id} className={cn("flex flex-col", alignRight ? "items-end" : "items-start", msg.isSending && "opacity-70")}>
+                    <div key={msg.id} className={cn("flex flex-col group", alignRight ? "items-end" : "items-start", msg.isSending && "opacity-70")}>
                         <div className={cn("flex max-w-[85%] gap-2", alignRight ? "flex-row-reverse text-right" : "flex-row text-left")}>
                             <Avatar className="h-7 w-7 border border-white/10 shrink-0">
                                 <AvatarImage src={msg.senderAvatar} />
@@ -135,9 +138,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
                                     >
                                         {msg.senderName}
                                     </button>
-                                    {msg.isSending ? (
-                                        <Loader2 className="h-2 w-2 animate-spin text-primary" />
-                                    ) : (
+                                    {!msg.isSending && (
                                         <button 
                                             onClick={() => handleReply(msg.senderName)}
                                             className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"

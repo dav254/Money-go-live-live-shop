@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -210,7 +211,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       
       const messageText = messageData.messageText?.trim() || '';
       
-      // OPTIMISTIC UPDATE
+      // INSTANT TALK: Optimistic UI Update
       const tempId = `temp-${Date.now()}`;
       const optimisticMsg = {
           id: tempId,
@@ -451,7 +452,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
             const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
-            // MARKETPLACE ALIGNMENT: Buyers/Resellers locked RIGHT, Sellers/Admins locked LEFT
+            // MARKETPLACE PERSPECTIVE ALIGNMENT:
+            // 1. Providers (Sellers/Admins) are locked to the LEFT (Card/Gray)
+            // 2. Customers (Buyers/Resellers) are locked to the RIGHT (Primary/Orange)
             const isProvider = senderProfile?.userRole === 'seller' || senderProfile?.userRole === 'admin';
             const alignRight = !isProvider;
             
