@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -167,6 +166,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
 
 export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
+  const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const firestore = useFirestore();
   const { userProfile } = useUserProfile(currentUser?.uid);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,8 +181,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     return query(collection(firestore, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc'));
   }, [firestore, chat]);
 
-  const { data: messages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
+  const { data: serverMessages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
   
+  useEffect(() => {
+    if (serverMessages) setOptimisticMessages([]);
+  }, [serverMessages]);
+
   useEffect(() => {
     if (chat && currentUser && firestore) {
         const otherId = chat.participantIds.find(id => id !== currentUser.uid);
@@ -199,11 +203,24 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     if (viewport) {
       viewport.scrollTop = viewport.scrollHeight;
     }
-  }, [messages]);
+  }, [serverMessages, optimisticMessages]);
 
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
       if (!chat || !currentUser || !firestore) return;
       
+      const messageText = messageData.messageText?.trim() || '';
+      
+      // OPTIMISTIC UPDATE
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMsg = {
+          id: tempId,
+          senderId: currentUser.uid,
+          timestamp: new Date(),
+          isOptimistic: true,
+          ...messageData
+      };
+      setOptimisticMessages(prev => [...prev, optimisticMsg]);
+
       const messagesCollectionRef = collection(firestore, 'chats', chat.id, 'messages');
       const fullMessageData = {
           senderId: currentUser.uid,
@@ -211,7 +228,20 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           ...messageData
       };
 
-      await addDoc(messagesCollectionRef, fullMessageData).catch(error => {
+      try {
+          await addDoc(messagesCollectionRef, fullMessageData);
+          
+          const chatRef = doc(firestore, 'chats', chat.id);
+          let lastMessageText = 'Sent a file';
+          if (messageData.messageType === 'text') lastMessageText = messageText;
+          if (messageData.messageType === 'product') lastMessageText = 'Shared a product';
+
+          await updateDoc(chatRef, {
+            lastMessage: lastMessageText,
+            lastMessageTimestamp: serverTimestamp(),
+          });
+      } catch (error) {
+          setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
           const permissionError = new FirestorePermissionError({
               path: messagesCollectionRef.path,
               operation: 'create',
@@ -219,28 +249,20 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           });
           errorEmitter.emit('permission-error', permissionError);
           throw error;
-      });
-      
-      const chatRef = doc(firestore, 'chats', chat.id);
-      let lastMessageText = 'Sent a file';
-      if (messageData.messageType === 'text') lastMessageText = messageData.messageText || '';
-      if (messageData.messageType === 'product') lastMessageText = 'Shared a product';
-
-      await updateDoc(chatRef, {
-        lastMessage: lastMessageText,
-        lastMessageTimestamp: serverTimestamp(),
-      });
+      }
   };
 
   const handleSendTextMessage = async () => {
     if (!newMessage.trim()) return;
+    const text = newMessage;
+    setNewMessage('');
     try {
       await sendMessage({ 
-          messageText: newMessage.trim(),
+          messageText: text.trim(),
           messageType: 'text',
       });
-      setNewMessage('');
     } catch (e) {
+      setNewMessage(text);
       toast({ variant: 'destructive', title: 'Could not send message.' });
     }
   };
@@ -360,6 +382,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   }
 
   const isSellerPortal = userProfile?.userRole === 'seller';
+  const allMessages = [...(serverMessages || []), ...optimisticMessages];
 
   return (
     <div className="flex h-full flex-col bg-background">
@@ -415,12 +438,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
       <ScrollArea className="flex-1 bg-muted/5" ref={scrollAreaRef}>
         <div className="p-4 space-y-6">
-          {isLoadingMessages && (
+          {isLoadingMessages && allMessages.length === 0 && (
               <div className="flex justify-center py-10">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
           )}
-          {messages?.map((msg) => {
+          {allMessages.map((msg) => {
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
             const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
@@ -429,7 +452,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             const alignRight = isBuyerRole;
             
             return (
-                <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start")}>
+                <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start", msg.isOptimistic && "opacity-70")}>
                     <div className={cn("flex max-w-[85%] flex-col gap-1", alignRight ? "items-end" : "items-start")}>
                         {msg.messageType === 'product' && msg.productId ? (
                             <SharedProductCard productId={msg.productId} />
