@@ -6,9 +6,9 @@ import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Radio } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -16,8 +16,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import type { Product } from '@/lib/types';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -43,22 +41,16 @@ export default function SellerGoLivePage() {
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const hasTriggeredSetup = useRef(false);
 
-  // 1. Fetch token with safety catch and retry logic
-  const fetchToken = useCallback(async (retryCount = 0) => {
+  // Fetch token with safety catch
+  const fetchToken = useCallback(async () => {
     try {
       const res = await fetch('/api/videosdk/token');
       if (!res.ok) throw new Error("Authentication failure");
       const data = await res.json();
-      if (data.token) {
-        setToken(data.token);
-      }
+      if (data.token) setToken(data.token);
     } catch (err) {
       console.error("Error fetching VideoSDK token:", err);
-      if (retryCount < 2) {
-          setTimeout(() => fetchToken(retryCount + 1), 2000);
-      } else {
-          setError("Network latency detected. Please check your internet connection and try again.");
-      }
+      setError("Network latency detected. Please refresh.");
     }
   }, []);
 
@@ -84,11 +76,10 @@ export default function SellerGoLivePage() {
     }
   };
 
-  // 2. Automatic Setup on Load (Mirror Preview)
+  // Automatic Setup on Load (Mirror Preview)
   const handleSetupPreview = useCallback(async () => {
     if (!user || !firestore || !token || hasTriggeredSetup.current) return;
     
-    // Check points before allowing setup
     if ((userProfile?.aiPoints || 0) < 20) {
         setError("You need at least 20 AI Points to start a live show.");
         return;
@@ -99,7 +90,6 @@ export default function SellerGoLivePage() {
     setError(null);
 
     try {
-      // Deduct points and register session via API
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: {
@@ -109,25 +99,19 @@ export default function SellerGoLivePage() {
       });
 
       const result = await response.json();
-
-      if (!response.ok) {
-          throw new Error(result.details || result.error || "Could not start session.");
-      }
+      if (!response.ok) throw new Error(result.details || result.error || "Could not start session.");
 
       const id = await createMeeting(token);
       if (!id) throw new Error("Could not reach media bridge.");
       
-      // Update session with the real meeting ID
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      await updateDoc(sessionRef, {
-        videosdkMeetingId: id,
-      });
+      await updateDoc(sessionRef, { videosdkMeetingId: id });
 
       setMeetingId(id);
       toast({ title: "Studio Ready", description: "Camera calibrated. You are in private preview." });
     } catch (err: any) {
       console.error("Setup failed:", err);
-      setError(err.message || "Connection failed. Please refresh.");
+      setError(err.message || "Connection failed.");
       hasTriggeredSetup.current = false;
     } finally {
       setIsStarting(false);
@@ -162,14 +146,6 @@ export default function SellerGoLivePage() {
         pinnedProductId: null,
       });
       
-      // Forcibly release hardware at browser level
-      if (typeof window !== 'undefined' && navigator.mediaDevices) {
-          try {
-              const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-              stream.getTracks().forEach(t => t.stop());
-          } catch (e) {}
-      }
-
       setMeetingId(null);
       setIsLive(false);
       setPinnedProductId(null);
@@ -186,9 +162,9 @@ export default function SellerGoLivePage() {
           const sessionRef = doc(firestore, 'liveSessions', user.uid);
           await updateDoc(sessionRef, { pinnedProductId: product.id });
           setPinnedProductId(product.id);
-          toast({ title: "Product Pinned", description: `${product.name} is now featured.` });
+          toast({ title: "Product Pinned" });
       } catch (e) {
-          console.error("Failed to pin product:", e);
+          console.error(e);
       }
   };
 
@@ -200,7 +176,7 @@ export default function SellerGoLivePage() {
           setPinnedProductId(null);
           toast({ title: "Product Unpinned" });
       } catch (e) {
-          console.error("Failed to unpin:", e);
+          console.error(e);
       }
   };
 
@@ -208,13 +184,13 @@ export default function SellerGoLivePage() {
     return (
       <SellerLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
-          <Alert variant="destructive" className="max-w-md border-red-900/50 bg-red-950/20">
+          <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Connection Interrupted</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="flex gap-4 mt-6">
-            <Button className="font-black uppercase tracking-widest" onClick={() => window.location.reload()}>
+            <Button className="font-black" onClick={() => window.location.reload()}>
                 <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
             </Button>
             <Button variant="outline" asChild>
@@ -247,14 +223,6 @@ export default function SellerGoLivePage() {
               )}
             </div>
             
-            {/* Points Status Overlay */}
-            <div className="absolute top-4 right-4 z-50 pointer-events-none">
-                <div className="bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-xl">
-                    <BadgeCent className="h-4 w-4 text-primary" />
-                    <span className="text-[10px] font-black text-white uppercase">{(userProfile?.aiPoints || 0).toLocaleString()}</span>
-                </div>
-            </div>
-
             {/* HUD: LEFT HAND - Product Pinning */}
             <div className="absolute left-4 bottom-32 z-[60]">
                 <Sheet>
@@ -286,7 +254,7 @@ export default function SellerGoLivePage() {
             <div className="absolute right-4 bottom-32 z-[60]">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl animate-bounce-subtle border-2 border-white/20">
+                        <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl border-2 border-white/20">
                             <MessageSquare className="h-6 w-6" />
                         </Button>
                     </SheetTrigger>
@@ -306,10 +274,7 @@ export default function SellerGoLivePage() {
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20 bg-neutral-950 rounded-2xl border border-white/5 mx-auto max-w-4xl">
-            <div className="relative">
-                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
-            </div>
+            <Loader2 className="h-16 w-16 animate-spin text-primary" />
             <div className="space-y-2">
               <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Studio Signal</h1>
               <p className="text-muted-foreground text-sm font-medium">Validating AI Points & Media Bridge...</p>

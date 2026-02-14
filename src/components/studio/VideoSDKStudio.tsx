@@ -42,12 +42,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
   const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
 
   const handleEndInternal = () => {
-    // Forcibly stop all tracks for privacy
-    if (typeof window !== 'undefined' && navigator.mediaDevices) {
-        navigator.mediaDevices.enumerateDevices().then(devices => {
-            // Standard cleanup is handled by leave(), but we hard-kill here for speed
-        });
-    }
     leave();
     onEnd();
   };
@@ -94,22 +88,15 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, enableWebcam, unmuteMic } = useMeeting();
+  const { join, participants } = useMeeting();
   const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
-        // SPEED UP: Join and immediately request media
         join();
-        
-        // Slight delay to ensure bridge is ready for hardware
-        setTimeout(() => {
-            if (enableWebcam) enableWebcam();
-            if (unmuteMic) unmuteMic();
-        }, 500);
     }
-  }, [join, enableWebcam, unmuteMic]);
+  }, [join]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
@@ -122,12 +109,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                   <div className={cn("h-1.5 w-1.5 rounded-full", isLive ? "bg-white" : "bg-neutral-600")} />
                   {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
               </div>
-              {isLive && (
-                  <div className="px-3 py-1.5 rounded-lg bg-black/40 text-white text-[10px] font-bold border border-white/5 backdrop-blur-md flex items-center gap-2">
-                      <Globe className="h-3 w-3 text-blue-400" />
-                      GLOBAL
-                  </div>
-              )}
           </div>
       </div>
 

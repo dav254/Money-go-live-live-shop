@@ -11,6 +11,7 @@ import { collection, query, orderBy, addDoc, serverTimestamp, doc, getDoc } from
 import type { ChatMessage, UserProfile } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface LiveChatProps {
   streamId: string;
@@ -39,18 +40,13 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   const { data: serverMessages, isLoading } = useCollection<ChatMessage>(messagesQuery);
 
-  // Sync server messages and clear optimistic ones that have been confirmed
   useEffect(() => {
-    if (serverMessages) {
-        setOptimisticMessages([]); // Clear optimistic local state when server data updates
-    }
+    if (serverMessages) setOptimisticMessages([]);
   }, [serverMessages]);
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (viewport) {
-      viewport.scrollTop = viewport.scrollHeight;
-    }
+    if (viewport) viewport.scrollTop = viewport.scrollHeight;
   }, [serverMessages, optimisticMessages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -60,7 +56,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Member';
     const messageText = newMessage.trim();
     
-    // INSTANT SPEED: Add to local state immediately
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg = {
         id: tempId,
@@ -85,7 +80,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
         });
     } catch (error) {
         console.error("Failed to send message:", error);
-        // Remove from optimistic if failed
         setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
     }
   };
@@ -141,7 +135,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
                                 <button 
                                     onClick={() => handleReply(msg.senderName)}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
-                                    title="Reply to specific user"
                                 >
                                     <Reply className="h-3 w-3" />
                                 </button>
@@ -153,12 +146,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
                       </div>
                   </div>
               ))}
-              {!isLoading && allMessages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
-                      <MessageSquare className="h-10 w-10 text-neutral-500 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">No messages yet</p>
-                  </div>
-              )}
           </div>
         </ScrollArea>
 
@@ -168,10 +155,10 @@ export function LiveChat({ streamId }: LiveChatProps) {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder={user ? "Reply to buyers..." : "Log in to chat"}
-                    className="bg-neutral-900 border-white/5 text-white placeholder:text-neutral-600 rounded-xl h-11 focus-visible:ring-primary"
+                    className="bg-neutral-900 border-white/5 text-white rounded-xl h-11"
                     disabled={!user}
                 />
-                <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 rounded-xl h-11 w-11 shrink-0 shadow-lg shadow-primary/20" disabled={!user || !newMessage.trim()}>
+                <Button type="submit" size="icon" className="bg-primary rounded-xl h-11 w-11 shrink-0" disabled={!user || !newMessage.trim()}>
                     <Send className="h-4 w-4" />
                 </Button>
             </form>
