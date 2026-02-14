@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -10,7 +11,7 @@ import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
@@ -164,26 +165,6 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     )
 }
 
-function playNotificationSound() {
-  if (typeof window === 'undefined') return;
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.1);
-  } catch (e) {}
-}
-
-
 export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const firestore = useFirestore();
@@ -219,16 +200,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     if (viewport) {
       viewport.scrollTop = viewport.scrollHeight;
     }
-
-    if (messages && messages.length > prevMessagesCountRef.current) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.senderId !== currentUser?.uid) {
-        playNotificationSound();
-      }
-    }
-    prevMessagesCountRef.current = messages ? messages.length : 0;
-
-  }, [messages, currentUser?.uid]);
+  }, [messages]);
 
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
       if (!chat || !currentUser || !firestore) return;
@@ -259,21 +231,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         lastMessage: lastMessageText,
         lastMessageTimestamp: serverTimestamp(),
       });
-      
-      const recipientId = chat.participantIds.find(id => id !== currentUser.uid);
-      if (recipientId) {
-          const notificationsRef = collection(firestore, 'notifications');
-          const senderName = userProfile?.shopName || userProfile?.fullName || 'Someone';
-          await addDoc(notificationsRef, {
-              userId: recipientId,
-              type: 'message',
-              title: `New message from ${senderName}`,
-              message: lastMessageText,
-              link: `/messages?chatWith=${currentUser.uid}`,
-              status: 'unread',
-              timestamp: serverTimestamp(),
-          }).catch(() => {});
-      }
   };
 
   const handleSendTextMessage = async () => {
@@ -467,15 +424,15 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           {messages?.map((msg) => {
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
             
-            // MARKETPLACE PERSPECTIVE ALIGNMENT:
-            // The sender's role determines position. 
-            // We need to know the role of the sender of THIS specific message.
-            const isMsgFromBuyerOrReseller = (senderIsCurrentUser && (userProfile?.userRole === 'buyer' || userProfile?.userRole === 'reseller')) ||
-                                            (!senderIsCurrentUser && (otherParticipantProfile?.userRole === 'buyer' || otherParticipantProfile?.userRole === 'reseller'));
+            // LOGIC: Role-based perspective alignment
+            // Find if the sender of this message is a Buyer/Reseller or a Seller/Admin
+            const isMsgFromBuyerSide = (senderIsCurrentUser && (userProfile?.userRole === 'buyer' || userProfile?.userRole === 'reseller')) ||
+                                       (!senderIsCurrentUser && (otherParticipantProfile?.userRole === 'buyer' || otherParticipantProfile?.userRole === 'reseller'));
             
-            // Buyers/Resellers = Always Right (Primary Color)
-            // Sellers/Admins = Always Left (Card Color)
-            const alignRight = isMsgFromBuyerOrReseller;
+            // MARKETPLACE PERSPECTIVE: 
+            // Buyer Side = Always Right (Primary Orange)
+            // Seller Side = Always Left (Card Gray)
+            const alignRight = isMsgFromBuyerSide;
             const roleLabel = senderIsCurrentUser ? userProfile?.userRole : otherParticipantProfile?.userRole;
             
             return (

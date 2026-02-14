@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, SignalHigh, Globe } from 'lucide-react';
@@ -38,10 +39,9 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 };
 
 const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { leave, toggleWebcam, toggleMic, webcamOn, micOn } = useMeeting();
+  const { leave, unmuteWebcam, muteWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
 
   const handleEndInternal = () => {
-    // Forcibly stop all tracks at browser level for privacy
     if (typeof window !== 'undefined' && navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: true })
             .then(stream => stream.getTracks().forEach(t => t.stop()))
@@ -56,7 +56,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       <Button
         size="icon"
         variant={micOn ? "secondary" : "destructive"}
-        onClick={() => toggleMic()}
+        onClick={() => micOn ? muteMic() : unmuteMic()}
         className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
         {micOn ? <Mic className="h-4 w-4 md:h-5 md:w-5" /> : <MicOff className="h-4 w-4 md:h-5 md:w-5" />}
@@ -64,7 +64,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       <Button
         size="icon"
         variant={webcamOn ? "secondary" : "destructive"}
-        onClick={() => toggleWebcam()}
+        onClick={() => webcamOn ? muteWebcam() : unmuteWebcam()}
         className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
         {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5" />}
@@ -101,7 +101,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         hasInitialized.current = true;
         join();
         
-        // Auto-enable media for instant preview
         setTimeout(() => {
             if (unmuteWebcam) unmuteWebcam();
             if (unmuteMic) unmuteMic();

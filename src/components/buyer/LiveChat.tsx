@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -48,7 +49,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
     e.preventDefault();
     if (!newMessage.trim() || !firestore || !streamId || !user) return;
 
-    const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Verified Member';
+    const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Member';
 
     const messageData = {
       senderId: user.uid,
@@ -75,7 +76,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
             </p>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-3 w-3 text-green-500" />
-                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Identified</span>
+                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
             </div>
         </div>
         

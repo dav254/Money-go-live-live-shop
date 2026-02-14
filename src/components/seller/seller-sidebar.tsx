@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -19,18 +20,11 @@ import {
   Home,
   User,
   MessageSquare,
-  Bookmark,
   RadioTower,
   Info,
-  Wallet,
   Sparkles,
   AreaChart,
-  FolderKanban,
   Megaphone,
-  Bell,
-  Tag,
-  Calculator,
-  Heart,
   Radio,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -175,7 +169,7 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={pathname === '/dashboard/products' && new URLSearchParams(window.location.search).get('tab') === 'studio'}>
+            <SidebarMenuButton size="sm" asChild isActive={pathname === '/dashboard/products' && new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab') === 'studio'}>
               <Link href="/dashboard/products?tab=studio">
                 <RadioTower />
                 <span>Video Studio</span>
@@ -191,8 +185,8 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/buyer/live-stream')}>
-              <Link href="/buyer/live-stream">
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/live-feed')}>
+              <Link href="/dashboard/seller/live-feed">
                 <Video />
                 <span>Live Feed</span>
               </Link>
@@ -254,6 +248,17 @@ export function SellerSidebar() {
                     <span>View My Shop</span>
                 </Link>
             </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+           <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
+            <Link href="/dashboard/account">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={userProfile?.profilePictureUrl} />
+                <AvatarFallback>{userProfile?.fullName?.[0]}</AvatarFallback>
+              </Avatar>
+              <span className="truncate">{userProfile?.fullName || "My Account"}</span>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </>
