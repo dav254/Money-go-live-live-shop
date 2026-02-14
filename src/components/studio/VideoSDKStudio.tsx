@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -54,7 +55,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
         onClick={() => micOn ? muteMic() : unmuteMic()}
         className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
-        {micOn ? <Mic className="h-4 w-4 md:h-5 md:w-5" /> : <MicOff className="h-4 w-4 md:h-5 md:w-5" />}
+        {micOn ? <Mic className="h-4 w-4 md:h-5 md:w-5 text-white" /> : <MicOff className="h-4 w-4 md:h-5 md:w-5 text-white" />}
       </Button>
       <Button
         size="icon"
@@ -62,7 +63,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
         onClick={() => webcamOn ? disableWebcam() : enableWebcam()}
         className="rounded-xl h-10 w-10 md:h-12 md:w-12"
       >
-        {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5" />}
+        {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5 text-white" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5 text-white" />}
       </Button>
       
       <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
@@ -70,7 +71,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       {!isLive ? (
         <Button
           onClick={onBroadcast}
-          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40"
+          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white"
         >
           START BROADCAST
         </Button>
@@ -78,7 +79,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
         <Button
           variant="destructive"
           onClick={handleEndClick}
-          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:text-sm"
+          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:text-sm text-white"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
         </Button>

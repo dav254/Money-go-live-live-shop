@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -22,7 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -150,7 +150,7 @@ export default function SellerGoLivePage() {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
-  const hasTriggeredSetup = useRef(false);
+  const [wantsToSetup, setWantsToSetup] = useState(false);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -186,15 +186,14 @@ export default function SellerGoLivePage() {
     }
   };
 
-  const handleSetupPreview = useCallback(async () => {
-    if (!user || !firestore || !token || hasTriggeredSetup.current) return;
+  const handleSetupPreview = async () => {
+    if (!user || !firestore || !token) return;
     
     if ((userProfile?.aiPoints || 0) < 100) {
         setError("Insufficient AI Points. You need 100 points ($1.00) to start a show.");
         return;
     }
 
-    hasTriggeredSetup.current = true;
     setIsStarting(true);
     setError(null);
 
@@ -217,21 +216,15 @@ export default function SellerGoLivePage() {
       await updateDoc(sessionRef, { videosdkMeetingId: id });
 
       setMeetingId(id);
+      setWantsToSetup(true);
       toast({ title: "Studio Ready", description: "Camera calibrated. You are in private preview." });
     } catch (err: any) {
       console.error("Setup failed:", err);
       setError(err.message || "Connection failed.");
-      hasTriggeredSetup.current = false;
     } finally {
       setIsStarting(false);
     }
-  }, [user, firestore, token, userProfile, toast]);
-
-  useEffect(() => {
-    if (token && user && !meetingId && !isProfileLoading) {
-      handleSetupPreview();
-    }
-  }, [token, user, meetingId, handleSetupPreview, isProfileLoading]);
+  };
 
   const handleBroadcastStart = async () => {
     if (!user || !firestore) return;
@@ -258,7 +251,7 @@ export default function SellerGoLivePage() {
       setMeetingId(null);
       setIsLive(false);
       setPinnedProductId(null);
-      hasTriggeredSetup.current = false;
+      setWantsToSetup(false);
       toast({ title: "Broadcast Ended" });
     } catch (error) {
       console.error(error);
@@ -310,7 +303,7 @@ export default function SellerGoLivePage() {
             {isLowPoints ? (
                 <Dialog>
                     <DialogTrigger asChild>
-                        <Button className="font-black bg-primary">
+                        <Button className="font-black bg-primary text-white">
                             <BadgeCent className="mr-2 h-4 w-4" /> BUY AI POINTS
                         </Button>
                     </DialogTrigger>
@@ -330,166 +323,213 @@ export default function SellerGoLivePage() {
     );
   }
 
+  // --- LOBBY SCREEN ---
+  if (!wantsToSetup || !meetingId) {
+      return (
+          <SellerLayout>
+              <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] p-4 md:p-8">
+                  <Card className="w-full max-w-2xl shadow-2xl border-white/5 bg-neutral-900/50 backdrop-blur-xl">
+                      <CardHeader className="text-center space-y-4">
+                          <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
+                              <Video className="h-12 w-12 text-primary animate-pulse" />
+                          </div>
+                          <div className="space-y-2">
+                              <CardTitle className="font-headline text-3xl font-black uppercase tracking-tighter">Ready to Sell Live?</CardTitle>
+                              <CardDescription className="text-base">Host a 60-minute shopping show and sell directly to your audience.</CardDescription>
+                          </div>
+                      </CardHeader>
+                      <CardContent className="space-y-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Session Cost</p>
+                                  <div className="flex items-center gap-2">
+                                      <BadgeCent className="h-5 w-5 text-primary" />
+                                      <p className="text-xl font-black">100 Points <span className="text-xs font-normal text-neutral-500">($1.00)</span></p>
+                                  </div>
+                              </div>
+                              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Your Balance</p>
+                                  <div className="flex items-center gap-2">
+                                      <CreditCard className="h-5 w-5 text-neutral-400" />
+                                      {isProfileLoading ? <Skeleton className="h-6 w-16" /> : (
+                                          <p className={cn("text-xl font-black", (userProfile?.aiPoints || 0) < 100 ? "text-red-500" : "text-white")}>
+                                              {(userProfile?.aiPoints || 0).toLocaleString()} <span className="text-xs font-normal text-neutral-500">Points</span>
+                                          </p>
+                                      )}
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div className="bg-black/40 rounded-2xl p-6 border border-white/5">
+                              <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 text-yellow-500" />
+                                  Pro Tips for a Great Show
+                              </h4>
+                              <ul className="space-y-3">
+                                  <li className="flex items-center gap-3 text-sm text-neutral-300">
+                                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                      Ensure your lighting is bright and clear.
+                                  </li>
+                                  <li className="flex items-center gap-3 text-sm text-neutral-300">
+                                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                      Have your products ready to show on camera.
+                                  </li>
+                                  <li className="flex items-center gap-3 text-sm text-neutral-300">
+                                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                      Share your link on WhatsApp before you start!
+                                  </li>
+                              </ul>
+                          </div>
+                      </CardContent>
+                      <CardFooter className="flex flex-col gap-4">
+                          <Button 
+                            size="lg" 
+                            className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20"
+                            onClick={handleSetupPreview}
+                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
+                          >
+                              {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
+                              ENTER STUDIO & SETUP CAMERA
+                          </Button>
+                          
+                          {(userProfile?.aiPoints || 0) < 100 && (
+                              <Dialog>
+                                  <DialogTrigger asChild>
+                                      <Button variant="outline" className="w-full h-12 rounded-2xl border-primary/20 text-primary hover:bg-primary/5">
+                                          <BadgeCent className="mr-2 h-4 w-4" /> TOP UP POINTS TO GO LIVE
+                                      </Button>
+                                  </DialogTrigger>
+                                  <BuyPointsDialog />
+                              </Dialog>
+                          )}
+                      </CardFooter>
+                  </Card>
+              </div>
+          </SellerLayout>
+      )
+  }
+
   return (
     <SellerLayout>
       <div className={cn(
         "flex-1 relative bg-black transition-all duration-500",
         meetingId ? "h-[calc(100vh-4rem)] overflow-hidden" : "p-8"
       )}>
-        {meetingId ? (
-          <>
-            <div className="h-full w-full">
-              {token && (
-                <VideoSDKStudio 
-                  meetingId={meetingId} 
-                  participantName={userProfile?.shopName || userProfile?.fullName || "Seller"} 
-                  token={token}
-                  isLive={isLive}
-                  onBroadcast={handleBroadcastStart}
-                  onEnd={handleEndLive}
-                />
-              )}
-            </div>
-            
-            {/* HUD: LEFT HAND - Product Pinning */}
-            <div className="absolute left-4 bottom-32 z-[60]">
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-xl border-2 border-white/20">
-                            <ShoppingBag className="h-6 w-6" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
-                        <SheetHeader className="p-4 border-b border-white/10">
-                            <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
-                                <ShoppingBag className="text-blue-500 h-4 w-4" />
-                                Product Bag
-                            </SheetTitle>
-                        </SheetHeader>
-                        <div className="h-[calc(100vh-5rem)]">
-                            <LiveProductShelf 
-                                sellerId={user?.uid || ''} 
-                                onPinProduct={handlePinProduct} 
-                                onUnpinProduct={handleUnpinProduct}
-                                pinnedProductId={pinnedProductId}
-                            />
-                        </div>
-                    </SheetContent>
-                </Sheet>
-            </div>
-
-            {/* HUD: CENTER - Share Hub */}
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-[60]">
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button size="icon" className="h-14 w-14 rounded-full bg-green-600 hover:bg-green-700 shadow-2xl border-2 border-white/20">
-                            <Share2 className="h-7 w-7" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="bottom" className="h-[80vh] bg-neutral-950 border-t-white/10 text-white rounded-t-3xl p-0">
-                        <SheetHeader className="p-6 border-b border-white/10">
-                            <SheetTitle className="text-white flex items-center gap-3 text-xl font-black uppercase tracking-tighter">
-                                <Share2 className="text-green-500 h-6 w-6" />
-                                Share & Grow Your Audience
-                            </SheetTitle>
-                        </SheetHeader>
-                        <ScrollArea className="h-full">
-                            <div className="p-6 space-y-8 pb-24">
-                                <section className="space-y-3">
-                                    <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest">Your Direct Stream Link</Label>
-                                    <div className="flex gap-2">
-                                        <Input readOnly value={streamUrl} className="bg-neutral-900 border-white/10 h-12" />
-                                        <Button className="h-12 px-6 bg-green-600 hover:bg-green-700" onClick={() => copyToClipboard(streamUrl, 'Link')}>
-                                            <Copy className="h-4 w-4 mr-2" /> Copy
-                                        </Button>
-                                    </div>
-                                </section>
-
-                                <section className="space-y-4">
-                                    <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest flex items-center gap-2">
-                                        <Sparkles className="h-4 w-4 text-primary" />
-                                        High-Conversion Templates
-                                    </Label>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {promoIdeas.map((idea, i) => (
-                                            <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/30 transition-colors group">
-                                                <p className="text-sm text-neutral-300 mb-3 leading-relaxed">"{idea}"</p>
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="sm" 
-                                                    className="w-full text-[10px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-white"
-                                                    onClick={() => copyToClipboard(`${idea}\n${streamUrl}`, 'Template')}
-                                                >
-                                                    Copy Template + Link
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            </div>
-                        </ScrollArea>
-                    </SheetContent>
-                </Sheet>
-            </div>
-
-            {/* HUD: RIGHT HAND - Sales Chat */}
-            <div className="absolute right-4 bottom-32 z-[60]">
-                <Sheet>
-                    <SheetTrigger asChild>
-                        <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl border-2 border-white/20">
-                            <MessageSquare className="h-6 w-6" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="w-full sm:w-80 bg-black border-white/10 text-white p-0">
-                        <SheetHeader className="p-4 border-b border-white/10">
-                            <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
-                                <MessageSquare className="text-primary h-4 w-4" />
-                                Sales Engagement
-                            </SheetTitle>
-                        </SheetHeader>
-                        <div className="h-[calc(100vh-5rem)]">
-                            <LiveChat streamId={user?.uid || ''} />
-                        </div>
-                    </SheetContent>
-                </Sheet>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full w-full space-y-6 text-center py-20 bg-neutral-950 rounded-2xl border border-white/5 mx-auto max-w-4xl shadow-2xl">
-            <Loader2 className="h-16 w-16 animate-spin text-primary" />
-            <div className="space-y-2">
-              <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Opening Studio Signal</h1>
-              <p className="text-muted-foreground text-sm font-medium">Validating AI Points & Media Bridge...</p>
-            </div>
-            
-            <div className="flex flex-col items-center gap-4">
-                <div className="flex items-center gap-2 px-6 py-3 bg-neutral-900 rounded-2xl border border-white/5 shadow-inner">
-                    <BadgeCent className="h-5 w-5 text-primary" />
-                    <div className="text-left">
-                        <p className="text-[10px] text-neutral-500 uppercase font-black tracking-widest leading-none mb-1">Your Points Balance</p>
-                        {isProfileLoading ? <Skeleton className="h-4 w-12" /> : (
-                            <p className={cn("text-lg font-black tracking-tight", (userProfile?.aiPoints || 0) < 100 ? "text-red-500" : "text-white")}>
-                                {(userProfile?.aiPoints || 0).toLocaleString()} <span className="text-xs font-normal text-neutral-500">Available</span>
-                            </p>
-                        )}
+        <div className="h-full w-full">
+          {token && (
+            <VideoSDKStudio 
+              meetingId={meetingId} 
+              participantName={userProfile?.shopName || userProfile?.fullName || "Seller"} 
+              token={token}
+              isLive={isLive}
+              onBroadcast={handleBroadcastStart}
+              onEnd={handleEndLive}
+            />
+          )}
+        </div>
+        
+        {/* HUD: LEFT HAND - Product Pinning */}
+        <div className="absolute left-4 bottom-32 z-[60]">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-xl border-2 border-white/20">
+                        <ShoppingBag className="h-6 w-6" />
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
+                    <SheetHeader className="p-4 border-b border-white/10">
+                        <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
+                            <ShoppingBag className="text-blue-500 h-4 w-4" />
+                            Product Bag
+                        </SheetTitle>
+                    </SheetHeader>
+                    <div className="h-[calc(100vh-5rem)]">
+                        <LiveProductShelf 
+                            sellerId={user?.uid || ''} 
+                            onPinProduct={handlePinProduct} 
+                            onUnpinProduct={handleUnpinProduct}
+                            pinnedProductId={pinnedProductId}
+                        />
                     </div>
-                </div>
+                </SheetContent>
+            </Sheet>
+        </div>
 
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="rounded-xl border-primary/20 text-primary hover:bg-primary hover:text-white font-bold h-10 px-6">
-                            <CreditCard className="mr-2 h-4 w-4" /> Top Up Points
-                        </Button>
-                    </DialogTrigger>
-                    <BuyPointsDialog />
-                </Dialog>
-            </div>
+        {/* HUD: CENTER - Share Hub */}
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-[60]">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button size="icon" className="h-14 w-14 rounded-full bg-green-600 hover:bg-green-700 shadow-2xl border-2 border-white/20">
+                        <Share2 className="h-7 w-7" />
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[80vh] bg-neutral-950 border-t-white/10 text-white rounded-t-3xl p-0">
+                    <SheetHeader className="p-6 border-b border-white/10">
+                        <SheetTitle className="text-white flex items-center gap-3 text-xl font-black uppercase tracking-tighter">
+                            <Share2 className="text-green-500 h-6 w-6" />
+                            Share & Grow Your Audience
+                        </SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="h-full">
+                        <div className="p-6 space-y-8 pb-24">
+                            <section className="space-y-3">
+                                <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest">Your Direct Stream Link</Label>
+                                <div className="flex gap-2">
+                                    <Input readOnly value={streamUrl} className="bg-neutral-900 border-white/10 h-12" />
+                                    <Button className="h-12 px-6 bg-green-600 hover:bg-green-700" onClick={() => copyToClipboard(streamUrl, 'Link')}>
+                                        <Copy className="h-4 w-4 mr-2" /> Copy
+                                    </Button>
+                                </div>
+                            </section>
 
-            <div className="text-[9px] text-neutral-600 uppercase font-black tracking-widest bg-white/5 px-4 py-1.5 rounded-full">
-                Cost: 100 Points per 60min session ($1.00)
-            </div>
-          </div>
-        )}
+                            <section className="space-y-4">
+                                <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-primary" />
+                                    High-Conversion Templates
+                                </Label>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {promoIdeas.map((idea, i) => (
+                                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/30 transition-colors group">
+                                            <p className="text-sm text-neutral-300 mb-3 leading-relaxed">"{idea}"</p>
+                                            <Button 
+                                                variant="secondary" 
+                                                size="sm" 
+                                                className="w-full text-[10px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-white"
+                                                onClick={() => copyToClipboard(`${idea}\n${streamUrl}`, 'Template')}
+                                            >
+                                                Copy Template + Link
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
+                    </ScrollArea>
+                </SheetContent>
+            </Sheet>
+        </div>
+
+        {/* HUD: RIGHT HAND - Sales Chat */}
+        <div className="absolute right-4 bottom-32 z-[60]">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl border-2 border-white/20">
+                        <MessageSquare className="h-6 w-6" />
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full sm:w-80 bg-black border-white/10 text-white p-0">
+                    <SheetHeader className="p-4 border-b border-white/10">
+                        <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
+                            <MessageSquare className="text-primary h-4 w-4" />
+                            Sales Engagement
+                        </SheetTitle>
+                    </SheetHeader>
+                    <div className="h-[calc(100vh-5rem)]">
+                        <LiveChat streamId={user?.uid || ''} />
+                    </div>
+                </SheetContent>
+            </Sheet>
+        </div>
       </div>
     </SellerLayout>
   );
