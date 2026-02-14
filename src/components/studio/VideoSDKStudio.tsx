@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -94,20 +93,24 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, enableWebcam, unmuteMic } = useMeeting();
+  const { join, unmuteWebcam, unmuteMic } = useMeeting();
   const hasInitialized = useRef(false);
+
+  const handleEnd = () => {
+      onEnd();
+  };
 
   useEffect(() => {
     if (!hasInitialized.current) {
         hasInitialized.current = true;
         join();
-        // Automatic handshake for instant preview calibration
+        // Standardized function calls for direct media signal
         setTimeout(() => {
-            if (enableWebcam) enableWebcam();
+            if (unmuteWebcam) unmuteWebcam();
             if (unmuteMic) unmuteMic();
         }, 500);
     }
-  }, [join, enableWebcam, unmuteMic]);
+  }, [join, unmuteWebcam, unmuteMic]);
 
   return (
     <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
@@ -145,7 +148,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         </MeetingConsumer>
       </div>
 
-      <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
+      <StudioControls onEnd={handleEnd} onBroadcast={onBroadcast} isLive={isLive} />
     </div>
   );
 };
