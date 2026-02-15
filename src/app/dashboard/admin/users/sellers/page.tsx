@@ -49,7 +49,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2, Mail, ShieldAlert } from 'lucide-react';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
@@ -62,8 +62,8 @@ type SellerRow = {
   ownerName: string;
   email: string;
   phone?: string;
-  totalSales: number; // Placeholder
-  productCount: number; // Placeholder
+  totalSales: number;
+  productCount: number;
   status: 'active' | 'pending' | 'suspended';
   verificationStatus?: 'pending' | 'verified' | 'rejected';
   avatarUrl?: string;
@@ -294,21 +294,16 @@ export default function AdminSellersPage() {
     }
   };
 
-  const handleSendNotification = React.useCallback((user: SellerRow) => {
-    setSelectedUser(user);
-    setIsNotificationDialogOpen(true);
-  }, []);
-
   const data: SellerRow[] = React.useMemo(() => {
     if (!sellersData) return [];
     return sellersData.map(profile => ({
       id: profile.id,
       businessName: profile.shopName || profile.username,
       ownerName: profile.fullName,
-      email: profile.email,
+      email: profile.email || 'N/A',
       phone: profile.phoneNumber,
-      totalSales: 0, // Placeholder
-      productCount: 0, // Placeholder
+      totalSales: 0,
+      productCount: 0,
       status: profile.status || 'active',
       verificationStatus: profile.verificationStatus,
       avatarUrl: profile.profilePictureUrl,
@@ -408,14 +403,14 @@ export default function AdminSellersPage() {
                             <DropdownMenuItem asChild>
                                 <Link href={`/sellers/${seller.id}`} target="_blank">View Store</Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast({ title: 'Coming Soon!', description: 'This feature is under development.' })}>
-                                View Products
-                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => {
                                 setSelectedUser(seller);
                                 setIsPointsDialogOpen(true);
                             }}>Manage Points</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleSendNotification(seller)}>Send Notification</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => {
+                                setSelectedUser(seller);
+                                setIsNotificationDialogOpen(true);
+                            }}>Send Notification</DropdownMenuItem>
                             <DropdownMenuSeparator />
                              <DropdownMenuLabel>Verification</DropdownMenuLabel>
                             {seller.verificationStatus !== 'verified' && (
@@ -445,27 +440,29 @@ export default function AdminSellersPage() {
                                 </DropdownMenuItem>
                             )}
                             <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive">Delete Seller</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive font-bold">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete Seller
+                                </DropdownMenuItem>
                             </AlertDialogTrigger>
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                                This action will permanently delete the seller account for "{seller.ownerName}" and all associated data. This cannot be undone.
+                                This action will permanently delete the seller account for "{seller.businessName}" and all associated data from the platform. This action is irreversible.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteSeller(seller.id)}>Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={() => handleDeleteSeller(seller.id)} className="bg-destructive hover:bg-destructive/90">Delete Account</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
             );
         },
     },
-    ], [handleDeleteSeller, toast, handleStatusUpdate, handleVerificationUpdate, handleSendNotification]);
+    ], [handleDeleteSeller, handleStatusUpdate, handleVerificationUpdate]);
 
 
   const table = useReactTable({
@@ -562,5 +559,3 @@ export default function AdminSellersPage() {
     </AdminLayout>
   );
 }
-
-    

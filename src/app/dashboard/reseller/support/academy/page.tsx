@@ -5,7 +5,7 @@ import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Bot, Film, TrendingUp, Sparkles, Trophy, Clock } from 'lucide-react';
+import { BookOpen, Bot, Film, TrendingUp, Sparkles, Trophy, Clock, PlayCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit } from 'firebase/firestore';
@@ -27,7 +27,7 @@ export default function ResellerAcademyPage() {
         return query(
             collection(firestore, 'helpArticles'),
             where('audience', 'array-contains', 'reseller'),
-            limit(4)
+            limit(10)
         );
     }, [firestore]);
 
@@ -51,9 +51,9 @@ export default function ResellerAcademyPage() {
                              <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Film />
-                                    Tutorials & Courses
+                                    Active Courses & Guides
                                 </CardTitle>
-                                <CardDescription>Short, impactful lessons to boost your sales game.</CardDescription>
+                                <CardDescription>Impactful lessons to boost your sales game.</CardDescription>
                             </CardHeader>
                             <CardContent className="grid sm:grid-cols-2 gap-4">
                                 {isLoading ? (
@@ -63,40 +63,44 @@ export default function ResellerAcademyPage() {
                                     </>
                                 ) : tutorials && tutorials.length > 0 ? (
                                     tutorials.map(item => (
-                                    <div key={item.id} className="relative group overflow-hidden rounded-lg border bg-background p-4 flex flex-col justify-between hover:shadow-primary/20 hover:border-primary/50 transition-all">
+                                    <div key={item.id} className="relative group overflow-hidden rounded-lg border bg-card p-4 flex flex-col justify-between hover:shadow-primary/20 hover:border-primary/50 transition-all border-primary/10">
                                         <div>
-                                            <BookOpen className="h-8 w-8 text-primary mb-4" />
-                                            <h3 className="font-headline font-semibold mb-2">{item.question}</h3>
+                                            <div className="flex justify-between items-start mb-4">
+                                                <PlayCircle className="h-8 w-8 text-primary" />
+                                                <Badge variant="secondary" className="text-[10px] uppercase font-bold">{item.category}</Badge>
+                                            </div>
+                                            <h3 className="font-headline font-bold text-lg leading-tight mb-2">{item.question}</h3>
+                                            <p className="text-xs text-muted-foreground line-clamp-2">{item.answer}</p>
                                         </div>
-                                        <div className="flex items-center justify-between text-sm text-muted-foreground mt-4">
-                                            <span>Article</span>
-                                            <Button size="sm" variant="link" className="p-0 h-auto" asChild>
-                                                <Link href="/dashboard/reseller/support/help-center">Read Now</Link>
+                                        <div className="flex items-center justify-between text-sm text-muted-foreground mt-6 pt-4 border-t border-primary/5">
+                                            <span className="text-[10px] font-black uppercase tracking-widest opacity-50">Course</span>
+                                            <Button size="sm" variant="outline" className="h-8 font-bold text-xs" asChild>
+                                                <Link href="/dashboard/reseller/support/help-center">Start Lesson</Link>
                                             </Button>
                                         </div>
                                     </div>
                                 ))) : (
-                                    <p className="text-muted-foreground col-span-2 text-center py-8">No tutorials available yet.</p>
+                                    <p className="text-muted-foreground col-span-2 text-center py-12 border-2 border-dashed rounded-xl">No courses available yet. Check back soon!</p>
                                 )}
                             </CardContent>
                         </Card>
 
                          {/* AI Growth Tools */}
-                        <Card>
+                        <Card className="bg-primary/5 border-primary/20">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-primary">
-                                    <Sparkles />
+                                    <Sparkles className="animate-pulse" />
                                     AI Growth Tools
                                 </CardTitle>
                                 <CardDescription>Let our AI help you make smarter decisions.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="flex items-center justify-between rounded-xl border bg-card p-4 shadow-sm">
                                     <div>
-                                        <h3 className="font-semibold">AI Caption Generator</h3>
+                                        <h3 className="font-bold">AI Caption Generator</h3>
                                         <p className="text-sm text-muted-foreground">Create viral captions for social media to boost engagement.</p>
                                     </div>
-                                    <Button asChild>
+                                    <Button asChild className="font-bold">
                                         <Link href="/dashboard/reseller/ai-tools/caption-generator">Use Tool</Link>
                                     </Button>
                                 </div>
@@ -132,23 +136,35 @@ export default function ResellerAcademyPage() {
 
                     <div className="space-y-8">
                         {/* Certifications */}
-                        <Card>
+                        <Card className="sticky top-24">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Trophy />
-                                    Certifications
+                                    <Trophy className="text-yellow-500" />
+                                    Your Achievements
                                 </CardTitle>
                                 <CardDescription>Complete courses to earn badges and unlock benefits.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4 text-center">
+                            <CardContent className="space-y-6 text-center">
                                 <div className="flex justify-center gap-4">
-                                     <Badge className="text-lg bg-yellow-700/80">Bronze</Badge>
-                                     <Badge className="text-lg bg-gray-400/80">Silver</Badge>
-                                     <Badge className="text-lg bg-yellow-400/80 text-black">Gold</Badge>
+                                     <div className="flex flex-col items-center gap-1">
+                                        <Badge className="text-lg bg-yellow-700/20 text-yellow-700 border-yellow-700/50 h-12 w-12 rounded-full p-0 flex items-center justify-center grayscale">B</Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Bronze</span>
+                                     </div>
+                                     <div className="flex flex-col items-center gap-1">
+                                        <Badge className="text-lg bg-gray-400/20 text-gray-400 border-gray-400/50 h-12 w-12 rounded-full p-0 flex items-center justify-center grayscale">S</Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Silver</span>
+                                     </div>
+                                     <div className="flex flex-col items-center gap-1">
+                                        <Badge className="text-lg bg-yellow-400/20 text-yellow-400 border-yellow-400/50 h-12 w-12 rounded-full p-0 flex items-center justify-center grayscale">G</Badge>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Gold</span>
+                                     </div>
                                 </div>
-                                <p className="text-sm text-muted-foreground pt-2">
-                                    You have not earned any certifications yet. Start a course to begin!
+                                <p className="text-sm text-muted-foreground pt-2 italic">
+                                    "Your journey to top reseller starts with your first lesson."
                                 </p>
+                                <Button variant="secondary" className="w-full font-bold uppercase tracking-widest text-xs" disabled>
+                                    View Leaderboard
+                                </Button>
                             </CardContent>
                         </Card>
                     </div>

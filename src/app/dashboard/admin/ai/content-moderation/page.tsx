@@ -33,51 +33,14 @@ import type { ContentModerationItem, ContentModerationSettings } from '@/lib/typ
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const reasonVariant: { [key: string]: 'destructive' | 'secondary' | 'default' } = {
   'Potential Spam': 'secondary',
   'Inappropriate Language': 'destructive',
   'Policy Violation': 'default',
 };
-
-// --- Mock Data ---
-const mockSettings: ContentModerationSettings = {
-    isSpamActive: true,
-    isLanguageActive: true,
-    isPolicyViolationActive: false,
-};
-
-const mockQueue: ContentModerationItem[] = [
-    {
-        id: 'item-1',
-        contentType: 'Product Description',
-        userId: 'seller_jane_doe',
-        reason: 'Potential Spam',
-        content: '🔥🔥🔥 BUY NOW!!! LIMITED TIME OFFER!!! CLICK HERE -> freemoney.example.com 🔥🔥🔥 Get rich quick with our amazing new product! 100% guaranteed results!',
-        status: 'pending',
-        createdAt: new Date(new Date().setHours(new Date().getHours() - 1)) as any,
-    },
-    {
-        id: 'item-2',
-        contentType: 'User Review',
-        userId: 'buyer_mike_k',
-        reason: 'Inappropriate Language',
-        content: 'This product is absolute garbage and a piece of ****. Do not buy!',
-        status: 'pending',
-        createdAt: new Date(new Date().setMinutes(new Date().getMinutes() - 30)) as any,
-    },
-    {
-        id: 'item-3',
-        contentType: 'Profile Bio',
-        userId: 'new_user_xyz123',
-        reason: 'Policy Violation',
-        content: 'Hi! I sell great products. Contact me directly on WhatsApp at +1234567890 to get a discount. Dont buy through the app.',
-        status: 'pending',
-        createdAt: new Date(new Date().setHours(new Date().getHours() - 2)) as any,
-    },
-];
-// --- End Mock Data ---
-
 
 const DataTableSkeleton = () => (
     <div className="rounded-md border">
@@ -105,19 +68,39 @@ const DataTableSkeleton = () => (
 
 export default function AdminAIContentPage() {
   const { toast } = useToast();
-  const [settings, setSettings] = useState<Partial<ContentModerationSettings>>(mockSettings);
-  const [queue, setQueue] = useState<ContentModerationItem[]>(mockQueue);
-  const [isLoading, setIsLoading] = useState(false);
+  const firestore = useFirestore();
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSettingChange = (key: keyof ContentModerationSettings, value: boolean) => {
-      setSettings(prev => ({...prev, [key]: value }));
-      toast({ title: 'Setting Changed', description: 'This is a UI-only change for now.' });
+  // Firestore Refs
+  const settingsRef = useMemoFirebase(() => doc(firestore, 'systemSettings', 'contentModeration'), [firestore]);
+  const queueQuery = useMemoFirebase(() => query(collection(firestore, 'contentModerationQueue'), orderBy('createdAt', 'desc')), [firestore]);
+
+  // Data Hooks
+  const { data: settings, isLoading: isLoadingSettings } = useDoc<ContentModerationSettings>(settingsRef);
+  const { data: queue, isLoading: isLoadingQueue } = useCollection<ContentModerationItem>(queueQuery);
+
+  const handleSettingChange = async (key: keyof ContentModerationSettings, value: boolean) => {
+      if (!firestore) return;
+      try {
+          await setDoc(settingsRef, { [key]: value }, { merge: true });
+          toast({ title: 'Settings Updated', description: `${key} is now ${value ? 'active' : 'disabled'}.` });
+      } catch (e) {
+          toast({ variant: 'destructive', title: 'Update Failed' });
+      }
   };
 
-  const handleAction = (itemId: string, newStatus: 'approved' | 'rejected') => {
-    setQueue(prev => prev.filter(item => item.id !== itemId));
-    toast({ title: `Content ${newStatus}`, description: `The item has been marked as ${newStatus}.` });
+  const handleAction = async (itemId: string, newStatus: 'approved' | 'rejected') => {
+    if (!firestore) return;
+    const itemRef = doc(firestore, 'contentModerationQueue', itemId);
+    try {
+        await updateDoc(itemRef, { status: newStatus });
+        // In a real app, you'd trigger a cloud function to actually remove the offensive content.
+        // For the prototype, we just clear it from the queue.
+        await deleteDoc(itemRef);
+        toast({ title: `Content ${newStatus}`, description: `The item has been removed from the queue.` });
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Action Failed' });
+    }
   };
   
   return (
@@ -136,7 +119,7 @@ export default function AdminAIContentPage() {
                         <CardDescription>Content flagged by the AI for manual review.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {isLoading ? <DataTableSkeleton /> : (
+                        {isLoadingQueue ? <DataTableSkeleton /> : (
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -151,7 +134,7 @@ export default function AdminAIContentPage() {
                                             <TableCell>
                                                 <div className="font-medium">{item.contentType}</div>
                                                 <div className="text-sm text-muted-foreground">
-                                                  User: {item.userId.substring(0, 8)}... &middot; {formatDistanceToNow(item.createdAt, { addSuffix: true })}
+                                                  User: {item.userId.substring(0, 8)}... &middot; {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                                                 </div>
                                                 <Accordion type="single" collapsible className="w-full">
                                                     <AccordionItem value="content" className="border-b-0">
@@ -194,19 +177,19 @@ export default function AdminAIContentPage() {
                         <CardDescription>Adjust the sensitivity of the AI model.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {isLoading ? <Skeleton className="h-36 w-full" /> : (
+                      {isLoadingSettings ? <Skeleton className="h-36 w-full" /> : (
                         <>
                           <div className="flex items-center justify-between rounded-lg border p-3">
                               <Label htmlFor="spam-switch">Spam & Promotions</Label>
-                              <Switch id="spam-switch" checked={settings.isSpamActive} onCheckedChange={(val) => handleSettingChange('isSpamActive', val)} />
+                              <Switch id="spam-switch" checked={settings?.isSpamActive ?? true} onCheckedChange={(val) => handleSettingChange('isSpamActive', val)} />
                           </div>
                           <div className="flex items-center justify-between rounded-lg border p-3">
                               <Label htmlFor="language-switch">Inappropriate Language</Label>
-                              <Switch id="language-switch" checked={settings.isLanguageActive} onCheckedChange={(val) => handleSettingChange('isLanguageActive', val)} />
+                              <Switch id="language-switch" checked={settings?.isLanguageActive ?? true} onCheckedChange={(val) => handleSettingChange('isLanguageActive', val)} />
                           </div>
                           <div className="flex items-center justify-between rounded-lg border p-3">
                               <Label htmlFor="policy-switch">Policy Violations</Label>
-                              <Switch id="policy-switch" checked={settings.isPolicyViolationActive} onCheckedChange={(val) => handleSettingChange('isPolicyViolationActive', val)} />
+                              <Switch id="policy-switch" checked={settings?.isPolicyViolationActive ?? true} onCheckedChange={(val) => handleSettingChange('isPolicyViolationActive', val)} />
                           </div>
                         </>
                       )}

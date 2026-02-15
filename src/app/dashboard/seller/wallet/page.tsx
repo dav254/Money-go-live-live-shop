@@ -12,6 +12,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -68,6 +69,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PayoutMethod, Payout, Order } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { KENYA_BANKS } from '@/lib/constants';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const paypalFormSchema = z.object({
@@ -77,7 +80,7 @@ const paypalFormSchema = z.object({
 const bankFormSchema = z.object({
   accountName: z.string().min(2, "Account holder's name is required."),
   accountNumber: z.string().min(5, "Account number is required."),
-  bankName: z.string().min(2, "Bank name is required."),
+  bankCode: z.string().min(1, "Please select your bank."),
   country: z.string().min(2, "Country is required."),
 });
 
@@ -100,7 +103,7 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
 
     const bankForm = useForm<z.infer<typeof bankFormSchema>>({
         resolver: zodResolver(bankFormSchema),
-        defaultValues: { accountName: '', accountNumber: '', bankName: '', country: '' },
+        defaultValues: { accountName: '', accountNumber: '', bankCode: '', country: 'Kenya' },
     });
 
     const handleSavePayPal = async (values: z.infer<typeof paypalFormSchema>) => {
@@ -126,11 +129,13 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
     const handleSaveBank = async (values: z.infer<typeof bankFormSchema>) => {
         if (!user || !firestore) return;
         setIsSaving(true);
+        const selectedBank = KENYA_BANKS.find(b => b.code === values.bankCode);
         try {
             const payoutMethodsRef = collection(firestore, 'userProfiles', user.uid, 'payoutMethods');
             await addDoc(payoutMethodsRef, {
                 type: 'bank',
-                details: `${values.bankName} - *...${values.accountNumber.slice(-4)}`,
+                details: `${selectedBank?.name || 'Bank'} - *...${values.accountNumber.slice(-4)}`,
+                bankName: selectedBank?.name || 'Unknown Bank',
                 ...values
             });
             toast({ title: "Success", description: "Bank account saved for Paystack payouts." });
@@ -174,11 +179,26 @@ const AddPayoutMethodDialog = ({ onMethodAdded }: { onMethodAdded: () => void })
                              <FormField control={bankForm.control} name="accountName" render={({ field }) => (
                                 <FormItem><FormLabel>Account Holder Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
+                             <FormField control={bankForm.control} name="bankCode" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Bank Name</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select your bank" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {KENYA_BANKS.map(bank => (
+                                                <SelectItem key={bank.code} value={bank.code}>{bank.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
                              <FormField control={bankForm.control} name="accountNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="1234567890" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                             <FormField control={bankForm.control} name="bankName" render={({ field }) => (
-                                <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="Equity Bank" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                              <FormField control={bankForm.control} name="country" render={({ field }) => (
                                 <FormItem><FormLabel>Country</FormLabel><FormControl><Input placeholder="Kenya" {...field} /></FormControl><FormMessage /></FormItem>
@@ -236,7 +256,7 @@ const WithdrawFundsDialog = ({ balance, payoutMethods, onWithdrawal }: { balance
                     requestResourceData: newPayoutData,
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                throw permissionError; // Re-throw to be caught by the outer catch block
+                throw permissionError;
             });
 
             toast({ title: 'Success', description: 'Your withdrawal request has been submitted for processing.' });
