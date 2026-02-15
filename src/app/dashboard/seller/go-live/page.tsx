@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -454,7 +453,6 @@ export default function SellerGoLivePage() {
     );
   }
 
-  // --- LOBBY SCREEN ---
   if (!wantsToSetup || !meetingId) {
       return (
           <SellerLayout>
@@ -567,7 +565,6 @@ export default function SellerGoLivePage() {
           )}
         </div>
 
-        {/* TIME LIMIT HUD */}
         {isLive && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60]">
                 <div className={cn(
@@ -582,7 +579,6 @@ export default function SellerGoLivePage() {
             </div>
         )}
         
-        {/* HUD: LEFT HAND - Product Pinning */}
         <div className="absolute left-4 bottom-32 z-[60] flex flex-col gap-3">
             <Sheet>
                 <SheetTrigger asChild>
@@ -685,7 +681,6 @@ export default function SellerGoLivePage() {
             </Sheet>
         </div>
 
-        {/* HUD: CENTER - Share Hub */}
         <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-[60]">
             <Sheet>
                 <SheetTrigger asChild>
@@ -739,7 +734,6 @@ export default function SellerGoLivePage() {
             </Sheet>
         </div>
 
-        {/* HUD: RIGHT HAND - Sales Chat */}
         <div className="absolute right-4 bottom-32 z-[60]">
             <Sheet>
                 <SheetTrigger asChild>
