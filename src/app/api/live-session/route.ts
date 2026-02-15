@@ -73,6 +73,7 @@ export async function POST(request: Request) {
       startTime: Timestamp.now(),
       pointsCharged: GO_LIVE_COST,
       sessionLimitMs: SESSION_LIMIT_MS, // Store limit for reference
+      activeOffer: null, // Initialize with no offer
     }, { merge: true });
 
     await batch.commit();
@@ -118,6 +119,7 @@ export async function PUT(request: Request) {
       endTime: Timestamp.now(),
       videosdkMeetingId: null,
       pinnedProductId: null,
+      activeOffer: null,
     });
 
     return NextResponse.json({ success: true, message: 'Live session ended.' });

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -154,6 +154,11 @@ export default function SellerGoLivePage() {
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(SESSION_LIMIT_MS);
+  
+  // Promotion State
+  const [offerTitle, setOfferTitle] = useState('');
+  const [offerCode, setOfferCode] = useState('');
+  const [isPublishingOffer, setIsPublishingOffer] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -281,6 +286,7 @@ export default function SellerGoLivePage() {
         status: 'ended',
         videosdkMeetingId: null,
         pinnedProductId: null,
+        activeOffer: null,
       });
       
       setMeetingId(null);
@@ -321,6 +327,39 @@ export default function SellerGoLivePage() {
           await updateDoc(sessionRef, { pinnedProductId: null });
           setPinnedProductId(null);
           toast({ title: "Product Unpinned" });
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
+  const handlePublishOffer = async () => {
+      if (!user || !firestore || !offerTitle || !offerCode) return;
+      setIsPublishingOffer(true);
+      try {
+          const sessionRef = doc(firestore, 'liveSessions', user.uid);
+          await updateDoc(sessionRef, {
+              activeOffer: {
+                  title: offerTitle,
+                  code: offerCode,
+                  publishedAt: serverTimestamp(),
+              }
+          });
+          toast({ title: "Deal Published!", description: "All viewers see your promotion now." });
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsPublishingOffer(false);
+      }
+  };
+
+  const handleClearOffer = async () => {
+      if (!user || !firestore) return;
+      try {
+          const sessionRef = doc(firestore, 'liveSessions', user.uid);
+          await updateDoc(sessionRef, { activeOffer: null });
+          setOfferTitle('');
+          setOfferCode('');
+          toast({ title: "Deal Removed" });
       } catch (e) {
           console.error(e);
       }
@@ -488,7 +527,7 @@ export default function SellerGoLivePage() {
         )}
         
         {/* HUD: LEFT HAND - Product Pinning */}
-        <div className="absolute left-4 bottom-32 z-[60]">
+        <div className="absolute left-4 bottom-32 z-[60] flex flex-col gap-3">
             <Sheet>
                 <SheetTrigger asChild>
                     <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-xl border-2 border-white/20">
@@ -509,6 +548,82 @@ export default function SellerGoLivePage() {
                             onUnpinProduct={handleUnpinProduct}
                             pinnedProductId={pinnedProductId}
                         />
+                    </div>
+                </SheetContent>
+            </Sheet>
+
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-yellow-600 hover:bg-yellow-700 shadow-xl border-2 border-white/20">
+                        <Zap className="h-6 w-6 text-white" />
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
+                    <SheetHeader className="p-4 border-b border-white/10">
+                        <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
+                            <Zap className="text-yellow-500 h-4 w-4" />
+                            Live Offer Center
+                        </SheetTitle>
+                    </SheetHeader>
+                    <div className="p-6 space-y-6">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-black uppercase tracking-widest text-neutral-500">Offer Title</Label>
+                                <Input 
+                                    placeholder="e.g., FLASH SALE: 20% OFF" 
+                                    value={offerTitle} 
+                                    onChange={e => setOfferTitle(e.target.value)}
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-black uppercase tracking-widest text-neutral-500">Coupon Code</Label>
+                                <Input 
+                                    placeholder="e.g., LIVE20" 
+                                    value={offerCode} 
+                                    onChange={e => setOfferCode(e.target.value.toUpperCase())}
+                                    className="bg-white/5 border-white/10 font-mono"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <Button 
+                                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 font-black text-[10px] uppercase"
+                                    onClick={handlePublishOffer}
+                                    disabled={!offerTitle || !offerCode || isPublishingOffer}
+                                >
+                                    {isPublishingOffer ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-3 w-3" />}
+                                    Blast Offer
+                                </Button>
+                                <Button 
+                                    variant="outline" 
+                                    className="border-white/10 text-neutral-400"
+                                    onClick={handleClearOffer}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-white/5">
+                            <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-4">Quick Templates</h4>
+                            <div className="grid grid-cols-1 gap-2">
+                                {[
+                                    { t: "BUY 1 GET 1 FREE", c: "BOGO" },
+                                    { t: "EXTRA $10 OFF", c: "LIVE10" },
+                                    { t: "FREE SHIPPING NOW", c: "FREE" }
+                                ].map((item, i) => (
+                                    <Button 
+                                        key={i} 
+                                        variant="outline" 
+                                        className="justify-start border-white/5 bg-white/5 hover:bg-white/10 text-xs text-neutral-300"
+                                        onClick={() => { setOfferTitle(item.t); setOfferCode(item.c); }}
+                                    >
+                                        <Tag className="mr-2 h-3 w-3 text-yellow-500" />
+                                        {item.t}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </SheetContent>
             </Sheet>

@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 // Represents the user's public profile
@@ -338,6 +339,12 @@ export interface LiveSession {
     youtubeUrl?: string; 
     productIds?: string[];
     pinnedProductId?: string | null;
+    activeOffer?: {
+        title: string;
+        code: string;
+        discount?: string;
+        expiresAt?: any;
+    } | null;
     viewerCount?: number;
     startTime: any;
     endTime?: any;

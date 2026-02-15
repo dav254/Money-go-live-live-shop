@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -8,15 +9,16 @@ import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase
 import { doc, collection, query, where } from 'firebase/firestore';
 import type { LiveSession, UserProfile, Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, VideoOff, ChevronLeft, Users, ShoppingBag, X, AlertCircle } from 'lucide-react';
+import { Loader2, VideoOff, ChevronLeft, Users, ShoppingBag, X, AlertCircle, Zap, Tag } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
-import { LiveProductCard } from '@/components/buyer/LiveProductCard';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -33,6 +35,7 @@ export default function BuyerLiveStreamViewPage() {
   const router = useRouter();
   const sessionId = params.sessionId as string;
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const sessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', sessionId), [firestore, sessionId]);
   const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
@@ -54,6 +57,11 @@ export default function BuyerLiveStreamViewPage() {
       return doc(firestore, 'products', session.pinnedProductId);
   }, [firestore, session?.pinnedProductId]);
   const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
+
+  const copyOfferCode = (code: string) => {
+      navigator.clipboard.writeText(code);
+      toast({ title: "Code Copied!", description: "Paste it at checkout for your discount." });
+  };
 
   if (isSessionLoading) {
     return (
@@ -155,6 +163,38 @@ export default function BuyerLiveStreamViewPage() {
             {session.videosdkMeetingId && (
               <VideoSDKViewer meetingId={session.videosdkMeetingId} />
             )}
+
+            {/* LIVE OFFER OVERLAY */}
+            <AnimatePresence>
+                {session.activeOffer && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.8, y: -50 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: -50 }}
+                        className="absolute top-24 left-1/2 -translate-x-1/2 z-30 w-full max-w-xs px-4"
+                    >
+                        <div className="bg-yellow-500/90 backdrop-blur-xl border-2 border-yellow-400 p-4 rounded-3xl shadow-2xl flex flex-col items-center gap-3 text-center">
+                            <div className="bg-black/20 p-2 rounded-full">
+                                <Zap className="h-6 w-6 text-black fill-black" />
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/60 mb-1">Live Shopping Offer</h4>
+                                <p className="text-lg font-black text-black leading-tight uppercase tracking-tighter">
+                                    {session.activeOffer.title}
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => copyOfferCode(session.activeOffer!.code)}
+                                className="w-full bg-black text-white rounded-2xl py-3 flex items-center justify-center gap-2 group transition-transform hover:scale-105"
+                            >
+                                <span className="text-xs font-black uppercase tracking-widest">{session.activeOffer.code}</span>
+                                <Tag className="h-3.5 w-3.5 text-yellow-500" />
+                            </button>
+                            <p className="text-[8px] font-bold text-black/40 uppercase">Tap code to copy & apply at checkout</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Pinned Product Overlay */}
             {pinnedProduct && (
