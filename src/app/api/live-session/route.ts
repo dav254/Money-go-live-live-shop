@@ -4,6 +4,7 @@ import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
+const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
@@ -23,7 +24,7 @@ async function verifyUser(request: Request) {
 
 /**
  * POST handler to create a new live session.
- * Deducts 100 points AT THE START to secure the 68-minute session.
+ * Deducts 100 points AT THE START to secure the 70-minute session.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
-            details: `You need ${GO_LIVE_COST} points ($1.00) to start a 68-minute show. Your balance is ${currentPoints}.`,
+            details: `You need ${GO_LIVE_COST} points ($1.00) to start a 70-minute show. Your balance is ${currentPoints}.`,
             needsPoints: true 
         }, { status: 402 });
     }
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       viewerCount: 0,
       startTime: Timestamp.now(),
       pointsCharged: GO_LIVE_COST,
-      sessionLimitMs: 68 * 60 * 1000, // Store limit for reference
+      sessionLimitMs: SESSION_LIMIT_MS, // Store limit for reference
     }, { merge: true });
 
     await batch.commit();

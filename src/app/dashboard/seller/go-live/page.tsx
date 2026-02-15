@@ -24,7 +24,7 @@ import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 
-const SESSION_LIMIT_MS = 68 * 60 * 1000; // 1 hour 8 minutes
+const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -267,7 +267,7 @@ export default function SellerGoLivePage() {
       await updateDoc(sessionRef, { status: 'live' });
       setIsLive(true);
       setTimeRemaining(SESSION_LIMIT_MS);
-      toast({ title: "You are LIVE!", description: "Your broadcast is now global for 68 minutes." });
+      toast({ title: "You are LIVE!", description: "Your broadcast is now global for 70 minutes." });
     } catch (e) {
       console.error("Failed to go live:", e);
     }
@@ -292,7 +292,7 @@ export default function SellerGoLivePage() {
         toast({
           variant: "destructive",
           title: "Session Expired",
-          description: "Your points session has ended (1 hour 8 minutes limit). Buy more points to start a new show.",
+          description: "Your points session has ended (70 minutes limit). Buy more points to start a new show.",
         });
       } else {
         toast({ title: "Broadcast Ended" });
@@ -379,7 +379,7 @@ export default function SellerGoLivePage() {
                           </div>
                           <div className="space-y-2">
                               <CardTitle className="font-headline text-3xl font-black uppercase tracking-tighter">Ready to Sell Live?</CardTitle>
-                              <CardDescription className="text-base">Host a 68-minute shopping show and sell directly to your audience.</CardDescription>
+                              <CardDescription className="text-base">Host a 70-minute shopping show and sell directly to your audience.</CardDescription>
                           </div>
                       </CardHeader>
                       <CardContent className="space-y-8">
