@@ -1,10 +1,9 @@
-
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 /**
  * Securely generates a VideoSDK access token.
- * Optimized for speed with caching headers.
+ * Optimized for version 2 protocols which offer faster participant discovery.
  */
 export async function GET() {
   const API_KEY = process.env.VIDEOSDK_API_KEY;
@@ -23,7 +22,7 @@ export async function GET() {
     const payload = {
       apikey: API_KEY,
       permissions: ['allow_join', 'allow_mod'], 
-      version: 2,
+      version: 2, // Use version 2 for optimized latency and participant discovery
     };
 
     // @ts-ignore
@@ -31,7 +30,8 @@ export async function GET() {
 
     return NextResponse.json({ token }, {
         headers: {
-            'Cache-Control': 'private, max-age=3600' // Cache for 1 hour to increase fetch speed
+            'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
+            'X-Signal-Version': '2.0'
         }
     });
   } catch (error: any) {

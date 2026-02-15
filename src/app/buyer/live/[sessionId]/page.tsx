@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -25,7 +24,7 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
   loading: () => (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl">
       <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-      <p className="text-white font-bold">Loading video player...</p>
+      <p className="text-white font-bold uppercase tracking-widest text-[10px]">Opening Media Bridge...</p>
     </div>
   ),
 });
@@ -71,16 +70,17 @@ export default function BuyerLiveStreamViewPage() {
     );
   }
 
-  // STRICT VALIDATION: Only show content if status is 'live' and we have a valid meeting ID
-  if (!session || session.status !== 'live' || !session.videosdkMeetingId) {
+  // ALLOW PRE-JOINING: We render the viewer as soon as we have a meetingId, even if status is 'upcoming'
+  // this makes the "Live" transition instantaneous when the seller hits broadcast.
+  if (!session || !session.videosdkMeetingId || session.status === 'ended') {
     return (
       <BuyerLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-          <div className="bg-neutral-900 p-6 rounded-full mb-6 border border-white/5">
+          <div className="bg-neutral-900 p-6 rounded-full mb-6 border border-white/5 shadow-2xl">
             <VideoOff className="h-16 w-16 text-muted-foreground" />
           </div>
-          <h2 className="text-2xl font-extrabold text-white mb-2 font-headline uppercase tracking-tight">Seller is Currently Offline</h2>
-          <p className="text-muted-foreground mb-8 max-w-sm">This live show has either ended or hasn't started yet. You can browse this seller's products or check other live shows.</p>
+          <h2 className="text-2xl font-extrabold text-white mb-2 font-headline uppercase tracking-tight">Show is Currently Offline</h2>
+          <p className="text-neutral-500 mb-8 max-w-sm text-sm">This live show has either ended or hasn't started yet. Browse the shop while you wait!</p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button size="lg" className="font-bold min-w-[200px]" onClick={() => router.push('/buyer/live-now')}>Discover Live Shows</Button>
             <Button size="lg" variant="outline" className="font-bold border-white/10 text-white min-w-[200px]" onClick={() => router.push(`/sellers/${sessionId}`)}>Visit Shop Profile</Button>
@@ -101,17 +101,19 @@ export default function BuyerLiveStreamViewPage() {
                 <Button variant="ghost" size="icon" className="bg-black/50 hover:bg-black/70 rounded-full text-white" onClick={() => router.back()}>
                 <ChevronLeft className="h-6 w-6" />
                 </Button>
-                <div className="flex items-center gap-3 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/10 pr-4">
+                <div className="flex items-center gap-3 bg-black/50 backdrop-blur-md p-1.5 rounded-full border border-white/10 pr-4 shadow-xl">
                 <Avatar className="h-9 w-9 border-2 border-primary">
                     <AvatarImage src={seller?.profilePictureUrl || getPlaceholderImage()} />
                     <AvatarFallback>{seller?.fullName?.charAt(0) || 'S'}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <p className="text-xs font-bold text-white leading-none">{seller?.shopName || seller?.fullName || 'Seller'}</p>
+                    <p className="text-[10px] font-black text-white leading-none uppercase tracking-tighter">{seller?.shopName || seller?.fullName || 'Seller'}</p>
                     <div className="flex items-center gap-2 mt-1">
-                    <Badge className="h-3.5 bg-red-600 px-1 text-[9px] animate-pulse border-none">LIVE</Badge>
-                    <span className="text-[10px] text-neutral-300 flex items-center gap-1">
-                        <Users className="h-3 w-3" /> {session.viewerCount || 0}
+                    <Badge className={cn("h-3.5 px-1 text-[9px] border-none font-black", session.status === 'live' ? "bg-red-600 animate-pulse" : "bg-neutral-700")}>
+                        {session.status === 'live' ? 'LIVE' : 'UPCOMING'}
+                    </Badge>
+                    <span className="text-[10px] text-neutral-300 flex items-center gap-1 font-bold">
+                        <Users className="h-3 w-3 text-primary" /> {session.viewerCount || 0}
                     </span>
                     </div>
                 </div>
@@ -122,35 +124,35 @@ export default function BuyerLiveStreamViewPage() {
             <div className="pointer-events-auto">
                 <Sheet>
                     <SheetTrigger asChild>
-                        <Button size="icon" className="bg-primary hover:bg-primary/90 rounded-full h-12 w-12 shadow-lg">
+                        <Button size="icon" className="bg-primary hover:bg-primary/90 rounded-full h-12 w-12 shadow-2xl border-2 border-white/20">
                             <ShoppingBag className="h-6 w-6" />
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="w-80 bg-neutral-950 border-white/10 text-white p-0">
                         <SheetHeader className="p-4 border-b border-white/10">
-                            <SheetTitle className="text-white flex items-center gap-2">
-                                <ShoppingBag className="text-primary" />
+                            <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase font-black tracking-widest">
+                                <ShoppingBag className="text-primary h-4 w-4" />
                                 Product Bag
                             </SheetTitle>
                         </SheetHeader>
                         <ScrollArea className="h-[calc(100vh-5rem)]">
                             <div className="p-4 grid grid-cols-1 gap-4">
                                 {allProducts?.map(p => (
-                                    <div key={p.id} className="flex gap-3 bg-white/5 p-2 rounded-lg border border-white/5">
-                                        <div className="relative h-16 w-16 rounded-md overflow-hidden shrink-0">
+                                    <div key={p.id} className="flex gap-3 bg-white/5 p-2 rounded-xl border border-white/5 hover:border-primary/30 transition-colors">
+                                        <div className="relative h-16 w-16 rounded-lg overflow-hidden shrink-0 border border-white/5">
                                             <img src={p.imageUrl || getPlaceholderImage()} alt={p.name} className="object-cover h-full w-full" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold truncate">{p.name}</p>
-                                            <p className="text-primary font-bold">${p.price}</p>
-                                            <Button size="sm" className="h-7 w-full mt-1 text-xs" asChild>
-                                                <a href={`/products/${p.id}`} target="_blank" rel="noopener noreferrer">View</a>
+                                            <p className="text-xs font-bold truncate uppercase tracking-tight">{p.name}</p>
+                                            <p className="text-primary font-black text-sm">${p.price.toLocaleString()}</p>
+                                            <Button size="sm" className="h-7 w-full mt-2 text-[10px] font-black uppercase tracking-widest" asChild>
+                                                <a href={`/products/${p.id}`} target="_blank" rel="noopener noreferrer">View Item</a>
                                             </Button>
                                         </div>
                                     </div>
                                 ))}
                                 {(!allProducts || allProducts.length === 0) && (
-                                    <p className="text-center text-muted-foreground pt-12">No products added yet.</p>
+                                    <p className="text-center text-neutral-500 pt-12 uppercase text-[10px] font-black tracking-widest">No items in catalog</p>
                                 )}
                             </div>
                         </ScrollArea>
@@ -160,9 +162,7 @@ export default function BuyerLiveStreamViewPage() {
           </div>
 
           <div className="flex-1 overflow-hidden relative">
-            {session.videosdkMeetingId && (
-              <VideoSDKViewer meetingId={session.videosdkMeetingId} />
-            )}
+            <VideoSDKViewer meetingId={session.videosdkMeetingId} />
 
             {/* LIVE OFFER OVERLAY */}
             <AnimatePresence>
@@ -206,7 +206,7 @@ export default function BuyerLiveStreamViewPage() {
         </div>
 
         {/* Chat Area - Sidebar on desktop */}
-        <div className="hidden lg:flex w-80 shrink-0 flex-col border-l border-white/10 bg-neutral-950">
+        <div className="hidden lg:flex w-80 shrink-0 flex-col border-l border-white/10 bg-neutral-950 shadow-2xl">
           <LiveChat streamId={sessionId} />
         </div>
       </div>
