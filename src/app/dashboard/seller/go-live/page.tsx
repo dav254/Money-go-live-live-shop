@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send, VideoOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -268,6 +268,13 @@ export default function SellerGoLivePage() {
   const handleSetupPreview = async () => {
     if (!user || !firestore || !token) return;
     
+    // IF ALREADY SETUP (Resuming), just set the flags
+    if (activeSession?.videosdkMeetingId && activeSession.status !== 'ended') {
+        setMeetingId(activeSession.videosdkMeetingId);
+        setWantsToSetup(true);
+        return;
+    }
+
     if ((userProfile?.aiPoints || 0) < 100) {
         setError("Insufficient AI Points. You need 100 points ($1.00) to start a show.");
         return;
@@ -277,6 +284,7 @@ export default function SellerGoLivePage() {
     setError(null);
 
     try {
+      // Points deducted inside this API call
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: {

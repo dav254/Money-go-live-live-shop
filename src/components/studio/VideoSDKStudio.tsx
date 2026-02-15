@@ -1,13 +1,14 @@
+
 'use client';
 
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn, local } = useParticipant(participantId);
+  const { webcamStream, webcamOn, local, enableWebcam } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -30,7 +31,16 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">Camera Preview Offline</p>
-          <p className="text-neutral-500 text-[10px] md:text-xs mt-3 uppercase tracking-widest font-bold max-w-[200px]">Toggle the camera icon below to start your setup.</p>
+          <p className="text-neutral-500 text-[10px] md:text-xs mt-3 uppercase tracking-widest font-bold max-w-[200px] mb-6">Toggle the camera icon below or use the force button to re-sync.</p>
+          
+          <Button 
+            variant="outline" 
+            className="border-primary/50 text-primary hover:bg-primary/10 font-black tracking-widest uppercase text-xs px-8 py-6 rounded-2xl"
+            onClick={() => enableWebcam()}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            FORCE CAMERA START
+          </Button>
         </div>
       )}
     </div>
