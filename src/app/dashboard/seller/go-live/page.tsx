@@ -1,19 +1,20 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore, useUserProfile } from '@/firebase';
+import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send, VideoOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import type { Product } from '@/lib/types';
+import type { Product, LiveSession } from '@/lib/types';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -153,6 +154,7 @@ export default function SellerGoLivePage() {
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(SESSION_LIMIT_MS);
+  const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
   
   // Promotion State
   const [offerTitle, setOfferTitle] = useState('');
@@ -160,6 +162,45 @@ export default function SellerGoLivePage() {
   const [isPublishingOffer, setIsPublishingOffer] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // --- AUTOMATIC SESSION RESUMPTION ---
+  const sessionRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(firestore, 'liveSessions', user.uid);
+  }, [firestore, user]);
+
+  const { data: activeSession, isLoading: isSessionCheckLoading } = useDoc<LiveSession>(sessionRef);
+
+  useEffect(() => {
+    if (activeSession && (activeSession.status === 'live' || activeSession.status === 'upcoming') && activeSession.videosdkMeetingId && !wantsToSetup) {
+        setMeetingId(activeSession.videosdkMeetingId);
+        setIsLive(activeSession.status === 'live');
+        setWantsToSetup(true);
+        
+        // Calculate remaining time based on start time
+        if (activeSession.startTime) {
+            const startMs = typeof activeSession.startTime.toMillis === 'function' ? activeSession.startTime.toMillis() : new Date(activeSession.startTime).getTime();
+            const elapsed = Date.now() - startMs;
+            setTimeRemaining(Math.max(0, SESSION_LIMIT_MS - elapsed));
+        }
+    }
+  }, [activeSession, wantsToSetup]);
+
+  // --- AUTOMATIC PERMISSION REQUEST ---
+  useEffect(() => {
+    if (!wantsToSetup) {
+        const triggerHandshake = async () => {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                setHasPermissions(true);
+            } catch (err) {
+                console.warn("Hardware access denied in lobby:", err);
+                setHasPermissions(false);
+            }
+        };
+        triggerHandshake();
+    }
+  }, [wantsToSetup]);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -433,7 +474,7 @@ export default function SellerGoLivePage() {
                                   <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Your Balance</p>
                                   <div className="flex items-center gap-2">
                                       <CreditCard className="h-5 w-5 text-neutral-400" />
-                                      {isProfileLoading ? <Skeleton className="h-6 w-16" /> : (
+                                      {isProfileLoading || isSessionCheckLoading ? <Skeleton className="h-6 w-16" /> : (
                                           <p className={cn("text-xl font-black", (userProfile?.aiPoints || 0) < 100 ? "text-red-500" : "text-white")}>
                                               {(userProfile?.aiPoints || 0).toLocaleString()} <span className="text-xs font-normal text-neutral-500">Points</span>
                                           </p>
@@ -441,6 +482,14 @@ export default function SellerGoLivePage() {
                                   </div>
                               </div>
                           </div>
+
+                          {hasPermissions === false && (
+                              <Alert variant="destructive">
+                                  <VideoOff className="h-4 w-4" />
+                                  <AlertTitle>Hardware Access Required</AlertTitle>
+                                  <AlertDescription>Please allow camera and mic access in your browser to start the show.</AlertDescription>
+                              </Alert>
+                          )}
 
                           <div className="bg-black/40 rounded-2xl p-6 border border-white/5">
                               <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
@@ -468,10 +517,10 @@ export default function SellerGoLivePage() {
                             size="lg" 
                             className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20"
                             onClick={handleSetupPreview}
-                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
+                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || hasPermissions === false}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
-                              ENTER STUDIO & SETUP CAMERA
+                              {hasPermissions === false ? 'ENABLE CAMERA TO START' : 'ENTER STUDIO & SETUP CAMERA'}
                           </Button>
                           
                           {(userProfile?.aiPoints || 0) < 100 && (
