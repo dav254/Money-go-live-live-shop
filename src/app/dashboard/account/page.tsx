@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, cloneElement, useRef } from 'react';
@@ -65,7 +64,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
     const { toast } = useToast();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [files, setFiles] = useState<File[]>([]);
-    const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+    const [uploadProgress, setUploadProgress] = setUploadProgress<Record<string, number>>({});
     const [isUploading, setIsUploading] = useState(false);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,7 +168,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
         return (
             <Alert variant="default" className="bg-yellow-600/10 border-yellow-600/50 text-yellow-300">
                 <Loader2 className="h-4 w-4 !text-yellow-500 animate-spin" />
-                <AlertTitle className="!text-yellow-400">Verification Pending</AlertTitle>
+                <AlertTitle className="!text-green-400">Verification Pending</AlertTitle>
                 <AlertDescription>
                   Your documents have been submitted and are currently under review. This usually takes 1-2 business days.
                 </AlertDescription>
@@ -423,9 +422,6 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             <TabsTrigger value="security">
               <Lock className="mr-2 h-4 w-4" /> Security
             </TabsTrigger>
-            <TabsTrigger value="preferences">
-              <Settings className="mr-2 h-4 w-4" /> Preferences
-            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile" className="space-y-4">
@@ -597,47 +593,6 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                             Log Out
                         </Button>
                     </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="preferences" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>
-                  Customize your Go Earn experience.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <Bell className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <Label>Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Manage your notification preferences.</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" disabled>Manage</Button>
-                </div>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <Languages className="h-5 w-5 text-muted-foreground" />
-                     <div>
-                      <Label>Language</Label>
-                       <p className="text-sm text-muted-foreground">Select your preferred language.</p>
-                    </div>
-                  </div>
-                   <Select defaultValue="en" disabled>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="sw">Swahili</SelectItem>
-                      </SelectContent>
-                    </Select>
                 </div>
               </CardContent>
             </Card>

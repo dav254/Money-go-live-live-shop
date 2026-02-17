@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -96,9 +95,6 @@ export default function AdminAccountSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="security">
               <Lock className="mr-2 h-4 w-4" /> Security
-            </TabsTrigger>
-            <TabsTrigger value="preferences">
-              <Settings className="mr-2 h-4 w-4" /> Preferences
             </TabsTrigger>
           </TabsList>
           
@@ -220,59 +216,6 @@ export default function AdminAccountSettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-          
-           {/* Preferences Tab */}
-          <TabsContent value="preferences" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>
-                  Customize your Go Earn experience.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <Bell className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <Label>Notifications</Label>
-                      <p className="text-sm text-muted-foreground">Manage your notification preferences.</p>
-                    </div>
-                  </div>
-                  <Button variant="outline">Manage</Button>
-                </div>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <Palette className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <Label>Dark / Light Theme</Label>
-                      <p className="text-sm text-muted-foreground">Switch between light and dark mode.</p>
-                    </div>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="flex items-center gap-4">
-                    <Languages className="h-5 w-5 text-muted-foreground" />
-                     <div>
-                      <Label>Language</Label>
-                       <p className="text-sm text-muted-foreground">Select your preferred language.</p>
-                    </div>
-                  </div>
-                   <Select defaultValue="en">
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="sw">Swahili</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
         </Tabs>
       </div>
     </AdminLayout>
