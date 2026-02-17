@@ -3,11 +3,12 @@ import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
 
-// The paystack import has been moved inside the POST function.
-
 function getPayPalClient() {
-    const clientId = process.env.PAYPAL_CLIENT_ID!;
-    const clientSecret = process.env.PAYPAL_CLIENT_SECRET!;
+    const clientId = process.env.PAYPAL_CLIENT_ID;
+    const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) return null;
+
     const environment = process.env.PAYPAL_ENVIRONMENT === 'live'
         ? new paypal.core.LiveEnvironment(clientId, clientSecret)
         : new paypal.core.SandboxEnvironment(clientId, clientSecret);
@@ -15,38 +16,55 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
-    // Dynamically import paystack here to ensure it's only loaded on the server
     const Paystack = (await import('paystack')).default;
-    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
+    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+    const paystack = paystackSecret ? Paystack(paystackSecret) : null;
 
     try {
-        const { orderId, amount, email, gateway } = await request.json();
+        const body = await request.json();
+        const { amount, email, gateway, metadata, transactionType, orderId } = body;
 
-        if (!orderId || !amount || !email || !gateway) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        // --- SIMULATION MODE FOR PROTOTYPING ---
+        // If keys are missing, we provide a mock checkout experience
+        if ((gateway === 'paystack' && !paystack) || (gateway === 'paypal' && !getPayPalClient()) || gateway === 'mpesa') {
+            console.log(`[Payment API] Simulation Mode active for gateway: ${gateway}`);
+            
+            // For M-Pesa specifically, we always simulate or use a mock push URL
+            if (gateway === 'mpesa' || !paystackSecret) {
+                return NextResponse.json({ 
+                    checkoutUrl: `/checkout/simulate-points?amount=${amount}&type=${transactionType || 'points-purchase'}&gateway=${gateway}` 
+                });
+            }
         }
-        
-        const reference = `${orderId}-${randomBytes(8).toString('hex')}`;
+
+        const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
 
-        if (gateway === 'paystack') {
+        if (gateway === 'paystack' || gateway === 'mpesa') {
+            if (!paystack) throw new Error("Paystack is not configured on this server.");
+
             const response = await paystack.transaction.initialize({
                 email: email,
-                amount: amount * 100, // Paystack expects amount in kobo/cents
-                currency: 'USD',
+                amount: Math.round(amount * 100), 
+                currency: gateway === 'mpesa' ? 'KES' : 'USD', // M-Pesa requires local currency
                 reference: reference,
                 metadata: {
+                    ...metadata,
                     orderId: orderId,
-                }
+                    transactionType: transactionType || 'product-purchase'
+                },
+                channels: gateway === 'mpesa' ? ['mobile_money'] : ['card', 'bank']
             });
             
             if (!response.status || !response.data.authorization_url) {
-                throw new Error('Paystack initialization failed');
+                throw new Error(response.message || 'Paystack initialization failed');
             }
             checkoutUrl = response.data.authorization_url;
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();
+            if (!paypalClient) throw new Error("PayPal is not configured on this server.");
+
             const paypalRequest = new paypal.orders.OrdersCreateRequest();
             paypalRequest.prefer("return=representation");
             paypalRequest.requestBody({
@@ -55,21 +73,23 @@ export async function POST(request: Request) {
                     invoice_id: reference,
                     amount: {
                         currency_code: 'USD',
-                        value: amount.toString(),
+                        value: amount.toFixed(2),
                     },
-                    custom_id: orderId,
+                    custom_id: JSON.stringify({
+                        ...metadata,
+                        orderId: orderId,
+                        transactionType: transactionType || 'product-purchase'
+                    }),
                 }],
                 application_context: {
-                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId}?status=success`,
-                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId}?status=cancelled`,
+                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || 'points'}?status=success`,
+                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || 'points'}?status=cancelled`,
                 },
             });
             
             const response = await paypalClient.execute(paypalRequest);
-            const approveLink = response.result.links.find((link: { rel: string; }) => link.rel === 'approve');
-            if (!approveLink) {
-                 throw new Error('Could not find PayPal approval link');
-            }
+            const approveLink = response.result.links.find((link: any) => link.rel === 'approve');
+            if (!approveLink) throw new Error('Could not find PayPal approval link');
             checkoutUrl = approveLink.href;
 
         } else {

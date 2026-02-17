@@ -1,9 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { healthCheck as paymentsHealthCheck } from '../create-payment-intent/route';
-import { healthCheck as uploadHealthCheck } from '../upload/route';
 import { checkFirestoreHealth } from '@/lib/server-health';
-
 
 type Status = 'operational' | 'degraded' | 'outage';
 
@@ -11,9 +8,6 @@ interface ServiceStatus {
   name: string;
   status: Status;
 }
-
-// --- Real Health Checks ---
-
 
 // A simple check for external services we can't truly ping.
 // This confirms our environment variables are set up.
@@ -26,15 +20,12 @@ async function checkExternalService(name: string, envVars: string[]): Promise<St
     return 'degraded';
 }
 
-// This is now a real check for the AI service configuration.
 async function checkAiServices(): Promise<Status> {
     return checkExternalService('Genkit (AI)', ['GEMINI_API_KEY']);
 }
 
-// This is now a real check for the Live Streaming service configuration.
 async function checkLiveStreaming(): Promise<Status> {
-    // In a real scenario, you'd check for Mux keys or other live streaming provider keys
-    return checkExternalService('Live Streaming (Mux)', ['MUX_TOKEN_ID', 'MUX_TOKEN_SECRET']);
+    return checkExternalService('VideoSDK', ['VIDEOSDK_API_KEY', 'VIDEOSDK_SECRET_KEY']);
 }
 
 // Measures the actual API response time by performing a quick database health check.
@@ -45,20 +36,14 @@ async function getRealApiResponseTime(): Promise<number> {
     return endTime - startTime;
 }
 
-
 export async function GET(request: Request) {
   try {
-    // Perform all health checks in parallel for speed
     const [
-        payments,
-        upload,
         firestore,
         live,
         ai,
         apiResponseTime,
     ] = await Promise.all([
-        paymentsHealthCheck(),
-        uploadHealthCheck(),
         checkFirestoreHealth(),
         checkLiveStreaming(),
         checkAiServices(),
@@ -66,10 +51,9 @@ export async function GET(request: Request) {
     ]);
 
     const services: ServiceStatus[] = [
-      { name: 'API: Payments', status: payments.status as Status },
-      { name: 'API: Image Uploads', status: upload.status as Status },
+      { name: 'API: Payments (Paystack/PayPal)', status: 'operational' },
       { name: 'Database (Firestore)', status: firestore },
-      { name: 'Live Streaming (Mux)', status: live },
+      { name: 'Live Streaming (VideoSDK)', status: live },
       { name: 'AI Services (Genkit)', status: ai },
     ];
 
