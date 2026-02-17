@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -34,19 +33,28 @@ import {
   Truck,
   Image as ImageIcon,
   Video,
+  ShieldAlert,
+  BadgeCent,
+  Loader2,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '../ui/switch';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useUserProfile, errorEmitter } from '@/firebase';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs, writeBatch, increment, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import type { Product } from '@/lib/types';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
+import { FirestorePermissionError } from '@/firebase/errors';
+import Link from 'next/link';
+
+const DAILY_FREE_LIMIT = 10;
+const PREMIUM_UPLOAD_COST = 10;
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
@@ -75,12 +83,40 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [dailyCount, setDailyCount] = useState(0);
   const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isEditMode = !!productToEdit;
+
+  // Track daily uploads for the 10-free limit
+  useEffect(() => {
+    if (!user || !firestore || isEditMode) return;
+
+    const fetchDailyCount = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTimestamp = Timestamp.fromDate(today);
+
+      const q = query(
+        collection(firestore, 'products'),
+        where('sellerId', '==', user.uid),
+        where('uploadDate', '>=', todayTimestamp)
+      );
+
+      try {
+        const snap = await getDocs(q);
+        setDailyCount(snap.size);
+      } catch (err) {
+        console.error("Error fetching daily upload count:", err);
+      }
+    };
+
+    fetchDailyCount();
+  }, [user, firestore, isEditMode]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -102,6 +138,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   });
 
   const selectedCounty = form.watch('county');
+  const isAtLimit = !isEditMode && dailyCount >= DAILY_FREE_LIMIT;
 
   useEffect(() => {
     if (isEditMode && productToEdit) {
@@ -144,7 +181,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       }
   }
 
-
  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
     const timestamp = Math.round((new Date()).getTime() / 1000);
     const paramsToSign = { timestamp };
@@ -181,13 +217,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 const uploadedData = JSON.parse(xhr.responseText);
                 resolve({ url: uploadedData.secure_url, type: file.type });
             } else {
-                console.error('Cloudinary upload error:', xhr.responseText);
                 reject(new Error(`Cloudinary upload failed: ${xhr.statusText}`))
             }
         };
 
         xhr.onerror = () => {
-            console.error('Network error during upload:', xhr.responseText);
             reject(new Error('Network error during upload.'));
         };
 
@@ -196,13 +230,22 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to upload products.' });
+    if (!user || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Database connection lost.' });
+        return;
+    }
+
+    if (isAtLimit && (userProfile?.aiPoints || 0) < PREMIUM_UPLOAD_COST) {
+        toast({
+            variant: 'destructive',
+            title: 'Insufficient Points',
+            description: `You have used your ${DAILY_FREE_LIMIT} free daily uploads. Premium uploads cost ${PREMIUM_UPLOAD_COST} points.`,
+        });
         return;
     }
 
     setIsUploading(true);
-    toast({ title: isEditMode ? 'Updating Product...' : 'Saving Product...', description: 'Your product is being saved.' });
+    toast({ title: isEditMode ? 'Updating...' : 'Publishing...', description: 'Please wait.' });
 
     try {
       const uploadPromises = files.map(file => uploadToCloudinary(file));
@@ -246,15 +289,33 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       if (isEditMode && productToEdit) {
           const productRef = doc(firestore, 'products', productToEdit.id);
           await updateDoc(productRef, productData);
-          toast({ title: 'Success!', description: 'Your product has been updated.' });
+          toast({ title: 'Success!', description: 'Product updated.' });
       } else {
           productData.uploadDate = serverTimestamp();
+          const batch = writeBatch(firestore);
           const productsCollectionRef = collection(firestore, 'products');
-          const newDocRef = await addDoc(productsCollectionRef, productData);
-          toast({ title: 'Success!', description: 'Your product details have been saved.' });
-          if (onFormSubmit) {
-            localStorage.setItem('selectedProductId', newDocRef.id);
+          const newDocRef = doc(productsCollectionRef);
+          
+          batch.set(newDocRef, { ...productData, id: newDocRef.id });
+
+          // Deduct points for premium upload
+          if (isAtLimit) {
+              const userRef = doc(firestore, 'userProfiles', user.uid);
+              batch.update(userRef, { aiPoints: increment(-PREMIUM_UPLOAD_COST) });
           }
+
+          await batch.commit().catch(err => {
+              const permissionError = new FirestorePermissionError({
+                  path: 'products',
+                  operation: 'create',
+                  requestResourceData: productData
+              });
+              errorEmitter.emit('permission-error', permissionError);
+              throw permissionError;
+          });
+
+          setDailyCount(prev => prev + 1);
+          toast({ title: 'Published!', description: isAtLimit ? `Premium upload successful (-${PREMIUM_UPLOAD_COST} points)` : 'Product is now live.' });
       }
 
       form.reset();
@@ -265,15 +326,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       onFormSubmit?.();
 
     } catch (error) {
-        console.error('Error during product submission:', error);
-        toast({ variant: 'destructive', title: 'Submission Failed', description: (error as Error).message || 'Could not save your product. Please try again.' });
+        console.error('Submission failed:', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Process failed. Please check your point balance.' });
     } finally {
       setIsUploading(false);
     }
   };
   
   const enableDiscount = form.watch('enableDiscount');
-  
   const allMediaCount = files.length + existingImageUrls.length + existingVideoUrls.length;
 
   return (
@@ -282,6 +342,20 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         <Card>
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
+            {!isEditMode && (
+                <Alert variant={isAtLimit ? "destructive" : "default"} className={cn("mt-4", !isAtLimit && "bg-primary/5 border-primary/20")}>
+                    {isAtLimit ? <ShieldAlert className="h-4 w-4" /> : <Info className="h-4 w-4 text-primary" />}
+                    <AlertTitle className="text-sm font-bold">
+                        {isAtLimit ? 'Daily Free Limit Reached' : 'Daily Upload Policy'}
+                    </AlertTitle>
+                    <AlertDescription className="text-xs">
+                        {isAtLimit 
+                            ? `You have used your ${DAILY_FREE_LIMIT} free daily uploads. Each additional upload today will cost ${PREMIUM_UPLOAD_COST} AI Points.`
+                            : `You have used ${dailyCount}/${DAILY_FREE_LIMIT} free uploads for today.`
+                        }
+                    </AlertDescription>
+                </Alert>
+            )}
           </CardHeader>
           <CardContent className="space-y-8">
             <div className="flex flex-col gap-8">
@@ -316,12 +390,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Media Uploads</CardTitle>
-                  <CardDescription>Add up to 5 images and videos.</CardDescription>
+                  <CardTitle className="text-lg">Media Gallery</CardTitle>
+                  <CardDescription>Add up to 5 items (images or videos).</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="file-upload" className="sr-only">Product Images & Videos</Label>
                     <input
                         id="file-upload"
                         ref={fileInputRef}
@@ -335,37 +408,42 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <Button
                         type="button"
                         variant="outline"
-                        className="w-full border-dashed"
+                        className="w-full border-dashed h-24 flex-col gap-2"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading || allMediaCount >= 5}
                     >
-                        <UploadCloud className="mr-2 h-4 w-4" />
-                        {isUploading ? 'Uploading...' : `Select Files (${5 - allMediaCount} remaining)`}
+                        <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                        <span className="text-xs font-bold uppercase tracking-widest">
+                            {isUploading ? 'System Busy...' : `Select Media (${5 - allMediaCount} spots open)`}
+                        </span>
                     </Button>
                   </div>
                   {(files.length > 0 || existingImageUrls.length > 0 || existingVideoUrls.length > 0) && (
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4">
                           {existingImageUrls.map((url) => (
                               <div key={url} className="relative aspect-square group">
-                                  <Image src={url} alt="Existing product image" fill className="object-cover rounded-md" />
-                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4" /></Button>
+                                  <Image src={url} alt="Media" fill className="object-cover rounded-xl" />
+                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4" /></Button>
                               </div>
                           ))}
                           {existingVideoUrls.map((url) => (
-                              <div key={url} className="relative aspect-square group bg-black">
-                                  <video src={url} className="object-cover rounded-md h-full w-full" muted />
+                              <div key={url} className="relative aspect-square group bg-black rounded-xl overflow-hidden">
+                                  <video src={url} className="object-cover h-full w-full" muted />
                                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white"/></div>
-                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4" /></Button>
+                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4" /></Button>
                               </div>
                           ))}
                           {files.map(file => (
-                              <div key={file.name} className="relative aspect-square group">
-                                  <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover rounded-md" />
-                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-2">
-                                      <p className="text-white text-xs text-center truncate w-full">{file.name}</p>
+                              <div key={file.name} className="relative aspect-square group rounded-xl overflow-hidden">
+                                  {file.type.startsWith('image/') ? (
+                                      <Image src={URL.createObjectURL(file)} alt={file.name} fill className="object-cover" />
+                                  ) : (
+                                      <div className="h-full w-full bg-neutral-800 flex items-center justify-center"><Video className="h-6 w-6" /></div>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                       {uploadProgress[file.name] !== undefined && <Progress value={uploadProgress[file.name]} className="h-1 mt-1 w-full" />}
                                   </div>
-                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4" /></Button>
+                                  <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => handleFileRemove(file.name)}><X className="h-4 w-4" /></Button>
                               </div>
                           ))}
                       </div>
@@ -373,44 +451,76 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Pricing & Inventory</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField control={form.control} name="price" render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Original Price (USD)</FormLabel>
-                          <FormControl><Input type="number" placeholder="e.g., 25.00" {...field} /></FormControl>
-                          <FormMessage />
-                      </FormItem>
-                  )} />
-                  <FormField control={form.control} name="enableDiscount" render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                          <FormLabel>Enable Discount</FormLabel>
-                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                      </FormItem>
-                  )} />
-                  {enableDiscount && (
-                    <FormField control={form.control} name="salePrice" render={({ field }) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                    <CardHeader><CardTitle className="text-lg">Pricing</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                    <FormField control={form.control} name="price" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Sale Price (USD)</FormLabel>
-                            <FormControl><Input type="number" placeholder="e.g., 19.99" {...field} /></FormControl>
-                            <FormDescription>Must be lower than original price.</FormDescription>
+                            <FormLabel>Regular Price (USD)</FormLabel>
+                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
-                  )}
-                  <FormField control={form.control} name="stock" render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Stock Quantity</FormLabel>
-                          <FormControl><Input type="number" placeholder="e.g., 50" {...field} /></FormControl>
-                          <FormMessage />
-                      </FormItem>
-                  )} />
-                </CardContent>
-              </Card>
+                    <FormField control={form.control} name="enableDiscount" render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4 bg-muted/20">
+                            <div className="space-y-0.5">
+                                <FormLabel>On Sale</FormLabel>
+                                <FormDescription className="text-[10px] uppercase font-bold">Apply discount</FormDescription>
+                            </div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                    )} />
+                    {enableDiscount && (
+                        <FormField control={form.control} name="salePrice" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Sale Price (USD)</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader><CardTitle className="text-lg">Inventory</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField control={form.control} name="stock" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Total Stock</FormLabel>
+                                <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Category</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Pick one..." />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {PRODUCT_CATEGORIES.map(c => (
+                                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+              </div>
               
               <Card>
-                  <CardHeader><CardTitle className="text-lg">Location & Logistics</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-lg">Location & Shipping</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
@@ -458,80 +568,68 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                             )}
                         />
                       </div>
-                      <FormField
-                          control={form.control}
-                          name="area"
-                          render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Specific Area / Pickup Spot</FormLabel>
-                              <FormControl><Input placeholder="e.g., Kimathi Street, CBD" {...field} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                          )}
-                      />
-                       <FormField control={form.control} name="shippingCost" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Shipping Cost (USD)</FormLabel>
-                              <FormControl><Input type="number" placeholder="e.g., 5.00" {...field} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                      )} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="area"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Area / Neighborhood</FormLabel>
+                                <FormControl><Input placeholder="e.g., Kilimani" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField control={form.control} name="shippingCost" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Flat Shipping Fee (USD)</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                      </div>
                        <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Delivery Options</FormLabel>
-                              <FormControl><Input placeholder="e.g., Standard, Express, Local Pickup" {...field} /></FormControl>
+                              <FormLabel>Delivery Terms</FormLabel>
+                              <FormControl><Input placeholder="e.g., Same-day via Boda, G4S nationwide" {...field} /></FormControl>
                               <FormMessage />
                           </FormItem>
                       )} />
-                  </CardContent>
-              </Card>
-
-              <Card>
-                  <CardHeader><CardTitle className="text-lg">Categorization</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                      <FormField
-                          control={form.control}
-                          name="category"
-                          render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Category</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                      <SelectTrigger>
-                                          <SelectValue placeholder="Select Category" />
-                                      </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                      {PRODUCT_CATEGORIES.map(c => (
-                                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                                      ))}
-                                  </SelectContent>
-                              </Select>
-                              <FormMessage />
-                          </FormItem>
-                          )}
-                      />
-                      <FormField
-                          control={form.control}
-                          name="tags"
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel>Tags / Hashtags</FormLabel>
-                              <FormControl><Input placeholder="e.g., #summer, #tshirt, #fashion" {...field} /></FormControl>
-                              <FormDescription>Separate with commas.</FormDescription>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                      />
                   </CardContent>
               </Card>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-2">
-            <Button type="button" variant="outline">Save as Draft</Button>
-            <Button type="submit" disabled={isUploading}>
-              {isUploading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save and Continue')}
-            </Button>
+          <CardFooter className="flex flex-col gap-4 border-t p-6 bg-muted/10">
+            <div className="flex w-full justify-between items-center">
+                <div className="flex items-center gap-2">
+                    {isAtLimit && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                            <BadgeCent className="h-4 w-4 text-primary" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-primary">PREMIUM UPLOAD ACTIVE</span>
+                        </div>
+                    )}
+                </div>
+                <div className="flex gap-3">
+                    <Button type="button" variant="ghost" className="font-bold uppercase tracking-widest text-[10px]">Save as Draft</Button>
+                    <Button type="submit" size="lg" className="px-12 font-black rounded-xl shadow-xl shadow-primary/20" disabled={isUploading}>
+                        {isUploading ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : isAtLimit ? (
+                            <div className="flex items-center gap-2">
+                                <Zap className="h-4 w-4 fill-current" />
+                                <span>PAY {PREMIUM_UPLOAD_COST} PTS & PUBLISH</span>
+                            </div>
+                        ) : (
+                            <span>{isEditMode ? 'UPDATE LISTING' : 'PUBLISH FREE'}</span>
+                        )}
+                    </Button>
+                </div>
+            </div>
+            {isAtLimit && (userProfile?.aiPoints || 0) < PREMIUM_UPLOAD_COST && (
+                <p className="text-xs text-destructive font-bold text-center">
+                    You need more AI points to publish. <Link href="/dashboard/seller/ai-tools" className="underline">Top up here</Link>.
+                </p>
+            )}
           </CardFooter>
         </Card>
       </form>

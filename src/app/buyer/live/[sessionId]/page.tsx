@@ -8,7 +8,7 @@ import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase
 import { doc, collection, query, where } from 'firebase/firestore';
 import type { LiveSession, UserProfile, Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, VideoOff, ChevronLeft, Users, ShoppingBag, X, AlertCircle, Zap, Tag } from 'lucide-react';
+import { Loader2, VideoOff, ChevronLeft, Users, ShoppingBag, X, AlertCircle, Zap, Tag, RefreshCw, SignalHigh } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -70,8 +71,7 @@ export default function BuyerLiveStreamViewPage() {
     );
   }
 
-  // ALLOW PRE-JOINING: We render the viewer as soon as we have a meetingId, even if status is 'upcoming'
-  // this makes the "Live" transition instantaneous when the seller hits broadcast.
+  // AGGRESSIVE HANDSHAKE: Show viewer if we have an ID, even if status isn't LIVE yet.
   if (!session || !session.videosdkMeetingId || session.status === 'ended') {
     return (
       <BuyerLayout>
@@ -121,7 +121,15 @@ export default function BuyerLiveStreamViewPage() {
             </div>
 
             {/* Product Bag Trigger */}
-            <div className="pointer-events-auto">
+            <div className="pointer-events-auto flex gap-2">
+                <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-black/50 rounded-full h-12 w-12 text-white/50 hover:text-white"
+                    onClick={() => window.location.reload()}
+                >
+                    <RefreshCw className="h-5 w-5" />
+                </Button>
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button size="icon" className="bg-primary hover:bg-primary/90 rounded-full h-12 w-12 shadow-2xl border-2 border-white/20">
