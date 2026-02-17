@@ -55,7 +55,6 @@ import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from 'next/link';
-import placeholderImagesData from '@/lib/placeholder-images.json';
 
 const DAILY_FREE_LIMIT = 10;
 const PREMIUM_UPLOAD_COST = 10;
@@ -64,7 +63,8 @@ const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
   category: z.string().min(1, { message: 'Please select a category.' }),
   currency: z.string().default('KES'),
-  localPrice: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+  localPrice: z.coerce.number().min(0, { message: 'Local price must be a positive number.' }),
+  price: z.coerce.number().min(0, { message: 'USD Price must be a positive number.' }),
   shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
   salePrice: z.coerce.number().optional(),
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
@@ -131,6 +131,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       category: '',
       currency: 'KES',
       localPrice: 0,
+      price: 0,
       shippingCost: 0,
       salePrice: 0,
       stock: 0,
@@ -149,12 +150,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const selectedCountry = form.watch('country');
   const selectedCounty = form.watch('county');
   const selectedCurrency = form.watch('currency');
-  const localPrice = form.watch('localPrice');
   const isAtLimit = !isEditMode && dailyCount >= DAILY_FREE_LIMIT;
-
-  // Conversion Logic
-  const exchangeRate = placeholderImagesData.exchangeRates[selectedCurrency as keyof typeof placeholderImagesData.exchangeRates] || 1;
-  const usdPrice = localPrice / exchangeRate;
 
   useEffect(() => {
     if (isEditMode && productToEdit) {
@@ -163,6 +159,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         category: productToEdit.category || '',
         currency: productToEdit.localCurrency || 'USD',
         localPrice: productToEdit.localPrice || productToEdit.price || 0,
+        price: productToEdit.price || 0,
         salePrice: productToEdit.wasPrice ? productToEdit.price : 0,
         enableDiscount: !!productToEdit.wasPrice,
         stock: productToEdit.stock || 0,
@@ -283,10 +280,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           locationStr = `${values.area}, ${values.stateProvince}, ${values.country}`;
       }
 
-      // Final Price Calculation
-      const currentExchangeRate = placeholderImagesData.exchangeRates[values.currency as keyof typeof placeholderImagesData.exchangeRates] || 1;
-      const calculatedUsdPrice = values.localPrice / currentExchangeRate;
-
       const productData: any = {
           name: values.productName,
           category: values.category,
@@ -304,7 +297,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           sellerId: user.uid,
           localCurrency: values.currency,
           localPrice: values.localPrice,
-          price: calculatedUsdPrice, // International searchable price
+          price: values.price, // Manually set USD price
           imageUrl: allImageUrls[0] || '',
           videoUrl: allVideoUrls[0] || '',
           imageUrls: allImageUrls,
@@ -314,8 +307,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       };
 
       if (values.enableDiscount && values.salePrice && values.salePrice < values.localPrice) {
-          productData.price = values.salePrice / currentExchangeRate;
-          productData.wasPrice = calculatedUsdPrice;
+          // If a discount is applied, the main searchable price becomes the sale price converted to USD
+          // or just the provided salePrice if the seller provides a USD sale price.
+          // For simplicity, we assume values.price is the normal USD and values.salePrice is local.
+          // In a future update we could add an explicit USD sale price too.
+          productData.wasPrice = values.price;
+          // Estimate sale USD if not provided
+          productData.price = (values.salePrice / values.localPrice) * values.price;
       } else {
           productData.wasPrice = null;
       }
@@ -486,13 +484,16 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader><CardTitle className="text-lg">Pricing & Currency</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Pricing & Multi-Currency</CardTitle>
+                        <CardDescription>Enter the price in your local currency and the international USD equivalent.</CardDescription>
+                    </CardHeader>
                     <CardContent className="space-y-4">
                     <div className="grid grid-cols-3 gap-2">
                         <div className="col-span-1">
                             <FormField control={form.control} name="currency" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Currency</FormLabel>
+                                    <FormLabel>Local Currency</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                         <SelectContent>
@@ -505,7 +506,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         <div className="col-span-2">
                             <FormField control={form.control} name="localPrice" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Local Price</FormLabel>
+                                    <FormLabel>Local Price Value</FormLabel>
                                     <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -513,13 +514,17 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         </div>
                     </div>
                     
-                    <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 flex items-center justify-between">
-                        <span className="text-xs font-bold text-muted-foreground uppercase">International Value (Estimated)</span>
-                        <div className="flex items-center gap-1.5 font-black text-primary">
-                            <RefreshCw className="h-3 w-3" />
-                            <span>USD ${usdPrice.toFixed(2)}</span>
-                        </div>
-                    </div>
+                    <FormField control={form.control} name="price" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-primary" />
+                                International Price (USD)
+                            </FormLabel>
+                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                            <FormDescription className="text-[10px] uppercase font-bold">This is the price global buyers will see.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
 
                     <FormField control={form.control} name="enableDiscount" render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4 bg-muted/20">
@@ -543,7 +548,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle className="text-lg">Inventory</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-lg">Inventory & Logistics</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <FormField control={form.control} name="stock" render={({ field }) => (
                             <FormItem>
@@ -574,6 +579,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                             </FormItem>
                             )}
                         />
+                        <FormField control={form.control} name="shippingCost" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Flat Shipping Fee ({selectedCurrency})</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                     </CardContent>
                 </Card>
               </div>
@@ -683,21 +695,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                             </FormItem>
                             )}
                         />
-                        <FormField control={form.control} name="shippingCost" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Flat Shipping Fee ({selectedCurrency})</FormLabel>
-                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                      </div>
-                       <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
+                         <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
                           <FormItem>
                               <FormLabel>Delivery Terms</FormLabel>
                               <FormControl><Input placeholder="e.g., Same-day via Boda, G4S nationwide" {...field} /></FormControl>
                               <FormMessage />
                           </FormItem>
                       )} />
+                      </div>
                   </CardContent>
               </Card>
             </div>
