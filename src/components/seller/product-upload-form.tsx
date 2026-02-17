@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -61,6 +62,7 @@ const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
   category: z.string().min(1, { message: 'Please select a category.' }),
   currency: z.string().default('KES'),
+  customCurrencyCode: z.string().optional(),
   localPrice: z.coerce.number().min(0, { message: 'Local price must be a positive number.' }),
   price: z.coerce.number().min(0, { message: 'USD Price must be a positive number.' }),
   shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
@@ -128,6 +130,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       productName: '',
       category: '',
       currency: 'KES',
+      customCurrencyCode: '',
       localPrice: 0,
       price: 0,
       shippingCost: 0,
@@ -148,14 +151,21 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const selectedCountry = form.watch('country');
   const selectedCounty = form.watch('county');
   const selectedCurrency = form.watch('currency');
+  const customCurrencyCode = form.watch('customCurrencyCode');
   const isAtLimit = !isEditMode && dailyCount >= DAILY_FREE_LIMIT;
+
+  // Derive the active currency code for labels
+  const activeCurrency = selectedCurrency === 'OTHER' ? (customCurrencyCode || 'LOCAL') : selectedCurrency;
 
   useEffect(() => {
     if (isEditMode && productToEdit) {
+      const isKnownCurrency = SUPPORTED_CURRENCIES.some(c => c.code === productToEdit.localCurrency);
+      
       form.reset({
         productName: productToEdit.name || '',
         category: productToEdit.category || '',
-        currency: productToEdit.localCurrency || 'USD',
+        currency: isKnownCurrency ? (productToEdit.localCurrency || 'USD') : 'OTHER',
+        customCurrencyCode: isKnownCurrency ? '' : productToEdit.localCurrency,
         localPrice: productToEdit.localPrice || productToEdit.price || 0,
         price: productToEdit.price || 0,
         salePrice: productToEdit.wasPrice ? productToEdit.price : 0,
@@ -278,6 +288,8 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           locationStr = `${values.area}, ${values.stateProvince}, ${values.country}`;
       }
 
+      const finalCurrency = values.currency === 'OTHER' ? (values.customCurrencyCode || 'LOCAL') : values.currency;
+
       const productData: any = {
           name: values.productName,
           category: values.category,
@@ -293,7 +305,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           location: locationStr,
           deliveryOptions: values.deliveryOptions,
           sellerId: user.uid,
-          localCurrency: values.currency,
+          localCurrency: finalCurrency,
           localPrice: values.localPrice,
           price: values.price, // Manually set USD price
           imageUrl: allImageUrls[0] || '',
@@ -305,12 +317,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       };
 
       if (values.enableDiscount && values.salePrice && values.salePrice < values.localPrice) {
-          // If a discount is applied, the main searchable price becomes the sale price converted to USD
-          // or just the provided salePrice if the seller provides a USD sale price.
-          // For simplicity, we assume values.price is the normal USD and values.salePrice is local.
-          // In a future update we could add an explicit USD sale price too.
           productData.wasPrice = values.price;
-          // Estimate sale USD if not provided
           productData.price = (values.salePrice / values.localPrice) * values.price;
       } else {
           productData.wasPrice = null;
@@ -487,24 +494,35 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         <CardDescription>Enter the price in your local currency and the international USD equivalent.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="col-span-1">
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-4">
                             <FormField control={form.control} name="currency" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Local Currency</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                            {SUPPORTED_CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                                            {SUPPORTED_CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </FormItem>
                             )} />
+                            
+                            {selectedCurrency === 'OTHER' && (
+                                <FormField control={form.control} name="customCurrencyCode" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Add Your Currency Code</FormLabel>
+                                        <FormControl><Input placeholder="e.g., UGX, TZS, BWP" maxLength={3} className="uppercase" {...field} /></FormControl>
+                                        <FormDescription className="text-xs">Type your 3-letter currency code.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            )}
                         </div>
-                        <div className="col-span-2">
+                        <div>
                             <FormField control={form.control} name="localPrice" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Local Price Value</FormLabel>
+                                    <FormLabel>Local Price Value ({activeCurrency})</FormLabel>
                                     <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -536,7 +554,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     {enableDiscount && (
                         <FormField control={form.control} name="salePrice" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Sale Price ({selectedCurrency})</FormLabel>
+                                <FormLabel>Sale Price ({activeCurrency})</FormLabel>
                                 <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -579,7 +597,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         />
                         <FormField control={form.control} name="shippingCost" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Flat Shipping Fee ({selectedCurrency})</FormLabel>
+                                <FormLabel>Flat Shipping Fee ({activeCurrency})</FormLabel>
                                 <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>

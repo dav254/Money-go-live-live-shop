@@ -34,8 +34,8 @@ export const KENYA_BANKS = [
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 export const SUPPORTED_CURRENCIES = [
-    { code: 'USD', name: 'US Dollar', symbol: '$' },
     { code: 'KES', name: 'Kenya Shilling', symbol: 'KSh' },
+    { code: 'USD', name: 'US Dollar', symbol: '$' },
     { code: 'NGN', name: 'Nigeria Naira', symbol: '₦' },
     { code: 'GHS', name: 'Ghana Cedi', symbol: 'GH₵' },
     { code: 'ZAR', name: 'South Africa Rand', symbol: 'R' },
@@ -43,4 +43,5 @@ export const SUPPORTED_CURRENCIES = [
     { code: 'TZS', name: 'Tanzania Shilling', symbol: 'TSh' },
     { code: 'EUR', name: 'Euro', symbol: '€' },
     { code: 'GBP', name: 'British Pound', symbol: '£' },
+    { code: 'OTHER', name: 'Other (Type your own)', symbol: '?' },
 ];
