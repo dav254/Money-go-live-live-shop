@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { formatDistanceToNow } from 'date-fns';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 
 const StarRating = ({ rating, count }: { rating: number, count?: number }) => (

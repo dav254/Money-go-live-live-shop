@@ -254,7 +254,7 @@ export default function SellerDashboardPage() {
               <ProductRowSkeleton />
             </>
           ) : products && products.length > 0 ? (
-              products.slice(0, 6).map((p) => {
+              products.map((p) => {
                 const status = (p.stock || 0) > 0 ? "Active" : "Out of Stock";
                 return (
                   <AlertDialog key={p.id}>
