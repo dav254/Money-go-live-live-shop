@@ -456,13 +456,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   {(files.length > 0 || existingImageUrls.length > 0 || existingVideoUrls.length > 0) && (
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mt-4">
                           {existingImageUrls.map((url) => (
-                              <div className="relative aspect-square group">
+                              <div key={url} className="relative aspect-square group">
                                   <Image src={url} alt="Media" fill className="object-cover rounded-xl" />
                                   <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => handleExistingMediaRemove(url, 'image')}><X className="h-4 w-4" /></Button>
                               </div>
                           ))}
                           {existingVideoUrls.map((url) => (
-                              <div className="relative aspect-square group bg-black rounded-xl overflow-hidden">
+                              <div key={url} className="relative aspect-square group bg-black rounded-xl overflow-hidden">
                                   <video src={url} className="object-cover h-full w-full" muted />
                                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white"/></div>
                                   <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 rounded-full" onClick={() => handleExistingMediaRemove(url, 'video')}><X className="h-4 w-4" /></Button>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -456,8 +455,8 @@ export default function SellerSettingsPage() {
                   <p className="text-sm text-muted-foreground">This also serves as your public username.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shop-description">Shop Description</Label>
-                  <Textarea id="shop-description" placeholder="Tell customers about your shop..." value={shopDescription} onChange={(e) => setShopDescription(e.target.value)} />
+                  <Label htmlFor="shop-description">About My Shop / Bio</Label>
+                  <Textarea id="shop-description" placeholder="Tell customers about your shop story and expertise. This appears in the 'About Seller' section." value={shopDescription} onChange={(e) => setShopDescription(e.target.value)} />
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">

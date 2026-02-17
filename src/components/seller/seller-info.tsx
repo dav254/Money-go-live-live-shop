@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -24,7 +23,7 @@ export function SellerInfo({ seller }: SellerInfoProps) {
                     <CardTitle className="flex items-center gap-2 text-xl font-headline uppercase tracking-tight"><Info className="text-primary" /> About Seller</CardTitle>
                 </CardHeader>
                 <CardContent className="prose prose-sm max-w-none text-neutral-300">
-                    <p className="leading-relaxed">{seller.bio || "This seller hasn't written a bio yet."}</p>
+                    <p className="leading-relaxed">{seller.description || seller.bio || "This seller hasn't provided a description yet."}</p>
                 </CardContent>
             </Card>
 
