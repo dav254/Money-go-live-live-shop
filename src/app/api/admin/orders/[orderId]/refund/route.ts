@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { Order, UserProfile } from '@/lib/types';
+import type { Order } from '@/lib/types';
 
 async function verifyAdmin(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
@@ -37,7 +37,6 @@ export async function POST(
   }
 
   const { reason } = await request.json();
-
   const orderRef = db.doc(`orders/${orderId}`);
 
   try {
@@ -48,19 +47,17 @@ export async function POST(
 
     const order = orderSnap.data() as Order;
 
-    // Prevent refunding an already refunded/cancelled order
     if (['refunded', 'cancelled'].includes(order.orderStatus)) {
         return NextResponse.json({ message: 'Order has already been refunded or cancelled.' }, { status: 400 });
     }
 
     const { sellerId, resellerId, buyerId, productPrice, shippingCost, totalAmount } = order;
 
-    // --- Replicate commission logic from Cloud Function to calculate reversals ---
+    // --- Define Split Rates ---
     const PLATFORM_FEE_RATE = 0.10;
     const RESELLER_COMMISSION_RATE = 0.10;
     
     const price = productPrice || 0;
-
     const platformFee = price * PLATFORM_FEE_RATE;
     let resellerCommission = 0;
     if (resellerId) {
@@ -75,20 +72,21 @@ export async function POST(
     batch.update(orderRef, {
       orderStatus: 'refunded',
       disputeReason: `Refund issued by admin: ${reason || 'No reason provided.'}`,
+      updatedAt: timestamp,
     });
 
-    // 2. Credit Buyer
+    // 2. Credit Buyer (Full Refund)
     const buyerRefundRef = db.collection('walletTransactions').doc();
     batch.set(buyerRefundRef, {
         userId: buyerId,
         orderId: orderId,
         type: 'REFUND',
-        amount: totalAmount, // Refund the full amount buyer paid
+        amount: totalAmount,
         description: `Refund for order #${orderId.substring(0, 6)}`,
         timestamp: timestamp,
     });
     
-    // 3. Debit Seller Net Earnings & Shipping Reimbursement
+    // 3. Debit Seller (Net Earnings + Shipping)
     const sellerDebitRef = db.collection('walletTransactions').doc();
     batch.set(sellerDebitRef, {
         userId: sellerId,
@@ -99,7 +97,7 @@ export async function POST(
         timestamp: timestamp,
     });
     
-    // 4. Debit Reseller Commission (if applicable)
+    // 4. Debit Reseller (Commission)
     if (resellerId && resellerCommission > 0) {
         const resellerDebitRef = db.collection('walletTransactions').doc();
         batch.set(resellerDebitRef, {
@@ -112,7 +110,7 @@ export async function POST(
         });
     }
     
-    // 5. Debit Platform Fee
+    // 5. Debit Platform (Fee)
     const platformDebitRef = db.collection('walletTransactions').doc();
     batch.set(platformDebitRef, {
         userId: 'platform_revenue',
@@ -125,10 +123,10 @@ export async function POST(
 
     await batch.commit();
 
-    return NextResponse.json({ success: true, message: `Order #${orderId.substring(0, 6)} has been refunded.` });
+    return NextResponse.json({ success: true, message: `Order #${orderId.substring(0, 6)} fully refunded.` });
 
   } catch (error: any) {
     console.error(`Error refunding order ${orderId}:`, error);
-    return NextResponse.json({ message: 'Internal Server Error', details: error.message }, { status: 500 });
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

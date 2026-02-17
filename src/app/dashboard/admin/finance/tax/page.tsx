@@ -4,32 +4,59 @@
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, FileText, Percent, Loader2 } from 'lucide-react';
+import { AlertCircle, FileText, Percent, Loader2, Save } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import React, { useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, where, doc, setDoc } from 'firebase/firestore';
 import type { WalletTransaction } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminTaxPage() {
-  // In a real application, this value would be fetched from a global settings document.
-  const [taxRate, setTaxRate] = React.useState(16.0);
   const firestore = useFirestore();
+  const { toast } = useToast();
+  
+  const settingsRef = useMemoFirebase(() => doc(firestore, 'systemSettings', 'tax'), [firestore]);
+  const { data: taxSettings, isLoading: isSettingsLoading } = useDoc<{ rate: number }>(settingsRef);
+
+  const [taxRate, setTaxRate] = useState(16.0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (taxSettings) {
+        setTaxRate(taxSettings.rate || 16.0);
+    }
+  }, [taxSettings]);
 
   const taxTransactionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'walletTransactions'), where('type', '==', 'TAX'));
   }, [firestore]);
 
-  const { data: taxTransactions, isLoading } = useCollection<WalletTransaction>(taxTransactionsQuery);
+  const { data: taxTransactions, isLoading: isTransactionsLoading } = useCollection<WalletTransaction>(taxTransactionsQuery);
 
   const taxCollected = useMemo(() => {
     if (!taxTransactions) return 0;
     return taxTransactions.reduce((acc, tx) => acc + tx.amount, 0);
   }, [taxTransactions]);
+
+  const handleSaveTaxRate = async () => {
+      if (!firestore) return;
+      setIsSaving(true);
+      try {
+          await setDoc(settingsRef, { rate: taxRate }, { merge: true });
+          toast({ title: 'Tax Rate Updated', description: `The default VAT rate is now ${taxRate}%.` });
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not save tax settings.' });
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  const isLoading = isSettingsLoading || isTransactionsLoading;
 
   return (
     <AdminLayout>
@@ -42,31 +69,37 @@ export default function AdminTaxPage() {
           <AlertCircle className="h-4 w-4 !text-blue-400" />
           <AlertTitle className="font-bold !text-blue-300">How Tax Works on Go Earn</AlertTitle>
           <AlertDescription>
-            Taxes (like VAT) are **paid by the buyer**, not deducted from the seller. The tax rate you set here is automatically added to the buyer's total at checkout. The collected tax is then reported here for you to remit to the authorities. This ensures sellers receive their expected earnings without seeing tax as a deduction from their revenue.
+            Taxes are **paid by the buyer** at checkout. The rate set here is automatically added to the buyer's invoice. Collected taxes are pooled here for you to remit to government authorities. This model ensures seller earnings remain untouched.
           </AlertDescription>
         </Alert>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Tax Rate Configuration */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Percent /> Tax Rate Configuration</CardTitle>
-                    <CardDescription>Set the Value Added Tax (VAT) rate that will be applied to all sales at checkout.</CardDescription>
+                    <CardDescription>Set the Value Added Tax (VAT) rate for all marketplace sales.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="tax-rate">Default VAT Rate (%)</Label>
-                        <Input id="tax-rate" type="number" value={taxRate} onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)} />
+                        <Label htmlFor="tax-rate">Current VAT Rate (%)</Label>
+                        <Input 
+                            id="tax-rate" 
+                            type="number" 
+                            value={taxRate} 
+                            onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)} 
+                        />
                     </div>
-                    <Button disabled>Save Tax Rate (Coming Soon)</Button>
+                    <Button onClick={handleSaveTaxRate} disabled={isSaving || isSettingsLoading} className="w-full">
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Tax Rate
+                    </Button>
                 </CardContent>
             </Card>
 
-            {/* Tax Reporting */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><FileText /> Tax Reporting</CardTitle>
-                    <CardDescription>Generate reports of collected taxes for remittance to the government (e.g., KRA).</CardDescription>
+                    <CardDescription>View total tax liability collected from successful transactions.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="rounded-lg border bg-background p-4 space-y-1">
@@ -77,7 +110,10 @@ export default function AdminTaxPage() {
                             <p className="text-2xl font-bold">${taxCollected.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         )}
                     </div>
-                    <Button variant="outline" className="w-full" disabled>Download Tax Report (Coming Soon)</Button>
+                    <Button variant="outline" className="w-full" disabled>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download KRA Report (Coming Soon)
+                    </Button>
                 </CardContent>
             </Card>
         </div>
@@ -86,10 +122,9 @@ export default function AdminTaxPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle className="font-bold">Legal Disclaimer</AlertTitle>
           <AlertDescription>
-            This module is for reporting purposes only. You are responsible for ensuring tax compliance, including setting the correct rates and remitting all collected taxes to the relevant government authorities. Consult a tax professional for guidance.
+            This module provides financial data for reporting only. You are responsible for ensuring tax compliance and remitting all collected funds to the relevant authorities.
           </AlertDescription>
         </Alert>
-
       </div>
     </AdminLayout>
   );
