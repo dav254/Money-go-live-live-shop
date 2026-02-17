@@ -413,26 +413,26 @@ export default function SellerSettingsPage() {
             </Button>
         </div>
         <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="profile">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-7 h-auto">
+            <TabsTrigger value="profile" className="py-2">
               <Store className="mr-2 h-4 w-4" /> Shop Profile
             </TabsTrigger>
-             <TabsTrigger value="connections">
+             <TabsTrigger value="connections" className="py-2">
               <LinkIcon className="mr-2 h-4 w-4" /> Connections
             </TabsTrigger>
-             <TabsTrigger value="qr-code">
+             <TabsTrigger value="qr-code" className="py-2">
               <QrCode className="mr-2 h-4 w-4" /> QR Code
             </TabsTrigger>
-            <TabsTrigger value="location">
+            <TabsTrigger value="location" className="py-2">
               <MapPin className="mr-2 h-4 w-4" /> Location
             </TabsTrigger>
-            <TabsTrigger value="contact">
-              <Mail className="mr-2 h-4 w-4" /> Contact & Social
+            <TabsTrigger value="contact" className="py-2">
+              <Mail className="mr-2 h-4 w-4" /> Contact
             </TabsTrigger>
-            <TabsTrigger value="security">
+            <TabsTrigger value="security" className="py-2">
               <Lock className="mr-2 h-4 w-4" /> Security
             </TabsTrigger>
-            <TabsTrigger value="policies">
+            <TabsTrigger value="policies" className="py-2">
               <FileText className="mr-2 h-4 w-4" /> Policies
             </TabsTrigger>
           </TabsList>

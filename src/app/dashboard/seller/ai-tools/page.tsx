@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail } from 'lucide-react';
+import { Bot, Film, Sparkles, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -88,7 +88,7 @@ const BuyPointsDialog = () => {
         { points: 3000, price: 25, description: 'Power user' },
     ];
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal', points: number, price: number) => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'mpesa', points: number, price: number) => {
         if (!user?.email) {
             toast({
                 variant: 'destructive',
@@ -117,7 +117,7 @@ const BuyPointsDialog = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.details || 'Failed to create payment intent.');
+                throw new Error(errorData.details || errorData.error || 'Failed to create payment intent.');
             }
 
             const data = await response.json();
@@ -157,13 +157,18 @@ const BuyPointsDialog = () => {
                             </div>
                             <div className="text-right">
                                 <p className="text-xl font-bold text-primary">${pkg.price}</p>
-                                <div className="flex gap-2 mt-1">
-                                    <Button size="sm" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                        {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Paystack'}
+                                <div className="flex flex-col gap-2 mt-2">
+                                    <Button size="sm" variant="destructive" onClick={() => handlePayment('mpesa', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                        {isLoadingPayment === 'mpesa' ? <Loader2 className="animate-spin" /> : <><Phone className="mr-2 h-3 w-3" /> M-Pesa Express</>}
                                     </Button>
-                                    <Button size="sm" variant="secondary" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                         {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" className="flex-1" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                            {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Card'}
+                                        </Button>
+                                        <Button size="sm" variant="secondary" className="flex-1" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                            {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -195,7 +200,7 @@ export default function SellerAIToolsPage() {
             <Card className="mt-4 md:mt-0">
                 <CardContent className="p-3 flex items-center gap-4">
                     <div className="p-3 bg-primary/10 rounded-md">
-                        <BadgeCent className="h-6 w-6 text-primary" />
+                        <BadgeCent className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                         <p className="text-xs text-muted-foreground">Your Balance</p>

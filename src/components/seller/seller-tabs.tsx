@@ -1,11 +1,10 @@
-
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductGrid } from "@/components/products/product-grid";
 import { SellerInfo } from "./seller-info";
 import type { Seller, Product, LiveSession } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "../ui/card";
 import { Radio, Clock, Play, Video, History, ArrowRight } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -108,13 +107,13 @@ export function SellerTabs({ seller, products, liveSession }: SellerTabsProps) {
                             <div>
                                 <CardTitle className="text-lg">Last Broadcast</CardTitle>
                                 <CardDescription className="uppercase font-bold text-[10px] tracking-widest">
-                                    {liveSession.endTime?.toDate ? formatDistanceToNow(liveSession.endTime.toDate(), { addSuffix: true }) : 'Recently'}
+                                    {liveSession?.endTime?.toDate ? formatDistanceToNow(liveSession.endTime.toDate(), { addSuffix: true }) : 'Recently'}
                                 </CardDescription>
                             </div>
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-neutral-400 leading-relaxed italic">
-                                "{liveSession.title}"
+                                "{liveSession?.title}"
                             </p>
                         </CardContent>
                     </Card>

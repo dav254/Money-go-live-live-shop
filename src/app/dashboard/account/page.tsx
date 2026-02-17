@@ -64,7 +64,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
     const { toast } = useToast();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [files, setFiles] = useState<File[]>([]);
-    const [uploadProgress, setUploadProgress] = setUploadProgress<Record<string, number>>({});
+    const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
     const [isUploading, setIsUploading] = useState(false);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

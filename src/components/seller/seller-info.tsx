@@ -4,6 +4,7 @@ import type { Seller } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Clock, Truck, Shield, Info, Mail, Phone, MessageSquare, Facebook, Instagram, Twitter } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Separator } from '@/components/ui/separator';
 
 interface SellerInfoProps {
   seller: Seller;
@@ -74,7 +75,7 @@ export function SellerInfo({ seller }: SellerInfoProps) {
                             )}
                         </div>
                     ) : (
-                        <p className="text-sm text-neutral-500">No contact info provided.</p>
+                        <p className="text-sm text-muted-foreground">No contact info provided.</p>
                     )}
 
                     <Separator className="bg-neutral-800" />
