@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -137,7 +138,6 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     };
     
   const handleShare = () => {
-    // UPDATED: Use official domain name instead of internal workstation URL
     const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
     navigator.clipboard.writeText(shopUrl).then(() => {
       toast({
