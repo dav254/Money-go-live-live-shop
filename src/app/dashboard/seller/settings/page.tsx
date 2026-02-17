@@ -37,6 +37,7 @@ import {
   Twitter,
   Phone,
   MessageSquare,
+  Globe,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -111,8 +112,10 @@ export default function SellerSettingsPage() {
   const [isDownloadingPoster, setIsDownloadingPoster] = useState(false);
 
   // Location State
+  const [country, setCountry] = useState('Kenya');
   const [county, setCounty] = useState('');
   const [subCounty, setSubCounty] = useState('');
+  const [stateProvince, setStateProvince] = useState('');
   const [area, setArea] = useState('');
 
   // Contact & Social State
@@ -130,8 +133,10 @@ export default function SellerSettingsPage() {
         setShopDescription(shopData.description || '');
         setLogoUrl(shopData.logoUrl || null);
         setBannerUrl(shopData.bannerUrl || null);
+        setCountry(shopData.country || 'Kenya');
         setCounty(shopData.county || '');
         setSubCounty(shopData.subCounty || '');
+        setStateProvince(shopData.stateProvince || '');
         setArea(shopData.area || '');
         setContactPhone(shopData.contactPhone || '');
         setContactWhatsapp(shopData.contactWhatsapp || '');
@@ -233,34 +238,41 @@ export default function SellerSettingsPage() {
     if (!sellerShopRef || !user || !firestore) return;
     setIsSaving(true);
     
+    let locationStr = area;
+    if (country === 'Kenya') {
+        locationStr = `${area}, ${subCounty}, ${county}, Kenya`;
+    } else {
+        locationStr = `${area}, ${stateProvince}, ${country}`;
+    }
+
     const dataToSave: Partial<SellerShop> = {
         shopName,
         description: shopDescription,
         logoUrl: logoUrl || '',
         bannerUrl: bannerUrl || '',
-        county,
-        subCounty,
+        country,
+        county: country === 'Kenya' ? county : null,
+        subCounty: country === 'Kenya' ? subCounty : null,
+        stateProvince: country !== 'Kenya' ? stateProvince : null,
         area,
-        location: `${area}, ${subCounty}, ${county}, Kenya`, // Flattened string for legacy compatibility
+        location: locationStr,
         contactPhone,
         contactWhatsapp,
         contactEmail,
         facebookUrl,
         instagramUrl,
         twitterUrl,
-    };
+    } as any;
 
     try {
         const batch = writeBatch(firestore);
         
-        // Update sellerShops
         batch.set(sellerShopRef, dataToSave, { merge: true });
 
-        // Update userProfiles for consistency
         const userProfileRef = doc(firestore, 'userProfiles', user.uid);
         batch.update(userProfileRef, {
             shopName: shopName,
-            username: shopName, // Sync shop name to username
+            username: shopName,
             profilePictureUrl: logoUrl || ''
         });
 
@@ -425,7 +437,6 @@ export default function SellerSettingsPage() {
             </TabsTrigger>
           </TabsList>
           
-          {/* Shop Profile Tab */}
           <TabsContent value="profile" className="space-y-4">
             <Card>
               <CardHeader>
@@ -490,7 +501,6 @@ export default function SellerSettingsPage() {
             </Alert>
           </TabsContent>
 
-          {/* QR Code Tab */}
           <TabsContent value="qr-code" className="space-y-4">
               <Card>
                   <CardHeader>
@@ -526,7 +536,6 @@ export default function SellerSettingsPage() {
               </Card>
           </TabsContent>
 
-          {/* Connections Tab */}
             <TabsContent value="connections" className="space-y-4">
             <Card>
                 <CardHeader>
@@ -600,11 +609,10 @@ export default function SellerSettingsPage() {
             </Card>
           </TabsContent>
           
-          {/* Location Tab */}
           <TabsContent value="location" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Business Location</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Business Location</CardTitle>
                 <CardDescription>
                   Help customers know where you are based. Localized data increases buyer trust.
                 </CardDescription>
@@ -613,53 +621,79 @@ export default function SellerSettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label>Country</Label>
-                        <Input value="Kenya" disabled className="bg-muted" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>County</Label>
-                        <Select value={county} onValueChange={(val) => { setCounty(val); setSubCounty(''); }}>
+                        <Select value={country} onValueChange={(val) => setCountry(val)}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select County" />
+                                <SelectValue placeholder="Select Country" />
                             </SelectTrigger>
                             <SelectContent>
-                                {Object.keys(kenyaLocations).map(c => (
-                                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                                ))}
+                                <SelectItem value="Kenya">Kenya</SelectItem>
+                                <SelectItem value="Nigeria">Nigeria</SelectItem>
+                                <SelectItem value="Tanzania">Tanzania</SelectItem>
+                                <SelectItem value="Uganda">Uganda</SelectItem>
+                                <SelectItem value="United States">United States</SelectItem>
+                                <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                                <SelectItem value="International">Other / International</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
+                    {country === 'Kenya' ? (
+                        <div className="space-y-2">
+                            <Label>County</Label>
+                            <Select value={county} onValueChange={(val) => { setCounty(val); setSubCounty(''); }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select County" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(kenyaLocations).map(c => (
+                                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <Label htmlFor="stateProvince">State / Province / Region</Label>
+                            <Input id="stateProvince" placeholder="e.g., Lagos, California, London" value={stateProvince} onChange={(e) => setStateProvince(e.target.value)} />
+                        </div>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {country === 'Kenya' && (
+                        <div className="space-y-2">
+                            <Label>Sub-county / Constituency</Label>
+                            <Select value={subCounty} onValueChange={setSubCounty} disabled={!county}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Sub-county" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {county && kenyaLocations[county].map(s => (
+                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                     <div className="space-y-2">
-                        <Label>Sub-county / Constituency</Label>
-                        <Select value={subCounty} onValueChange={setSubCounty} disabled={!county}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select Sub-county" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {county && kenyaLocations[county].map(s => (
-                                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="area">Specific Area / Estate / Building</Label>
-                        <Input id="area" placeholder="e.g., Garden City, 3rd Floor" value={area} onChange={(e) => setArea(e.target.value)} />
+                        <Label htmlFor="area">{country === 'Kenya' ? 'Specific Area / Estate / Building' : 'City / Town'}</Label>
+                        <Input id="area" placeholder={country === 'Kenya' ? "e.g., Garden City, 3rd Floor" : "e.g., Beverly Hills"} value={area} onChange={(e) => setArea(e.target.value)} />
                     </div>
                 </div>
                  <div className="h-64 w-full rounded-md bg-muted flex items-center justify-center border-2 border-dashed">
                     <div className="text-center text-muted-foreground">
                         <MapPin className="mx-auto h-10 w-10 mb-2" />
                         <p>Google Map Integration Coming Soon</p>
-                        <p className="text-xs">{area || subCounty || county ? `${area} ${subCounty} ${county}` : 'Enter your location details above'}</p>
+                        <p className="text-xs">
+                            {country === 'Kenya' 
+                                ? (area || subCounty || county ? `${area} ${subCounty} ${county}, Kenya` : 'Enter your location details above')
+                                : (area || stateProvince ? `${area}, ${stateProvince}, ${country}` : 'Enter your location details above')
+                            }
+                        </p>
                     </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Contact Tab */}
           <TabsContent value="contact" className="space-y-4">
             <Card>
               <CardHeader>
@@ -728,7 +762,6 @@ export default function SellerSettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* Security Tab */}
           <TabsContent value="security" className="space-y-4">
             <Card>
               <CardHeader>
@@ -794,7 +827,6 @@ export default function SellerSettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* Policies Tab */}
           <TabsContent value="policies" className="space-y-4">
             <Card>
               <CardHeader>

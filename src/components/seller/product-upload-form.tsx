@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   BadgeCent,
   Loader2,
+  Globe,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -65,9 +66,11 @@ const formSchema = z.object({
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
   tags: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  county: z.string().min(1, { message: 'County is required.' }),
-  subCounty: z.string().min(1, { message: 'Sub-county is required.' }),
-  area: z.string().min(2, { message: 'Area is required.' }),
+  country: z.string().min(1, { message: 'Country is required.' }),
+  county: z.string().optional(),
+  subCounty: z.string().optional(),
+  stateProvince: z.string().optional(),
+  area: z.string().min(2, { message: 'City or Area is required.' }),
   deliveryOptions: z.string().min(5, { message: 'Please describe delivery options.' }),
   enableDiscount: z.boolean().default(false),
 });
@@ -92,7 +95,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   const isEditMode = !!productToEdit;
 
-  // Track daily uploads for the 10-free limit
   useEffect(() => {
     if (!user || !firestore || isEditMode) return;
 
@@ -129,14 +131,17 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       stock: 0,
       tags: '',
       description: '',
+      country: 'Kenya',
       county: '',
       subCounty: '',
+      stateProvince: '',
       area: '',
       deliveryOptions: '',
       enableDiscount: false,
     },
   });
 
+  const selectedCountry = form.watch('country');
   const selectedCounty = form.watch('county');
   const isAtLimit = !isEditMode && dailyCount >= DAILY_FREE_LIMIT;
 
@@ -152,8 +157,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         tags: productToEdit.tags || '',
         description: productToEdit.description || '',
         shippingCost: productToEdit.shippingCost || 0,
+        country: productToEdit.country || 'Kenya',
         county: productToEdit.county || '',
         subCounty: productToEdit.subCounty || '',
+        stateProvince: productToEdit.stateProvince || '',
         area: productToEdit.area || '',
         deliveryOptions: productToEdit.deliveryOptions || '',
       });
@@ -257,6 +264,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       const allImageUrls = [...existingImageUrls, ...newImageUrls];
       const allVideoUrls = [...existingVideoUrls, ...newVideoUrls];
 
+      let locationStr = values.area;
+      if (values.country === 'Kenya') {
+          locationStr = `${values.area}, ${values.subCounty}, ${values.county}, Kenya`;
+      } else {
+          locationStr = `${values.area}, ${values.stateProvince}, ${values.country}`;
+      }
+
       const productData: any = {
           name: values.productName,
           category: values.category,
@@ -264,10 +278,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           tags: values.tags || '',
           description: values.description,
           shippingCost: values.shippingCost,
-          county: values.county,
-          subCounty: values.subCounty,
+          country: values.country,
+          county: values.county || null,
+          subCounty: values.subCounty || null,
+          stateProvince: values.stateProvince || null,
           area: values.area,
-          location: `${values.area}, ${values.subCounty}, ${values.county}`,
+          location: locationStr,
           deliveryOptions: values.deliveryOptions,
           sellerId: user.uid,
           imageUrl: allImageUrls[0] || '',
@@ -298,7 +314,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           
           batch.set(newDocRef, { ...productData, id: newDocRef.id });
 
-          // Deduct points for premium upload
           if (isAtLimit) {
               const userRef = doc(firestore, 'userProfiles', user.uid);
               batch.update(userRef, { aiPoints: increment(-PREMIUM_UPLOAD_COST) });
@@ -520,62 +535,106 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </div>
               
               <Card>
-                  <CardHeader><CardTitle className="text-lg">Location & Shipping</CardTitle></CardHeader>
+                  <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2"><Globe className="h-5 w-5" /> Location & Shipping</CardTitle>
+                  </CardHeader>
                   <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="county"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>County</FormLabel>
-                                <Select onValueChange={(val) => { field.onChange(val); form.setValue('subCounty', ''); }} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select County" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {Object.keys(kenyaLocations).map(c => (
-                                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="subCounty"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Sub-county</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCounty}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Sub-county" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {selectedCounty && kenyaLocations[selectedCounty].map(s => (
-                                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                      </div>
+                      <FormField
+                          control={form.control}
+                          name="country"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Country</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Select Country" />
+                                      </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                      <SelectItem value="Kenya">Kenya</SelectItem>
+                                      <SelectItem value="Nigeria">Nigeria</SelectItem>
+                                      <SelectItem value="Tanzania">Tanzania</SelectItem>
+                                      <SelectItem value="Uganda">Uganda</SelectItem>
+                                      <SelectItem value="United States">United States</SelectItem>
+                                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                                      <SelectItem value="International">Other / International</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+
+                      {selectedCountry === 'Kenya' ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="county"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>County</FormLabel>
+                                    <Select onValueChange={(val) => { field.onChange(val); form.setValue('subCounty', ''); }} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select County" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {Object.keys(kenyaLocations).map(c => (
+                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="subCounty"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Sub-county</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCounty}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select Sub-county" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {selectedCounty && kenyaLocations[selectedCounty].map(s => (
+                                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                          </div>
+                      ) : (
+                          <FormField
+                              control={form.control}
+                              name="stateProvince"
+                              render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>State / Province / Region</FormLabel>
+                                  <FormControl><Input placeholder="e.g., Lagos, California, London" {...field} /></FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                              )}
+                          />
+                      )}
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
                             name="area"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Area / Neighborhood</FormLabel>
-                                <FormControl><Input placeholder="e.g., Kilimani" {...field} /></FormControl>
+                                <FormLabel>{selectedCountry === 'Kenya' ? 'Area / Neighborhood' : 'City / Town'}</FormLabel>
+                                <FormControl><Input placeholder={selectedCountry === 'Kenya' ? "e.g., Kilimani" : "e.g., Beverly Hills"} {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                             )}
