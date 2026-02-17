@@ -1,9 +1,10 @@
+
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
 import { SellerHeader as PublicSellerHeader } from '@/components/seller/shop-header';
 import { SellerTabs } from '@/components/seller/seller-tabs';
-import type { Seller, Product, SellerShop, UserProfile } from '@/lib/types';
+import type { Seller, Product, SellerShop, UserProfile, LiveSession } from '@/lib/types';
 import { useUser, useUserProfile, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useEffect, useState, useMemo } from 'react';
@@ -26,12 +27,16 @@ export default function SellerShopPage() {
   const sellerShopRef = useMemoFirebase(() => doc(firestore, 'sellerShops', sellerId), [firestore, sellerId]);
   const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
   const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products'), where('sellerId', '==', sellerId)), [firestore, sellerId]);
+  
+  // Fetch specifically the current/latest live session for this seller
+  const liveSessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', sellerId), [firestore, sellerId]);
 
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
   const { data: profileData, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
   const { data: productData, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
+  const { data: liveSession, isLoading: isLiveSessionLoading } = useDoc<LiveSession>(liveSessionRef);
 
-  const isLoading = isUserLoading || isProfileLoading || isShopLoading || isSellerProfileLoading || areProductsLoading;
+  const isLoading = isUserLoading || isProfileLoading || isShopLoading || isSellerProfileLoading || areProductsLoading || isLiveSessionLoading;
 
   // --- Data Composition ---
   useEffect(() => {
@@ -60,6 +65,7 @@ export default function SellerShopPage() {
         contactWhatsapp: shopData.contactWhatsapp,
         contactPhone: shopData.contactPhone,
         contactEmail: shopData.contactEmail,
+        isLive: liveSession?.status === 'live',
       };
       setSeller(composedSeller);
     }
@@ -67,14 +73,14 @@ export default function SellerShopPage() {
     if (productData) {
       setProducts(productData);
     }
-  }, [shopData, profileData, productData, sellerId]);
+  }, [shopData, profileData, productData, sellerId, liveSession]);
 
 
   if (isLoading) {
     return (
       <MainLayout>
         <div className="flex min-h-[60vh] items-center justify-center">
-          <h1 className="text-2xl font-bold">Loading Shop...</h1>
+          <h1 className="text-2xl font-bold text-muted-foreground animate-pulse">Syncing Shop Data...</h1>
         </div>
       </MainLayout>
     );
@@ -98,7 +104,7 @@ export default function SellerShopPage() {
         <div className="bg-background text-foreground">
             <PublicSellerHeader seller={seller} />
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SellerTabs seller={seller} products={products} />
+            <SellerTabs seller={seller} products={products} liveSession={liveSession} />
             </div>
       </div>
     </MainLayout>
