@@ -465,7 +465,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                             <MediaMessage message={msg} />
                         ) : msg.messageText ? (
                             <div className={cn(
-                            "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm relative group",
+                            "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm relative group max-w-xs sm:max-w-md",
                             alignRight
                                 ? "bg-primary text-white rounded-tr-none border-primary shadow-primary/20"
                                 : "bg-card text-foreground rounded-tl-none border-border shadow-black/5"
@@ -512,7 +512,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             e.preventDefault();
             handleSendTextMessage();
           }}
-          className="relative flex items-center gap-2"
+          className="relative flex items-center gap-2 max-w-4xl mx-auto w-full"
         >
           <div className="flex items-center gap-1.5">
             <Button

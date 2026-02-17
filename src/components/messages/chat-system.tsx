@@ -124,7 +124,7 @@ export function ChatSystem() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] w-full overflow-hidden rounded-2xl border bg-card/50 backdrop-blur-xl shadow-2xl m-4 lg:m-8">
+    <div className="flex h-[calc(100vh-4.1rem)] w-full overflow-hidden bg-background">
       <div className={cn(
         "w-full md:w-80 border-r bg-muted/5 flex-shrink-0 transition-all duration-300", 
         selectedChat ? "hidden md:flex" : "flex"
