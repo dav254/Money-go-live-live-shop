@@ -316,12 +316,17 @@ export interface SellerShop {
     county?: string;
     subCounty?: string;
     area?: string;
+    country?: string;
+    stateProvince?: string;
     facebookUrl?: string;
     instagramUrl?: string;
     twitterUrl?: string;
     contactWhatsapp?: string;
     contactPhone?: string;
     contactEmail?: string;
+    returnPolicy?: string;
+    deliveryPolicy?: string;
+    storeHours?: string;
 }
 
 export interface ResellerApplication {
@@ -477,17 +482,6 @@ export interface WalletTransaction {
     amount: number;
     description: string;
     timestamp: any;
-}
-
-export interface Coupon {
-    id: string;
-    sellerId: string;
-    code: string;
-    type: 'percentage' | 'fixed';
-    value: number;
-    expires: any;
-    status: 'active' | 'expired' | 'archived';
-    isResellerOnly: boolean;
 }
 
 export interface ResellActivity {

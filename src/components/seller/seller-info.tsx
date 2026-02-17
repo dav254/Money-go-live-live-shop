@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -34,11 +35,11 @@ export function SellerInfo({ seller }: SellerInfoProps) {
                 <CardContent className="space-y-6 text-neutral-300">
                    <div>
                        <h4 className="font-black text-white uppercase text-xs tracking-widest mb-2">Return Policy</h4>
-                       <p className="text-sm border-l-2 border-primary/20 pl-4 py-1">{seller.returnPolicy || 'We follow standard platform return guidelines.'}</p>
+                       <p className="text-sm border-l-2 border-primary/20 pl-4 py-1">{seller.returnPolicy || '30-day returns accepted.'}</p>
                    </div>
                    <div>
                        <h4 className="font-black text-white uppercase text-xs tracking-widest mb-2">Delivery Info</h4>
-                       <p className="text-sm border-l-2 border-primary/20 pl-4 py-1">{seller.deliveryPolicy || 'Shipping details are available at checkout.'}</p>
+                       <p className="text-sm border-l-2 border-primary/20 pl-4 py-1">{seller.deliveryPolicy || 'Ships nationwide in 2-3 business days.'}</p>
                    </div>
                 </CardContent>
             </Card>

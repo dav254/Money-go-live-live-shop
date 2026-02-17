@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -126,6 +127,10 @@ export default function SellerSettingsPage() {
   const [instagramUrl, setInstagramUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
 
+  // Policy State
+  const [returnPolicy, setReturnPolicy] = useState('');
+  const [deliveryPolicy, setDeliveryPolicy] = useState('');
+
 
   useEffect(() => {
     if (shopData) {
@@ -144,6 +149,8 @@ export default function SellerSettingsPage() {
         setFacebookUrl(shopData.facebookUrl || '');
         setInstagramUrl(shopData.instagramUrl || '');
         setTwitterUrl(shopData.twitterUrl || '');
+        setReturnPolicy(shopData.returnPolicy || '30-day returns accepted.');
+        setDeliveryPolicy(shopData.deliveryPolicy || 'Ships nationwide in 2-3 business days.');
     }
   }, [shopData]);
   
@@ -262,6 +269,8 @@ export default function SellerSettingsPage() {
         facebookUrl,
         instagramUrl,
         twitterUrl,
+        returnPolicy,
+        deliveryPolicy,
     };
 
     try {
@@ -587,7 +596,7 @@ export default function SellerSettingsPage() {
                             <div className="flex items-center justify-between rounded-lg border p-4">
                                 <div className="flex items-center gap-4">
                                     <div className="p-3 bg-black rounded-lg border border-neutral-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 0 .15.02.22.04.53.15 1.02.44 1.43.82.38.35.66.78.85 1.25.08.2.13.4.14.61.01 1.3.02 2.6.02 3.91s-.01 2.61-.02 3.91c0 .08-.02.15-.04.22-.15.53-.44 1.02-.82 1.43-.35.38-.78.66-1.25.85-.2.08-.4.13-.61.14-1.3.01-2.6.02-3.91.02s-2.61-.01-3.91-.02c-.08 0-.15-.02-.22-.04-.53-.15-1.02-.44-1.43-.82-.38-.35-.66-.78-.85-1.25-.08-.2-.13-.4-.14-.61-.01-1.3-.02-2.6-.02-3.91s.01-2.61.02-3.91c0-.08.02-.15.04-.22.15-.53.44 1.02.82-1.43.35-.38.78-.66 1.25-.85.2-.08.4-.13.61-.14 1.3-.01 2.6-.02 3.91-.02zM12 15.35c-1.85 0-3.35-1.5-3.35-3.35s1.5-3.35 3.35-3.35 3.35 1.5 3.35 3.35-1.5 3.35-3.35 3.35zM12 10.1c-1.05 0-1.9.85-1.9 1.9s.85 1.9 1.9 1.9 1.9-.85 1.9-1.9-.85-1.9-1.9-1.9z" fill="white" /><path d="M16.95 3.05a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" fill="white" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 0 .15.02.22.04.53.15 1.02.44 1.43.82.38.35.66.78.85 1.25.08.2.13.4.14.61.01 1.3.02 2.6.02 3.91s-.01 2.61-.02 3.91c0 .08-.02.15-.04.22-.15.53-.44 1.02-.82 1.43-.35.38-.78.66-1.25.85-.2.08-.4.13-.61.14-1.3.01-2.6.02-3.91.02s-2.61-.01-3.91-.02c-.08 0-.15-.02-.22-.04-.53-.15-1.02-.44-1.43-.82-.38-.35-.66-.78-.85-1.25-.08-.2-.13-.4-.14-.61-.01-1.3-.02-2.6-.02-3.91s.01-2.61.02-3.91c0-.08.02-.15.04-.22.15-.53.44 1.02.82-1.43.35-.38.78-.66 1.25-.85.2-.08.4-.13.61-.14 1.3-.01 2.6-.02 3.91-.02zM12 15.35c-1.85 0-3.35-1.5-3.35-3.35s1.5-3.35 3.35-3.35 3.35 1.5 3.35 3.35-1.5 3.35-3.35-3.35zM12 10.1c-1.05 0-1.9.85-1.9 1.9s.85 1.9 1.9 1.9 1.9-.85 1.9-1.9-.85-1.9-1.9-1.9z" fill="white" /><path d="M16.95 3.05a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" fill="white" /></svg>
                                     </div>
                                     <div>
                                         <Label className="text-lg font-bold">TikTok</Label>
@@ -827,7 +836,7 @@ export default function SellerSettingsPage() {
               <CardHeader>
                 <CardTitle>Shop Policies</CardTitle>
                 <CardDescription>
-                  Set clear expectations for your customers.
+                  Set clear expectations for your customers. These policies will be visible on your public shop profile.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -836,7 +845,9 @@ export default function SellerSettingsPage() {
                     <Textarea 
                         id="return-policy" 
                         rows={6} 
-                        defaultValue="We accept returns within 7 days for a full refund. Items must be in unused and in original packaging. Buyer pays return shipping." 
+                        value={returnPolicy}
+                        onChange={(e) => setReturnPolicy(e.target.value)}
+                        placeholder="e.g., We accept returns within 7 days for a full refund. Items must be in unused and in original packaging. Buyer pays return shipping." 
                     />
                 </div>
                 <div className="space-y-2">
@@ -844,7 +855,9 @@ export default function SellerSettingsPage() {
                     <Textarea 
                         id="shipping-policy" 
                         rows={4} 
-                        defaultValue="We ship nationwide via G4S within 2-3 business days. Same-day delivery available in Nairobi for KES 300 via local riders." 
+                        value={deliveryPolicy}
+                        onChange={(e) => setDeliveryPolicy(e.target.value)}
+                        placeholder="e.g., We ship nationwide via G4S within 2-3 business days. Same-day delivery available in Nairobi for KES 300 via local riders." 
                     />
                 </div>
               </CardContent>
