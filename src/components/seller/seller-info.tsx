@@ -3,7 +3,7 @@
 
 import type { Seller } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Clock, Truck, Shield, Info, Mail, Phone, MessageSquare, Facebook, Instagram, Twitter } from 'lucide-react';
+import { MapPin, Clock, Truck, Shield, Info, Mail, Phone, MessageSquare, Facebook, Instagram, Twitter, Globe } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Separator } from '@/components/ui/separator';
 
@@ -24,7 +24,7 @@ export function SellerInfo({ seller }: SellerInfoProps) {
                     <CardTitle className="flex items-center gap-2 text-xl font-headline uppercase tracking-tight"><Info className="text-primary" /> About Seller</CardTitle>
                 </CardHeader>
                 <CardContent className="prose prose-sm max-w-none text-neutral-300">
-                    <p className="leading-relaxed">{seller.description || seller.bio || "This seller hasn't provided a description yet."}</p>
+                    <p className="leading-relaxed whitespace-pre-line">{seller.description || seller.bio || "This seller hasn't provided a description yet."}</p>
                 </CardContent>
             </Card>
 

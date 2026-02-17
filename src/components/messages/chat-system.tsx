@@ -137,7 +137,7 @@ export function ChatSystem() {
         />
       </div>
       <div className={cn(
-        "w-full flex-1 flex flex-col transition-all duration-300",
+        "w-full flex-1 flex flex-col transition-all duration-300 overflow-hidden",
         !selectedChat ? "hidden md:flex" : "flex"
       )}>
         <ChatWindow
