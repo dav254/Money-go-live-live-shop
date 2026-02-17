@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Circle } from 'lucide-react';
 import type { Chat } from '@/lib/types';
+import { useUser } from '@/firebase';
 
 interface ConversationListProps {
   chats: Chat[];
@@ -17,6 +18,8 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
+  const { user } = useUser();
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="p-6 border-b border-white/5">
@@ -42,6 +45,9 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
               const otherParticipant = chat.otherParticipant;
               if (!otherParticipant) return null;
               const isActive = selectedChat?.id === chat.id;
+              
+              // Online status logic
+              const isOnline = otherParticipant.lastSeen ? (Date.now() - otherParticipant.lastSeen.toMillis() < 120000) : false;
 
               return (
                 <button
@@ -54,10 +60,10 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                 >
                   <div className="relative">
                     <Avatar className={cn("h-12 w-12 border-2 transition-all", isActive ? "border-white/50 scale-105" : "border-white/5 group-hover:border-primary/30")}>
-                        <AvatarImage src={otherParticipant.profilePictureUrl} alt={otherParticipant.fullName} />
+                        <AvatarImage src={otherParticipant.profilePictureUrl} />
                         <AvatarFallback className="bg-neutral-800 font-bold">{otherParticipant.fullName?.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 border-2 border-background rounded-full" />
+                    <div className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
                   </div>
                   
                   <div className="flex-1 overflow-hidden text-left">
@@ -75,10 +81,6 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                         {chat.lastMessage}
                     </p>
                   </div>
-                  
-                  {isActive && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-full" />
-                  )}
                 </button>
               );
             })
