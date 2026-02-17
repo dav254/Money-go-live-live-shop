@@ -40,8 +40,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useUser, useFirestore, useMemoFirebase, useUserProfile, errorEmitter } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
 import { doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import type { SellerShop } from '@/lib/types';
@@ -55,6 +54,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
@@ -245,7 +245,7 @@ export default function SellerSettingsPage() {
         locationStr = `${area}, ${stateProvince}, ${country}`;
     }
 
-    const dataToSave: Partial<SellerShop> = {
+    const dataToSave: any = {
         shopName,
         description: shopDescription,
         logoUrl: logoUrl || '',
@@ -262,7 +262,7 @@ export default function SellerSettingsPage() {
         facebookUrl,
         instagramUrl,
         twitterUrl,
-    } as any;
+    };
 
     try {
         const batch = writeBatch(firestore);
@@ -302,11 +302,6 @@ export default function SellerSettingsPage() {
             await updateDoc(userRef, { 'connections.tiktok': null });
             toast({ title: 'TikTok Disconnected', description: 'Your account has been unlinked.' });
         } catch (error) {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: userRef.path,
-                operation: 'update',
-                requestResourceData: { 'connections.tiktok': null },
-            }));
             toast({ variant: 'destructive', title: 'Error', description: 'Could not disconnect your account.' });
         }
     };
@@ -612,7 +607,7 @@ export default function SellerSettingsPage() {
           <TabsContent value="location" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Business Location</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5 text-primary" /> Business Location</CardTitle>
                 <CardDescription>
                   Help customers know where you are based. Localized data increases buyer trust.
                 </CardDescription>
@@ -697,14 +692,14 @@ export default function SellerSettingsPage() {
           <TabsContent value="contact" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Contact & Social Media</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Mail className="text-primary" /> Contact & Social Media</CardTitle>
                 <CardDescription>
-                  Manage how buyers can reach you and follow your brand across platforms.
+                  Manage how buyers can reach you and follow your brand across platforms. This information is visible on your public store profile.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">Direct Contact</h3>
+                    <h3 className="text-lg font-bold uppercase tracking-tight flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> Direct Contact</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="phone">Primary Phone</Label>
@@ -733,7 +728,7 @@ export default function SellerSettingsPage() {
                  <Separator />
 
                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">Social Media Profiles</h3>
+                    <h3 className="text-lg font-bold uppercase tracking-tight flex items-center gap-2"><Globe className="h-4 w-4 text-primary" /> Social Media Profiles</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <Label htmlFor="facebook">Facebook URL</Label>

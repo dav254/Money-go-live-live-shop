@@ -1,4 +1,3 @@
-
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -50,15 +49,15 @@ export default function SellerShopPage() {
         banner: { id: 'banner', imageUrl: shopData.bannerUrl || getPlaceholderImage(), description: 'Shop Banner', imageHint: 'store banner' },
         location: shopData.location || profileData.location || 'Not specified',
         isVerified: profileData.verificationStatus === 'verified',
-        rating: 4.8, // This should come from an aggregation in a real app
+        rating: 4.8, 
         reviewsCount: shopData.reviewsCount || 0,
         followers: shopData.followers || 0,
         joinedDate: profileData.joinDate,
         bio: profileData.bio || 'Welcome!',
-        returnPolicy: "30-day returns accepted.", // Placeholder
-        deliveryPolicy: "Ships nationwide in 2-3 business days.", // Placeholder
-        storeHours: "9 AM - 5 PM, Mon-Fri", // Placeholder
-        deliversFast: true, // Placeholder
+        returnPolicy: shopData.returnPolicy || "30-day returns accepted.",
+        deliveryPolicy: shopData.deliveryPolicy || "Ships nationwide in 2-3 business days.",
+        storeHours: shopData.storeHours || "9 AM - 5 PM, Mon-Fri",
+        deliversFast: true,
         facebookUrl: shopData.facebookUrl,
         instagramUrl: shopData.instagramUrl,
         twitterUrl: shopData.twitterUrl,
@@ -66,7 +65,7 @@ export default function SellerShopPage() {
         contactPhone: shopData.contactPhone,
         contactEmail: shopData.contactEmail,
         isLive: liveSession?.status === 'live',
-      };
+      } as any;
       setSeller(composedSeller);
     }
 
