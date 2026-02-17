@@ -18,3 +18,4 @@ import '@/ai/flows/publish-video.ts';
 import '@/ai/flows/generate-enhanced-video.ts';
 import '@/ai/flows/generate-ad-kit.ts';
 import '@/ai/flows/generate-caption.ts';
+import '@/ai/flows/generate-marketing-email.ts';

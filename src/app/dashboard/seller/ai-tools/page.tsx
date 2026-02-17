@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon } from 'lucide-react';
+import { Bot, Film, Sparkles, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -32,6 +32,14 @@ const tools = [
     href: '/dashboard/seller/ai-tools/caption-generator',
     cta: 'Generate Caption',
     points: 50,
+  },
+  {
+    title: 'AI Email Marketer',
+    description: 'Generate professional marketing emails to send to your customers and boost loyalty.',
+    icon: Mail,
+    href: '/dashboard/seller/ai-tools/email-marketer',
+    cta: 'Launch Marketer',
+    points: 40,
   },
   {
     title: 'AI Live Selling Co-Pilot',
