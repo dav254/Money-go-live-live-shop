@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -402,8 +402,14 @@ export default function BuyerProductPage() {
                         </div>
                     </div>
 
-                     <div>
+                     <div className="flex flex-col gap-1">
                         <p className="text-3xl font-bold text-red-500">USD ${product.price.toLocaleString()}</p>
+                        {product.localPrice && product.localCurrency && product.localCurrency !== 'USD' && (
+                            <p className="text-sm text-neutral-400 flex items-center gap-1.5 font-bold uppercase tracking-widest">
+                                <Globe className="h-3 w-3" />
+                                Approx. {product.localCurrency} {product.localPrice.toLocaleString()}
+                            </p>
+                        )}
                     </div>
                     
                     {product.coupon && (

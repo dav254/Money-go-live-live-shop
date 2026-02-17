@@ -86,7 +86,9 @@ export interface Product {
     sellerId: string;
     name: string;
     description?: string;
-    price: number;
+    price: number; // This is always the USD (International) price
+    localPrice?: number; // Price in seller's local currency
+    localCurrency?: string; // e.g., 'KES', 'NGN'
     imageUrl: string;
     videoUrl?: string;
     videoUrls?: string[];
