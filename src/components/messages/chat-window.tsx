@@ -52,23 +52,24 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
     const { data: product, isLoading } = useDoc<Product>(productRef);
 
     if (isLoading) {
-        return <div className="max-w-xs rounded-lg border bg-background p-3 shadow-sm animate-pulse h-28 w-64"></div>;
+        return <div className="max-w-xs rounded-2xl border bg-background p-3 shadow-sm animate-pulse h-28 w-64"></div>;
     }
     
     if (!product) {
-        return <div className="max-w-xs rounded-lg border bg-background p-3 shadow-sm"><p className="text-xs text-muted-foreground">Product unavailable.</p></div>
+        return <div className="max-w-xs rounded-2xl border bg-background p-3 shadow-sm"><p className="text-xs text-muted-foreground italic">Product no longer available.</p></div>
     }
 
      return (
-        <div className="max-w-xs rounded-lg border bg-background p-3 shadow-md hover:border-primary transition-colors cursor-pointer">
+        <div className="max-w-xs rounded-2xl border bg-card p-3 shadow-lg hover:border-primary transition-all group overflow-hidden">
             <div className="flex gap-3">
-                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border">
-                     <Image src={product.imageUrl || 'https://picsum.photos/seed/product/150/150'} alt={product.name || 'product image'} fill className="object-cover" />
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border">
+                     <Image src={product.imageUrl || 'https://picsum.photos/seed/product/150/150'} alt={product.name || 'product image'} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs truncate">{product.name}</p>
-                    <p className="text-sm font-black text-primary">${product.price.toLocaleString()}</p>
-                    <Button size="sm" className="mt-1.5 h-7 w-full text-[10px] font-bold uppercase tracking-wider" asChild>
+                    <p className="font-black text-[10px] uppercase tracking-widest text-primary mb-1">Deal Shared</p>
+                    <p className="font-bold text-xs truncate mb-1">{product.name}</p>
+                    <p className="text-sm font-black text-foreground">${product.price.toLocaleString()}</p>
+                    <Button size="sm" className="mt-2 h-7 w-full text-[10px] font-black uppercase tracking-widest" asChild>
                         <Link href={`/products/${product.id}`}>View Deal</Link>
                     </Button>
                 </div>
@@ -86,13 +87,13 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
 
   if (isImage) {
     return (
-      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer">
+      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl border shadow-xl">
         <Image
           src={message.mediaUrl}
           alt={name}
-          width={200}
-          height={200}
-          className="max-w-xs rounded-lg border object-cover shadow-sm hover:opacity-90 transition-opacity"
+          width={250}
+          height={250}
+          className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500"
         />
       </a>
     );
@@ -103,8 +104,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
       <video
         src={message.mediaUrl}
         controls
-        className="max-w-xs rounded-lg border shadow-sm"
-        style={{ maxWidth: '250px' }}
+        className="max-w-[250px] rounded-2xl border shadow-xl bg-black"
       />
     );
   }
@@ -114,14 +114,16 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
       href={message.mediaUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex max-w-xs items-center gap-3 rounded-lg border bg-background p-3 shadow-sm hover:bg-muted transition-colors"
+      className="flex max-w-xs items-center gap-3 rounded-2xl border bg-card p-4 shadow-md hover:bg-muted transition-colors"
     >
-      <File className="h-8 w-8 flex-shrink-0 text-muted-foreground" />
-      <div className="overflow-hidden">
-        <p className="truncate font-semibold text-sm">{name}</p>
-        <p className="text-[10px] text-muted-foreground uppercase font-bold">{(message.mediaMetadata.size / 1024).toFixed(2)} KB</p>
+      <div className="p-2 bg-primary/10 rounded-lg">
+        <File className="h-6 w-6 text-primary" />
       </div>
-      <Download className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+      <div className="overflow-hidden flex-1">
+        <p className="truncate font-bold text-sm">{name}</p>
+        <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{(message.mediaMetadata.size / 1024).toFixed(2)} KB</p>
+      </div>
+      <Download className="h-4 w-4 text-muted-foreground" />
     </a>
   );
 };
@@ -137,25 +139,25 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
     return (
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md rounded-3xl">
             <DialogHeader>
-                <DialogTitle>Share a Product</DialogTitle>
+                <DialogTitle className="font-black text-xl uppercase tracking-tighter">My Catalog</DialogTitle>
             </DialogHeader>
             <ScrollArea className="h-96">
-                <div className="space-y-4 p-4">
-                    {isLoading && <p className="text-center text-sm text-muted-foreground py-10">Loading catalog...</p>}
-                    {products && products.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">No products found.</p>}
+                <div className="space-y-3 p-2">
+                    {isLoading && <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+                    {products && products.length === 0 && <p className="text-center text-xs text-muted-foreground py-12 uppercase font-bold tracking-widest">No active products</p>}
                     {products?.map(product => (
-                        <div key={product.id} className="flex items-center gap-4 p-2 rounded-lg hover:bg-muted transition-colors border border-transparent hover:border-border">
-                            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border bg-muted">
-                                <Image src={product.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover" />
+                        <div key={product.id} className="flex items-center gap-4 p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-primary/30 transition-all group">
+                            <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border bg-black">
+                                <Image src={product.imageUrl || '/placeholder.svg'} alt={product.name || 'Product Image'} fill className="object-cover group-hover:scale-110 transition-transform" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-bold text-sm truncate">{product.name}</p>
-                                <p className="text-sm font-black text-primary">${product.price.toLocaleString()}</p>
+                                <p className="text-xs font-black text-primary">${product.price.toLocaleString()}</p>
                             </div>
                             <DialogClose asChild>
-                                <Button size="sm" variant="outline" className="font-bold text-xs uppercase" onClick={() => onShare(product.id)}>Share</Button>
+                                <Button size="sm" className="font-black text-[10px] uppercase tracking-widest px-4 h-8" onClick={() => onShare(product.id)}>Send</Button>
                             </DialogClose>
                         </div>
                     ))}
@@ -210,9 +212,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       if (!chat || !currentUser || !firestore) return;
       
       const messageText = messageData.messageText?.trim() || '';
-      
-      // INSTANT TALK: Optimistic UI Update
       const tempId = `temp-${Date.now()}`;
+      
       const optimisticMsg = {
           id: tempId,
           senderId: currentUser.uid,
@@ -264,7 +265,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       });
     } catch (e) {
       setNewMessage(text);
-      toast({ variant: 'destructive', title: 'Could not send message.' });
+      toast({ variant: 'destructive', title: 'Network error.' });
     }
   };
   
@@ -334,8 +335,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     if (!file) return;
 
     setUploadProgress(0);
-    toast({ title: 'Uploading file...', description: file.name });
-
     try {
       const { url, type } = await uploadToCloudinary(file);
       await sendMessage({
@@ -348,10 +347,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           type: file.type,
         }
       });
-      toast({ title: 'Upload complete!', description: `${file.name} sent.` });
     } catch (error) {
       console.error("Upload failed:", error);
-      toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload your file.' });
+      toast({ variant: 'destructive', title: 'Upload Failed' });
     } finally {
       setUploadProgress(null);
       if (fileInputRef.current) {
@@ -379,9 +377,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   if (!chat || !currentUser) {
     return (
-      <div className="hidden h-full flex-1 flex-col items-center justify-center bg-muted/20 md:flex">
-        <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest">Select a session to chat</p>
+      <div className="hidden h-full flex-1 flex-col items-center justify-center bg-muted/10 md:flex rounded-r-2xl">
+        <div className="p-10 rounded-full bg-primary/5 mb-6">
+            <MessageSquare className="h-16 w-16 text-primary/20" />
+        </div>
+        <p className="text-neutral-500 text-xs font-black uppercase tracking-[0.2em]">Select a Session to Chat</p>
       </div>
     );
   }
@@ -391,106 +391,102 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex items-center justify-between border-b p-3 bg-card/50 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" className="md:hidden rounded-full" onClick={onBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Avatar className="h-9 w-9 border-2 border-primary/20">
-            <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName} />
-            <AvatarFallback className="bg-muted text-xs font-bold">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-xl">
+                <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName} />
+                <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 border-2 border-background rounded-full" />
+          </div>
           <div className="overflow-hidden">
-            <p className="font-black text-sm uppercase tracking-tight truncate">{otherParticipantProfile?.fullName}</p>
-            <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{otherParticipantProfile?.userRole}</span>
-            </div>
+            <p className="font-black text-sm uppercase tracking-tight truncate leading-none mb-1">{otherParticipantProfile?.fullName}</p>
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-1.5 py-0.5 rounded leading-none">{otherParticipantProfile?.userRole}</span>
           </div>
         </div>
         <AlertDialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <MoreVertical className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Chat Options</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-2xl">
+              <DropdownMenuLabel className="font-black uppercase text-[10px] tracking-widest opacity-50">Conversation</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <AlertDialogTrigger asChild>
-                <DropdownMenuItem className="text-destructive font-bold">
+                <DropdownMenuItem className="text-destructive font-bold focus:bg-destructive/10 focus:text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Conversation
                 </DropdownMenuItem>
               </AlertDialogTrigger>
             </DropdownMenuContent>
           </DropdownMenu>
-          <AlertDialogContent>
+          <AlertDialogContent className="rounded-3xl border-white/10">
             <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will only delete the chat from your view. The other person will still see the conversation.
+              <AlertDialogTitle className="font-black uppercase tracking-tighter">Permanently Delete?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm">
+                This will only delete the chat from your view. The other person will still see the conversation. This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteChat} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+              <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteChat} className="bg-red-600 hover:bg-red-700 rounded-xl font-black uppercase text-[10px]">Delete Forever</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
-      <ScrollArea className="flex-1 bg-muted/5" ref={scrollAreaRef}>
-        <div className="p-4 space-y-6">
+      {/* Messages */}
+      <ScrollArea className="flex-1" ref={scrollAreaRef}>
+        <div className="p-6 space-y-8 pb-12">
           {isLoadingMessages && allMessages.length === 0 && (
-              <div className="flex justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
+              <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary/50" /></div>
           )}
           {allMessages.map((msg) => {
             const senderIsCurrentUser = msg.senderId === currentUser.uid;
             const senderProfile = senderIsCurrentUser ? userProfile : otherParticipantProfile;
             
-            // MARKETPLACE PERSPECTIVE ALIGNMENT:
-            // 1. Providers (Sellers/Admins) are locked to the LEFT (Card/Gray)
-            // 2. Customers (Buyers/Resellers) are locked to the RIGHT (Primary/Orange)
+            // Layout Logic: Providers (Sellers/Admins) LEFT, Customers (Buyers/Resellers) RIGHT
             const isProvider = senderProfile?.userRole === 'seller' || senderProfile?.userRole === 'admin';
             const alignRight = !isProvider;
             
             return (
-                <div key={msg.id} className={cn("flex", alignRight ? "justify-end" : "justify-start", msg.isOptimistic && "opacity-70")}>
-                    <div className={cn("flex max-w-[85%] flex-col gap-1", alignRight ? "items-end text-right" : "items-start text-left")}>
+                <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", alignRight ? "justify-end pl-12" : "justify-start pr-12")}>
+                    <div className={cn("flex flex-col gap-1.5", alignRight ? "items-end text-right" : "items-start text-left")}>
                         {msg.messageType === 'product' && msg.productId ? (
                             <SharedProductCard productId={msg.productId} />
                         ) : (msg.messageType === 'image' || msg.messageType === 'video' || msg.messageType === 'file') && msg.mediaUrl ? (
                             <MediaMessage message={msg} />
                         ) : msg.messageText ? (
                             <div className={cn(
-                            "rounded-2xl p-3 text-sm shadow-sm font-medium leading-relaxed border relative group",
+                            "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm relative group",
                             alignRight
-                                ? "bg-primary text-primary-foreground rounded-tr-none border-primary shadow-primary/10"
-                                : "bg-card text-card-foreground rounded-tl-none border-border shadow-black/5"
+                                ? "bg-primary text-white rounded-tr-none border-primary shadow-primary/20"
+                                : "bg-card text-foreground rounded-tl-none border-border shadow-black/5"
                             )}>
                             {!senderIsCurrentUser && (
                                 <Button 
                                     size="icon" 
                                     variant="ghost" 
-                                    className={cn("absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8", alignRight ? "-left-10" : "-right-10")}
+                                    className={cn("absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full bg-background border shadow-md", alignRight ? "-left-10" : "-right-10")}
                                     onClick={() => handleReplyTag(senderProfile?.fullName || '')}
                                 >
-                                    <Reply className="h-4 w-4" />
+                                    <Reply className="h-3 w-3" />
                                 </Button>
                             )}
-                            <p>{msg.messageText}</p>
+                            <p className="whitespace-pre-wrap">{msg.messageText}</p>
                             </div>
                         ) : null}
                         <div className={cn("flex items-center gap-2 px-1", alignRight ? "flex-row-reverse" : "flex-row")}>
-                            <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground/60">
-                                {senderProfile?.userRole}
-                            </span>
-                            <span className="text-[9px] font-medium text-muted-foreground/40">
-                                {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/40">{senderProfile?.fullName}</span>
+                            <span className="text-[8px] font-medium text-muted-foreground/30">
+                                {msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                             </span>
                         </div>
                     </div>
@@ -500,14 +496,15 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="bg-card/30 p-4 border-t">
+      {/* Input Area */}
+      <div className="p-4 border-t bg-card/30 backdrop-blur-xl">
         {uploadProgress !== null && (
-          <div className="mb-3 px-2">
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary mb-1">
-                <span>Uploading...</span>
+          <div className="mb-4 px-2">
+            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary mb-1.5 animate-pulse">
+                <span>Sending Media...</span>
                 <span>{Math.round(uploadProgress)}%</span>
             </div>
-            <Progress value={uploadProgress} className="h-1" />
+            <Progress value={uploadProgress} className="h-1 bg-primary/10" />
           </div>
         )}
         <form
@@ -515,67 +512,52 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             e.preventDefault();
             handleSendTextMessage();
           }}
-          className="relative flex items-center rounded-2xl bg-card p-2 border-2 border-border shadow-xl ring-offset-background focus-within:border-primary/50 transition-colors"
+          className="relative flex items-center gap-2"
         >
-          <div className="flex items-center gap-1 px-1">
+          <div className="flex items-center gap-1.5">
             <Button
               type="button"
               size="icon"
-              variant="ghost"
-              className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-colors"
+              variant="outline"
+              className="h-11 w-11 rounded-2xl hover:bg-primary/10 hover:text-primary transition-all border-white/5"
               onClick={triggerFileSelect}
               disabled={uploadProgress !== null}
             >
-              {uploadProgress !== null ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <PlusCircle className="h-5 w-5" />
-              )}
+              {uploadProgress !== null ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlusCircle className="h-5 w-5" />}
             </Button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              onChange={handleFileChange}
-              disabled={uploadProgress !== null}
-            />
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} disabled={uploadProgress !== null} />
             {isSellerPortal && (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button
                     type="button"
                     size="icon"
-                    variant="ghost"
-                    className="h-10 w-10 rounded-xl hover:bg-primary/10 hover:text-primary transition-colors"
+                    variant="outline"
+                    className="h-11 w-11 rounded-2xl hover:bg-blue-500/10 hover:text-blue-500 transition-all border-white/5"
                     disabled={uploadProgress !== null}
                   >
                     <Package className="h-5 w-5" />
                   </Button>
                 </DialogTrigger>
-                <ShareProductDialog
-                  sellerId={currentUser.uid}
-                  onShare={handleShareProduct}
-                />
+                <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
               </Dialog>
             )}
           </div>
           <Input
-            placeholder={uploadProgress !== null ? "Please wait..." : "Type your message..."}
-            className="flex-1 border-0 bg-transparent h-10 focus-visible:ring-0 focus-visible:ring-offset-0 font-medium"
+            placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."}
+            className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary focus-visible:border-primary px-4 font-medium"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             disabled={uploadProgress !== null}
           />
-          <div className="px-1">
-            <Button
-              type="submit"
-              size="icon"
-              className="h-10 w-10 rounded-xl bg-primary shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-              disabled={uploadProgress !== null || !newMessage.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            size="icon"
+            className="h-11 w-11 rounded-2xl bg-primary shadow-xl shadow-primary/20 hover:scale-105 transition-transform"
+            disabled={uploadProgress !== null || !newMessage.trim()}
+          >
+            <Send className="h-5 w-5" />
+          </Button>
         </form>
       </div>
     </div>

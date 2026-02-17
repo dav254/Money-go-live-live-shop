@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import type { Chat } from '@/lib/types';
 
 interface ConversationListProps {
@@ -18,55 +18,75 @@ interface ConversationListProps {
 
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
   return (
-    <div className="flex h-full w-full flex-col border-r bg-muted/20 md:max-w-xs">
-      <div className="flex items-center gap-2 border-b p-3">
-        <h2 className="font-headline text-xl font-bold">Messages</h2>
-        {chats && <Badge>{chats.length}</Badge>}
-      </div>
-      <div className="p-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search messages..." className="pl-9" />
+    <div className="flex h-full w-full flex-col">
+      <div className="p-6 border-b border-white/5">
+        <div className="flex items-center justify-between mb-6">
+            <h2 className="font-black text-xl uppercase tracking-tighter">Messages</h2>
+            {chats.length > 0 && <Badge className="rounded-full h-5 px-2 bg-primary/20 text-primary border-none">{chats.length}</Badge>}
+        </div>
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Input placeholder="Search people..." className="pl-10 h-10 rounded-xl bg-background/50 border-white/5" />
         </div>
       </div>
+      
       <ScrollArea className="flex-1">
-        <div className="flex flex-col">
+        <div className="p-2 space-y-1">
           {isLoading && chats.length === 0 ? (
-            <div className="p-3 text-sm text-muted-foreground">Loading conversations...</div>
-          ) : (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-30">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Scanning Network...</p>
+            </div>
+          ) : chats.length > 0 ? (
             chats.map((chat) => {
               const otherParticipant = chat.otherParticipant;
               if (!otherParticipant) return null;
+              const isActive = selectedChat?.id === chat.id;
 
               return (
                 <button
                   key={chat.id}
                   onClick={() => onSelectChat(chat)}
                   className={cn(
-                    'flex items-start gap-3 p-3 text-left transition-colors hover:bg-accent',
-                    selectedChat?.id === chat.id && 'bg-accent'
+                    'w-full flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 relative group',
+                    isActive ? 'bg-primary shadow-xl shadow-primary/20 text-white' : 'hover:bg-white/5 text-neutral-400'
                   )}
                 >
-                  <Avatar className="h-8 w-8 border">
-                    <AvatarImage src={otherParticipant.profilePictureUrl} alt={otherParticipant.fullName} />
-                    <AvatarFallback>{otherParticipant.fullName?.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 overflow-hidden">
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold">{otherParticipant.fullName}</p>
+                  <div className="relative">
+                    <Avatar className={cn("h-12 w-12 border-2 transition-all", isActive ? "border-white/50 scale-105" : "border-white/5 group-hover:border-primary/30")}>
+                        <AvatarImage src={otherParticipant.profilePictureUrl} alt={otherParticipant.fullName} />
+                        <AvatarFallback className="bg-neutral-800 font-bold">{otherParticipant.fullName?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 border-2 border-background rounded-full" />
+                  </div>
+                  
+                  <div className="flex-1 overflow-hidden text-left">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className={cn("font-bold text-sm truncate uppercase tracking-tight", isActive ? "text-white" : "text-foreground")}>
+                        {otherParticipant.fullName}
+                      </p>
                       {chat.lastMessageTimestamp && (
-                        <p className="text-xs text-muted-foreground">
+                        <span className={cn("text-[9px] font-bold uppercase", isActive ? "text-white/60" : "text-muted-foreground/50")}>
                           {chat.lastMessageTimestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                        </span>
                       )}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="truncate text-sm text-muted-foreground pr-4">{chat.lastMessage}</p>
-                    </div>
+                    <p className={cn("text-xs truncate font-medium", isActive ? "text-white/80" : "text-muted-foreground")}>
+                        {chat.lastMessage}
+                    </p>
                   </div>
+                  
+                  {isActive && (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-full" />
+                  )}
                 </button>
               );
             })
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center px-6 opacity-30">
+                <MessageSquare className="h-12 w-12 text-neutral-500 mb-4" />
+                <p className="text-[10px] text-muted-foreground leading-tight uppercase font-black tracking-widest">No active chats found</p>
+            </div>
           )}
         </div>
       </ScrollArea>

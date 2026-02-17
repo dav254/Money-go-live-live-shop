@@ -132,11 +132,10 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
                 router.push(`/messages?chatWith=${seller.id}`);
             }
         } catch (error) {
-            console.error("Error handling message seller: ", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not start chat.' });
         }
     };
-    
+  
   const handleShare = () => {
     const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
     navigator.clipboard.writeText(shopUrl).then(() => {

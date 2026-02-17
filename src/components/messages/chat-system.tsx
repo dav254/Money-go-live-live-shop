@@ -1,14 +1,14 @@
+
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
 import { useSearchParams } from 'next/navigation';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { getDocs } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 export function ChatSystem() {
@@ -124,8 +124,11 @@ export function ChatSystem() {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden rounded-xl border bg-card shadow-lg">
-      <div className={cn("w-full md:w-auto md:flex-shrink-0 transition-transform duration-300", selectedChat ? "-translate-x-full md:translate-x-0" : "translate-x-0")}>
+    <div className="flex h-[calc(100vh-8rem)] w-full overflow-hidden rounded-2xl border bg-card/50 backdrop-blur-xl shadow-2xl m-4 lg:m-8">
+      <div className={cn(
+        "w-full md:w-80 border-r bg-muted/5 flex-shrink-0 transition-all duration-300", 
+        selectedChat ? "hidden md:flex" : "flex"
+      )}>
         <ConversationList
             chats={chatsWithParticipants}
             selectedChat={selectedChat}
@@ -133,7 +136,10 @@ export function ChatSystem() {
             isLoading={isLoading}
         />
       </div>
-      <div className={cn("w-full md:flex-1 flex-shrink-0 transition-transform duration-300 absolute md:static inset-0", selectedChat ? "translate-x-0" : "translate-x-full md:translate-x-0")}>
+      <div className={cn(
+        "w-full flex-1 flex flex-col transition-all duration-300",
+        !selectedChat ? "hidden md:flex" : "flex"
+      )}>
         <ChatWindow
             chat={selectedChat}
             currentUser={user}

@@ -299,7 +299,7 @@ export default function SellerDashboardPage() {
                   </div>
                    <AlertDialogContent className="rounded-2xl border-white/10">
                         <AlertDialogHeader>
-                            <AlertDialogTitle className="font-black uppercase tracking-tighter">Are you sure?</AlertDialogTitle>
+                            <AlertDialogTitle className="font-black uppercase tracking-tighter">Are you absolutely sure?</AlertDialogTitle>
                             <AlertDialogDescription className="text-xs uppercase font-bold text-muted-foreground">
                                 This will permanently delete "{p.name}".
                             </AlertDialogDescription>
