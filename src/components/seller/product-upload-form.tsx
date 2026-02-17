@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -38,7 +37,6 @@ import {
   BadgeCent,
   Loader2,
   Globe,
-  RefreshCw,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
