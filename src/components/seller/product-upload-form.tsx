@@ -38,16 +38,17 @@ import {
   BadgeCent,
   Loader2,
   Globe,
+  Zap,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '../ui/switch';
+import { Switch } from '@/components/ui/switch';
 import { useFirestore, useUser, useUserProfile, errorEmitter } from '@/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs, writeBatch, increment, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { Product } from '@/lib/types';
-import { Label } from '../ui/label';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
@@ -154,7 +155,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const customCurrencyCode = form.watch('customCurrencyCode');
   const isAtLimit = !isEditMode && dailyCount >= DAILY_FREE_LIMIT;
 
-  // Derive the active currency code for labels
   const activeCurrency = selectedCurrency === 'OTHER' ? (customCurrencyCode || 'LOCAL') : selectedCurrency;
 
   useEffect(() => {
@@ -307,7 +307,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           sellerId: user.uid,
           localCurrency: finalCurrency,
           localPrice: values.localPrice,
-          price: values.price, // Manually set USD price
+          price: values.price,
           imageUrl: allImageUrls[0] || '',
           videoUrl: allVideoUrls[0] || '',
           imageUrls: allImageUrls,
@@ -374,10 +374,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+        <Card className="border-none sm:border shadow-none sm:shadow-sm">
+          <CardHeader className="px-4 sm:px-6">
+            <CardTitle className="text-xl sm:text-2xl">{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
             {!isEditMode && (
                 <Alert variant={isAtLimit ? "destructive" : "default"} className={cn("mt-4", !isAtLimit && "bg-primary/5 border-primary/20")}>
                     {isAtLimit ? <ShieldAlert className="h-4 w-4" /> : <Info className="h-4 w-4 text-primary" />}
@@ -393,9 +393,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </Alert>
             )}
           </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="flex flex-col gap-8">
-              <div className="space-y-6">
+          <CardContent className="space-y-6 sm:space-y-8 px-4 sm:px-6">
+            <div className="flex flex-col gap-6 sm:gap-8">
+              <div className="space-y-4 sm:space-y-6">
                 <FormField
                   control={form.control}
                   name="productName"
@@ -424,12 +424,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 />
               </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Media Gallery</CardTitle>
-                  <CardDescription>Add up to 5 items (images or videos).</CardDescription>
+              <Card className="bg-muted/30">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base sm:text-lg">Media Gallery</CardTitle>
+                  <CardDescription className="text-xs">Add up to 5 items (images or videos).</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-4">
                   <div className="space-y-2">
                     <input
                         id="file-upload"
@@ -444,18 +444,18 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <Button
                         type="button"
                         variant="outline"
-                        className="w-full border-dashed h-24 flex-col gap-2"
+                        className="w-full border-dashed h-24 flex-col gap-2 bg-background hover:bg-muted/50"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading || allMediaCount >= 5}
                     >
                         <UploadCloud className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-xs font-bold uppercase tracking-widest">
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">
                             {isUploading ? 'System Busy...' : `Select Media (${5 - allMediaCount} spots open)`}
                         </span>
                     </Button>
                   </div>
                   {(files.length > 0 || existingImageUrls.length > 0 || existingVideoUrls.length > 0) && (
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mt-4">
                           {existingImageUrls.map((url) => (
                               <div key={url} className="relative aspect-square group">
                                   <Image src={url} alt="Media" fill className="object-cover rounded-xl" />
@@ -487,75 +487,70 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </CardContent>
               </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Pricing & Multi-Currency</CardTitle>
-                        <CardDescription>Enter the price in your local currency and the international USD equivalent.</CardDescription>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="bg-muted/30">
+                    <CardHeader className="p-4">
+                        <CardTitle className="text-base sm:text-lg">Pricing & Multi-Currency</CardTitle>
+                        <CardDescription className="text-xs">Full control over local and international prices.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 px-4 pb-4">
                     <div className="grid grid-cols-1 gap-4">
-                        <div className="space-y-4">
-                            <FormField control={form.control} name="currency" render={({ field }) => (
+                        <FormField control={form.control} name="currency" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs">Local Currency</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {SUPPORTED_CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </FormItem>
+                        )} />
+                        
+                        {selectedCurrency === 'OTHER' && (
+                            <FormField control={form.control} name="customCurrencyCode" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Local Currency</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {SUPPORTED_CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )} />
-                            
-                            {selectedCurrency === 'OTHER' && (
-                                <FormField control={form.control} name="customCurrencyCode" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Add Your Currency Code</FormLabel>
-                                        <FormControl><Input placeholder="e.g., UGX, TZS, BWP" maxLength={3} className="uppercase" {...field} /></FormControl>
-                                        <FormDescription className="text-xs">Type your 3-letter currency code.</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            )}
-                        </div>
-                        <div>
-                            <FormField control={form.control} name="localPrice" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Local Price Value ({activeCurrency})</FormLabel>
-                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                    <FormLabel className="text-xs">Add Your Currency Code</FormLabel>
+                                    <FormControl><Input placeholder="e.g., UGX" maxLength={3} className="h-9 uppercase" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                        </div>
+                        )}
+                        <FormField control={form.control} name="localPrice" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs">Local Price ({activeCurrency})</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" className="h-9" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                     </div>
                     
                     <FormField control={form.control} name="price" render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4 text-primary" />
+                            <FormLabel className="flex items-center gap-2 text-xs">
+                                <DollarSign className="h-3.5 w-3.5 text-primary" />
                                 International Price (USD)
                             </FormLabel>
-                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                            <FormDescription className="text-[10px] uppercase font-bold">This is the price global buyers will see.</FormDescription>
+                            <FormControl><Input type="number" placeholder="0.00" className="h-9" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                     )} />
 
                     <FormField control={form.control} name="enableDiscount" render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4 bg-muted/20">
+                        <FormItem className="flex flex-row items-center justify-between rounded-xl border p-3 bg-background">
                             <div className="space-y-0.5">
-                                <FormLabel>On Sale</FormLabel>
-                                <FormDescription className="text-[10px] uppercase font-bold">Apply discount</FormDescription>
+                                <FormLabel className="text-xs">On Sale</FormLabel>
                             </div>
-                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
                         </FormItem>
                     )} />
                     {enableDiscount && (
                         <FormField control={form.control} name="salePrice" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Sale Price ({activeCurrency})</FormLabel>
-                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                <FormLabel className="text-xs">Sale Price ({activeCurrency})</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" className="h-9" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
@@ -563,13 +558,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader><CardTitle className="text-lg">Inventory & Logistics</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                <Card className="bg-muted/30">
+                    <CardHeader className="p-4"><CardTitle className="text-base sm:text-lg">Inventory & Logistics</CardTitle></CardHeader>
+                    <CardContent className="space-y-4 px-4 pb-4">
                         <FormField control={form.control} name="stock" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Total Stock</FormLabel>
-                                <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                                <FormLabel className="text-xs">Total Stock</FormLabel>
+                                <FormControl><Input type="number" placeholder="0" className="h-9" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
@@ -578,10 +573,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                             name="category"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Category</FormLabel>
+                                <FormLabel className="text-xs">Category</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
-                                        <SelectTrigger>
+                                        <SelectTrigger className="h-9">
                                             <SelectValue placeholder="Pick one..." />
                                         </SelectTrigger>
                                     </FormControl>
@@ -597,8 +592,8 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         />
                         <FormField control={form.control} name="shippingCost" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Flat Shipping Fee ({activeCurrency})</FormLabel>
-                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                <FormLabel className="text-xs">Flat Shipping Fee ({activeCurrency})</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" className="h-9" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
@@ -606,20 +601,20 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </Card>
               </div>
               
-              <Card>
-                  <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2"><Globe className="h-5 w-5" /> Location & Shipping</CardTitle>
+              <Card className="bg-muted/30">
+                  <CardHeader className="p-4">
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2"><Globe className="h-4 w-4" /> Location & Shipping</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 px-4 pb-4">
                       <FormField
                           control={form.control}
                           name="country"
                           render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Country</FormLabel>
+                              <FormLabel className="text-xs">Country</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl>
-                                      <SelectTrigger>
+                                      <SelectTrigger className="h-9">
                                           <SelectValue placeholder="Select Country" />
                                       </SelectTrigger>
                                   </FormControl>
@@ -639,16 +634,16 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                       />
 
                       {selectedCountry === 'Kenya' ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
                                 name="county"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>County</FormLabel>
+                                    <FormLabel className="text-xs">County</FormLabel>
                                     <Select onValueChange={(val) => { field.onChange(val); form.setValue('subCounty', ''); }} value={field.value}>
                                         <FormControl>
-                                            <SelectTrigger>
+                                            <SelectTrigger className="h-9">
                                                 <SelectValue placeholder="Select County" />
                                             </SelectTrigger>
                                         </FormControl>
@@ -667,10 +662,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                                 name="subCounty"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Sub-county</FormLabel>
+                                    <FormLabel className="text-xs">Sub-county</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCounty}>
                                         <FormControl>
-                                            <SelectTrigger>
+                                            <SelectTrigger className="h-9">
                                                 <SelectValue placeholder="Select Sub-county" />
                                             </SelectTrigger>
                                         </FormControl>
@@ -691,30 +686,30 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                               name="stateProvince"
                               render={({ field }) => (
                               <FormItem>
-                                  <FormLabel>State / Province / Region</FormLabel>
-                                  <FormControl><Input placeholder="e.g., Lagos, California, London" {...field} /></FormControl>
+                                  <FormLabel className="text-xs">State / Province / Region</FormLabel>
+                                  <FormControl><Input placeholder="e.g., Lagos" className="h-9" {...field} /></FormControl>
                                   <FormMessage />
                               </FormItem>
                               )}
                           />
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
                             name="area"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{selectedCountry === 'Kenya' ? 'Area / Neighborhood' : 'City / Town'}</FormLabel>
-                                <FormControl><Input placeholder={selectedCountry === 'Kenya' ? "e.g., Kilimani" : "e.g., Beverly Hills"} {...field} /></FormControl>
+                                <FormLabel className="text-xs">{selectedCountry === 'Kenya' ? 'Area / Neighborhood' : 'City / Town'}</FormLabel>
+                                <FormControl><Input placeholder={selectedCountry === 'Kenya' ? "e.g., Kilimani" : "e.g., Beverly Hills"} className="h-9" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                             )}
                         />
                          <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Delivery Terms</FormLabel>
-                              <FormControl><Input placeholder="e.g., Same-day via Boda, G4S nationwide" {...field} /></FormControl>
+                              <FormLabel className="text-xs">Delivery Terms</FormLabel>
+                              <FormControl><Input placeholder="e.g., Same-day via Boda" className="h-9" {...field} /></FormControl>
                               <FormMessage />
                           </FormItem>
                       )} />
@@ -723,35 +718,35 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </Card>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4 border-t p-6 bg-muted/10">
-            <div className="flex w-full justify-between items-center">
-                <div className="flex items-center gap-2">
+          <CardFooter className="flex flex-col gap-4 border-t p-4 sm:p-6 bg-muted/10 sticky bottom-0 z-10">
+            <div className="flex flex-col sm:flex-row w-full justify-between items-center gap-4">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
                     {isAtLimit && (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
                             <BadgeCent className="h-4 w-4 text-primary" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-primary">PREMIUM UPLOAD ACTIVE</span>
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-primary">PREMIUM UPLOAD ACTIVE</span>
                         </div>
                     )}
                 </div>
-                <div className="flex gap-3">
-                    <Button type="button" variant="ghost" className="font-bold uppercase tracking-widest text-[10px]">Save as Draft</Button>
-                    <Button type="submit" size="lg" className="px-12 font-black rounded-xl shadow-xl shadow-primary/20" disabled={isUploading}>
+                <div className="flex gap-3 w-full sm:w-auto">
+                    <Button type="button" variant="ghost" className="flex-1 sm:flex-none font-bold uppercase tracking-widest text-[10px]">Save Draft</Button>
+                    <Button type="submit" size="lg" className="flex-1 sm:flex-none px-8 sm:px-12 font-black rounded-xl shadow-xl shadow-primary/20" disabled={isUploading}>
                         {isUploading ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : isAtLimit ? (
                             <div className="flex items-center gap-2">
                                 <Zap className="h-4 w-4 fill-current" />
-                                <span>PAY {PREMIUM_UPLOAD_COST} PTS & PUBLISH</span>
+                                <span className="text-xs sm:text-sm uppercase">PAY {PREMIUM_UPLOAD_COST} PTS</span>
                             </div>
                         ) : (
-                            <span>{isEditMode ? 'UPDATE LISTING' : 'PUBLISH FREE'}</span>
+                            <span className="text-xs sm:text-sm uppercase">{isEditMode ? 'UPDATE' : 'PUBLISH'}</span>
                         )}
                     </Button>
                 </div>
             </div>
             {isAtLimit && (userProfile?.aiPoints || 0) < PREMIUM_UPLOAD_COST && (
-                <p className="text-xs text-destructive font-bold text-center">
-                    You need more AI points to publish. <Link href="/dashboard/seller/ai-tools" className="underline">Top up here</Link>.
+                <p className="text-[10px] sm:text-xs text-destructive font-bold text-center">
+                    Low balance. <Link href="/dashboard/seller/ai-tools" className="underline">Top up to publish</Link>.
                 </p>
             )}
           </CardFooter>

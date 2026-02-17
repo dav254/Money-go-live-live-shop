@@ -12,7 +12,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Package, Video, CreditCard, LayoutGrid, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, Radio, Users } from 'lucide-react';
+import { Package, Video, CreditCard, LayoutGrid, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, Radio, Users, ChevronRight, Zap } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
@@ -45,7 +45,7 @@ const shortcuts = [
     color: 'bg-blue-500/20 text-blue-500',
   },
   {
-    title: 'Payment Methods',
+    title: 'Wallet',
     icon: CreditCard,
     href: '/buyer/wallet',
     color: 'bg-green-500/20 text-green-500',
@@ -70,7 +70,7 @@ const SellerInfo = ({ sellerId }: { sellerId: string }) => {
         <AvatarImage src={user?.profilePictureUrl || getPlaceholderImage()} />
         <AvatarFallback className="text-[8px]">{user?.fullName?.charAt(0) || 'S'}</AvatarFallback>
       </Avatar>
-      <span className="text-xs font-bold text-neutral-300 truncate max-w-[100px]">
+      <span className="text-[10px] font-black text-neutral-300 truncate max-w-[80px] uppercase tracking-tight">
         {user?.shopName || user?.fullName || 'Seller'}
       </span>
     </div>
@@ -80,7 +80,7 @@ const SellerInfo = ({ sellerId }: { sellerId: string }) => {
 const StreamCard = ({ session }: { session: LiveSession }) => {
   return (
     <Link href={`/buyer/live/${session.id}`}>
-        <Card className="group relative h-48 overflow-hidden border-none bg-neutral-900 ring-1 ring-white/10 hover:ring-primary/50 transition-all duration-300 shadow-2xl">
+        <Card className="group relative h-40 sm:h-48 overflow-hidden border-none bg-neutral-900 ring-1 ring-white/10 hover:ring-primary/50 transition-all duration-300 shadow-2xl rounded-2xl">
             <div className="absolute inset-0">
                 <Image
                     src={`https://picsum.photos/seed/${session.id}/600/400`}
@@ -92,19 +92,19 @@ const StreamCard = ({ session }: { session: LiveSession }) => {
             </div>
             
             <div className="absolute top-3 left-3 z-10">
-                <Badge className="bg-red-600 hover:bg-red-700 flex items-center gap-1 animate-pulse border-none text-[10px] font-black px-2 py-0.5">
+                <Badge className="bg-red-600 hover:bg-red-700 flex items-center gap-1 animate-pulse border-none text-[9px] font-black px-2 py-0.5 rounded-full">
                     <Radio className="h-3 w-3" /> LIVE
                 </Badge>
             </div>
 
-            <div className="absolute bottom-3 left-3 right-3 z-10 space-y-2">
-                <h3 className="font-headline text-sm font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
+            <div className="absolute bottom-3 left-3 right-3 z-10 space-y-1.5">
+                <h3 className="font-headline text-[11px] sm:text-xs font-black text-white leading-tight line-clamp-2 uppercase tracking-tighter drop-shadow-md">
                     {session.title}
                 </h3>
                 <div className="flex items-center justify-between">
                     <SellerInfo sellerId={session.sellerId} />
-                    <div className="flex items-center gap-1 text-[10px] font-black text-white/70">
-                        <Users className="h-3 w-3 text-primary" /> {session.viewerCount || 0}
+                    <div className="flex items-center gap-1 text-[9px] font-black text-white/70">
+                        <Users className="h-2.5 w-2.5 text-primary" /> {session.viewerCount || 0}
                     </div>
                 </div>
             </div>
@@ -122,7 +122,7 @@ const HomepageCarousel = () => {
     const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
 
     if (isLoading || !slides || slides.length === 0) {
-        return <Skeleton className="w-full aspect-video md:aspect-[16/7] rounded-lg" />;
+        return <Skeleton className="w-full aspect-[16/9] sm:aspect-[16/7] rounded-3xl" />;
     }
 
     return (
@@ -133,21 +133,21 @@ const HomepageCarousel = () => {
             <CarouselContent>
                 {slides.map(slide => (
                     <CarouselItem key={slide.id}>
-                        <div className="relative aspect-video md:aspect-[16/7] w-full overflow-hidden rounded-lg">
+                        <div className="relative aspect-[16/10] sm:aspect-[16/7] w-full overflow-hidden rounded-3xl group">
                             <Image
                                 src={slide.imageUrl}
                                 alt={slide.title || 'Promotional slide'}
                                 fill
                                 sizes="100vw"
-                                className="object-cover"
+                                className="object-cover transition-transform duration-1000 group-hover:scale-105"
                                 priority
                                 data-ai-hint={slide.imageHint}
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                            <div className="absolute bottom-0 left-0 p-4 md:p-8 text-white">
-                                <h2 className="font-headline text-2xl md:text-4xl font-bold">{slide.title}</h2>
-                                <p className="mt-2 max-w-md text-sm md:text-base">{slide.description}</p>
-                                <Button asChild className="mt-4" size={"sm"}>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                            <div className="absolute bottom-0 left-0 p-6 sm:p-10 text-white max-w-2xl">
+                                <h2 className="font-headline text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-3">{slide.title}</h2>
+                                <p className="text-xs sm:text-base font-bold text-white/70 uppercase tracking-widest line-clamp-2 mb-6">{slide.description}</p>
+                                <Button asChild className="rounded-xl h-12 px-8 font-black uppercase tracking-widest text-xs" size={"lg"}>
                                     <Link href={slide.href}>Shop Now</Link>
                                 </Button>
                             </div>
@@ -155,17 +155,17 @@ const HomepageCarousel = () => {
                     </CarouselItem>
                 ))}
             </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
+            <CarouselPrevious className="hidden lg:flex" />
+            <CarouselNext className="hidden lg:flex" />
         </Carousel>
     );
 };
 
 const ProductCarouselSkeleton = () => (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="p-1">
-                <Skeleton className="h-64 w-full" />
+                <Skeleton className="h-64 w-full rounded-2xl" />
             </div>
         ))}
     </div>
@@ -201,23 +201,26 @@ export default function BuyerDashboardPage() {
   
   return (
     <BuyerLayout>
-        <div className="flex-1 space-y-12 p-4 pt-6 md:p-8">
+        <div className="flex-1 space-y-8 sm:space-y-12 p-2 sm:p-4 pt-4 md:p-8">
             <HomepageCarousel />
 
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
             {shortcuts.map((shortcut) => (
                 <Card
                 key={shortcut.title}
-                className="group transition-all hover:shadow-lg hover:-translate-y-1"
+                className="group transition-all hover:shadow-xl hover:-translate-y-1 rounded-2xl border-white/5 bg-card/50"
                 >
                 <Link href={shortcut.href}>
-                    <CardContent className="flex items-center justify-start gap-4 p-4 md:p-6">
+                    <CardContent className="flex items-center justify-start gap-4 p-4 sm:p-6">
                     <div
-                        className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg ${shortcut.color} transition-colors group-hover:bg-primary group-hover:text-primary-foreground`}
+                        className={cn(
+                            "flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl transition-all duration-300 group-hover:scale-110 shadow-lg",
+                            shortcut.color
+                        )}
                     >
-                        <shortcut.icon className="h-5 w-5 md:h-6 md:w-6" />
+                        <shortcut.icon className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
-                    <h3 className="font-headline text-base md:text-lg font-semibold">
+                    <h3 className="font-headline text-sm sm:text-base font-black uppercase tracking-tighter">
                         {shortcut.title}
                     </h3>
                     </CardContent>
@@ -226,20 +229,19 @@ export default function BuyerDashboardPage() {
             ))}
             </div>
 
-            {/* LIVE NOW SECTION - TRENDING */}
             {liveSessions && liveSessions.length > 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-3">
                             <div className="relative flex h-3 w-3">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                             </div>
-                            <h2 className="font-headline text-2xl font-black uppercase tracking-tighter">Trending Live Shopping</h2>
+                            <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">Trending Live</h2>
                         </div>
-                        <Button variant="link" asChild className="font-bold text-red-500"><Link href="/buyer/live-now">View All</Link></Button>
+                        <Button variant="ghost" asChild className="text-[10px] font-black uppercase tracking-widest text-primary h-8"><Link href="/buyer/live-now">Explore All</Link></Button>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
                         {liveSessions.map((session) => (
                             <StreamCard key={session.id} session={session} />
                         ))}
@@ -247,21 +249,22 @@ export default function BuyerDashboardPage() {
                 </div>
             )}
 
-            {/* Categories Section */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="font-headline text-2xl font-bold">Shop by Category</h2>
-                    <Button variant="link" asChild><Link href="/categories">View All</Link></Button>
+                <div className="flex items-center justify-between px-2">
+                    <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-2">
+                        <LayoutGrid className="h-5 w-5 text-primary" /> Categories
+                    </h2>
+                    <Button variant="ghost" asChild className="text-[10px] font-black uppercase tracking-widest text-primary h-8"><Link href="/categories">View All</Link></Button>
                 </div>
-                <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+                <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
                     {PRODUCT_CATEGORIES.slice(0, 8).map((cat) => {
                         const Icon = categoryIcons[cat] || LayoutGrid;
                         return (
                             <Link key={cat} href={`/search?q=${encodeURIComponent(cat)}`} className="flex flex-col items-center gap-2 group flex-shrink-0">
-                                <div className="h-16 w-16 rounded-2xl bg-muted group-hover:bg-primary group-hover:text-primary-foreground transition-all flex items-center justify-center border">
-                                    <Icon className="h-8 w-8" />
+                                <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-white/5 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 flex items-center justify-center border border-white/5 shadow-md group-hover:shadow-primary/20">
+                                    <Icon className="h-6 w-6 sm:h-8 sm:w-8" />
                                 </div>
-                                <span className="text-xs font-medium text-center w-20 line-clamp-2">{cat}</span>
+                                <span className="text-[9px] font-black uppercase tracking-tight text-center w-16 sm:w-20 line-clamp-2 text-muted-foreground group-hover:text-white">{cat}</span>
                             </Link>
                         )
                     })}
@@ -269,62 +272,65 @@ export default function BuyerDashboardPage() {
             </div>
 
             <div className="space-y-4">
-            <h2 className="font-headline text-2xl font-bold">Today's Deals</h2>
-            {isLoadingDeals ? <ProductCarouselSkeleton /> : (
-                <Carousel
-                    opts={{ align: 'start' }}
-                    className="w-full"
-                >
-                    <CarouselContent>
-                    {(dealsProducts || []).map((product) => (
-                        <CarouselItem
-                        key={product.id}
-                        className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5"
-                        >
-                        <div className="p-1">
-                            <ProductCard product={product} />
-                        </div>
-                        </CarouselItem>
-                    ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="hidden md:flex" />
-                    <CarouselNext className="hidden md:flex" />
-                </Carousel>
-            )}
+                <div className="flex items-center gap-3 px-2">
+                    <Zap className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                    <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">Today's Deals</h2>
+                </div>
+                {isLoadingDeals ? <ProductCarouselSkeleton /> : (
+                    <Carousel
+                        opts={{ align: 'start' }}
+                        className="w-full"
+                    >
+                        <CarouselContent className="-ml-2 sm:-ml-4">
+                        {(dealsProducts || []).map((product) => (
+                            <CarouselItem
+                            key={product.id}
+                            className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 pl-2 sm:pl-4"
+                            >
+                            <div className="p-1 h-full">
+                                <ProductCard product={product} />
+                            </div>
+                            </CarouselItem>
+                        ))}
+                        </CarouselContent>
+                        <CarouselPrevious className="hidden lg:flex" />
+                        <CarouselNext className="hidden lg:flex" />
+                    </Carousel>
+                )}
             </div>
 
-            <div className="space-y-4">
-            <h2 className="font-headline text-2xl font-bold">
-                Recommended For You
-            </h2>
-            {isLoadingRecs ? (
-                <ProductCarouselSkeleton />
-            ) : recommendedProducts && recommendedProducts.length > 0 ? (
-                <Carousel
-                    opts={{ align: 'start' }}
-                    className="w-full"
-                >
-                    <CarouselContent>
-                    {recommendedProducts.map((product) => (
-                        <CarouselItem
-                        key={product.id}
-                        className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5"
-                        >
-                        <div className="p-1">
-                            <ProductCard product={product} />
-                        </div>
-                        </CarouselItem>
-                    ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="hidden md:flex" />
-                    <CarouselNext className="hidden md:flex" />
-                </Carousel>
-            ) : (
-                <div className="text-center text-muted-foreground p-8 border border-dashed rounded-lg">
-                    <p>No recommendations found for you right now.</p>
-                    <p className="text-sm">Browse more products to get personalized suggestions!</p>
+            <div className="space-y-4 pb-10">
+                <div className="flex items-center gap-3 px-2">
+                    <Heart className="h-5 w-5 text-pink-500 fill-pink-500" />
+                    <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">For You</h2>
                 </div>
-            )}
+                {isLoadingRecs ? (
+                    <ProductCarouselSkeleton />
+                ) : recommendedProducts && recommendedProducts.length > 0 ? (
+                    <Carousel
+                        opts={{ align: 'start' }}
+                        className="w-full"
+                    >
+                        <CarouselContent className="-ml-2 sm:-ml-4">
+                        {recommendedProducts.map((product) => (
+                            <CarouselItem
+                            key={product.id}
+                            className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 pl-2 sm:pl-4"
+                            >
+                            <div className="p-1 h-full">
+                                <ProductCard product={product} />
+                            </div>
+                            </CarouselItem>
+                        ))}
+                        </CarouselContent>
+                        <CarouselPrevious className="hidden lg:flex" />
+                        <CarouselNext className="hidden lg:flex" />
+                    </Carousel>
+                ) : (
+                    <div className="text-center p-12 border-2 border-dashed rounded-3xl border-white/5 opacity-30">
+                        <p className="font-black uppercase tracking-widest text-[10px]">Browsing data needed for personalized recs</p>
+                    </div>
+                )}
             </div>
         </div>
     </BuyerLayout>
