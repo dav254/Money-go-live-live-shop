@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -192,12 +192,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     sendMessage({ messageText: text.trim(), messageType: 'text' }).catch(() => setNewMessage(text));
   };
 
-  const handleShareProduct = (productId: string) => {
+  const handleShareProduct = useCallback((productId: string) => {
     sendMessage({ messageType: 'product', productId }).catch(error => {
         console.error("Error sharing product:", error);
         toast({ variant: 'destructive', title: 'Share Failed' });
     });
-  };
+  }, [chat, currentUser, firestore, toast]);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -232,7 +232,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-muted/5 p-8 text-center h-full w-full">
         <div className="max-w-xs space-y-4">
-            <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto"><MessageSquare className="h-10 w-10 text-primary opacity-20" /></div>
+            <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto">
+                <MessageSquare className="h-10 w-10 text-primary opacity-20" />
+            </div>
             <h3 className="font-black text-xl uppercase tracking-tighter">Your Inbox</h3>
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">Select a conversation to start messaging buyers or sellers.</p>
         </div>
@@ -314,10 +316,17 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0" onClick={() => fileInputRef.current?.click()} disabled={uploadProgress !== null}><PlusCircle className="h-5 w-5" /></Button>
           <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
           {userProfile?.userRole === 'seller' && (
-              <Dialog><DialogTrigger asChild><Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0"><Package className="h-5 w-5" /></Button></DialogTrigger><ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} /></Dialog>
+              <Dialog>
+                <DialogTrigger asChild>
+                    <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0">
+                        <Package className="h-5 w-5" />
+                    </Button>
+                </DialogTrigger>
+                <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+              </Dialog>
           )}
           <Input placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={uploadProgress !== null} />
-          <Button type="submit" size="icon" className="h-11 w-11 rounded-2xl bg-primary shrink-0" disabled={uploadProgress !== null || !newMessage.trim()}><Send className="h-5 w-5" /></Button>
+          <Button type="submit" size="icon" className="h-11 w-11 rounded-2xl bg-primary shrink-0" disabled={uploadProgress !== null || !newMessage.trim()}><Send className="h-4 w-4" /></Button>
         </form>
       </div>
     </div>
