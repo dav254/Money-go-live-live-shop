@@ -24,6 +24,7 @@ import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { cn } from '@/lib/utils';
 
 const categoryIcons: Record<string, React.ElementType> = {
     "Fashion & Apparel": ShoppingBag,
