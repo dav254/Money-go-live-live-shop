@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -38,9 +39,9 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
           <BuyerSidebar />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="flex flex-col h-screen overflow-hidden">
         <BuyerHeader />
-        <main className={cn("flex-1", !fullWidth && "p-4 sm:p-6 lg:p-8")}>
+        <main className={cn("flex-1 overflow-y-auto", !fullWidth && "p-4 sm:p-6 lg:p-8")}>
           <div className={cn("mx-auto h-full relative", !fullWidth && "max-w-7xl")}>
             <FirebaseErrorListener />
             {children}

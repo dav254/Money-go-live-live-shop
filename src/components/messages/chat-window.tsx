@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -229,7 +230,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   if (!chat || !currentUser) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/5 p-8 text-center h-full w-full">
+      <div className="flex-1 flex flex-col items-center justify-center bg-muted/5 p-8 text-center h-full w-full">
         <div className="max-w-xs space-y-4">
             <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto"><MessageSquare className="h-10 w-10 text-primary opacity-20" /></div>
             <h3 className="font-black text-xl uppercase tracking-tighter">Your Inbox</h3>

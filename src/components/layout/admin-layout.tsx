@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -7,7 +8,6 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarProvider,
-  SidebarTrigger,
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
@@ -26,10 +26,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading) {
       if (!user) {
-        // Not logged in, redirect to admin login page
         router.replace('/admin-login-net');
       } else if (userProfile && userProfile.userRole !== 'admin') {
-        // Logged in, but not an admin, redirect to the admin login page as they are unauthorized
         router.replace('/admin-login-net');
       }
     }
@@ -37,7 +35,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const isLoading = isUserLoading || isProfileLoading;
 
-  // While loading, show a loading screen to prevent content flash
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center gap-2">
@@ -47,22 +44,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If the user is confirmed to be an admin, render the layout.
-  // Otherwise, render null because a redirect is in progress.
   if (user && userProfile && userProfile.userRole === 'admin') {
     return (
         <SidebarProvider>
             <Sidebar side="left" collapsible="icon">
-                <SidebarHeader>
+                <SidebarHeader className="border-b bg-card p-4">
                     <Logo className="h-8 w-auto text-primary" />
                 </SidebarHeader>
                 <SidebarContent>
                     <AdminSidebar />
                 </SidebarContent>
             </Sidebar>
-            <SidebarInset>
+            <SidebarInset className="flex flex-col h-screen overflow-hidden">
                 <AdminHeader />
-                <main>
+                <main className="flex-1 overflow-y-auto">
                   <FirebaseErrorListener />
                   {children}
                 </main>

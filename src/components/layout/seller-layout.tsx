@@ -1,13 +1,13 @@
+
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarProvider,
-  SidebarTrigger,
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { SellerSidebar } from '@/components/seller/seller-sidebar';
@@ -15,26 +15,20 @@ import { Logo } from '../logo';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { SellerHeader } from '../seller/seller-header';
-import { doc } from 'firebase/firestore';
-import type { Seller, SellerShop, UserProfile } from '@/lib/types';
-import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export function SellerLayout({ children }: { children: React.ReactNode }) {
+export function SellerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
-  const firestore = useFirestore();
-
 
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading) {
       if (!user) {
-        // Not logged in, redirect to login page
         router.replace('/login');
       } else if (userProfile && userProfile.userRole !== 'seller') {
-        // Logged in, but not a seller, redirect to homepage for role-based routing
         router.replace('/');
       }
     }
@@ -51,20 +45,22 @@ export function SellerLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
-        <SidebarHeader>
+        <SidebarHeader className="border-b bg-card p-4">
           <Logo className="h-8 w-auto text-primary" />
         </SidebarHeader>
         <SidebarContent>
           <SellerSidebar />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="flex flex-col h-screen overflow-hidden">
         <SellerHeader />
-        <main>{children}</main>
+        <main className={cn("flex-1 overflow-y-auto", fullWidth && "p-0")}>
+          <FirebaseErrorListener />
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
