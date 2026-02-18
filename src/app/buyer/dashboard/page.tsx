@@ -202,7 +202,7 @@ export default function BuyerDashboardPage() {
   
   return (
     <BuyerLayout>
-        <div className="flex-1 space-y-8 sm:space-y-12 p-2 sm:p-4 pt-4 md:p-8">
+        <div className="flex-1 space-y-8 sm:space-y-12">
             <HomepageCarousel />
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">

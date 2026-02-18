@@ -1,16 +1,21 @@
+
 'use client';
 
-import { SidebarProvider } from '@/components/ui/sidebar';
-import Link from 'next/link';
-import { Button } from '../ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
-import { Menu, Loader2 } from 'lucide-react';
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarHeader, 
+  SidebarProvider, 
+  SidebarInset 
+} from '@/components/ui/sidebar';
 import { Toaster } from '../ui/toaster';
 import { Logo } from '../logo';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+import { FirebaseErrorListener } from '../FirebaseErrorListener';
 
 export function BuyerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
   const { isLoading } = useUser();
@@ -26,22 +31,24 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full flex-col bg-background">
+      <Sidebar side="left" collapsible="icon">
+        <SidebarHeader className="border-b bg-card p-4">
+          <Logo className="h-8 w-auto text-primary" />
+        </SidebarHeader>
+        <SidebarContent>
+          <BuyerSidebar />
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
         <BuyerHeader />
-        <div className="flex flex-1">
-          <aside className="hidden w-64 flex-col border-r bg-card md:flex">
-            <div className="flex flex-1 flex-col gap-y-4 overflow-y-auto p-4">
-              <BuyerSidebar />
-            </div>
-          </aside>
-          <main className={cn("flex-1", !fullWidth && "p-4 sm:p-6 lg:p-8")}>
-            <div className={cn("mx-auto h-full", !fullWidth && "max-w-7xl")}>
+        <main className={cn("flex-1", !fullWidth && "p-4 sm:p-6 lg:p-8")}>
+          <div className={cn("mx-auto h-full", !fullWidth && "max-w-7xl")}>
+            <FirebaseErrorListener />
             {children}
-            </div>
+          </div>
         </main>
-        </div>
         <Toaster />
-      </div>
+      </SidebarInset>
     </SidebarProvider>
   );
 }

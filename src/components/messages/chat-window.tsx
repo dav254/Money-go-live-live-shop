@@ -43,12 +43,12 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
     if (!product) return <div className="max-w-xs rounded-2xl border bg-background p-3 shadow-sm"><p className="text-xs text-muted-foreground italic">Product no longer available.</p></div>;
 
      return (
-        <div className="max-w-xs rounded-2xl border bg-card p-3 shadow-lg hover:border-primary transition-all group overflow-hidden">
+        <div className="max-w-xs rounded-2xl border bg-card p-3 shadow-lg hover:border-primary transition-all group overflow-hidden text-left">
             <div className="flex gap-3">
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl border">
                      <Image src={product.imageUrl || 'https://picsum.photos/seed/product/150/150'} alt={product.name || 'product'} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-left">
                     <p className="font-black text-[10px] uppercase tracking-widest text-primary mb-1">Deal Shared</p>
                     <p className="font-bold text-xs truncate mb-1">{product.name}</p>
                     <p className="text-sm font-black text-foreground">${product.price.toLocaleString()}</p>
@@ -101,11 +101,11 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                 <div className="space-y-3 p-2">
                     {isLoading && <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
                     {products?.map(product => (
-                        <div key={product.id} className="flex items-center gap-4 p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-primary/30 transition-all group">
+                        <div key={product.id} className="flex items-center gap-4 p-3 rounded-2xl bg-muted/30 border border-transparent hover:border-primary/30 transition-all group text-left">
                             <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border bg-black">
                                 <Image src={product.imageUrl || '/placeholder.svg'} alt={product.name} fill className="object-cover group-hover:scale-110 transition-transform" />
                             </div>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 text-left">
                                 <p className="font-bold text-sm truncate">{product.name}</p>
                                 <p className="text-xs font-black text-primary">${product.price.toLocaleString()}</p>
                             </div>
@@ -136,7 +136,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     return query(collection(firestore, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc'));
   }, [firestore, chat]);
 
-  const { data: serverMessages, isLoading: isLoadingMessages } = useCollection<ChatMessage>(messagesQuery);
+  const { data: serverMessages } = useCollection<ChatMessage>(messagesQuery);
   
   useEffect(() => {
     if (serverMessages) setOptimisticMessages([]);
@@ -281,7 +281,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                     <div className={cn("flex flex-col gap-1.5 max-w-[85%] sm:max-w-[70%]", alignRight ? "items-end text-right" : "items-start text-left")}>
                         {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
                             <div className={cn(
-                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm break-words", 
+                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm break-words text-left", 
                                 alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                             )}>
                                 <p className="whitespace-pre-wrap">{msg.messageText}</p>
