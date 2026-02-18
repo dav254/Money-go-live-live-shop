@@ -123,10 +123,11 @@ export function ChatSystem() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4.1rem)] w-full overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-background">
+      {/* List Container - Hidden on mobile when chat is active */}
       <div className={cn(
-        "w-full md:w-80 border-r bg-muted/5 flex-shrink-0 transition-all duration-300", 
-        selectedChat ? "hidden md:flex" : "flex"
+        "flex-shrink-0 border-r bg-muted/5 transition-all duration-300 overflow-hidden", 
+        selectedChat ? "hidden md:flex md:w-80" : "w-full md:w-80"
       )}>
         <ConversationList
             chats={chatsWithParticipants}
@@ -135,8 +136,9 @@ export function ChatSystem() {
             isLoading={isLoading}
         />
       </div>
+      {/* Window Container - Hidden on mobile when list is active */}
       <div className={cn(
-        "w-full flex-1 flex flex-col transition-all duration-300 overflow-hidden",
+        "flex-1 flex flex-col transition-all duration-300 overflow-hidden",
         !selectedChat ? "hidden md:flex" : "flex"
       )}>
         <ChatWindow

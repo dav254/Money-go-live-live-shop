@@ -6,12 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2, ArrowLeft, MessageSquare, Reply, CheckCheck, Clock } from 'lucide-react';
+import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2, ArrowLeft, MessageSquare, CheckCheck } from 'lucide-react';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, useUserProfile, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile, useDoc } from '@/firebase';
 import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
 import {
@@ -243,11 +242,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const allMessages = [...(serverMessages || []), ...optimisticMessages];
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-background overflow-hidden">
       <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl shrink-0">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="md:hidden rounded-full" onClick={onBack}><ArrowLeft className="h-5 w-5" /></Button>
-          <div className="relative">
+        <div className="flex items-center gap-4 overflow-hidden">
+          <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0" onClick={onBack}><ArrowLeft className="h-5 w-5" /></Button>
+          <div className="relative shrink-0">
             <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-xl">
                 <AvatarImage src={otherParticipantProfile?.profilePictureUrl} />
                 <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
@@ -256,13 +255,13 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           </div>
           <div className="overflow-hidden">
             <p className="font-black text-sm uppercase tracking-tight truncate leading-none mb-1">{otherParticipantProfile?.fullName}</p>
-            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-1.5 py-0.5 rounded leading-none">
+            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-1.5 py-0.5 rounded leading-none block w-fit truncate">
                 {isOnline ? 'Online' : otherParticipantProfile?.lastSeen ? `Seen ${formatDistanceToNow(otherParticipantProfile.lastSeen.toDate(), { addSuffix: true })}` : 'Offline'}
             </span>
           </div>
         </div>
         <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full"><MoreVertical className="h-5 w-5" /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full shrink-0"><MoreVertical className="h-5 w-5" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-2xl">
               <DropdownMenuItem className="text-destructive font-bold" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(currentUser.uid) }).then(onChatDeleted)}>
                 <Trash2 className="mr-2 h-4 w-4" /> Delete Chat
@@ -281,7 +280,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                     <div className={cn("flex flex-col gap-1.5", alignRight ? "items-end text-right" : "items-start text-left")}>
                         {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
                             <div className={cn(
-                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm max-w-[85%] sm:max-w-md", 
+                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm max-w-[95%] sm:max-w-md", 
                                 alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                             )}>
                                 <p className="whitespace-pre-wrap break-words">{msg.messageText}</p>
@@ -315,7 +314,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           {userProfile?.userRole === 'seller' && (
               <Dialog><DialogTrigger asChild><Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0"><Package className="h-5 w-5" /></Button></DialogTrigger><ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} /></Dialog>
           )}
-          <Input placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm sm:text-base" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={uploadProgress !== null} />
+          <Input placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={uploadProgress !== null} />
           <Button type="submit" size="icon" className="h-11 w-11 rounded-2xl bg-primary shrink-0" disabled={uploadProgress !== null || !newMessage.trim()}><Send className="h-5 w-5" /></Button>
         </form>
       </div>
