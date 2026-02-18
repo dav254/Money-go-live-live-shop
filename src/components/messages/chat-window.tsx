@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -37,6 +36,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '../ui/progress';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+
+interface ChatWindowProps {
+  chat: Chat | null;
+  currentUser: User | null;
+  onChatDeleted: () => void;
+  onBack: () => void;
+}
 
 const SharedProductCard = ({ productId }: { productId: string }) => {
     const firestore = useFirestore();
@@ -194,6 +200,13 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     const text = newMessage;
     setNewMessage('');
     sendMessage({ messageText: text.trim(), messageType: 'text' }).catch(() => setNewMessage(text));
+  };
+
+  const handleShareProduct = (productId: string) => {
+    sendMessage({ messageType: 'product', productId }).catch(error => {
+        console.error("Error sharing product:", error);
+        toast({ variant: 'destructive', title: 'Share Failed' });
+    });
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
