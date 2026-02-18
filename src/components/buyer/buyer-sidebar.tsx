@@ -7,6 +7,7 @@ import {
   SidebarMenuButton,
   SidebarGroup,
   SidebarGroupLabel,
+  SidebarHeader,
 } from '@/components/ui/sidebar';
 import {
   Wallet,
@@ -21,8 +22,9 @@ import {
   Radio,
   Video,
 } from 'lucide-react';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { usePathname } from 'next/navigation';
+import { Logo } from '../logo';
 
 export function BuyerSidebar() {
   const pathname = usePathname();
@@ -30,6 +32,10 @@ export function BuyerSidebar() {
   
   return (
     <>
+    <SidebarHeader className="border-b bg-card p-4">
+      <Logo className="h-8 w-auto text-primary" />
+    </SidebarHeader>
+    
     <SidebarGroup>
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
       <SidebarMenu>
