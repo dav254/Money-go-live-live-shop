@@ -2,7 +2,6 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { logError } from '@/lib/error-logging';
-import { getFirestore, Firestore } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 
 interface Props {
