@@ -1,9 +1,9 @@
 'use client';
 
-import React, { Component, ErrorInfo, ReactNode, useEffect } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { logError } from '@/lib/error-logging';
-import { useFirestore } from '@/firebase';
-import { Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
 
 interface Props {
   children: ReactNode;
@@ -16,27 +16,36 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
-const ErrorLogger = ({ firestore, error, errorInfo, userId }: { firestore: Firestore, error: Error, errorInfo: ErrorInfo, userId?: string }) => {
-  useEffect(() => {
-    logError(firestore, error, { 
-      userId,
-      context: { 
-        componentStack: errorInfo.componentStack 
-      }
-    });
+/**
+ * A fallback UI component that uses hooks but is wrapped by the class error boundary.
+ */
+function ErrorFallback({ error, errorInfo, userId }: { error: Error, errorInfo: ErrorInfo, userId?: string }) {
+  // We initialize locally to avoid hook dependency issues during critical failures
+  const { firestore } = initializeFirebase();
+  
+  React.useEffect(() => {
+    if (firestore && error) {
+      logError(firestore, error, { 
+        userId,
+        context: { 
+          componentStack: errorInfo?.componentStack 
+        }
+      });
+    }
   }, [firestore, error, errorInfo, userId]);
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground">
-      <h1 className="text-2xl font-bold text-destructive">Something went wrong.</h1>
-      <p className="text-muted-foreground">An error has been logged. Please try refreshing the page.</p>
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground p-6 text-center">
+      <h1 className="text-2xl font-black uppercase tracking-tighter text-destructive mb-2">Something went wrong</h1>
+      <p className="text-sm text-muted-foreground max-w-sm mb-6">An application error has been logged. Please try refreshing the page or contact support.</p>
+      <button 
+        onClick={() => window.location.reload()}
+        className="px-6 py-2 bg-primary text-white font-bold rounded-xl uppercase text-xs tracking-widest shadow-xl shadow-primary/20"
+      >
+        Refresh Page
+      </button>
     </div>
   );
-};
-
-const FirebaseAwareErrorLogger = ({ error, errorInfo, userId }: { error: Error, errorInfo: ErrorInfo, userId?: string }) => {
-    const firestore = useFirestore();
-    return <ErrorLogger firestore={firestore} error={error} errorInfo={errorInfo} userId={userId} />
 }
 
 export class GlobalErrorBoundary extends Component<Props, State> {
@@ -52,13 +61,13 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
-    console.error("Uncaught error:", error, errorInfo);
+    console.error("Uncaught error caught by GlobalErrorBoundary:", error, errorInfo);
   }
 
   public render() {
     if (this.state.hasError && this.state.error && this.state.errorInfo) {
       return (
-        <FirebaseAwareErrorLogger 
+        <ErrorFallback 
           error={this.state.error} 
           errorInfo={this.state.errorInfo} 
           userId={this.props.userId} 

@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
@@ -124,7 +123,7 @@ export function ChatSystem() {
   };
 
   return (
-    <div className="relative flex h-full w-full overflow-hidden bg-background max-h-[calc(100vh-4rem)]">
+    <div className="flex h-full w-full overflow-hidden bg-background">
       <div className={cn(
         "flex-shrink-0 border-r bg-muted/5 transition-all duration-300 overflow-hidden flex flex-col z-10", 
         selectedChat ? "hidden md:flex md:w-80" : "w-full md:w-80"
@@ -138,7 +137,7 @@ export function ChatSystem() {
       </div>
       <div className={cn(
         "flex-1 flex flex-col transition-all duration-300 overflow-hidden z-0 relative",
-        !selectedChat ? "hidden md:flex" : "flex"
+        !selectedChat ? "hidden md:flex" : "flex h-full w-full"
       )}>
         <ChatWindow
             chat={selectedChat}
