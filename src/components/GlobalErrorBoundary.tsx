@@ -34,6 +34,11 @@ const ErrorLogger = ({ firestore, error, errorInfo, userId }: { firestore: Fires
   );
 };
 
+const FirebaseAwareErrorLogger = ({ error, errorInfo, userId }: { error: Error, errorInfo: ErrorInfo, userId?: string }) => {
+    const firestore = useFirestore();
+    return <ErrorLogger firestore={firestore} error={error} errorInfo={errorInfo} userId={userId} />
+}
+
 export class GlobalErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
@@ -61,11 +66,6 @@ export class GlobalErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    return <React.Fragment>{this.props.children}</React.Fragment>;
   }
-}
-
-const FirebaseAwareErrorLogger = ({ error, errorInfo, userId }: { error: Error, errorInfo: ErrorInfo, userId?: string }) => {
-    const firestore = useFirestore();
-    return <ErrorLogger firestore={firestore} error={error} errorInfo={errorInfo} userId={userId} />
 }
