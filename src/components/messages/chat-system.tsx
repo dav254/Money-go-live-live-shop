@@ -124,7 +124,7 @@ export function ChatSystem() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-background">
-      {/* List Container - Hidden on mobile when chat is active */}
+      {/* List Container - Intelligent Responsive Toggle */}
       <div className={cn(
         "flex-shrink-0 border-r bg-muted/5 transition-all duration-300 overflow-hidden", 
         selectedChat ? "hidden md:flex md:w-80" : "w-full md:w-80"
@@ -136,7 +136,7 @@ export function ChatSystem() {
             isLoading={isLoading}
         />
       </div>
-      {/* Window Container - Hidden on mobile when list is active */}
+      {/* Window Container - Intelligent Responsive Toggle */}
       <div className={cn(
         "flex-1 flex flex-col transition-all duration-300 overflow-hidden",
         !selectedChat ? "hidden md:flex" : "flex"

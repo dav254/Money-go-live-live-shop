@@ -175,7 +175,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       setOptimisticMessages(prev => [...prev, { id: tempId, senderId: currentUser.uid, timestamp: new Date(), isOptimistic: true, ...messageData }]);
 
       try {
-          const res = await addDoc(collection(firestore, 'chats', chat.id, 'messages'), { senderId: currentUser.uid, timestamp: serverTimestamp(), isRead: false, ...messageData });
+          await addDoc(collection(firestore, 'chats', chat.id, 'messages'), { senderId: currentUser.uid, timestamp: serverTimestamp(), isRead: false, ...messageData });
           await updateDoc(doc(firestore, 'chats', chat.id), { lastMessage: messageData.messageText || 'Sent a file', lastMessageTimestamp: serverTimestamp() });
       } catch (error) {
           setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
@@ -228,11 +228,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   if (!chat || !currentUser) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/5 p-8 text-center">
+      <div className="flex-1 flex items-center justify-center bg-muted/5 p-8 text-center h-full w-full">
         <div className="max-w-xs space-y-4">
             <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto"><MessageSquare className="h-10 w-10 text-primary opacity-20" /></div>
             <h3 className="font-black text-xl uppercase tracking-tighter">Your Inbox</h3>
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">Select a conversation to start messaging buyers or sellers.</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">Select a conversation to start messaging buyers or sellers.</p>
         </div>
       </div>
     );
@@ -242,9 +242,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const allMessages = [...(serverMessages || []), ...optimisticMessages];
 
   return (
-    <div className="flex h-full flex-col bg-background overflow-hidden">
-      <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl shrink-0">
-        <div className="flex items-center gap-4 overflow-hidden">
+    <div className="flex h-full flex-col bg-background overflow-hidden w-full relative">
+      <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl shrink-0 z-10">
+        <div className="flex items-center gap-4 overflow-hidden min-w-0">
           <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0" onClick={onBack}><ArrowLeft className="h-5 w-5" /></Button>
           <div className="relative shrink-0">
             <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-xl">
@@ -270,20 +270,20 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </DropdownMenu>
       </div>
 
-      <ScrollArea className="flex-1" ref={scrollAreaRef}>
-        <div className="p-4 sm:p-6 space-y-8 pb-12">
+      <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
+        <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto">
           {allMessages.map((msg) => {
             const senderIsMe = msg.senderId === currentUser.uid;
             const alignRight = senderIsMe;
             return (
-                <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", alignRight ? "justify-end pl-12" : "justify-start pr-12")}>
-                    <div className={cn("flex flex-col gap-1.5", alignRight ? "items-end text-right" : "items-start text-left")}>
+                <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", alignRight ? "justify-end" : "justify-start")}>
+                    <div className={cn("flex flex-col gap-1.5 max-w-[85%] sm:max-w-[70%]", alignRight ? "items-end text-right" : "items-start text-left")}>
                         {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
                             <div className={cn(
-                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm max-w-[95%] sm:max-w-md", 
+                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm break-words", 
                                 alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                             )}>
-                                <p className="whitespace-pre-wrap break-words">{msg.messageText}</p>
+                                <p className="whitespace-pre-wrap">{msg.messageText}</p>
                             </div>
                         ))}
                         <div className={cn("flex items-center gap-2 px-1", alignRight ? "flex-row-reverse" : "flex-row")}>
@@ -301,9 +301,9 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t bg-card/30 backdrop-blur-xl shrink-0">
+      <div className="p-4 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10">
         {uploadProgress !== null && (
-          <div className="mb-4 px-2">
+          <div className="mb-4 px-2 max-w-4xl mx-auto">
             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary mb-1.5 animate-pulse"><span>Sending Media...</span><span>{Math.round(uploadProgress)}%</span></div>
             <Progress value={uploadProgress} className="h-1 bg-primary/10" />
           </div>

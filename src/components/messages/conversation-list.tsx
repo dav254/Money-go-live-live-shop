@@ -17,15 +17,13 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
-  const { user } = useUser();
-
   return (
     <div className="flex h-full w-full flex-col bg-background overflow-hidden">
       <div className="p-4 sm:p-6 border-b border-white/5 shrink-0 bg-card/20">
-        <div className="flex items-center justify-between mb-4">
-            <h2 className="font-black text-lg uppercase tracking-tighter">Messages</h2>
+        <div className="flex items-center justify-between mb-4 overflow-hidden">
+            <h2 className="font-black text-lg uppercase tracking-tighter truncate">Messages</h2>
             {chats.length > 0 && (
-              <Badge className="rounded-full h-5 px-2 bg-primary/20 text-primary border-none">
+              <Badge className="rounded-full h-5 px-2 bg-primary/20 text-primary border-none shrink-0">
                 {chats.length}
               </Badge>
             )}
@@ -79,7 +77,7 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                   </div>
                   
                   <div className="flex-1 overflow-hidden min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center justify-between mb-0.5 overflow-hidden">
                       <p className={cn(
                         "font-bold text-sm truncate uppercase tracking-tight", 
                         isActive ? "text-white" : "text-foreground"
