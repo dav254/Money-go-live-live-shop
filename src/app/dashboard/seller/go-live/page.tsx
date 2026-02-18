@@ -624,7 +624,7 @@ export default function SellerGoLivePage() {
   }
 
   return (
-    <SellerLayout>
+    <SellerLayout fullWidth>
       <div className={cn(
         "flex-1 relative bg-black transition-all duration-500",
         meetingId ? "h-[calc(100vh-4rem)] overflow-hidden" : "p-8"

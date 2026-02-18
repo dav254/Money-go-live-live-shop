@@ -64,6 +64,27 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
     onEnd();
   };
 
+  const handleStartBroadcast = async () => {
+    // FORCE HARDWARE HANDSHAKE AT START
+    try {
+      // Force a hardware check to ensure camera/mic aren't dormant
+      await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      
+      // Ensure SDK components are toggled ON
+      if (!webcamOn) enableWebcam();
+      if (!micOn) unmuteMic();
+      
+      // Give the SDK a moment to initialize the fresh streams before telling the backend we are 'live'
+      setTimeout(() => {
+        onBroadcast();
+      }, 500);
+    } catch (err) {
+      console.error("Force hardware on broadcast failed:", err);
+      // Still attempt broadcast as fallback
+      onBroadcast();
+    }
+  };
+
   return (
     <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
       <Button
@@ -87,7 +108,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 
       {!isLive ? (
         <Button
-          onClick={onBroadcast}
+          onClick={handleStartBroadcast}
           className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white"
         >
           START BROADCAST
