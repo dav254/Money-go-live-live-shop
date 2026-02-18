@@ -267,3 +267,24 @@ export interface HomepageSlide {
     href: string;
     order: number;
 }
+
+export interface LiveSession {
+    id: string;
+    sellerId: string;
+    title: string;
+    status: 'upcoming' | 'live' | 'paused' | 'ended';
+    videosdkMeetingId?: string | null;
+    viewerCount: number;
+    startTime: any;
+    endTime?: any;
+    lastStartedAt?: any;
+    timeRemainingMs: number;
+    initialStartTime: any;
+    pinnedProductId?: string | null;
+    activeOffer?: {
+        title: string;
+        code: string;
+        publishedAt: any;
+    } | null;
+    sales?: number;
+}

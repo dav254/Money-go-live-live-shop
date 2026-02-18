@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
 import { doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send, VideoOff } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send, VideoOff, PauseCircle, PlayCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -148,6 +149,7 @@ export default function SellerGoLivePage() {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
@@ -162,7 +164,7 @@ export default function SellerGoLivePage() {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- AUTOMATIC SESSION RESUMPTION ---
+  // --- SESSION RECOVERY & RECONCILIATION ---
   const sessionRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'liveSessions', user.uid);
@@ -171,21 +173,40 @@ export default function SellerGoLivePage() {
   const { data: activeSession, isLoading: isSessionCheckLoading } = useDoc<LiveSession>(sessionRef);
 
   useEffect(() => {
-    if (activeSession && (activeSession.status === 'live' || activeSession.status === 'upcoming') && activeSession.videosdkMeetingId && !wantsToSetup) {
-        setMeetingId(activeSession.videosdkMeetingId);
-        setIsLive(activeSession.status === 'live');
-        setWantsToSetup(true);
-        
-        // Calculate remaining time based on start time
-        if (activeSession.startTime) {
-            const startMs = typeof activeSession.startTime.toMillis === 'function' ? activeSession.startTime.toMillis() : new Date(activeSession.startTime).getTime();
-            const elapsed = Date.now() - startMs;
-            setTimeRemaining(Math.max(0, SESSION_LIMIT_MS - elapsed));
+    if (activeSession && activeSession.status !== 'ended' && !wantsToSetup) {
+        const now = new Date();
+        const initialStart = activeSession.initialStartTime?.toDate();
+        const hoursPassed = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
+
+        // If session is within 24h, we can resume
+        if (hoursPassed < 24) {
+            let currentRemaining = activeSession.timeRemainingMs;
+            
+            // Reconcile time if it was left in 'live' state
+            if (activeSession.status === 'live' && activeSession.lastStartedAt) {
+                const lastStart = activeSession.lastStartedAt.toDate().getTime();
+                const elapsed = now.getTime() - lastStart;
+                currentRemaining = Math.max(0, currentRemaining - elapsed);
+                
+                // Sync the reconciliation to Firestore once
+                updateDoc(doc(firestore, 'liveSessions', user!.uid), {
+                    timeRemainingMs: currentRemaining,
+                    status: 'paused' // Set to paused during recovery for safety
+                }).catch(console.error);
+            }
+
+            if (currentRemaining > 0) {
+                setMeetingId(activeSession.videosdkMeetingId || null);
+                setIsLive(activeSession.status === 'live');
+                setIsPaused(activeSession.status === 'paused');
+                setTimeRemaining(currentRemaining);
+                setWantsToSetup(true);
+            }
         }
     }
-  }, [activeSession, wantsToSetup]);
+  }, [activeSession, wantsToSetup, firestore, user]);
 
-  // --- AUTOMATIC PERMISSION REQUEST ---
+  // --- PERMISSION HANDSHAKE ---
   useEffect(() => {
     if (!wantsToSetup) {
         const triggerHandshake = async () => {
@@ -219,14 +240,15 @@ export default function SellerGoLivePage() {
 
   // Session timer logic
   useEffect(() => {
-    if (isLive) {
+    if (isLive && !isPaused) {
       timerRef.current = setInterval(() => {
         setTimeRemaining(prev => {
-          if (prev <= 1000) {
+          const nextValue = prev - 1000;
+          if (nextValue <= 0) {
             handleEndLive(true);
             return 0;
           }
-          return prev - 1000;
+          return nextValue;
         });
       }, 1000);
     } else {
@@ -236,7 +258,18 @@ export default function SellerGoLivePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isLive]);
+  }, [isLive, isPaused]);
+
+  // Periodic Sync (every 30s) to prevent data loss if tab crashes
+  useEffect(() => {
+      if (!isLive || isPaused || !user) return;
+      const syncInterval = setInterval(() => {
+          updateDoc(doc(firestore, 'liveSessions', user.uid), {
+              timeRemainingMs: timeRemaining
+          }).catch(console.error);
+      }, 30000);
+      return () => clearInterval(syncInterval);
+  }, [isLive, isPaused, timeRemaining, firestore, user]);
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -246,44 +279,13 @@ export default function SellerGoLivePage() {
     return `${hours > 0 ? hours + ':' : ''}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const createMeeting = async (authToken: string) => {
-    try {
-      const res = await fetch("https://api.videosdk.live/v2/rooms", {
-        method: "POST",
-        headers: {
-          authorization: authToken,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-      const { roomId } = await res.json();
-      return roomId;
-    } catch (e) {
-      console.error("Failed to create room:", e);
-      return null;
-    }
-  };
-
   const handleSetupPreview = async () => {
     if (!user || !firestore || !token) return;
     
-    // IF ALREADY SETUP (Resuming), just set the flags
-    if (activeSession?.videosdkMeetingId && activeSession.status !== 'ended') {
-        setMeetingId(activeSession.videosdkMeetingId);
-        setWantsToSetup(true);
-        return;
-    }
-
-    if ((userProfile?.aiPoints || 0) < 100) {
-        setError("Insufficient AI Points. You need 100 points ($1.00) to start a show.");
-        return;
-    }
-
     setIsStarting(true);
     setError(null);
 
     try {
-      // Points deducted inside this API call
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: {
@@ -295,15 +297,37 @@ export default function SellerGoLivePage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.details || result.error || "Could not start session.");
 
-      const id = await createMeeting(token);
+      let id = result.videosdkMeetingId;
+      if (!id) {
+          const createMeeting = async (authToken: string) => {
+            const res = await fetch("https://api.videosdk.live/v2/rooms", {
+                method: "POST",
+                headers: { authorization: authToken, "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            const { roomId } = await res.json();
+            return roomId;
+          };
+          id = await createMeeting(token);
+      }
+      
       if (!id) throw new Error("Could not reach media bridge.");
       
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      await updateDoc(sessionRef, { videosdkMeetingId: id });
+      await updateDoc(sessionRef, { 
+          videosdkMeetingId: id,
+          status: 'upcoming' 
+      });
 
       setMeetingId(id);
       setWantsToSetup(true);
-      toast({ title: "Studio Ready", description: "Camera calibrated. You are in private preview." });
+      if (result.resumed) {
+          setTimeRemaining(result.timeRemainingMs);
+          toast({ title: "Session Restored", description: "You have airtime remaining. No points deducted." });
+      } else {
+          setTimeRemaining(SESSION_LIMIT_MS);
+          toast({ title: "Studio Ready", description: "Camera calibrated. You are in private preview." });
+      }
     } catch (err: any) {
       console.error("Setup failed:", err);
       setError(err.message || "Connection failed.");
@@ -316,13 +340,44 @@ export default function SellerGoLivePage() {
     if (!user || !firestore) return;
     try {
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
-      await updateDoc(sessionRef, { status: 'live' });
+      await updateDoc(sessionRef, { 
+          status: 'live',
+          lastStartedAt: serverTimestamp()
+      });
       setIsLive(true);
-      setTimeRemaining(SESSION_LIMIT_MS);
-      toast({ title: "You are LIVE!", description: "Your broadcast is now global for 70 minutes." });
+      setIsPaused(false);
+      toast({ title: "You are LIVE!", description: "Your airtime is now active." });
     } catch (e) {
       console.error("Failed to go live:", e);
     }
+  };
+
+  const handleTogglePause = async () => {
+      if (!user || !firestore) return;
+      const newPausedState = !isPaused;
+      
+      try {
+          const sessionRef = doc(firestore, 'liveSessions', user.uid);
+          if (newPausedState) {
+              // Pausing: Save remaining time
+              await updateDoc(sessionRef, {
+                  status: 'paused',
+                  timeRemainingMs: timeRemaining
+              });
+              setIsPaused(true);
+              toast({ title: "Stream Paused", description: "Timer stopped. Your airtime is preserved." });
+          } else {
+              // Resuming: Mark new start time
+              await updateDoc(sessionRef, {
+                  status: 'live',
+                  lastStartedAt: serverTimestamp()
+              });
+              setIsPaused(false);
+              toast({ title: "Stream Resumed", description: "You are back on air!" });
+          }
+      } catch (e) {
+          console.error("Pause/Resume failed:", e);
+      }
   };
 
   const handleEndLive = async (isTimeout = false) => {
@@ -334,6 +389,7 @@ export default function SellerGoLivePage() {
         videosdkMeetingId: null,
         pinnedProductId: null,
         activeOffer: null,
+        timeRemainingMs: 0
       });
       
       setMeetingId(null);
@@ -345,7 +401,7 @@ export default function SellerGoLivePage() {
         toast({
           variant: "destructive",
           title: "Session Expired",
-          description: "Your points session has ended (70 minutes limit). Buy more points to start a new show.",
+          description: "Your 70-minute session has ended. Top up to start again.",
         });
       } else {
         toast({ title: "Broadcast Ended" });
@@ -470,10 +526,10 @@ export default function SellerGoLivePage() {
                       <CardContent className="space-y-8">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
-                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Session Cost</p>
+                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Session Credit</p>
                                   <div className="flex items-center gap-2">
                                       <BadgeCent className="h-5 w-5 text-primary" />
-                                      <p className="text-xl font-black">100 Points <span className="text-xs font-normal text-neutral-500">($1.00)</span></p>
+                                      <p className="text-xl font-black">70 Minutes <span className="text-xs font-normal text-neutral-500">(100 pts)</span></p>
                                   </div>
                               </div>
                               <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
@@ -505,11 +561,11 @@ export default function SellerGoLivePage() {
                               <ul className="space-y-3">
                                   <li className="flex items-center gap-3 text-sm text-neutral-300">
                                       <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                      Ensure your lighting is bright and clear.
+                                      Timer pauses when you stop the stream.
                                   </li>
                                   <li className="flex items-center gap-3 text-sm text-neutral-300">
                                       <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                      Have your products ready to show on camera.
+                                      Session is valid for 24 hours once paid.
                                   </li>
                                   <li className="flex items-center gap-3 text-sm text-neutral-300">
                                       <div className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -523,13 +579,13 @@ export default function SellerGoLivePage() {
                             size="lg" 
                             className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20"
                             onClick={handleSetupPreview}
-                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || hasPermissions === false}
+                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100 && !activeSession || hasPermissions === false}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
-                              {hasPermissions === false ? 'ENABLE CAMERA TO START' : 'ENTER STUDIO & SETUP CAMERA'}
+                              {hasPermissions === false ? 'ENABLE CAMERA TO START' : (activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO & SETUP CAMERA')}
                           </Button>
                           
-                          {(userProfile?.aiPoints || 0) < 100 && (
+                          {(userProfile?.aiPoints || 0) < 100 && !activeSession && (
                               <Dialog>
                                   <DialogTrigger asChild>
                                       <Button variant="outline" className="w-full h-12 rounded-2xl border-primary/20 text-primary hover:bg-primary/5">
@@ -558,7 +614,7 @@ export default function SellerGoLivePage() {
               meetingId={meetingId} 
               participantName={userProfile?.shopName || userProfile?.fullName || "Seller"} 
               token={token}
-              isLive={isLive}
+              isLive={isLive && !isPaused}
               onBroadcast={handleBroadcastStart}
               onEnd={() => handleEndLive(false)}
             />
@@ -566,16 +622,25 @@ export default function SellerGoLivePage() {
         </div>
 
         {isLive && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60]">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2">
                 <div className={cn(
                     "px-4 py-2 rounded-full backdrop-blur-xl border flex items-center gap-3 transition-colors duration-500",
-                    timeRemaining < (5 * 60 * 1000) ? "bg-red-600/80 border-red-500 animate-pulse" : "bg-black/40 border-white/10"
+                    isPaused ? "bg-yellow-600/80 border-yellow-500" : (timeRemaining < (5 * 60 * 1000) ? "bg-red-600/80 border-red-500 animate-pulse" : "bg-black/40 border-white/10")
                 )}>
-                    <Clock className={cn("h-4 w-4", timeRemaining < (5 * 60 * 1000) ? "text-white" : "text-primary")} />
+                    <Clock className={cn("h-4 w-4", isPaused ? "text-white" : "text-primary")} />
                     <span className="text-sm font-black tracking-widest text-white uppercase tabular-nums">
-                        {formatTime(timeRemaining)}
+                        {isPaused ? "PAUSED" : formatTime(timeRemaining)}
                     </span>
                 </div>
+                
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md"
+                    onClick={handleTogglePause}
+                >
+                    {isPaused ? <PlayCircle className="h-6 w-6 text-green-400" /> : <PauseCircle className="h-6 w-6 text-yellow-400" />}
+                </Button>
             </div>
         )}
         

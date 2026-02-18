@@ -5,6 +5,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
 const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
+const EXPIRY_HOURS = 24;
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
@@ -23,8 +24,8 @@ async function verifyUser(request: Request) {
 }
 
 /**
- * POST handler to create a new live session.
- * Deducts 100 points AT THE START to secure the 70-minute session.
+ * POST handler to create or resume a live session.
+ * Detects if an active session exists within 24 hours to avoid double charging.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -35,7 +36,12 @@ export async function POST(request: Request) {
 
   try {
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
-    const userProfileDoc = await userProfileRef.get();
+    const sessionRef = db.collection('liveSessions').doc(sellerId);
+    
+    const [userProfileDoc, sessionDoc] = await Promise.all([
+        userProfileRef.get(),
+        sessionRef.get()
+    ]);
     
     if (!userProfileDoc.exists) {
         return NextResponse.json({ error: 'User profile not found.' }, { status: 404 });
@@ -43,8 +49,35 @@ export async function POST(request: Request) {
     
     const userProfile = userProfileDoc.data();
     const currentPoints = userProfile?.aiPoints || 0;
+    const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    if (currentPoints < GO_LIVE_COST) {
+    let needsToPay = true;
+
+    // --- SESSION RECOVERY LOGIC ---
+    if (sessionDoc.exists) {
+        const sessionData = sessionDoc.data();
+        const initialStartTime = sessionData?.initialStartTime?.toDate();
+        const now = new Date();
+        
+        // Check if session is within 24h and has airtime remaining
+        const hoursDiff = initialStartTime ? (now.getTime() - initialStartTime.getTime()) / (1000 * 60 * 60) : 999;
+        
+        if (hoursDiff < EXPIRY_HOURS && sessionData?.status !== 'ended' && sessionData?.timeRemainingMs > 0) {
+            needsToPay = false;
+            console.log(`[API] Resuming existing session for ${sellerId}. Airtime left: ${sessionData.timeRemainingMs}ms`);
+            
+            return NextResponse.json({ 
+                success: true, 
+                liveSessionId: sessionRef.id,
+                resumed: true,
+                timeRemainingMs: sessionData.timeRemainingMs,
+                videosdkMeetingId: sessionData.videosdkMeetingId
+            });
+        }
+    }
+
+    // --- NEW SESSION LOGIC ---
+    if (needsToPay && currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
             details: `You need ${GO_LIVE_COST} points ($1.00) to start a 70-minute show. Your balance is ${currentPoints}.`,
@@ -52,46 +85,46 @@ export async function POST(request: Request) {
         }, { status: 402 });
     }
 
-    const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
-    const newSessionRef = db.collection('liveSessions').doc(sellerId);
-
     const batch = db.batch();
     
-    // 1. Deduct points IMMEDIATELY to secure the session
+    // 1. Deduct points ONLY for new sessions
     batch.update(userProfileRef, {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
 
-    // 2. Initialize or reset the session document
-    batch.set(newSessionRef, {
+    // 2. Initialize new session document
+    batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
       title: `${sellerName}'s Live Show`,
-      status: 'upcoming', // Starts as upcoming during setup/preview
+      status: 'upcoming', 
       productIds: [],
       viewerCount: 0,
+      initialStartTime: Timestamp.now(),
       startTime: Timestamp.now(),
       pointsCharged: GO_LIVE_COST,
-      sessionLimitMs: SESSION_LIMIT_MS, // Store limit for reference
-      activeOffer: null, // Initialize with no offer
+      timeRemainingMs: SESSION_LIMIT_MS,
+      timeUsedMs: 0,
+      activeOffer: null,
     }, { merge: true });
 
     await batch.commit();
 
     return NextResponse.json({ 
         success: true, 
-        liveSessionId: newSessionRef.id,
+        liveSessionId: sessionRef.id,
+        resumed: false,
         newBalance: currentPoints - GO_LIVE_COST
     });
 
   } catch (error: any) {
-    console.error('Error creating live session:', error);
+    console.error('Error creating/resuming live session:', error);
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }
 
 /**
- * PUT handler to end a live session.
+ * PUT handler to end a live session permanently.
  */
 export async function PUT(request: Request) {
   const verification = await verifyUser(request);
@@ -120,9 +153,10 @@ export async function PUT(request: Request) {
       videosdkMeetingId: null,
       pinnedProductId: null,
       activeOffer: null,
+      timeRemainingMs: 0, // Mark as fully consumed
     });
 
-    return NextResponse.json({ success: true, message: 'Live session ended.' });
+    return NextResponse.json({ success: true, message: 'Live session ended and airtime cleared.' });
 
   } catch (error: any) {
     console.error('Error ending live session:', error);

@@ -274,7 +274,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       </div>
 
       <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
-        <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto overflow-x-auto">
           {allMessages.map((msg) => {
             const senderIsMe = msg.senderId === currentUser.uid;
             const alignRight = senderIsMe;

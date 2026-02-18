@@ -7,9 +7,9 @@ import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet, Clock, Package, Truck, MoreHorizontal, X } from 'lucide-react';
-import type { SellerShop, Product, Order, Payout } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Users, Heart, Eye, Wallet, Clock, Package, Truck, MoreHorizontal, X, Radio, ArrowRight } from 'lucide-react';
+import type { SellerShop, Product, Order, Payout, LiveSession } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -75,10 +75,16 @@ export default function SellerDashboardPage() {
     return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
   }, [firestore, user]);
 
+  const liveSessionRef = useMemoFirebase(() => {
+      if (!user) return null;
+      return doc(firestore, 'liveSessions', user.uid);
+  }, [firestore, user]);
+
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
+  const { data: activeSession } = useDoc<LiveSession>(liveSessionRef);
 
   const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading;
 
@@ -95,11 +101,13 @@ export default function SellerDashboardPage() {
     if (!firestore) return;
     try { await deleteDoc(doc(firestore, 'products', productId)); toast({ title: "Product Deleted" }); } catch (e) { toast({ variant: 'destructive', title: "Error" }); }
   };
+
+  const isSessionActive = activeSession && activeSession.status !== 'ended' && activeSession.timeRemainingMs > 0;
   
   return (
     <SellerLayout>
-      <div className="p-4 sm:p-6 lg:p-8 bg-background min-h-full">
-        <div className="flex items-center justify-between mb-8">
+      <div className="p-4 sm:p-6 lg:p-8 bg-background min-h-full space-y-8">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Image src={shopData?.logoUrl || "https://picsum.photos/seed/avatar/50/50"} width={56} height={56} alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-primary/20 shadow-lg" />
             <div>
@@ -108,16 +116,40 @@ export default function SellerDashboardPage() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+        {isSessionActive && (
+            <Card className="bg-primary/10 border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
+                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-primary/20 rounded-full animate-pulse">
+                            <Radio className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg font-black uppercase tracking-tight">Active Live Session Detected</CardTitle>
+                            <CardDescription className="font-bold text-primary/80">You have airtime remaining! Resume your show now without using points.</CardDescription>
+                        </div>
+                    </div>
+                    <Button asChild size="lg" className="w-full sm:w-auto font-black bg-primary hover:bg-primary/90 rounded-xl shadow-xl shadow-primary/20">
+                        <Link href="/dashboard/seller/go-live">
+                            RESUME SHOW <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Followers</CardTitle><Users className="h-4 w-4 text-primary" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{shopData?.followers || 0}</div>}</CardContent></Card>
             <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Likes</CardTitle><Heart className="h-4 w-4 text-pink-500" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{totalLikes}</div>}</CardContent></Card>
             <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Views</CardTitle><Eye className="h-4 w-4 text-blue-500" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{totalViews}</div>}</CardContent></Card>
             <Card className="bg-primary/5 border-primary/20"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Earnings</CardTitle><Wallet className="h-4 w-4 text-primary" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black text-primary">${availableBalance.toFixed(2)}</div>}</CardContent></Card>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Button asChild size="lg" className="h-16 font-black rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 text-white tracking-widest uppercase"><Link href="/dashboard/products?tab=add-new">Add Product</Link></Button>
           <Button asChild size="lg" className="h-16 font-black rounded-2xl bg-purple-600 hover:bg-purple-700 shadow-xl shadow-purple-600/20 text-white tracking-widest uppercase"><Link href="/dashboard/products?tab=add-new">Add Video</Link></Button>
         </div>
+
         <div className="space-y-4">
           <div className="flex items-center justify-between"><h3 className="font-headline text-lg font-black uppercase tracking-widest">My Products</h3><Button variant="link" className="text-[10px] font-black uppercase tracking-widest" asChild><Link href="/dashboard/products">Manage All</Link></Button></div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
