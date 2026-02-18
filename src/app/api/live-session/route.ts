@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
@@ -24,11 +25,12 @@ async function verifyUser(request: Request) {
 
 /**
  * POST handler to create or resume a live session.
+ * Prevents double deduction and handles time reconciliation.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
   if ('error' in verification) {
-    return NextResponse.json({ error: verification.error }, { status: verification.status });
+    return NextResponse.json({ error: (verification as any).error }, { status: (verification as any).status });
   }
   const sellerId = (verification as { uid: string }).uid;
 
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
     const currentPoints = userProfile?.aiPoints || 0;
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    // --- SESSION RECOVERY LOGIC ---
+    // --- SESSION RECOVERY LOGIC (Anti-Theft) ---
     if (sessionDoc.exists) {
         const sessionData = sessionDoc.data();
         const initialStart = sessionData?.initialStartTime?.toDate();
@@ -138,7 +140,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const verification = await verifyUser(request);
   if ('error' in verification) {
-    return NextResponse.json({ error: verification.error }, { status: verification.status });
+    return NextResponse.json({ error: (verification as any).error }, { status: (verification as any).status });
   }
   const sellerId = (verification as { uid: string }).uid;
 
