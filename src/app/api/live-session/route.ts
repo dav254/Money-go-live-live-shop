@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
@@ -25,7 +24,6 @@ async function verifyUser(request: Request) {
 
 /**
  * POST handler to create or resume a live session.
- * Detects if an active session exists within 24 hours to avoid double charging.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -51,43 +49,54 @@ export async function POST(request: Request) {
     const currentPoints = userProfile?.aiPoints || 0;
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    let needsToPay = true;
-
     // --- SESSION RECOVERY LOGIC ---
     if (sessionDoc.exists) {
         const sessionData = sessionDoc.data();
-        const initialStartTime = sessionData?.initialStartTime?.toDate();
+        const initialStart = sessionData?.initialStartTime?.toDate();
         const now = new Date();
         
         // Check if session is within 24h and has airtime remaining
-        const hoursDiff = initialStartTime ? (now.getTime() - initialStartTime.getTime()) / (1000 * 60 * 60) : 999;
+        const hoursDiff = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
         
-        if (hoursDiff < EXPIRY_HOURS && sessionData?.status !== 'ended' && sessionData?.timeRemainingMs > 0) {
-            needsToPay = false;
-            console.log(`[API] Resuming existing session for ${sellerId}. Airtime left: ${sessionData.timeRemainingMs}ms`);
+        if (hoursDiff < EXPIRY_HOURS && sessionData?.status !== 'ended' && (sessionData?.timeRemainingMs || 0) > 0) {
+            console.log(`[API] Recovering existing session for ${sellerId}. Balance: ${sessionData.timeRemainingMs}ms`);
             
+            // Reconcile time if the user left while "Live"
+            let reconciledRemaining = sessionData.timeRemainingMs;
+            if (sessionData.status === 'live' && sessionData.lastStartedAt) {
+                const lastStart = sessionData.lastStartedAt.toDate().getTime();
+                const elapsed = now.getTime() - lastStart;
+                reconciledRemaining = Math.max(0, reconciledRemaining - elapsed);
+                
+                // Update Firestore immediately to reflect reconciliation
+                await sessionRef.update({
+                    timeRemainingMs: reconciledRemaining,
+                    status: 'paused' // Set to paused for safety upon recovery
+                });
+            }
+
             return NextResponse.json({ 
                 success: true, 
                 liveSessionId: sessionRef.id,
                 resumed: true,
-                timeRemainingMs: sessionData.timeRemainingMs,
+                timeRemainingMs: reconciledRemaining,
                 videosdkMeetingId: sessionData.videosdkMeetingId
             });
         }
     }
 
     // --- NEW SESSION LOGIC ---
-    if (needsToPay && currentPoints < GO_LIVE_COST) {
+    if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
-            details: `You need ${GO_LIVE_COST} points ($1.00) to start a 70-minute show. Your balance is ${currentPoints}.`,
+            details: `You need ${GO_LIVE_COST} points to start a 70-minute session. Your balance is ${currentPoints}.`,
             needsPoints: true 
         }, { status: 402 });
     }
 
     const batch = db.batch();
     
-    // 1. Deduct points ONLY for new sessions
+    // 1. Deduct points for new session
     batch.update(userProfileRef, {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
@@ -104,7 +113,6 @@ export async function POST(request: Request) {
       startTime: Timestamp.now(),
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
-      timeUsedMs: 0,
       activeOffer: null,
     }, { merge: true });
 
@@ -114,6 +122,7 @@ export async function POST(request: Request) {
         success: true, 
         liveSessionId: sessionRef.id,
         resumed: false,
+        timeRemainingMs: SESSION_LIMIT_MS,
         newBalance: currentPoints - GO_LIVE_COST
     });
 
@@ -153,10 +162,10 @@ export async function PUT(request: Request) {
       videosdkMeetingId: null,
       pinnedProductId: null,
       activeOffer: null,
-      timeRemainingMs: 0, // Mark as fully consumed
+      timeRemainingMs: 0, // Mark as consumed
     });
 
-    return NextResponse.json({ success: true, message: 'Live session ended and airtime cleared.' });
+    return NextResponse.json({ success: true, message: 'Live session ended.' });
 
   } catch (error: any) {
     console.error('Error ending live session:', error);

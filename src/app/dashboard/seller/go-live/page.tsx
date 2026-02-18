@@ -178,27 +178,27 @@ export default function SellerGoLivePage() {
         const initialStart = activeSession.initialStartTime?.toDate();
         const hoursPassed = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
 
-        // If session is within 24h, we can resume
+        // If session is within 24h, we lock the seller into the recovery state
         if (hoursPassed < 24) {
             let currentRemaining = activeSession.timeRemainingMs;
             
-            // Reconcile time if it was left in 'live' state
+            // Reconcile time if it was left in 'live' state (to prevent airtime theft)
             if (activeSession.status === 'live' && activeSession.lastStartedAt) {
                 const lastStart = activeSession.lastStartedAt.toDate().getTime();
                 const elapsed = now.getTime() - lastStart;
                 currentRemaining = Math.max(0, currentRemaining - elapsed);
                 
-                // Sync the reconciliation to Firestore once
+                // Immediately sync the state to Firestore
                 updateDoc(doc(firestore, 'liveSessions', user!.uid), {
                     timeRemainingMs: currentRemaining,
-                    status: 'paused' // Set to paused during recovery for safety
+                    status: 'paused' // Force pause upon page refresh for reconciliation
                 }).catch(console.error);
             }
 
             if (currentRemaining > 0) {
                 setMeetingId(activeSession.videosdkMeetingId || null);
                 setIsLive(activeSession.status === 'live');
-                setIsPaused(activeSession.status === 'paused');
+                setIsPaused(true); // Always pause upon refresh so seller can re-prepare
                 setTimeRemaining(currentRemaining);
                 setWantsToSetup(true);
             }
@@ -323,10 +323,11 @@ export default function SellerGoLivePage() {
       setWantsToSetup(true);
       if (result.resumed) {
           setTimeRemaining(result.timeRemainingMs);
-          toast({ title: "Session Restored", description: "You have airtime remaining. No points deducted." });
+          setIsPaused(true);
+          toast({ title: "Session Restored", description: `You have ${formatTime(result.timeRemainingMs)} left. Airtime preserved.` });
       } else {
           setTimeRemaining(SESSION_LIMIT_MS);
-          toast({ title: "Studio Ready", description: "Camera calibrated. You are in private preview." });
+          toast({ title: "Studio Ready", description: "You are in private preview mode." });
       }
     } catch (err: any) {
       console.error("Setup failed:", err);
@@ -359,21 +360,19 @@ export default function SellerGoLivePage() {
       try {
           const sessionRef = doc(firestore, 'liveSessions', user.uid);
           if (newPausedState) {
-              // Pausing: Save remaining time
               await updateDoc(sessionRef, {
                   status: 'paused',
                   timeRemainingMs: timeRemaining
               });
               setIsPaused(true);
-              toast({ title: "Stream Paused", description: "Timer stopped. Your airtime is preserved." });
+              toast({ title: "Stream Paused", description: "Airtime locked." });
           } else {
-              // Resuming: Mark new start time
               await updateDoc(sessionRef, {
                   status: 'live',
                   lastStartedAt: serverTimestamp()
               });
               setIsPaused(false);
-              toast({ title: "Stream Resumed", description: "You are back on air!" });
+              toast({ title: "Resumed!", description: "Timer active." });
           }
       } catch (e) {
           console.error("Pause/Resume failed:", e);
@@ -447,7 +446,7 @@ export default function SellerGoLivePage() {
                   publishedAt: serverTimestamp(),
               }
           });
-          toast({ title: "Deal Published!", description: "All viewers see your promotion now." });
+          toast({ title: "Deal Published!", description: "Viewers see your deal now." });
       } catch (e) {
           console.error(e);
       } finally {
@@ -462,7 +461,7 @@ export default function SellerGoLivePage() {
           await updateDoc(sessionRef, { activeOffer: null });
           setOfferTitle('');
           setOfferCode('');
-          toast({ title: "Deal Removed" });
+          toast({ title: "Offer Cleared" });
       } catch (e) {
           console.error(e);
       }
@@ -470,7 +469,7 @@ export default function SellerGoLivePage() {
 
   const copyToClipboard = (text: string, label: string) => {
       navigator.clipboard.writeText(text);
-      toast({ title: "Copied!", description: `${label} ready to paste.` });
+      toast({ title: "Copied!", description: `${label} ready to share.` });
   };
 
   const streamUrl = `https://goearnvid.shop/buyer/live/${user?.uid}`;
@@ -482,7 +481,7 @@ export default function SellerGoLivePage() {
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
           <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{isLowPoints ? "Points Balance Low" : "Connection Interrupted"}</AlertTitle>
+            <AlertTitle>{isLowPoints ? "Points Balance Low" : "Connection Error"}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <div className="flex gap-4 mt-6">
@@ -497,11 +496,11 @@ export default function SellerGoLivePage() {
                 </Dialog>
             ) : (
                 <Button className="font-black" onClick={() => window.location.reload()}>
-                    <RefreshCw className="mr-2 h-4 w-4" /> REFRESH SIGNAL
+                    <RefreshCw className="mr-2 h-4 w-4" /> TRY AGAIN
                 </Button>
             )}
             <Button variant="outline" asChild>
-                <Link href="/dashboard/seller">Return to Dashboard</Link>
+                <Link href="/dashboard/seller">Go Home</Link>
             </Button>
           </div>
         </div>
@@ -519,14 +518,14 @@ export default function SellerGoLivePage() {
                               <Video className="h-12 w-12 text-primary animate-pulse" />
                           </div>
                           <div className="space-y-2">
-                              <CardTitle className="font-headline text-3xl font-black uppercase tracking-tighter">Ready to Sell Live?</CardTitle>
-                              <CardDescription className="text-base">Host a 70-minute shopping show and sell directly to your audience.</CardDescription>
+                              <CardTitle className="font-headline text-3xl font-black uppercase tracking-tighter">Live Studio Lobby</CardTitle>
+                              <CardDescription className="text-base">Host your shopping show and reach thousands of buyers.</CardDescription>
                           </div>
                       </CardHeader>
                       <CardContent className="space-y-8">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
-                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Session Credit</p>
+                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Session Airtime</p>
                                   <div className="flex items-center gap-2">
                                       <BadgeCent className="h-5 w-5 text-primary" />
                                       <p className="text-xl font-black">70 Minutes <span className="text-xs font-normal text-neutral-500">(100 pts)</span></p>
@@ -537,7 +536,7 @@ export default function SellerGoLivePage() {
                                   <div className="flex items-center gap-2">
                                       <CreditCard className="h-5 w-5 text-neutral-400" />
                                       {isProfileLoading || isSessionCheckLoading ? <Skeleton className="h-6 w-16" /> : (
-                                          <p className={cn("text-xl font-black", (userProfile?.aiPoints || 0) < 100 ? "text-red-500" : "text-white")}>
+                                          <p className={cn("text-xl font-black", (userProfile?.aiPoints || 0) < 100 && !activeSession ? "text-red-500" : "text-white")}>
                                               {(userProfile?.aiPoints || 0).toLocaleString()} <span className="text-xs font-normal text-neutral-500">Points</span>
                                           </p>
                                       )}
@@ -549,27 +548,27 @@ export default function SellerGoLivePage() {
                               <Alert variant="destructive">
                                   <VideoOff className="h-4 w-4" />
                                   <AlertTitle>Hardware Access Required</AlertTitle>
-                                  <AlertDescription>Please allow camera and mic access in your browser to start the show.</AlertDescription>
+                                  <AlertDescription>Please allow camera/mic access to proceed.</AlertDescription>
                               </Alert>
                           )}
 
                           <div className="bg-black/40 rounded-2xl p-6 border border-white/5">
                               <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
                                   <Sparkles className="h-4 w-4 text-yellow-500" />
-                                  Pro Tips for a Great Show
+                                  Live Persistence Rules
                               </h4>
                               <ul className="space-y-3">
-                                  <li className="flex items-center gap-3 text-sm text-neutral-300">
-                                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                      Timer pauses when you stop the stream.
+                                  <li className="flex items-center gap-3 text-sm text-neutral-300 font-medium">
+                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                      Airtime only counts when you are broadcasting.
                                   </li>
-                                  <li className="flex items-center gap-3 text-sm text-neutral-300">
-                                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                      Session is valid for 24 hours once paid.
+                                  <li className="flex items-center gap-3 text-sm text-neutral-300 font-medium">
+                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                      Session remains valid for 24 hours.
                                   </li>
-                                  <li className="flex items-center gap-3 text-sm text-neutral-300">
-                                      <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                      Share your link on WhatsApp before you start!
+                                  <li className="flex items-center gap-3 text-sm text-neutral-300 font-medium">
+                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                      Refresh proof: No extra points for re-entering.
                                   </li>
                               </ul>
                           </div>
@@ -577,19 +576,19 @@ export default function SellerGoLivePage() {
                       <CardFooter className="flex flex-col gap-4">
                           <Button 
                             size="lg" 
-                            className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20"
+                            className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl"
                             onClick={handleSetupPreview}
                             disabled={isStarting || (userProfile?.aiPoints || 0) < 100 && !activeSession || hasPermissions === false}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
-                              {hasPermissions === false ? 'ENABLE CAMERA TO START' : (activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO & SETUP CAMERA')}
+                              {hasPermissions === false ? 'ENABLE HARDWARE' : (activeSession ? 'RESUME MY SESSION' : 'ENTER STUDIO')}
                           </Button>
                           
                           {(userProfile?.aiPoints || 0) < 100 && !activeSession && (
                               <Dialog>
                                   <DialogTrigger asChild>
-                                      <Button variant="outline" className="w-full h-12 rounded-2xl border-primary/20 text-primary hover:bg-primary/5">
-                                          <BadgeCent className="mr-2 h-4 w-4" /> TOP UP POINTS TO GO LIVE
+                                      <Button variant="outline" className="w-full h-12 rounded-2xl">
+                                          <BadgeCent className="mr-2 h-4 w-4" /> REPLENISH POINTS
                                       </Button>
                                   </DialogTrigger>
                                   <BuyPointsDialog />
@@ -624,7 +623,7 @@ export default function SellerGoLivePage() {
         {isLive && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2">
                 <div className={cn(
-                    "px-4 py-2 rounded-full backdrop-blur-xl border flex items-center gap-3 transition-colors duration-500",
+                    "px-4 py-2 rounded-full backdrop-blur-xl border flex items-center gap-3 transition-all",
                     isPaused ? "bg-yellow-600/80 border-yellow-500" : (timeRemaining < (5 * 60 * 1000) ? "bg-red-600/80 border-red-500 animate-pulse" : "bg-black/40 border-white/10")
                 )}>
                     <Clock className={cn("h-4 w-4", isPaused ? "text-white" : "text-primary")} />
@@ -655,7 +654,7 @@ export default function SellerGoLivePage() {
                     <SheetHeader className="p-4 border-b border-white/10">
                         <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
                             <ShoppingBag className="text-blue-500 h-4 w-4" />
-                            Product Bag
+                            Catalog Bag
                         </SheetTitle>
                     </SheetHeader>
                     <div className="h-[calc(100vh-5rem)]">
@@ -685,60 +684,23 @@ export default function SellerGoLivePage() {
                     <div className="p-6 space-y-6">
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase tracking-widest text-neutral-500">Offer Title</Label>
-                                <Input 
-                                    placeholder="e.g., FLASH SALE: 20% OFF" 
-                                    value={offerTitle} 
-                                    onChange={e => setOfferTitle(e.target.value)}
-                                    className="bg-white/5 border-white/10"
-                                />
+                                <Label className="text-xs font-black uppercase text-neutral-500">Offer Title</Label>
+                                <Input placeholder="e.g., FLASH SALE: 20% OFF" value={offerTitle} onChange={e => setOfferTitle(e.target.value)} className="bg-white/5" />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase tracking-widest text-neutral-500">Coupon Code</Label>
-                                <Input 
-                                    placeholder="e.g., LIVE20" 
-                                    value={offerCode} 
-                                    onChange={e => setOfferCode(e.target.value.toUpperCase())}
-                                    className="bg-white/5 border-white/10 font-mono"
-                                />
+                                <Label className="text-xs font-black uppercase text-neutral-500">Coupon Code</Label>
+                                <Input placeholder="e.g., LIVE20" value={offerCode} onChange={e => setOfferCode(e.target.value.toUpperCase())} className="bg-white/5 font-mono" />
                             </div>
                             <div className="flex gap-2">
                                 <Button 
-                                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 font-black text-[10px] uppercase"
+                                    className="flex-1 bg-yellow-600 font-black text-[10px] uppercase"
                                     onClick={handlePublishOffer}
                                     disabled={!offerTitle || !offerCode || isPublishingOffer}
                                 >
                                     {isPublishingOffer ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-3 w-3" />}
-                                    Blast Offer
+                                    Blast Deal
                                 </Button>
-                                <Button 
-                                    variant="outline" 
-                                    className="border-white/10 text-neutral-400"
-                                    onClick={handleClearOffer}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="pt-6 border-t border-white/5">
-                            <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-4">Quick Templates</h4>
-                            <div className="grid grid-cols-1 gap-2">
-                                {[
-                                    { t: "BUY 1 GET 1 FREE", c: "BOGO" },
-                                    { t: "EXTRA $10 OFF", c: "LIVE10" },
-                                    { t: "FREE SHIPPING NOW", c: "FREE" }
-                                ].map((item, i) => (
-                                    <Button 
-                                        key={i} 
-                                        variant="outline" 
-                                        className="justify-start border-white/5 bg-white/5 hover:bg-white/10 text-xs text-neutral-300"
-                                        onClick={() => { setOfferTitle(item.t); setOfferCode(item.c); }}
-                                    >
-                                        <Tag className="mr-2 h-3 w-3 text-yellow-500" />
-                                        {item.t}
-                                    </Button>
-                                ))}
+                                <Button variant="outline" className="border-white/10" onClick={handleClearOffer}><X className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     </div>
@@ -749,7 +711,7 @@ export default function SellerGoLivePage() {
         <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-[60]">
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button size="icon" className="h-14 w-14 rounded-full bg-green-600 hover:bg-green-700 shadow-2xl border-2 border-white/20">
+                    <Button size="icon" className="h-14 w-14 rounded-full bg-green-600 shadow-2xl border-2 border-white/20">
                         <Share2 className="h-7 w-7" />
                     </Button>
                 </SheetTrigger>
@@ -757,38 +719,25 @@ export default function SellerGoLivePage() {
                     <SheetHeader className="p-6 border-b border-white/10">
                         <SheetTitle className="text-white flex items-center gap-3 text-xl font-black uppercase tracking-tighter">
                             <Share2 className="text-green-500 h-6 w-6" />
-                            Share & Grow Your Audience
+                            Invite Viewers
                         </SheetTitle>
                     </SheetHeader>
                     <ScrollArea className="h-full">
                         <div className="p-6 space-y-8 pb-24">
                             <section className="space-y-3">
-                                <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest">Your Direct Stream Link</Label>
+                                <Label className="text-sm font-bold uppercase text-neutral-500">Direct Show Link</Label>
                                 <div className="flex gap-2">
                                     <Input readOnly value={streamUrl} className="bg-neutral-900 border-white/10 h-12" />
-                                    <Button className="h-12 px-6 bg-green-600 hover:bg-green-700" onClick={() => copyToClipboard(streamUrl, 'Link')}>
-                                        <Copy className="h-4 w-4 mr-2" /> Copy
-                                    </Button>
+                                    <Button className="h-12 px-6 bg-green-600" onClick={() => copyToClipboard(streamUrl, 'Link')}><Copy className="h-4 w-4" /></Button>
                                 </div>
                             </section>
-
                             <section className="space-y-4">
-                                <Label className="text-sm font-bold uppercase text-neutral-500 tracking-widest flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-primary" />
-                                    High-Conversion Templates
-                                </Label>
+                                <Label className="text-sm font-bold uppercase text-neutral-500">Promotion Templates</Label>
                                 <div className="grid grid-cols-1 gap-3">
                                     {promoIdeas.map((idea, i) => (
-                                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/30 transition-colors group">
-                                            <p className="text-sm text-neutral-300 mb-3 leading-relaxed">"{idea}"</p>
-                                            <Button 
-                                                variant="secondary" 
-                                                size="sm" 
-                                                className="w-full text-[10px] font-black uppercase tracking-widest group-hover:bg-primary group-hover:text-white"
-                                                onClick={() => copyToClipboard(`${idea}\n${streamUrl}`, 'Template')}
-                                            >
-                                                Copy Template + Link
-                                            </Button>
+                                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 group">
+                                            <p className="text-sm text-neutral-300 mb-3">"{idea}"</p>
+                                            <Button variant="secondary" size="sm" className="w-full text-[10px] font-black uppercase" onClick={() => copyToClipboard(`${idea}\n${streamUrl}`, 'Template')}>Copy Template</Button>
                                         </div>
                                     ))}
                                 </div>
@@ -810,7 +759,7 @@ export default function SellerGoLivePage() {
                     <SheetHeader className="p-4 border-b border-white/10">
                         <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
                             <MessageSquare className="text-primary h-4 w-4" />
-                            Sales Engagement
+                            Viewer Interaction
                         </SheetTitle>
                     </SheetHeader>
                     <div className="h-[calc(100vh-5rem)]">

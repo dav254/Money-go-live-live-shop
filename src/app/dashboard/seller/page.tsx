@@ -102,7 +102,14 @@ export default function SellerDashboardPage() {
     try { await deleteDoc(doc(firestore, 'products', productId)); toast({ title: "Product Deleted" }); } catch (e) { toast({ variant: 'destructive', title: "Error" }); }
   };
 
-  const isSessionActive = activeSession && activeSession.status !== 'ended' && activeSession.timeRemainingMs > 0;
+  // Improved check for session recovery
+  const isSessionActive = React.useMemo(() => {
+      if (!activeSession || activeSession.status === 'ended' || activeSession.timeRemainingMs <= 0) return false;
+      const now = new Date();
+      const initialStart = activeSession.initialStartTime?.toDate();
+      const hoursDiff = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
+      return hoursDiff < 24;
+  }, [activeSession]);
   
   return (
     <SellerLayout>
@@ -125,13 +132,13 @@ export default function SellerDashboardPage() {
                             <Radio className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <CardTitle className="text-lg font-black uppercase tracking-tight">Active Live Session Detected</CardTitle>
-                            <CardDescription className="font-bold text-primary/80">You have airtime remaining! Resume your show now without using points.</CardDescription>
+                            <CardTitle className="text-lg font-black uppercase tracking-tight">Recover Active Session</CardTitle>
+                            <CardDescription className="font-bold text-primary/80">You have airtime remaining from your last paid session. Resume now to avoid wasting points!</CardDescription>
                         </div>
                     </div>
-                    <Button asChild size="lg" className="w-full sm:w-auto font-black bg-primary hover:bg-primary/90 rounded-xl shadow-xl shadow-primary/20">
+                    <Button asChild size="lg" className="w-full sm:w-auto font-black bg-primary hover:bg-primary/90 text-white rounded-xl shadow-xl shadow-primary/20">
                         <Link href="/dashboard/seller/go-live">
-                            RESUME SHOW <ArrowRight className="ml-2 h-4 w-4" />
+                            GO TO LIVE STUDIO <ArrowRight className="ml-2 h-4 w-4" />
                         </Link>
                     </Button>
                 </CardContent>
