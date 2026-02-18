@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -6,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send, VideoOff, PauseCircle, PlayCircle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -179,7 +178,7 @@ export default function SellerGoLivePage() {
         const hoursPassed = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
 
         // If session is within 24h, we lock the seller into the recovery state
-        if (hoursPassed < 24) {
+        if (hoursPassed < 24 && (activeSession.timeRemainingMs || 0) > 0) {
             let currentRemaining = activeSession.timeRemainingMs;
             
             // Reconcile time if it was left in 'live' state (to prevent airtime theft)
@@ -195,16 +194,21 @@ export default function SellerGoLivePage() {
                 }).catch(console.error);
             }
 
+            // AUTO-RECOVERY: Bypasses lobby and goes straight to Studio
             if (currentRemaining > 0) {
                 setMeetingId(activeSession.videosdkMeetingId || null);
                 setIsLive(activeSession.status === 'live');
                 setIsPaused(true); // Always pause upon refresh so seller can re-prepare
                 setTimeRemaining(currentRemaining);
                 setWantsToSetup(true);
+                toast({ 
+                    title: "Active Session Recovered", 
+                    description: `Resuming your broadcast with ${formatTime(currentRemaining)} remaining.` 
+                });
             }
         }
     }
-  }, [activeSession, wantsToSetup, firestore, user]);
+  }, [activeSession, wantsToSetup, firestore, user, toast]);
 
   // --- PERMISSION HANDSHAKE ---
   useEffect(() => {
@@ -221,6 +225,21 @@ export default function SellerGoLivePage() {
         triggerHandshake();
     }
   }, [wantsToSetup]);
+
+  const handleRetryHardware = async () => {
+    try {
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setHasPermissions(true);
+        toast({ title: "Hardware Enabled", description: "Camera and microphone are now ready." });
+    } catch (err) {
+        setHasPermissions(false);
+        toast({ 
+            variant: "destructive", 
+            title: "Access Denied", 
+            description: "Go to browser settings to allow camera/mic access for this site." 
+        });
+    }
+  };
 
   const fetchToken = useCallback(async () => {
     try {
@@ -576,12 +595,15 @@ export default function SellerGoLivePage() {
                       <CardFooter className="flex flex-col gap-4">
                           <Button 
                             size="lg" 
-                            className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl"
-                            onClick={handleSetupPreview}
-                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100 && !activeSession || hasPermissions === false}
+                            className={cn(
+                                "w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white",
+                                hasPermissions === false ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"
+                            )}
+                            onClick={hasPermissions === false ? handleRetryHardware : handleSetupPreview}
+                            disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession)}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
-                              {hasPermissions === false ? 'ENABLE HARDWARE' : (activeSession ? 'RESUME MY SESSION' : 'ENTER STUDIO')}
+                              {hasPermissions === false ? 'FORCE CAMERA START' : (activeSession ? 'RESUME MY SESSION' : 'ENTER STUDIO')}
                           </Button>
                           
                           {(userProfile?.aiPoints || 0) < 100 && !activeSession && (

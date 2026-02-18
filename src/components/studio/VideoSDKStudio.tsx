@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -22,6 +21,16 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
     }
   }, [webcamStream, webcamOn]);
 
+  const forceEnableWebcam = async () => {
+      try {
+          // Force a hardware request before calling SDK method
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          enableWebcam();
+      } catch (err) {
+          console.error("Force webcam failed:", err);
+      }
+  };
+
   return (
     <div className="relative h-full w-full bg-black">
       <video ref={videoRef} autoPlay playsInline muted={local} className="h-full w-full object-contain md:object-cover" />
@@ -31,12 +40,12 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">Camera Preview Offline</p>
-          <p className="text-neutral-500 text-[10px] md:text-xs mt-3 uppercase tracking-widest font-bold max-w-[200px] mb-6">Toggle the camera icon below or use the force button to re-sync.</p>
+          <p className="text-neutral-500 text-[10px] md:text-xs mt-3 uppercase tracking-widest font-bold max-w-[200px] mb-6">Device signal lost. Use the button below to force a hardware re-sync.</p>
           
           <Button 
             variant="outline" 
             className="border-primary/50 text-primary hover:bg-primary/10 font-black tracking-widest uppercase text-xs px-8 py-6 rounded-2xl"
-            onClick={() => enableWebcam()}
+            onClick={forceEnableWebcam}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
             FORCE CAMERA START
