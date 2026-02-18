@@ -118,9 +118,7 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
 
     if (!order) return null;
     
-    // Ensure timeline exists and is an array before mapping
     const timeline = Array.isArray(order.timeline) ? order.timeline : [{ status: order.orderStatus, date: order.orderDate }];
-
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -132,7 +130,6 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto">
-                    {/* Left Column */}
                     <div className="space-y-4">
                         <h4 className="font-semibold flex items-center gap-2"><ShoppingCart /> Items</h4>
                         {(order.items || [{...order, name: order.productName, imageUrl: order.productImage, quantity: 1, price: order.productPrice }]).map((item: any, index: number) => (
@@ -152,7 +149,6 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
                              <div className="flex justify-between font-bold"><span>Total:</span><span>${order.totalAmount?.toFixed(2)}</span></div>
                          </div>
                     </div>
-                    {/* Right Column */}
                     <div className="space-y-4">
                         <h4 className="font-semibold flex items-center gap-2"><Truck /> Shipping & Customer</h4>
                         <div className="text-sm">
@@ -243,7 +239,7 @@ export default function AdminAllOrdersPage() {
   const [rowSelection, setRowSelection] = React.useState({});
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = React.useState(false);
-  const [isRefundDialogOpen, setIsRefundDialogOpen] = React.useState(false);
+  const [isRefundDialogOpen, ReactIsRefundDialogOpen] = React.useState(false);
   
   const { toast } = useToast();
   
@@ -292,7 +288,6 @@ export default function AdminAllOrdersPage() {
         if (!response.ok) throw new Error(result.message || 'Failed to issue refund.');
         
         toast({ title: 'Refund Successful', description: result.message });
-        // Optionally, refetch data here or rely on real-time updates
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Refund Failed', description: error.message });
     }
@@ -367,7 +362,7 @@ export default function AdminAllOrdersPage() {
                         </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive" onSelect={() => { setSelectedOrder(row.original); setIsRefundDialogOpen(true);}}>
+                    <DropdownMenuItem className="text-destructive" onSelect={() => { setSelectedOrder(row.original); ReactIsRefundDialogOpen(true);}}>
                         Issue Refund
                     </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -466,7 +461,7 @@ export default function AdminAllOrdersPage() {
           </div>
         </div>
         <OrderDetailsDialog order={selectedOrder} isOpen={isDetailsOpen} onOpenChange={setIsDetailsOpen} />
-        <RefundDialog order={selectedOrder} isOpen={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen} onConfirm={handleIssueRefund} />
+        <RefundDialog order={selectedOrder} isOpen={isRefundDialogOpen} onOpenChange={ReactIsRefundDialogOpen} onConfirm={handleIssueRefund} />
       </div>
     </AdminLayout>
   );

@@ -124,10 +124,10 @@ export function ChatSystem() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-4.1rem)] w-full overflow-hidden bg-background">
       {/* List Container - Intelligent Responsive Toggle */}
       <div className={cn(
-        "flex-shrink-0 border-r bg-muted/5 transition-all duration-300 overflow-hidden", 
+        "flex-shrink-0 border-r bg-muted/5 transition-all duration-300 overflow-hidden flex flex-col", 
         selectedChat ? "hidden md:flex md:w-80" : "w-full md:w-80"
       )}>
         <ConversationList
