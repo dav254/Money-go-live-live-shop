@@ -22,16 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '../ui/progress';
 import Link from 'next/link';
@@ -163,7 +153,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     }
   }, [chat, currentUser, firestore]);
 
-  // Read Receipts Logic
   useEffect(() => {
     if (!chat || !currentUser || !firestore || !serverMessages) return;
     const unreadFromOther = serverMessages.filter(m => m.senderId !== currentUser.uid && !m.isRead);
@@ -240,9 +229,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   if (!chat || !currentUser) {
     return (
-      <div className="hidden h-full flex-1 flex-col items-center justify-center bg-muted/10 md:flex rounded-r-2xl">
-        <div className="p-10 rounded-full bg-primary/5 mb-6"><MessageSquare className="h-16 w-16 text-primary/20" /></div>
-        <p className="text-neutral-500 text-xs font-black uppercase tracking-[0.2em]">Select a Session to Chat</p>
+      <div className="flex-1 flex items-center justify-center bg-muted/5 p-8 text-center">
+        <div className="max-w-xs space-y-4">
+            <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto"><MessageSquare className="h-10 w-10 text-primary opacity-20" /></div>
+            <h3 className="font-black text-xl uppercase tracking-tighter">Your Inbox</h3>
+            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">Select a conversation to start messaging buyers or sellers.</p>
+        </div>
       </div>
     );
   }
@@ -252,7 +244,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="md:hidden rounded-full" onClick={onBack}><ArrowLeft className="h-5 w-5" /></Button>
           <div className="relative">
@@ -280,7 +272,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       </div>
 
       <ScrollArea className="flex-1" ref={scrollAreaRef}>
-        <div className="p-6 space-y-8 pb-12">
+        <div className="p-4 sm:p-6 space-y-8 pb-12">
           {allMessages.map((msg) => {
             const senderIsMe = msg.senderId === currentUser.uid;
             const alignRight = senderIsMe;
@@ -288,8 +280,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", alignRight ? "justify-end pl-12" : "justify-start pr-12")}>
                     <div className={cn("flex flex-col gap-1.5", alignRight ? "items-end text-right" : "items-start text-left")}>
                         {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
-                            <div className={cn("rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm max-w-xs sm:max-w-md", alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border")}>
-                                <p className="whitespace-pre-wrap">{msg.messageText}</p>
+                            <div className={cn(
+                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm max-w-[85%] sm:max-w-md", 
+                                alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
+                            )}>
+                                <p className="whitespace-pre-wrap break-words">{msg.messageText}</p>
                             </div>
                         ))}
                         <div className={cn("flex items-center gap-2 px-1", alignRight ? "flex-row-reverse" : "flex-row")}>
@@ -307,7 +302,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t bg-card/30 backdrop-blur-xl">
+      <div className="p-4 border-t bg-card/30 backdrop-blur-xl shrink-0">
         {uploadProgress !== null && (
           <div className="mb-4 px-2">
             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary mb-1.5 animate-pulse"><span>Sending Media...</span><span>{Math.round(uploadProgress)}%</span></div>
@@ -315,13 +310,13 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           </div>
         )}
         <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative flex items-center gap-2 max-w-4xl mx-auto w-full">
-          <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5" onClick={() => fileInputRef.current?.click()} disabled={uploadProgress !== null}><PlusCircle className="h-5 w-5" /></Button>
+          <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0" onClick={() => fileInputRef.current?.click()} disabled={uploadProgress !== null}><PlusCircle className="h-5 w-5" /></Button>
           <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
           {userProfile?.userRole === 'seller' && (
-              <Dialog><DialogTrigger asChild><Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5"><Package className="h-5 w-5" /></Button></DialogTrigger><ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} /></Dialog>
+              <Dialog><DialogTrigger asChild><Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0"><Package className="h-5 w-5" /></Button></DialogTrigger><ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} /></Dialog>
           )}
-          <Input placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={uploadProgress !== null} />
-          <Button type="submit" size="icon" className="h-11 w-11 rounded-2xl bg-primary" disabled={uploadProgress !== null || !newMessage.trim()}><Send className="h-5 w-5" /></Button>
+          <Input placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm sm:text-base" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={uploadProgress !== null} />
+          <Button type="submit" size="icon" className="h-11 w-11 rounded-2xl bg-primary shrink-0" disabled={uploadProgress !== null || !newMessage.trim()}><Send className="h-5 w-5" /></Button>
         </form>
       </div>
     </div>

@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import type { Chat, UserProfile } from '@/lib/types';
 import { ConversationList } from './conversation-list';
 import { ChatWindow } from './chat-window';
