@@ -43,6 +43,7 @@ export interface Product {
     id: string;
     sellerId: string;
     name: string;
+    brand?: string;
     description?: string;
     price: number; 
     localPrice?: number;

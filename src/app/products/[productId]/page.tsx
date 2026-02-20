@@ -390,7 +390,15 @@ export default function BuyerProductPage() {
                 <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
+                            <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
+                                {product.brand && (
+                                    <>
+                                        <span className="text-neutral-600">•</span>
+                                        <span className="text-sm font-bold text-neutral-300 uppercase tracking-widest">{product.brand}</span>
+                                    </>
+                                )}
+                            </div>
                             <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
                             <div className="flex items-center gap-4 mt-1 text-sm text-neutral-400">
                                 <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
@@ -475,7 +483,18 @@ export default function BuyerProductPage() {
                     <Accordion type="single" collapsible className="w-full" defaultValue="description">
                         <AccordionItem value="description">
                             <AccordionTrigger>Product Description</AccordionTrigger>
-                            <AccordionContent className="prose prose-sm dark:prose-invert text-neutral-300">{product.description}</AccordionContent>
+                            <AccordionContent className="space-y-4">
+                                <div className="prose prose-sm dark:prose-invert text-neutral-300 whitespace-pre-wrap">{product.description}</div>
+                                {product.tags && (
+                                    <div className="flex flex-wrap gap-2 pt-4">
+                                        {product.tags.split(',').map(tag => (
+                                            <Badge key={tag} variant="secondary" className="bg-neutral-800 text-neutral-400 border-none font-bold uppercase text-[10px] tracking-widest">
+                                                #{tag.trim()}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+                            </AccordionContent>
                         </AccordionItem>
                         <AccordionItem value="reviews">
                             <AccordionTrigger>Reviews & Ratings ({reviews?.length || 0})</AccordionTrigger>

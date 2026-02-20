@@ -50,6 +50,7 @@ const MAX_IMAGES = 5;
 
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
+  brand: z.string().optional(),
   category: z.string().min(1, { message: 'Please select a category.' }),
   condition: z.enum(['new', 'used'], { required_error: 'Please select item condition.' }),
   currency: z.string().default('KES'),
@@ -58,6 +59,7 @@ const formSchema = z.object({
   shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+  tags: z.string().optional(),
   deliveryOptions: z.string().min(5, { message: 'Please describe delivery options.' }),
   wasPrice: z.coerce.number().optional(),
 });
@@ -94,6 +96,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     resolver: zodResolver(formSchema),
     defaultValues: {
       productName: productToEdit?.name || '',
+      brand: productToEdit?.brand || '',
       category: productToEdit?.category || '',
       condition: productToEdit?.condition || 'new',
       currency: productToEdit?.localCurrency || 'KES',
@@ -102,6 +105,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       shippingCost: productToEdit?.shippingCost || 0,
       stock: productToEdit?.stock || 0,
       description: productToEdit?.description || '',
+      tags: productToEdit?.tags || '',
       deliveryOptions: productToEdit?.deliveryOptions || '',
       wasPrice: productToEdit?.wasPrice || undefined,
     },
@@ -234,6 +238,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   </FormItem>
                 )} />
                 <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="brand" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Brand</FormLabel>
+                      <FormControl><Input placeholder="e.g. Nike, Apple, or Handmade" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <FormField control={form.control} name="category" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
@@ -246,6 +257,8 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                       <FormMessage />
                     </FormItem>
                   )} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="condition" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Condition</FormLabel>
@@ -256,6 +269,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                           <SelectItem value="used">Pre-owned / Used</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                   <FormField control={form.control} name="tags" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Search Tags</FormLabel>
+                      <FormControl><Input placeholder="summer, leather, vintage" {...field} /></FormControl>
+                      <FormDescription>Comma-separated keywords for search.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )} />
