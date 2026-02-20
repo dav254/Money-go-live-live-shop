@@ -12,6 +12,7 @@ import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile, useDoc } from '@/firebase';
 import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
 import {
@@ -200,31 +201,31 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !currentUser) return;
+    
     setUploadProgress(0);
-    try {
-      const { url, type } = await uploadToCloudinary(file);
-      await sendMessage({ messageText: '', messageType: type.startsWith('image/') ? 'image' : type.startsWith('video/') ? 'video' : 'file', mediaUrl: url, mediaMetadata: { name: file.name, size: file.size, type: file.type } });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Upload Failed' });
-    } finally {
-      setUploadProgress(null);
-    }
-  };
+    const storage = getStorage();
+    const storageRef = ref(storage, `chats/${chat?.id}/${Date.now()}_${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-  const uploadToCloudinary = async (file: File): Promise<{ url: string, type: string }> => {
-    const timestamp = Math.round(Date.now() / 1000);
-    const paramsToSign = { timestamp };
-    const signatureResponse = await fetch('/api/upload', { method: 'POST', body: JSON.stringify({ paramsToSign }) });
-    const { signature } = await signatureResponse.json();
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
-    formData.append('timestamp', timestamp.toString());
-    formData.append('signature', signature);
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
-    const data = await response.json();
-    return { url: data.secure_url, type: file.type };
+    uploadTask.on('state_changed', 
+      (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+      (error) => {
+        toast({ variant: 'destructive', title: 'Upload Failed' });
+        setUploadProgress(null);
+      },
+      async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        const type = file.type;
+        await sendMessage({ 
+          messageText: '', 
+          messageType: type.startsWith('image/') ? 'image' : type.startsWith('video/') ? 'video' : 'file', 
+          mediaUrl: url, 
+          mediaMetadata: { name: file.name, size: file.size, type: file.type } 
+        });
+        setUploadProgress(null);
+      }
+    );
   };
 
   if (!chat || !currentUser) {
@@ -274,7 +275,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       </div>
 
       <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
-        <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto overflow-x-auto">
+        <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto">
           {allMessages.map((msg) => {
             const senderIsMe = msg.senderId === currentUser.uid;
             const alignRight = senderIsMe;

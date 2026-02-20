@@ -39,13 +39,11 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { useFirestore, useUser } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import type { Product } from '@/lib/types';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { kenyaLocations } from '@/lib/location-data';
@@ -62,7 +60,6 @@ const formSchema = z.object({
   price: z.coerce.number().min(0, { message: 'USD Price must be a positive number.' }),
   shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
-  tags: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   country: z.string().min(1, { message: 'Country is required.' }),
   county: z.string().optional(),
@@ -173,7 +170,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setIsUploading(true);
 
     try {
-      // 1. Upload Images
       const finalImageUrls: string[] = [];
       for (let i = 0; i < imageFiles.length; i++) {
         const item = imageFiles[i];
@@ -186,7 +182,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         }
       }
 
-      // 2. Upload Videos
       const finalVideoUrls: string[] = [...existingVideoUrls];
       for (let i = 0; i < videoFiles.length; i++) {
         const file = videoFiles[i];
@@ -237,7 +232,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="lg:col-span-2 space-y-8">
-            {/* Basic Info */}
             <Card>
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
@@ -273,7 +267,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </CardContent>
             </Card>
 
-            {/* Media */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ImageIcon className="text-primary" /> Product Media</CardTitle>
@@ -371,7 +364,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           </div>
 
           <div className="space-y-8">
-            {/* Pricing */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><DollarSign className="text-primary" /> Pricing & Inventory</CardTitle>
@@ -382,7 +374,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                         <SelectContent>
                           {SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code} ({curr.symbol})</SelectItem>)}
                         </SelectContent>
@@ -415,7 +407,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </CardContent>
             </Card>
 
-            {/* Logistics */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Truck className="text-primary" /> Logistics</CardTitle>
@@ -445,7 +436,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                       <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCounty}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {selectedCounty && kenyaLocations[selectedCounty]?.map(sc => <SelectItem key={c} value={sc}>{sc}</SelectItem>)}
+                          {selectedCounty && kenyaLocations[selectedCounty]?.map(sc => <SelectItem key={sc} value={sc}>{sc}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </FormItem>

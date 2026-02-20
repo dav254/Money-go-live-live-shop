@@ -1,16 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
-  devIndicators: {
-    allowedDevOrigins: [
-      '9002-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev',
-    ],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
   },
   async headers() {
     return [
@@ -62,6 +61,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   webpack: (config, { isServer }) => {
@@ -69,6 +74,9 @@ const nextConfig = {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         async_hooks: false,
+        tls: false,
+        net: false,
+        fs: false,
       };
     }
     return config;
