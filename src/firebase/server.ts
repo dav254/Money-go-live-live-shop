@@ -1,9 +1,9 @@
-
 // This file is designated for server-side Firebase initialization.
 // It is crucial that this file does not contain the 'use client';' directive.
 
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -34,11 +34,13 @@ function initializeAdminApp(): App {
 
   return initializeApp({
     credential: cert(serviceAccount),
+    storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
   });
 }
 
 const app = initializeAdminApp();
 const db = getFirestore(app);
 const auth = getAuth(app);
+const bucket = getStorage(app).bucket();
 
-export { db, auth };
+export { db, auth, bucket };
