@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -81,6 +82,25 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const [isUploading, setIsUploading] = useState(false);
 
   const imageInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      productName: productToEdit?.name || '',
+      brand: productToEdit?.brand || '',
+      category: productToEdit?.category || 'Other',
+      condition: productToEdit?.condition || 'new',
+      currency: productToEdit?.localCurrency || 'KES',
+      localPrice: productToEdit?.localPrice || 0,
+      price: productToEdit?.price || 0,
+      shippingCost: productToEdit?.shippingCost || 0,
+      stock: productToEdit?.stock || 0,
+      description: productToEdit?.description || '',
+      tags: productToEdit?.tags || '',
+      deliveryOptions: productToEdit?.deliveryOptions || '',
+      wasPrice: productToEdit?.wasPrice || undefined,
+    },
+  });
 
   useEffect(() => {
     if (productToEdit) {
