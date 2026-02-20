@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from "react";
@@ -8,9 +7,10 @@ import {
   Clock, Heart, Package, Truck, RotateCcw, BarChart3, DollarSign, Eye, 
   ShoppingBag, Shield, Lock, CreditCard, User, Handshake, Menu, X, Facebook, 
   Twitter, Instagram, Youtube, Mail, Phone, Globe, Cpu, Layers, MapPin,
-  RadioTower, Bot
+  RadioTower, Bot, MessageSquare, Tag
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { LandingLayout } from '@/components/layout/landing-layout';
 
 const HomePageContent = () => {
@@ -161,6 +161,105 @@ const HomePageContent = () => {
             </Link>
           </div>
         </Section>
+
+        {/* GO LIVE STREAM NOW Section */}
+        <Section id="live-stream-now" style={{ background: 'linear-gradient(to top, hsl(240, 20%, 4%), rgba(234, 179, 8, 0.05))' }}>
+          <div className="container px-4 mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="text-left space-y-8 order-2 lg:order-1">
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'hsl(0, 100%, 60%)', fontSize: '0.75rem', fontWeight: 800 }}>
+                  <div className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+                  <span className="font-cyber uppercase tracking-widest">Live Experience</span>
+                </div>
+                <h2 className="font-cyber" style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', fontWeight: 800, lineHeight: 1.1 }}>
+                  Don't Just Sell.<br />
+                  <span className="text-gradient">Go Live.</span>
+                </h2>
+                <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.6)', maxWidth: '36rem' }}>
+                  The most powerful way to build trust and close sales. Connect with your audience, answer questions, and showcase your products in real-time.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="flex gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                      <Zap className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white uppercase tracking-tight">Real-Time Deals</h4>
+                      <p className="text-sm text-white/40">Push exclusive coupons during your stream.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shrink-0">
+                      <Users className="h-6 w-6 text-blue-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white uppercase tracking-tight">Direct Trust</h4>
+                      <p className="text-sm text-white/40">Face-to-face selling build lasting loyalty.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-4">
+                  <Link href="/login" className="btn-hero font-cyber" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', width: '100%', justifyContent: 'center', maxWidth: '20rem' }}>
+                    <Radio className="animate-pulse" style={{ width: '1.5rem', height: '1.5rem' }} />
+                    <span>GO LIVE STREAM NOW</span>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="relative order-1 lg:order-2">
+                <div className="absolute -inset-10 bg-primary/20 blur-[120px] rounded-full opacity-30 animate-pulse" />
+                <div className="relative mx-auto max-w-[320px] aspect-[9/16] rounded-[3rem] border-[12px] border-neutral-800 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] bg-black transform hover:scale-[1.02] transition-transform duration-700">
+                  <Image 
+                    src="https://picsum.photos/seed/hustle-live/600/1000" 
+                    alt="Seller live streaming" 
+                    fill 
+                    className="object-cover opacity-90" 
+                    data-ai-hint="seller livestreaming"
+                  />
+                  {/* Overlay HUD */}
+                  <div className="absolute inset-0 p-6 flex flex-col justify-between pointer-events-none">
+                    <div className="flex justify-between items-start">
+                      <div className="bg-red-600 px-3 py-1 rounded-full text-[10px] font-black tracking-widest text-white flex items-center gap-1.5 animate-pulse">
+                        <div className="h-1.5 w-1.5 rounded-full bg-white" /> LIVE
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-black text-white border border-white/10">
+                        <Eye className="h-3 w-3 text-primary" /> 2.4k
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Comments Simulation */}
+                      <div className="space-y-2 opacity-90">
+                        <div className="bg-black/40 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/5 w-fit">
+                          <p className="text-[10px] text-white"><span className="font-black text-primary uppercase mr-1">Joy:</span> LOVE THIS BAG! 👜</p>
+                        </div>
+                        <div className="bg-black/40 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/5 w-fit translate-x-2">
+                          <p className="text-[10px] text-white"><span className="font-black text-blue-400 uppercase mr-1">Admin:</span> Free shipping for next 5 mins!</p>
+                        </div>
+                      </div>
+
+                      {/* Pinned Product */}
+                      <div className="bg-neutral-900/90 backdrop-blur-xl border border-white/10 p-3 rounded-2xl flex items-center gap-3 shadow-2xl">
+                        <div className="h-12 w-12 rounded-lg bg-neutral-800 relative overflow-hidden flex-shrink-0 border border-white/5">
+                          <Image src="https://picsum.photos/seed/product-watch/150/150" fill alt="Product" className="object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-primary mb-0.5">Live Special</p>
+                          <p className="text-xs font-bold truncate text-white uppercase">Midnight Chrono</p>
+                          <p className="text-sm font-black text-white">$120.00</p>
+                        </div>
+                        <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/20 text-white">
+                          <ShoppingBag className="h-4 w-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+
         <Section id="features">
           <div className="container" style={{ padding: '0 1rem' }}>
             <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
@@ -326,5 +425,3 @@ export default function HomePage() {
     </LandingLayout>
   )
 }
-
-    
