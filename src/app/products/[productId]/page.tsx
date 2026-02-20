@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -388,19 +388,29 @@ export default function BuyerProductPage() {
                 )}
 
                 <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
-                    <div>
-                        <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
-                        <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-neutral-400">
-                            <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
-                            <span>Sold {product.salesCount || 0}</span>
-                            {product.location && (
-                                <span className="flex items-center gap-1 font-medium text-red-400">
-                                    <MapPin className="h-3 w-3" />
-                                    {product.location}
-                                </span>
-                            )}
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
+                            <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-neutral-400">
+                                <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
+                                <span>Sold {product.salesCount || 0}</span>
+                                {product.location && (
+                                    <span className="flex items-center gap-1 font-medium text-red-400">
+                                        <MapPin className="h-3 w-3" />
+                                        {product.location}
+                                    </span>
+                                )}
+                            </div>
                         </div>
+                        {product.condition && (
+                            <Badge variant={product.condition === 'new' ? 'default' : 'secondary'} className={cn(
+                                "h-8 px-4 rounded-xl font-black uppercase tracking-widest text-[10px]",
+                                product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-500 text-black"
+                            )}>
+                                {product.condition === 'new' ? 'Brand New' : 'Pre-owned'}
+                            </Badge>
+                        )}
                     </div>
 
                      <div className="flex flex-col gap-1">

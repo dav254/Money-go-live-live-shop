@@ -1,13 +1,15 @@
+
 'use client';
 
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Heart, ShoppingCart, Eye, Video } from 'lucide-react';
+import { Heart, ShoppingCart, Eye, Video, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 interface ProductCardProps {
   product: Product;
@@ -88,7 +90,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col">
       <div className="relative">
         <Link href={`/products/${product.id}`} className="cursor-pointer">
             <div className="w-full h-48 bg-black">
@@ -122,16 +124,26 @@ export function ProductCard({ product }: ProductCardProps) {
             {discountPercentage}% OFF
           </div>
         )}
+        
+        {product.condition && (
+            <div className={cn(
+                "absolute bottom-2 left-2 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest shadow-lg",
+                product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-500 text-black"
+            )}>
+                {product.condition === 'new' ? 'New' : 'Used'}
+            </div>
+        )}
+
         <Button onClick={handleLike} size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-8 w-8 hover:bg-black/70">
           <Heart className="h-4 w-4" />
         </Button>
         {isOutOfStock && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <span className="text-white font-bold">Out of Stock</span>
+                <span className="text-white font-bold uppercase text-xs">Out of Stock</span>
             </div>
         )}
       </div>
-      <div className="p-3">
+      <div className="p-3 flex-1 flex flex-col">
         <h3 className="text-sm font-semibold truncate group-hover:text-red-400">
             <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
@@ -141,7 +153,7 @@ export function ProductCard({ product }: ProductCardProps) {
             <span className="text-sm text-neutral-400 line-through">${product.wasPrice.toLocaleString()}</span>
           )}
         </div>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-auto pt-3 flex gap-2">
             <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-white">
                 <ShoppingCart className="h-4 w-4" />
             </Button>

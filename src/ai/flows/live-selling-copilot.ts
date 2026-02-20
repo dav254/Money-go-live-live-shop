@@ -7,7 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const LiveCommentInputSchema = z.object({
   comment: z.string().describe('A single comment from a viewer in a live shopping stream.'),

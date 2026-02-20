@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -50,6 +51,7 @@ const MAX_IMAGES = 5;
 const formSchema = z.object({
   productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
   category: z.string().min(1, { message: 'Please select a category.' }),
+  condition: z.enum(['new', 'used'], { required_error: 'Please select item condition.' }),
   currency: z.string().default('KES'),
   localPrice: z.coerce.number().min(0, { message: 'Local price must be a positive number.' }),
   price: z.coerce.number().min(0, { message: 'USD Price must be a positive number.' }),
@@ -97,6 +99,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     defaultValues: {
       productName: productToEdit?.name || '',
       category: productToEdit?.category || '',
+      condition: productToEdit?.condition || 'new',
       currency: productToEdit?.localCurrency || 'KES',
       localPrice: productToEdit?.localPrice || 0,
       price: productToEdit?.price || 0,
@@ -240,18 +243,33 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="category" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="category" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="condition" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Condition</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="new">Brand New</SelectItem>
+                          <SelectItem value="used">Pre-owned / Used</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Description</FormLabel>

@@ -56,6 +56,7 @@ export interface Product {
     tags?: string;
     location?: string;
     deliveryOptions?: string;
+    condition?: 'new' | 'used';
     wasPrice?: number;
     originalPrice?: number;
     likes?: number;
