@@ -34,6 +34,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Textarea } from '@/components/ui/textarea';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -45,9 +46,15 @@ const passwordFormSchema = z.object({
 });
 
 const profileFormSchema = z.object({
-    fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+    fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }).optional(),
     username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
     phoneNumber: z.string().optional(),
+    bio: z.string().max(180, "Bio cannot be longer than 180 characters").optional(),
+    location: z.string().optional(),
+    website: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+    facebookUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+    instagramUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+    tiktokUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading }) => {
@@ -167,7 +174,22 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             fullName: userProfile?.fullName || '',
             username: userProfile?.username || '',
             phoneNumber: userProfile?.phoneNumber || '',
+            bio: userProfile?.bio || '',
+            location: userProfile?.location || '',
+            website: userProfile?.website || '',
+            facebookUrl: userProfile?.socialLinks?.facebook || '',
+            instagramUrl: userProfile?.socialLinks?.instagram || '',
+            tiktokUrl: userProfile?.socialLinks?.tiktok || '',
         }
+    });
+
+    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+        resolver: zodResolver(passwordFormSchema),
+        defaultValues: {
+            oldPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+        },
     });
 
     useEffect(() => {
@@ -176,6 +198,12 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                 fullName: userProfile.fullName || '',
                 username: userProfile.username || '',
                 phoneNumber: userProfile.phoneNumber || '',
+                bio: userProfile.bio || '',
+                location: userProfile.location || '',
+                website: userProfile.website || '',
+                facebookUrl: userProfile.socialLinks?.facebook || '',
+                instagramUrl: userProfile.socialLinks?.instagram || '',
+                tiktokUrl: userProfile.socialLinks?.tiktok || '',
             });
             setAvatarUrl(userProfile.profilePictureUrl || null);
         }
@@ -207,10 +235,21 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         if (!user) return;
         setIsProfileSaving(true);
         try {
-            await updateDoc(doc(firestore, 'userProfiles', user.uid), { ...values, profilePictureUrl: avatarUrl });
+            const { facebookUrl, instagramUrl, tiktokUrl, ...rest } = values;
+            const profileData = {
+                ...rest,
+                profilePictureUrl: avatarUrl,
+                socialLinks: {
+                    facebook: facebookUrl,
+                    instagram: instagramUrl,
+                    tiktok: tiktokUrl,
+                }
+            };
+            await updateDoc(doc(firestore, 'userProfiles', user.uid), profileData);
             toast({ title: 'Profile Updated!' });
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Error' });
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'There was an error updating your profile.' });
         } finally {
             setIsProfileSaving(false);
         }
@@ -224,8 +263,9 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             await reauthenticateWithCredential(user, credential);
             await updatePassword(user, values.newPassword);
             toast({ title: 'Password Updated' });
+            passwordForm.reset();
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Update Failed' });
+            toast({ variant: 'destructive', title: 'Update Failed', description: 'Your old password might be incorrect.' });
         } finally {
             setIsPasswordSaving(false);
         }
@@ -247,6 +287,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                     <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
                         <CardHeader>
                             <CardTitle>My Profile</CardTitle>
+                            <CardDescription>Update your personal and social information.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="flex items-center gap-6">
@@ -263,12 +304,37 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                                     {isUploading && <Progress value={uploadProgress} className="h-1" />}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField control={profileForm.control} name="username" render={({ field }) => (
                                     <FormItem><FormLabel>Username</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={profileForm.control} name="fullName" render={({ field }) => (
                                     <FormItem><FormLabel>Display Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={profileForm.control} name="phoneNumber" render={({ field }) => (
+                                    <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input {...field} placeholder="+254 712 345 678" /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={profileForm.control} name="location" render={({ field }) => (
+                                    <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} placeholder="Nairobi, Kenya" /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+                             <FormField control={profileForm.control} name="bio" render={({ field }) => (
+                                <FormItem><FormLabel>Bio</FormLabel><FormControl><Textarea {...field} placeholder="Tell us a little about yourself or your brand." /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <Separator />
+                            <h3 className="text-lg font-medium">Online Presence</h3>
+                             <div className="space-y-4">
+                                <FormField control={profileForm.control} name="website" render={({ field }) => (
+                                    <FormItem><FormLabel>Website</FormLabel><FormControl><Input {...field} placeholder="https://your-shop.com" /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={profileForm.control} name="facebookUrl" render={({ field }) => (
+                                    <FormItem><FormLabel>Facebook</FormLabel><FormControl><Input {...field} placeholder="https://facebook.com/your-profile" /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={profileForm.control} name="instagramUrl" render={({ field }) => (
+                                    <FormItem><FormLabel>Instagram</FormLabel><FormControl><Input {...field} placeholder="https://instagram.com/your-profile" /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={profileForm.control} name="tiktokUrl" render={({ field }) => (
+                                    <FormItem><FormLabel>TikTok</FormLabel><FormControl><Input {...field} placeholder="https://tiktok.com/@your-profile" /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
                             <Button type="submit" disabled={isProfileSaving}>{isProfileSaving && <Loader2 className="animate-spin mr-2" />}Save Changes</Button>
@@ -280,21 +346,21 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
 
           <TabsContent value="verification">
             <Card>
-                <CardHeader><CardTitle>Seller Verification</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Seller Verification</CardTitle><CardDescription>Submit your documents to become a verified seller.</CardDescription></CardHeader>
                 <CardContent><SellerVerificationForm user={user} userProfile={userProfile} isLoading={isProfileLoading}/></CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="security">
             <Card>
-              <CardHeader><CardTitle>Security</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Security Settings</CardTitle><CardDescription>Manage your password and account security.</CardDescription></CardHeader>
               <CardContent className="space-y-6">
                  <Form {...passwordForm}>
                     <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
                         <FormField control={passwordForm.control} name="oldPassword" render={({ field }) => (
-                            <FormItem><FormLabel>Old Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Current Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <FormField control={passwordForm.control} name="newPassword" render={({ field }) => (
                                 <FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -318,11 +384,21 @@ export default function AccountSettingsPageWrapper() {
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const isLoading = isUserLoading || isProfileLoading;
 
-    if (isLoading) return <div className="flex h-screen w-full items-center justify-center">Loading...</div>;
+    if (isLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        );
+    }
 
+    // Default to BuyerLayout if userRole is not set
     const Layout = userProfile?.userRole === 'seller' ? SellerLayout : 
-                   userProfile?.userRole === 'buyer' ? BuyerLayout : 
-                   userProfile?.userRole === 'reseller' ? ResellerLayout : MainLayout;
+                   userProfile?.userRole === 'reseller' ? ResellerLayout : BuyerLayout;
 
-    return <Layout><AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} /></Layout>;
+    return (
+        <Layout>
+            <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />
+        </Layout>
+    );
 }

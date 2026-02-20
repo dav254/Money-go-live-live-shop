@@ -77,13 +77,13 @@ const BuyPointsDialog = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.details || 'Failed to create payment intent.');
+                throw new Error(errorData.details || errorData.error || 'Failed to create payment intent.');
             }
 
             const data = await response.json();
             
             if (data.checkoutUrl) {
-                router.push(data.checkoutUrl);
+                window.location.href = data.checkoutUrl;
             } else {
                 throw new Error('No checkout URL received.');
             }
@@ -133,13 +133,6 @@ const BuyPointsDialog = () => {
     );
 };
 
-const promoIdeas = [
-    "🔥 Join my LIVE shopping show now for exclusive deals! Tap here:",
-    "🎥 I'm selling LIVE right now! Come hung out and shop with me:",
-    "⚡ FLASH SALE happening LIVE! Join now before items sell out:",
-    "👋 Hey everyone! Starting my live show on Go Earn. Tap to watch:"
-];
-
 export default function SellerGoLivePage() {
   const { user } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
@@ -169,18 +162,15 @@ export default function SellerGoLivePage() {
     return doc(firestore, 'liveSessions', user.uid);
   }, [firestore, user]);
 
-  const { data: activeSession, isLoading: isSessionCheckLoading } = useDoc<LiveSession>(sessionRef);
+  const { data: activeSession } = useDoc<LiveSession>(sessionRef);
 
-  // Instant Camera Preview for Lobby
   useEffect(() => {
     if (!wantsToSetup) {
         const getCameraPermission = async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 setHasPermissions(true);
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
+                if (videoRef.current) videoRef.current.srcObject = stream;
             } catch (err) {
                 console.warn("Hardware access denied in lobby:", err);
                 setHasPermissions(false);
@@ -221,30 +211,10 @@ export default function SellerGoLivePage() {
                 setIsPaused(true);
                 setTimeRemaining(currentRemaining);
                 setWantsToSetup(true);
-                toast({ 
-                    title: "Active Session Recovered", 
-                    description: `Resuming your broadcast with ${formatTime(currentRemaining)} remaining.` 
-                });
             }
         }
     }
   }, [activeSession, wantsToSetup, firestore, user, toast]);
-
-  const handleRetryHardware = async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setHasPermissions(true);
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        toast({ title: "Hardware Enabled", description: "Camera and microphone are now ready." });
-    } catch (err) {
-        setHasPermissions(false);
-        toast({ 
-            variant: "destructive", 
-            title: "Access Denied", 
-            description: "Go to browser settings to allow camera/mic access for this site." 
-        });
-    }
-  };
 
   const fetchToken = useCallback(async () => {
     try {
@@ -282,16 +252,6 @@ export default function SellerGoLivePage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isLive, isPaused]);
-
-  useEffect(() => {
-      if (!isLive || isPaused || !user) return;
-      const syncInterval = setInterval(() => {
-          updateDoc(doc(firestore, 'liveSessions', user.uid), {
-              timeRemainingMs: timeRemaining
-          }).catch(console.error);
-      }, 30000);
-      return () => clearInterval(syncInterval);
-  }, [isLive, isPaused, timeRemaining, firestore, user]);
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -482,13 +442,6 @@ export default function SellerGoLivePage() {
       }
   };
 
-  const copyToClipboard = (text: string, label: string) => {
-      navigator.clipboard.writeText(text);
-      toast({ title: "Copied!", description: `${label} ready to share.` });
-  };
-
-  const streamUrl = `https://goearnvid.shop/buyer/live/${user?.uid}`;
-
   if (error) {
     return (
       <SellerLayout>
@@ -519,14 +472,13 @@ export default function SellerGoLivePage() {
                           </div>
                       </CardHeader>
                       <CardContent className="space-y-8">
-                          {/* LOBBY CAMERA PREVIEW */}
                           <div className="relative aspect-video w-full bg-black rounded-2xl overflow-hidden border border-white/10 group shadow-2xl">
                               <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover grayscale-[20%]" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                               <div className="absolute top-4 left-4">
                                   <Badge className="bg-black/40 backdrop-blur-md border-white/10 text-[9px] font-black tracking-widest uppercase">Signal Preview</Badge>
                               </div>
-                              {!hasPermissions && (
+                              {hasPermissions === false && (
                                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
                                       <VideoOff className="h-10 w-10 text-destructive mb-3" />
                                       <p className="text-white font-black uppercase tracking-tighter text-sm">Camera Permission Required</p>
@@ -559,15 +511,12 @@ export default function SellerGoLivePage() {
                       <CardFooter className="flex flex-col gap-4">
                           <Button 
                             size="lg" 
-                            className={cn(
-                                "w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white transition-all transform active:scale-95",
-                                !hasPermissions ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"
-                            )}
-                            onClick={!hasPermissions ? handleRetryHardware : handleSetupPreview}
+                            className="w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white bg-primary hover:bg-primary/90"
+                            onClick={handleSetupPreview}
                             disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession)}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
-                              {!hasPermissions ? 'ENABLE CAMERA' : (activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO')}
+                              {activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO'}
                           </Button>
                           
                           {(userProfile?.aiPoints || 0) < 100 && !activeSession && (

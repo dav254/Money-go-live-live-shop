@@ -5,7 +5,7 @@ import {
   Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
   Radio, Users, MessageSquare, Share2, CheckCircle, Heart, ShoppingBag, 
   Shield, Lock, CreditCard, User, Handshake, Globe, Cpu, Layers, MapPin,
-  RadioTower, Bot, Tag, Eye
+  RadioTower, Bot, Tag, Eye, DollarSign
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";

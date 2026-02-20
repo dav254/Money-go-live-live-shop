@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
@@ -24,36 +23,28 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { amount, email, gateway, metadata, transactionType, orderId } = body;
 
-        // --- SIMULATION MODE FOR PROTOTYPING ---
-        // If keys are missing, we provide a mock checkout experience
-        if ((gateway === 'paystack' && !paystack) || (gateway === 'paypal' && !getPayPalClient()) || gateway === 'mpesa') {
-            console.log(`[Payment API] Simulation Mode active for gateway: ${gateway}`);
-            
-            // For M-Pesa specifically, we always simulate or use a mock push URL
-            if (gateway === 'mpesa' || !paystackSecret) {
-                return NextResponse.json({ 
-                    checkoutUrl: `/checkout/simulate-points?amount=${amount}&type=${transactionType || 'points-purchase'}&gateway=${gateway}` 
-                });
-            }
+        // Validation: No simulation allowed for points purchase
+        if (!paystackSecret && gateway === 'paystack') {
+            return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
         }
 
         const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
 
-        if (gateway === 'paystack' || gateway === 'mpesa') {
+        if (gateway === 'paystack') {
             if (!paystack) throw new Error("Paystack is not configured on this server.");
 
+            // Paystack handles channel detection (M-Pesa vs Card) based on currency and settings
             const response = await paystack.transaction.initialize({
                 email: email,
                 amount: Math.round(amount * 100), 
-                currency: gateway === 'mpesa' ? 'KES' : 'USD', // M-Pesa requires local currency
+                currency: 'USD', // Paystack will handle conversion or local channels if set up
                 reference: reference,
                 metadata: {
                     ...metadata,
                     orderId: orderId,
                     transactionType: transactionType || 'product-purchase'
-                },
-                channels: gateway === 'mpesa' ? ['mobile_money'] : ['card', 'bank']
+                }
             });
             
             if (!response.status || !response.data.authorization_url) {

@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Film, Sparkles, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail, Phone } from 'lucide-react';
+import { Film, Sparkles, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -79,7 +79,7 @@ const BuyPointsDialog = () => {
         { points: 3000, price: 25, description: 'Power user' },
     ];
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'mpesa', points: number, price: number) => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal', points: number, price: number) => {
         if (!user?.email) {
             toast({
                 variant: 'destructive',
@@ -114,7 +114,7 @@ const BuyPointsDialog = () => {
             const data = await response.json();
             
             if (data.checkoutUrl) {
-                router.push(data.checkoutUrl);
+                window.location.href = data.checkoutUrl;
             } else {
                 throw new Error('No checkout URL received.');
             }
@@ -148,18 +148,13 @@ const BuyPointsDialog = () => {
                             </div>
                             <div className="text-right">
                                 <p className="text-xl font-bold text-primary">${pkg.price}</p>
-                                <div className="flex flex-col gap-2 mt-2">
-                                    <Button size="sm" variant="destructive" onClick={() => handlePayment('mpesa', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                        {isLoadingPayment === 'mpesa' ? <Loader2 className="animate-spin" /> : <><Phone className="mr-2 h-3 w-3" /> M-Pesa Express</>}
+                                <div className="flex gap-2 mt-2">
+                                    <Button size="sm" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                        {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Paystack'}
                                     </Button>
-                                    <div className="flex gap-2">
-                                        <Button size="sm" className="flex-1" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                            {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : 'Card'}
-                                        </Button>
-                                        <Button size="sm" variant="secondary" className="flex-1" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
-                                            {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
-                                        </Button>
-                                    </div>
+                                    <Button size="sm" variant="secondary" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>
+                                         {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : 'PayPal'}
+                                    </Button>
                                 </div>
                             </div>
                         </CardContent>
