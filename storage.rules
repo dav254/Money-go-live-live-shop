@@ -9,7 +9,7 @@ service firebase.storage {
     }
 
     // Match any file in the 'products' folder
-    // Pattern: products/{userId}/{filename}
+    // Path: products/{userId}/{filename}
     match /products/{userId}/{allPaths=**} {
       // Public read for marketplace visibility
       allow read: if true;

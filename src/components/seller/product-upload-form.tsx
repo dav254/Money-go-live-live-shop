@@ -32,7 +32,7 @@ import {
   Loader2,
   ImageIcon,
   CheckCircle2,
-  Tag,
+  Tag as TagIcon,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
