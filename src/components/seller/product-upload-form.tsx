@@ -186,6 +186,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       const productData = {
         ...values,
+        wasPrice: values.wasPrice || null,
         sellerId: user.uid,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
@@ -420,6 +421,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <FormDescription>Calculated price for global buyers.</FormDescription>
                     <FormMessage />
                   </FormItem>
+                )} />
+                <FormField control={form.control} name="wasPrice" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Was Price (USD)</FormLabel>
+                      <FormControl><Input type="number" placeholder="Optional" {...field} value={field.value ?? ''} /></FormControl>
+                      <FormDescription>Optional: The original price before discount.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
                 )} />
                 <FormField control={form.control} name="stock" render={({ field }) => (
                   <FormItem>

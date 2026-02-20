@@ -12,33 +12,30 @@ service firebase.storage {
     // Path: products/{userId}/{filename}
     match /products/{userId}/{allPaths=**} {
       // Public read for marketplace visibility
-      allow read: if true;
+      allow read;
       // Write access only for the owner of the folder
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
     // Match shop branding (logos, banners)
     match /shops/{userId}/{allPaths=**} {
-      allow read: if true;
+      allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
     // Match support evidence and documents
     match /support/{userId}/{allPaths=**} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Match delivery proofs
     match /delivery_proofs/{allPaths=**} {
-       allow read: if isSignedIn();
-       allow write: if isSignedIn();
+       allow read, write: if isSignedIn();
     }
     
     // Allow chats media
     match /chats/{chatId}/{allPaths=**} {
-       allow read: if isSignedIn();
-       allow write: if isSignedIn();
+       allow read, write: if isSignedIn();
     }
   }
 }

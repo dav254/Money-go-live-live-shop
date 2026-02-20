@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -391,13 +391,12 @@ const OrdersSkeleton = () => (
     </div>
 );
 
-
-export default function MyOrdersPage() {
-    const { user, isLoading: isUserLoading } = useUser();
+const MyOrdersContent = () => {
+    const { user } = useUser();
     const firestore = useFirestore();
     const [activeTab, setActiveTab] = useState('active');
 
-    const ordersQuery = useMemoFirebase(() => {
+    const ordersQuery = useMemo(() => {
         if (!user || !firestore) return null;
         return query(collection(firestore, 'orders'), where('buyerId', '==', user.uid));
     }, [firestore, user]);
@@ -409,18 +408,16 @@ export default function MyOrdersPage() {
         setOptimisticOrders(orders);
     }, [orders]);
 
-    const isLoading = isUserLoading || isOrdersLoading;
-
     const filteredOrders = (status: Order['orderStatus'] | Order['orderStatus'][]) => {
         const statuses = Array.isArray(status) ? status : [status];
         return optimisticOrders?.filter(o => statuses.includes(o.orderStatus)) || [];
     }
 
-  return (
-    <BuyerLayout>
-      <div className="container mx-auto max-w-7xl py-8">
-        <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
-        {isLoading ? <OrdersSkeleton /> : (
+    if (isOrdersLoading) {
+        return <OrdersSkeleton />;
+    }
+
+    return (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6 grid w-full grid-cols-5">
             <TabsTrigger value="active">Active</TabsTrigger>
@@ -446,8 +443,18 @@ export default function MyOrdersPage() {
              {filteredOrders(['cancelled', 'disputed']).length > 0 ? filteredOrders(['cancelled', 'disputed']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled or disputed orders.</p>}
           </TabsContent>
         </Tabs>
-        )}
-      </div>
-    </BuyerLayout>
-  );
+    );
+}
+
+export default function MyOrdersPage() {
+    const { isLoading: isUserLoading } = useUser();
+
+    return (
+        <BuyerLayout>
+            <div className="container mx-auto max-w-7xl py-8">
+                <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
+                {isUserLoading ? <OrdersSkeleton /> : <MyOrdersContent />}
+            </div>
+        </BuyerLayout>
+    );
 }
