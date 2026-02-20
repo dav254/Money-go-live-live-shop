@@ -22,7 +22,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: 'connect-src *;',
+            value: "connect-src *; img-src * data: blob:; media-src * data: blob:;",
           },
         ],
       },

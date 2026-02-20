@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
 
@@ -144,6 +145,7 @@ export default function SellerGoLivePage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   const { toast } = useToast();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
@@ -156,14 +158,12 @@ export default function SellerGoLivePage() {
   const [timeRemaining, setTimeRemaining] = useState<number>(SESSION_LIMIT_MS);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
   
-  // Promotion State
   const [offerTitle, setOfferTitle] = useState('');
   const [offerCode, setOfferCode] = useState('');
   const [isPublishingOffer, setIsPublishingOffer] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- SESSION RECOVERY & RECONCILIATION ---
   const sessionRef = useMemoFirebase(() => {
     if (!user) return null;
     return doc(firestore, 'liveSessions', user.uid);
@@ -171,34 +171,54 @@ export default function SellerGoLivePage() {
 
   const { data: activeSession, isLoading: isSessionCheckLoading } = useDoc<LiveSession>(sessionRef);
 
+  // Instant Camera Preview for Lobby
+  useEffect(() => {
+    if (!wantsToSetup) {
+        const getCameraPermission = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                setHasPermissions(true);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            } catch (err) {
+                console.warn("Hardware access denied in lobby:", err);
+                setHasPermissions(false);
+            }
+        };
+        getCameraPermission();
+    }
+    return () => {
+        if (videoRef.current?.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+        }
+    };
+  }, [wantsToSetup]);
+
   useEffect(() => {
     if (activeSession && activeSession.status !== 'ended' && !wantsToSetup) {
         const now = new Date();
         const initialStart = activeSession.initialStartTime?.toDate();
         const hoursPassed = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
 
-        // If session is within 24h, we lock the seller into the recovery state
         if (hoursPassed < 24 && (activeSession.timeRemainingMs || 0) > 0) {
             let currentRemaining = activeSession.timeRemainingMs;
             
-            // Reconcile time if it was left in 'live' state (to prevent airtime theft)
             if (activeSession.status === 'live' && activeSession.lastStartedAt) {
                 const lastStart = activeSession.lastStartedAt.toDate().getTime();
                 const elapsed = now.getTime() - lastStart;
                 currentRemaining = Math.max(0, currentRemaining - elapsed);
                 
-                // Immediately sync the state to Firestore
                 updateDoc(doc(firestore, 'liveSessions', user!.uid), {
                     timeRemainingMs: currentRemaining,
-                    status: 'paused' // Force pause upon page refresh for reconciliation
+                    status: 'paused'
                 }).catch(console.error);
             }
 
-            // AUTO-RECOVERY: Bypasses lobby and goes straight to Studio
             if (currentRemaining > 0) {
                 setMeetingId(activeSession.videosdkMeetingId || null);
                 setIsLive(activeSession.status === 'live');
-                setIsPaused(true); // Always pause upon refresh so seller can re-prepare
+                setIsPaused(true);
                 setTimeRemaining(currentRemaining);
                 setWantsToSetup(true);
                 toast({ 
@@ -210,26 +230,11 @@ export default function SellerGoLivePage() {
     }
   }, [activeSession, wantsToSetup, firestore, user, toast]);
 
-  // --- PERMISSION HANDSHAKE ---
-  useEffect(() => {
-    if (!wantsToSetup) {
-        const triggerHandshake = async () => {
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                setHasPermissions(true);
-            } catch (err) {
-                console.warn("Hardware access denied in lobby:", err);
-                setHasPermissions(false);
-            }
-        };
-        triggerHandshake();
-    }
-  }, [wantsToSetup]);
-
   const handleRetryHardware = async () => {
     try {
-        await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         setHasPermissions(true);
+        if (videoRef.current) videoRef.current.srcObject = stream;
         toast({ title: "Hardware Enabled", description: "Camera and microphone are now ready." });
     } catch (err) {
         setHasPermissions(false);
@@ -257,7 +262,6 @@ export default function SellerGoLivePage() {
     fetchToken();
   }, [fetchToken]);
 
-  // Session timer logic
   useEffect(() => {
     if (isLive && !isPaused) {
       timerRef.current = setInterval(() => {
@@ -279,7 +283,6 @@ export default function SellerGoLivePage() {
     };
   }, [isLive, isPaused]);
 
-  // Periodic Sync (every 30s) to prevent data loss if tab crashes
   useEffect(() => {
       if (!isLive || isPaused || !user) return;
       const syncInterval = setInterval(() => {
@@ -343,13 +346,10 @@ export default function SellerGoLivePage() {
       if (result.resumed) {
           setTimeRemaining(result.timeRemainingMs);
           setIsPaused(true);
-          toast({ title: "Session Restored", description: `You have ${formatTime(result.timeRemainingMs)} left. Airtime preserved.` });
       } else {
           setTimeRemaining(SESSION_LIMIT_MS);
-          toast({ title: "Studio Ready", description: "You are in private preview mode." });
       }
     } catch (err: any) {
-      console.error("Setup failed:", err);
       setError(err.message || "Connection failed.");
     } finally {
       setIsStarting(false);
@@ -366,7 +366,7 @@ export default function SellerGoLivePage() {
       });
       setIsLive(true);
       setIsPaused(false);
-      toast({ title: "You are LIVE!", description: "Your airtime is now active." });
+      toast({ title: "You are LIVE!" });
     } catch (e) {
       console.error("Failed to go live:", e);
     }
@@ -384,14 +384,12 @@ export default function SellerGoLivePage() {
                   timeRemainingMs: timeRemaining
               });
               setIsPaused(true);
-              toast({ title: "Stream Paused", description: "Airtime locked." });
           } else {
               await updateDoc(sessionRef, {
                   status: 'live',
                   lastStartedAt: serverTimestamp()
               });
               setIsPaused(false);
-              toast({ title: "Resumed!", description: "Timer active." });
           }
       } catch (e) {
           console.error("Pause/Resume failed:", e);
@@ -419,10 +417,8 @@ export default function SellerGoLivePage() {
         toast({
           variant: "destructive",
           title: "Session Expired",
-          description: "Your 70-minute session has ended. Top up to start again.",
+          description: "Your session has ended. Top up points to start again.",
         });
-      } else {
-        toast({ title: "Broadcast Ended" });
       }
     } catch (error) {
       console.error(error);
@@ -465,7 +461,7 @@ export default function SellerGoLivePage() {
                   publishedAt: serverTimestamp(),
               }
           });
-          toast({ title: "Deal Published!", description: "Viewers see your deal now." });
+          toast({ title: "Deal Published!" });
       } catch (e) {
           console.error(e);
       } finally {
@@ -494,34 +490,15 @@ export default function SellerGoLivePage() {
   const streamUrl = `https://goearnvid.shop/buyer/live/${user?.uid}`;
 
   if (error) {
-    const isLowPoints = error.toLowerCase().includes("points");
     return (
       <SellerLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
           <Alert variant="destructive" className="max-w-md">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{isLowPoints ? "Points Balance Low" : "Connection Error"}</AlertTitle>
+            <AlertTitle>Connection Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-          <div className="flex gap-4 mt-6">
-            {isLowPoints ? (
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button className="font-black bg-primary text-white">
-                            <BadgeCent className="mr-2 h-4 w-4" /> BUY AI POINTS
-                        </Button>
-                    </DialogTrigger>
-                    <BuyPointsDialog />
-                </Dialog>
-            ) : (
-                <Button className="font-black" onClick={() => window.location.reload()}>
-                    <RefreshCw className="mr-2 h-4 w-4" /> TRY AGAIN
-                </Button>
-            )}
-            <Button variant="outline" asChild>
-                <Link href="/dashboard/seller">Go Home</Link>
-            </Button>
-          </div>
+          <Button className="mt-6 font-black" onClick={() => window.location.reload()}>TRY AGAIN</Button>
         </div>
       </SellerLayout>
     );
@@ -542,6 +519,22 @@ export default function SellerGoLivePage() {
                           </div>
                       </CardHeader>
                       <CardContent className="space-y-8">
+                          {/* LOBBY CAMERA PREVIEW */}
+                          <div className="relative aspect-video w-full bg-black rounded-2xl overflow-hidden border border-white/10 group shadow-2xl">
+                              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover grayscale-[20%]" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                              <div className="absolute top-4 left-4">
+                                  <Badge className="bg-black/40 backdrop-blur-md border-white/10 text-[9px] font-black tracking-widest uppercase">Signal Preview</Badge>
+                              </div>
+                              {!hasPermissions && (
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
+                                      <VideoOff className="h-10 w-10 text-destructive mb-3" />
+                                      <p className="text-white font-black uppercase tracking-tighter text-sm">Camera Permission Required</p>
+                                      <p className="text-white/40 text-[10px] mt-1 max-w-[200px]">We need to verify your gear before you can pay to start a session.</p>
+                                  </div>
+                              )}
+                          </div>
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
                                   <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Session Airtime</p>
@@ -554,7 +547,7 @@ export default function SellerGoLivePage() {
                                   <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Your Balance</p>
                                   <div className="flex items-center gap-2">
                                       <CreditCard className="h-5 w-5 text-neutral-400" />
-                                      {isProfileLoading || isSessionCheckLoading ? <Skeleton className="h-6 w-16" /> : (
+                                      {isProfileLoading ? <Skeleton className="h-6 w-16" /> : (
                                           <p className={cn("text-xl font-black", (userProfile?.aiPoints || 0) < 100 && !activeSession ? "text-red-500" : "text-white")}>
                                               {(userProfile?.aiPoints || 0).toLocaleString()} <span className="text-xs font-normal text-neutral-500">Points</span>
                                           </p>
@@ -562,55 +555,26 @@ export default function SellerGoLivePage() {
                                   </div>
                               </div>
                           </div>
-
-                          {hasPermissions === false && (
-                              <Alert variant="destructive">
-                                  <VideoOff className="h-4 w-4" />
-                                  <AlertTitle>Hardware Access Required</AlertTitle>
-                                  <AlertDescription>Please allow camera/mic access to proceed.</AlertDescription>
-                              </Alert>
-                          )}
-
-                          <div className="bg-black/40 rounded-2xl p-6 border border-white/5">
-                              <h4 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
-                                  <Sparkles className="h-4 w-4 text-yellow-500" />
-                                  Live Persistence Rules
-                              </h4>
-                              <ul className="space-y-3">
-                                  <li className="flex items-center gap-3 text-sm text-neutral-300 font-medium">
-                                      <CheckCircle className="h-4 w-4 text-green-500" />
-                                      Airtime only counts when you are broadcasting.
-                                  </li>
-                                  <li className="flex items-center gap-3 text-sm text-neutral-300 font-medium">
-                                      <CheckCircle className="h-4 w-4 text-green-500" />
-                                      Session remains valid for 24 hours.
-                                  </li>
-                                  <li className="flex items-center gap-3 text-sm text-neutral-300 font-medium">
-                                      <CheckCircle className="h-4 w-4 text-green-500" />
-                                      Refresh proof: No extra points for re-entering.
-                                  </li>
-                              </ul>
-                          </div>
                       </CardContent>
                       <CardFooter className="flex flex-col gap-4">
                           <Button 
                             size="lg" 
                             className={cn(
-                                "w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white",
-                                hasPermissions === false ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"
+                                "w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white transition-all transform active:scale-95",
+                                !hasPermissions ? "bg-red-600 hover:bg-red-700" : "bg-primary hover:bg-primary/90"
                             )}
-                            onClick={hasPermissions === false ? handleRetryHardware : handleSetupPreview}
+                            onClick={!hasPermissions ? handleRetryHardware : handleSetupPreview}
                             disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession)}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
-                              {hasPermissions === false ? 'FORCE CAMERA START' : (activeSession ? 'RESUME MY SESSION' : 'ENTER STUDIO')}
+                              {!hasPermissions ? 'ENABLE CAMERA' : (activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO')}
                           </Button>
                           
                           {(userProfile?.aiPoints || 0) < 100 && !activeSession && (
                               <Dialog>
                                   <DialogTrigger asChild>
-                                      <Button variant="outline" className="w-full h-12 rounded-2xl">
-                                          <BadgeCent className="mr-2 h-4 w-4" /> REPLENISH POINTS
+                                      <Button variant="outline" className="w-full h-12 rounded-2xl border-primary/20 text-primary">
+                                          <BadgeCent className="mr-2 h-4 w-4" /> REPLENISH AI POINTS
                                       </Button>
                                   </DialogTrigger>
                                   <BuyPointsDialog />
@@ -645,8 +609,8 @@ export default function SellerGoLivePage() {
         {isLive && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2">
                 <div className={cn(
-                    "px-4 py-2 rounded-full backdrop-blur-xl border flex items-center gap-3 transition-all",
-                    isPaused ? "bg-yellow-600/80 border-yellow-500" : (timeRemaining < (5 * 60 * 1000) ? "bg-red-600/80 border-red-500 animate-pulse" : "bg-black/40 border-white/10")
+                    "px-4 py-2 rounded-full backdrop-blur-xl border flex items-center gap-3",
+                    isPaused ? "bg-yellow-600/80 border-yellow-500" : "bg-black/40 border-white/10"
                 )}>
                     <Clock className={cn("h-4 w-4", isPaused ? "text-white" : "text-primary")} />
                     <span className="text-sm font-black tracking-widest text-white uppercase tabular-nums">
@@ -657,7 +621,7 @@ export default function SellerGoLivePage() {
                 <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md"
+                    className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
                     onClick={handleTogglePause}
                 >
                     {isPaused ? <PlayCircle className="h-6 w-6 text-green-400" /> : <PauseCircle className="h-6 w-6 text-yellow-400" />}
@@ -668,16 +632,13 @@ export default function SellerGoLivePage() {
         <div className="absolute left-4 bottom-32 z-[60] flex flex-col gap-3">
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 shadow-xl border-2 border-white/20">
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700 border-2 border-white/20">
                         <ShoppingBag className="h-6 w-6" />
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
                     <SheetHeader className="p-4 border-b border-white/10">
-                        <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
-                            <ShoppingBag className="text-blue-500 h-4 w-4" />
-                            Catalog Bag
-                        </SheetTitle>
+                        <SheetTitle className="text-white text-xs uppercase tracking-widest font-black">Catalog Bag</SheetTitle>
                     </SheetHeader>
                     <div className="h-[calc(100vh-5rem)]">
                         <LiveProductShelf 
@@ -692,26 +653,23 @@ export default function SellerGoLivePage() {
 
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button size="icon" className="h-12 w-12 rounded-full bg-yellow-600 hover:bg-yellow-700 shadow-xl border-2 border-white/20">
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-yellow-600 hover:bg-yellow-700 border-2 border-white/20">
                         <Zap className="h-6 w-6 text-white" />
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-full sm:w-80 bg-neutral-950 border-white/10 text-white p-0">
                     <SheetHeader className="p-4 border-b border-white/10">
-                        <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
-                            <Zap className="text-yellow-500 h-4 w-4" />
-                            Live Offer Center
-                        </SheetTitle>
+                        <SheetTitle className="text-white text-xs uppercase tracking-widest font-black">Offer Center</SheetTitle>
                     </SheetHeader>
                     <div className="p-6 space-y-6">
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase text-neutral-500">Offer Title</Label>
-                                <Input placeholder="e.g., FLASH SALE: 20% OFF" value={offerTitle} onChange={e => setOfferTitle(e.target.value)} className="bg-white/5" />
+                                <Label className="text-[10px] font-black uppercase text-neutral-500">Offer Title</Label>
+                                <Input placeholder="e.g., FLASH SALE: 20% OFF" value={offerTitle} onChange={e => setOfferTitle(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase text-neutral-500">Coupon Code</Label>
-                                <Input placeholder="e.g., LIVE20" value={offerCode} onChange={e => setOfferCode(e.target.value.toUpperCase())} className="bg-white/5 font-mono" />
+                                <Label className="text-[10px] font-black uppercase text-neutral-500">Coupon Code</Label>
+                                <Input placeholder="e.g., LIVE20" value={offerCode} onChange={e => setOfferCode(e.target.value.toUpperCase())} className="font-mono" />
                             </div>
                             <div className="flex gap-2">
                                 <Button 
@@ -722,7 +680,7 @@ export default function SellerGoLivePage() {
                                     {isPublishingOffer ? <Loader2 className="animate-spin" /> : <Send className="mr-2 h-3 w-3" />}
                                     Blast Deal
                                 </Button>
-                                <Button variant="outline" className="border-white/10" onClick={handleClearOffer}><X className="h-4 w-4" /></Button>
+                                <Button variant="outline" onClick={handleClearOffer}><X className="h-4 w-4" /></Button>
                             </div>
                         </div>
                     </div>
@@ -730,59 +688,16 @@ export default function SellerGoLivePage() {
             </Sheet>
         </div>
 
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-32 z-[60]">
-            <Sheet>
-                <SheetTrigger asChild>
-                    <Button size="icon" className="h-14 w-14 rounded-full bg-green-600 shadow-2xl border-2 border-white/20">
-                        <Share2 className="h-7 w-7" />
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="h-[80vh] bg-neutral-950 border-t-white/10 text-white rounded-t-3xl p-0">
-                    <SheetHeader className="p-6 border-b border-white/10">
-                        <SheetTitle className="text-white flex items-center gap-3 text-xl font-black uppercase tracking-tighter">
-                            <Share2 className="text-green-500 h-6 w-6" />
-                            Invite Viewers
-                        </SheetTitle>
-                    </SheetHeader>
-                    <ScrollArea className="h-full">
-                        <div className="p-6 space-y-8 pb-24">
-                            <section className="space-y-3">
-                                <Label className="text-sm font-bold uppercase text-neutral-500">Direct Show Link</Label>
-                                <div className="flex gap-2">
-                                    <Input readOnly value={streamUrl} className="bg-neutral-900 border-white/10 h-12" />
-                                    <Button className="h-12 px-6 bg-green-600" onClick={() => copyToClipboard(streamUrl, 'Link')}><Copy className="h-4 w-4" /></Button>
-                                </div>
-                            </section>
-                            <section className="space-y-4">
-                                <Label className="text-sm font-bold uppercase text-neutral-500">Promotion Templates</Label>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {promoIdeas.map((idea, i) => (
-                                        <div key={i} className="p-4 rounded-2xl bg-white/5 border border-white/5 group">
-                                            <p className="text-sm text-neutral-300 mb-3">"{idea}"</p>
-                                            <Button variant="secondary" size="sm" className="w-full text-[10px] font-black uppercase" onClick={() => copyToClipboard(`${idea}\n${streamUrl}`, 'Template')}>Copy Template</Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        </div>
-                    </ScrollArea>
-                </SheetContent>
-            </Sheet>
-        </div>
-
         <div className="absolute right-4 bottom-32 z-[60]">
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button size="icon" className="h-12 w-12 rounded-full bg-primary shadow-xl border-2 border-white/20">
+                    <Button size="icon" className="h-12 w-12 rounded-full bg-primary border-2 border-white/20">
                         <MessageSquare className="h-6 w-6" />
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-full sm:w-80 bg-black border-white/10 text-white p-0">
                     <SheetHeader className="p-4 border-b border-white/10">
-                        <SheetTitle className="text-white flex items-center gap-2 text-sm uppercase tracking-widest font-black">
-                            <MessageSquare className="text-primary h-4 w-4" />
-                            Viewer Interaction
-                        </SheetTitle>
+                        <SheetTitle className="text-white text-xs uppercase tracking-widest font-black text-center">Viewer Chat</SheetTitle>
                     </SheetHeader>
                     <div className="h-[calc(100vh-5rem)]">
                         <LiveChat streamId={user?.uid || ''} />

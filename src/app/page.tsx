@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { 
   Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
-  TrendingUp, Radio, Users, MessageCircle, Share2, CheckCircle, Send, 
-  Clock, Heart, Package, Truck, RotateCcw, BarChart3, DollarSign, Eye, 
-  ShoppingBag, Shield, Lock, CreditCard, User, Handshake, Menu, X, Facebook, 
-  Twitter, Instagram, Youtube, Mail, Phone, Globe, Cpu, Layers, MapPin,
-  RadioTower, Bot, MessageSquare, Tag
+  Radio, Users, MessageSquare, Share2, CheckCircle, Heart, ShoppingBag, 
+  Shield, Lock, CreditCard, User, Handshake, Globe, Cpu, Layers, MapPin,
+  RadioTower, Bot, Tag, Eye
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -82,7 +80,7 @@ const HomePageContent = () => {
   return (
     <>
       <BackgroundEffects />
-      <div style={{ paddingTop: '5rem' }}> {/* Add padding to account for fixed header */}
+      <div style={{ paddingTop: '5rem' }}>
         <Section style={{ minHeight: 'calc(100vh - 5rem)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '0rem' }}>
           <div className="container" style={{ position: 'relative', zIndex: 10, padding: '0 1rem', textAlign: 'center' }}>
             <div className="glass-card-strong cyber-border animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 500, marginBottom: '2rem' }}>
@@ -108,10 +106,6 @@ const HomePageContent = () => {
                 <span>Start Selling Now</span>
                 <ArrowRight style={{ width: '1.25rem', height: '1.25rem' }} />
               </Link>
-              {/* <button className="btn-hero-outline cyber-border" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Play style={{ width: '1.25rem', height: '1.25rem', color: 'hsl(270, 100%, 65%)' }} />
-                <span>Watch Demo</span>
-              </button> */}
             </div>
 
             <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', maxWidth: '64rem', margin: '0 auto', animationDelay: '0.4s' }}>
@@ -216,7 +210,6 @@ const HomePageContent = () => {
                     className="object-cover opacity-90" 
                     data-ai-hint="seller livestreaming"
                   />
-                  {/* Overlay HUD */}
                   <div className="absolute inset-0 p-6 flex flex-col justify-between pointer-events-none">
                     <div className="flex justify-between items-start">
                       <div className="bg-red-600 px-3 py-1 rounded-full text-[10px] font-black tracking-widest text-white flex items-center gap-1.5 animate-pulse">
@@ -228,7 +221,6 @@ const HomePageContent = () => {
                     </div>
 
                     <div className="space-y-4">
-                      {/* Comments Simulation */}
                       <div className="space-y-2 opacity-90">
                         <div className="bg-black/40 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/5 w-fit">
                           <p className="text-[10px] text-white"><span className="font-black text-primary uppercase mr-1">Joy:</span> LOVE THIS BAG! 👜</p>
@@ -238,7 +230,6 @@ const HomePageContent = () => {
                         </div>
                       </div>
 
-                      {/* Pinned Product */}
                       <div className="bg-neutral-900/90 backdrop-blur-xl border border-white/10 p-3 rounded-2xl flex items-center gap-3 shadow-2xl">
                         <div className="h-12 w-12 rounded-lg bg-neutral-800 relative overflow-hidden flex-shrink-0 border border-white/5">
                           <Image src="https://picsum.photos/seed/product-watch/150/150" fill alt="Product" className="object-cover" />
@@ -277,137 +268,6 @@ const HomePageContent = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '80rem', margin: '0 auto' }}>
               {features.map((feature, index) => (
                 <FeatureCard key={index} {...feature} />
-              ))}
-            </div>
-          </div>
-        </Section>
-        <Section style={{ background: 'linear-gradient(to bottom, hsl(240, 20%, 4%), rgba(59, 130, 246, 0.05), hsl(240, 20%, 4%))' }}>
-          <div className="container" style={{ padding: '0 1rem', textAlign: 'center' }}>
-            <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
-              Why Sellers <span className="text-gradient">Love</span> GoEarn
-            </h2>
-            <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', maxWidth: '42rem', margin: '0 auto 4rem' }}>
-              Your growth is our mission. We give you the tools — you bring the hustle.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.5rem', maxWidth: '64rem', margin: '0 auto' }}>
-              {[
-                { icon: Star, value: "0%", label: "Listing Fees" },
-                { icon: Upload, value: "∞", label: "Unlimited Uploads" },
-                { icon: Video, value: "10×", label: "Video Conversion" },
-                { icon: Users, value: "847+", label: "Active Resellers" },
-              ].map((item, index) => (
-                <div key={index} className="glass-card-strong" style={{ padding: '1.5rem', borderRadius: '1rem', transition: 'all 0.3s' }}>
-                  <item.icon style={{ width: '2rem', height: '2rem', color: 'hsl(270, 100%, 65%)', marginBottom: '1rem', marginLeft: 'auto', marginRight: 'auto' }} />
-                  <div className="font-cyber text-gradient" style={{ fontSize: '1.875rem', fontWeight: 700, marginBottom: '0.5rem' }}>{item.value}</div>
-                  <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)' }}>{item.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Section>
-        <Section>
-          <div className="container" style={{ padding: '0 1rem', textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px', background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.3)', color: 'hsl(270, 100%, 65%)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '1.5rem' }}>
-              <Heart style={{ width: '1rem', height: '1rem' }} />
-              <span className="font-cyber">OUR PROMISE</span>
-            </div>
-
-            <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
-              Built for <span className="text-gradient">Entrepreneurs Everywhere</span>
-            </h2>
-
-            <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              GoEarn was built for the real hustlers of the world. Your feedback shapes every update, every feature.
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem', maxWidth: '56rem', margin: '0 auto' }}>
-              {[
-                { icon: Users, title: "Community First", description: "Every feature built on seller feedback" },
-                { icon: Handshake, title: "We Grow Together", description: "Your success is our success" },
-                { icon: Heart, title: "We Win Together", description: "A platform for entrepreneurs, by entrepreneurs" }
-              ].map((item, index) => (
-                <div key={index} style={{ textAlign: 'center' }}>
-                  <div className="gradient-hero" style={{ width: '5rem', height: '5rem', borderRadius: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', boxShadow: '0 15px 40px rgba(0,0,0,0.4)' }}>
-                    <item.icon style={{ width: '2.5rem', height: '2.5rem', color: 'white' }} />
-                  </div>
-                  <h3 className="font-cyber" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>{item.title}</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.6)' }}>{item.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Section>
-        <Section id="how-it-works" style={{ background: 'linear-gradient(to bottom, hsl(240, 20%, 4%), rgba(59, 130, 246, 0.05), hsl(240, 20%, 4%))' }}>
-          <div className="container" style={{ padding: '0 1rem' }}>
-            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-              <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1rem' }}>
-                Roadmap to <span className="text-gradient">First Sales</span>
-              </h2>
-              <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', maxWidth: '42rem', margin: '0 auto' }}>
-                Follow these steps and start earning today.
-              </p>
-            </div>
-            <div style={{ maxWidth: '56rem', margin: '0 auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                {roadmapSteps.map((step, index) => (
-                  <div key={index} className="glass-card" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '1.5rem', borderRadius: '1rem', transition: 'all 0.3s' }}>
-                    <div className="gradient-hero font-cyber" style={{ position: 'absolute', top: '-0.75rem', left: '-0.75rem', width: '2rem', height: '2rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: 700 }}>
-                      {index + 1}
-                    </div>
-                    <div className="gradient-hero" style={{ width: '4rem', height: '4rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-                      <step.icon style={{ width: '2rem', height: '2rem', color: 'white' }} />
-                    </div>
-                    <h3 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>{step.title}</h3>
-                    <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)' }}>{step.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Section>
-        <Section>
-          <div className="container" style={{ padding: '0 1rem', textAlign: 'center' }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '6rem', height: '6rem', marginBottom: '2.5rem' }}>
-              <div className="gradient-hero animate-pulse-glow" style={{ position: 'absolute', inset: 0, borderRadius: '50%' }} />
-              <div className="gradient-hero" style={{ position: 'relative', width: '5rem', height: '5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Rocket style={{ width: '2.5rem', height: '2.5rem', color: 'white' }} />
-              </div>
-              <div className="animate-spin-slow" style={{ position: 'absolute', inset: 0 }}>
-                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '0.5rem', height: '0.5rem', background: 'hsl(200, 100%, 55%)', borderRadius: '50%' }} />
-                <div style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '0.5rem', height: '0.5rem', background: 'hsl(174, 85%, 40%)', borderRadius: '50%' }} />
-                <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: '0.5rem', height: '0.5rem', background: 'hsl(270, 100%, 65%)', borderRadius: '50%' }} />
-                <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: '0.5rem', height: '0.5rem', background: 'hsl(55, 100%, 50%)', borderRadius: '50%' }} />
-              </div>
-            </div>
-            <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
-              Ready to Grow With<br /><span className="text-gradient glow-text">GoEarn</span>?
-            </h2>
-            <p style={{ fontSize: 'clamp(1rem, 2vw, 1.25rem)', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              Join thousands of global entrepreneurs transforming their passion into profit.
-              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}>The future of commerce starts now.</span>
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'center', alignItems: 'center', marginBottom: '3rem' }}>
-              <Link href="/signup?role=seller" className="btn-hero font-cyber" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: '100%', maxWidth: '24rem', textDecoration: 'none' }}>
-                <Upload style={{ width: '1.25rem', height: '1.25rem' }} />
-                <span>Upload Your First Product</span>
-                <ArrowRight style={{ width: '1.25rem', height: '1.25rem' }} />
-              </Link>
-              <Link href="/dashboard/seller/settings" className="btn-hero-outline cyber-border font-cyber" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', width: '100%', maxWidth: '24rem', textDecoration: 'none' }}>
-                <User style={{ width: '1.25rem', height: '1.25rem', color: 'hsl(270, 100%, 65%)' }} />
-                <span>Customize Your Shop</span>
-              </Link>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>
-              {[
-                { text: "Free to Start", icon: Zap },
-                { text: "No Hidden Fees", icon: Shield },
-                { text: "24/7 AI Support", icon: Cpu },
-                { text: "Secure Payments", icon: Lock }
-              ].map((badge, index) => (
-                <div key={index} className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px' }}>
-                  <badge.icon style={{ width: '1rem', height: '1rem', color: 'hsl(55, 100%, 50%)' }} />
-                  <span>{badge.text}</span>
-                </div>
               ))}
             </div>
           </div>

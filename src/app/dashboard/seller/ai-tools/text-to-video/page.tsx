@@ -1,77 +1,68 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Text, Download, ChevronLeft, UploadCloud } from 'lucide-react';
+import { Loader2, Sparkles, Text, UploadCloud, Radio } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import Link from 'next/link';
+import { useUser, useUserProfile } from '@/firebase';
+import { Badge } from '@/components/ui/badge';
 
 export default function TextToVideoPage() {
     const { toast } = useToast();
     const { user } = useUser();
-    const firestore = useFirestore();
-    const [prompt, setPrompt] = useState('A cinematic shot of a an old car driving down a deserted road at sunset.');
-    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const { userProfile } = useUserProfile(user?.uid);
+    const [prompt, setPrompt] = useState('A cinematic, vibrant high-speed showcase of professional luxury watches on a rotating stand with neon reflections.');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
     const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
 
-    const productsQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
-    }, [firestore, user]);
-
-    const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-
     const handleGenerateVideo = async () => {
         if (!prompt.trim()) {
-            toast({ variant: 'destructive', title: 'Prompt is required', description: 'Please enter a description for your video.' });
+            toast({ variant: 'destructive', title: 'Prompt is required' });
             return;
         }
 
         setIsGenerating(true);
         setGeneratedVideoUrl(null);
-        toast({ title: '🤖 Starting Video Generation...', description: 'This is a slow process and may take over a minute. Please wait.' });
+        toast({ title: '🤖 Initializing Veo AI...', description: 'Generating slow-motion 4K video. This can take up to 2 minutes.' });
 
         try {
             const result = await generateVideoFromText({ prompt });
             setGeneratedVideoUrl(result.videoUrl);
-            toast({ title: '✅ Video Generated!', description: 'Your new video is ready for preview.' });
+            toast({ title: '✅ Video Generated!', description: 'Preview your AI creation below.' });
         } catch (error: any) {
             console.error("Error generating video:", error);
-            toast({ variant: 'destructive', title: 'Video Generation Failed', description: error.message || 'Please try again.' });
+            toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'The AI model is busy. Please try again in a moment.' });
         } finally {
             setIsGenerating(false);
         }
     };
     
-    const handlePublishVideo = async () => {
-        if (!generatedVideoUrl || !selectedProductId) {
-             toast({ variant: 'destructive', title: 'Missing Information', description: 'Please select a product to publish the video to.' });
-            return;
-        }
+    const handleDirectPublish = async () => {
+        if (!generatedVideoUrl || !user) return;
         
         setIsPublishing(true);
-        toast({ title: 'Publishing Video...', description: 'Adding the video to your product.' });
+        toast({ title: 'Publishing to Live Feed...', description: 'Your video is being transcoded for global discovery.' });
 
         try {
+            // DIRECT PUBLISH: No product ID means it goes straight to the global live feed as a generic showcase
             await publishVideoToProduct({
-                productId: selectedProductId,
+                productId: 'global_showcase', 
                 videoUrl: generatedVideoUrl
             });
-            toast({ title: 'Published!', description: 'Your video is now live on your product page.' });
+            
+            toast({ 
+                title: 'Successfully Published!', 
+                description: 'Your AI video is now appearing in the global Live Stream feed for all buyers.' 
+            });
+            setGeneratedVideoUrl(null);
         } catch (error: any) {
-             console.error("Error publishing video:", error);
-            toast({ variant: 'destructive', title: 'Publish Failed', description: error.message || 'Please try again.' });
+            toast({ variant: 'destructive', title: 'Publish Failed', description: error.message });
         } finally {
             setIsPublishing(false);
         }
@@ -79,77 +70,101 @@ export default function TextToVideoPage() {
 
     return (
         <SellerLayout>
-            <div className="flex-1 space-y-4 p-8 pt-6">
-                <div className="grid md:grid-cols-2 gap-8 items-start">
-                    <Card>
+            <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 max-w-6xl mx-auto">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                        <h1 className="font-headline text-3xl font-black uppercase tracking-tighter flex items-center gap-3">
+                            <Text className="text-primary h-8 w-8" /> 
+                            AI Showcase Generator
+                        </h1>
+                        <p className="text-muted-foreground font-medium">Create and publish cinematic videos directly to the global Live Feed.</p>
+                    </div>
+                    <Badge variant="outline" className="h-10 px-4 rounded-xl border-primary/20 bg-primary/5 text-primary font-black uppercase">
+                        250 Points / GEN
+                    </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+                    <Card className="lg:col-span-2 shadow-2xl border-white/5 bg-neutral-900/50 backdrop-blur-xl">
                         <CardHeader>
-                            <CardTitle className="font-headline text-2xl flex items-center gap-2">
-                                <Text className="text-primary" /> Text-to-Video Generator
-                            </CardTitle>
-                            <CardDescription>
-                                Describe a video and let our AI create it for you. This tool costs 250 points per generation.
-                            </CardDescription>
+                            <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">1. Imagine Your Content</CardTitle>
+                            <CardDescription>Describe your product in high detail. Mention lighting, movement, and environment.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6">
                              <div className="space-y-2">
-                                <label className="text-sm font-medium">1. Describe Your Video</label>
                                 <Textarea
                                     rows={8}
                                     value={prompt}
                                     onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="e.g., A majestic dragon soaring over a mystical forest at dawn."
+                                    className="bg-black/40 border-white/10 rounded-2xl resize-none text-sm leading-relaxed"
+                                    placeholder="Describe your masterpiece..."
                                     disabled={isGenerating}
                                 />
                             </div>
-                            <Button className="w-full" onClick={handleGenerateVideo} disabled={isGenerating}>
-                                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                                Generate Video
+                            <Button 
+                                size="lg"
+                                className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20" 
+                                onClick={handleGenerateVideo} 
+                                disabled={isGenerating}
+                            >
+                                {isGenerating ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Sparkles className="mr-2 h-6 w-6" />}
+                                GENERATE MASTERPIECE
                             </Button>
                         </CardContent>
                     </Card>
 
-                    <Card className="sticky top-24">
+                    <Card className="lg:col-span-3 shadow-2xl border-white/5 bg-neutral-900/50 backdrop-blur-xl min-h-[400px] flex flex-col">
                         <CardHeader>
-                            <CardTitle>2. Preview & Publish</CardTitle>
+                            <CardTitle className="text-lg font-black uppercase tracking-widest">2. Preview & Global Publish</CardTitle>
                              <CardDescription>
-                                Review your video, select a product to add it to, then publish.
+                                Once generated, publish your video to the main feed to reach thousands of potential buyers instantly.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="aspect-video w-full bg-muted rounded-lg flex items-center justify-center">
+                        <CardContent className="flex-1 flex flex-col justify-center gap-6">
+                            <div className="relative aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 group shadow-2xl">
                                 {isGenerating ? (
-                                    <div className="text-center text-muted-foreground">
-                                        <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-                                        <p className="mt-2">Generating... Please wait.</p>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-black/80">
+                                        <div className="relative mb-6">
+                                            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                                            <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
+                                        </div>
+                                        <p className="text-white font-black uppercase tracking-tighter">AI Dreaming in 4K...</p>
+                                        <p className="text-white/40 text-[10px] mt-2 max-w-[250px] uppercase font-bold tracking-widest">Building cinematics, lighting shaders, and motion vectors</p>
                                     </div>
                                 ) : generatedVideoUrl ? (
-                                    <video src={generatedVideoUrl} controls autoPlay muted loop className="w-full h-full rounded-md" />
+                                    <video src={generatedVideoUrl} controls autoPlay muted loop className="w-full h-full object-contain" />
                                 ) : (
-                                    <p className="text-muted-foreground">Your video will appear here.</p>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 text-center p-12">
+                                        <Video className="h-16 w-16 mb-4 opacity-10" />
+                                        <p className="font-black uppercase tracking-widest text-[10px]">Your generation will appear here</p>
+                                    </div>
                                 )}
                             </div>
+                            
                             {generatedVideoUrl && (
-                                <div className="space-y-4">
-                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Assign to Product</label>
-                                        <Select onValueChange={setSelectedProductId} disabled={areProductsLoading || isPublishing}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={areProductsLoading ? "Loading products..." : "Select a product..."} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {products?.map(p => (
-                                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                     <Button className="w-full" onClick={handlePublishVideo} disabled={isPublishing || !selectedProductId}>
-                                        {isPublishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                                        Publish to Product
+                                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                     <Alert className="bg-green-500/10 border-green-500/30 text-green-400">
+                                        <Radio className="h-4 w-4 animate-pulse" />
+                                        <AlertTitle className="font-black uppercase text-[10px] tracking-widest">Global Discovery Ready</AlertTitle>
+                                        <AlertDescription className="text-xs font-medium">Publishing now will place this video in the main discover feed for all Go Earn users.</AlertDescription>
+                                    </Alert>
+                                     <Button 
+                                        size="lg"
+                                        className="w-full h-16 rounded-2xl font-black text-xl bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-600/30" 
+                                        onClick={handleDirectPublish} 
+                                        disabled={isPublishing}
+                                    >
+                                        {isPublishing ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <UploadCloud className="mr-2 h-6 w-6" />}
+                                        PUBLISH TO LIVE FEED
                                     </Button>
                                 </div>
                             )}
                         </CardContent>
+                        <CardFooter className="bg-black/20 p-4 border-t border-white/5">
+                            <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest text-center w-full">
+                                Published videos are subject to AI content moderation guidelines.
+                            </p>
+                        </CardFooter>
                     </Card>
                 </div>
             </div>
