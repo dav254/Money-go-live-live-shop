@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -91,25 +90,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       setExistingVideoUrls(productToEdit.videoUrls || []);
     }
   }, [productToEdit]);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      productName: productToEdit?.name || '',
-      brand: productToEdit?.brand || '',
-      category: productToEdit?.category || '',
-      condition: productToEdit?.condition || 'new',
-      currency: productToEdit?.localCurrency || 'KES',
-      localPrice: productToEdit?.localPrice || 0,
-      price: productToEdit?.price || 0,
-      shippingCost: productToEdit?.shippingCost || 0,
-      stock: productToEdit?.stock || 0,
-      description: productToEdit?.description || '',
-      tags: productToEdit?.tags || '',
-      deliveryOptions: productToEdit?.deliveryOptions || '',
-      wasPrice: productToEdit?.wasPrice || undefined,
-    },
-  });
 
   const handleImageChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
