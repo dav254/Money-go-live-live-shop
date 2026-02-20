@@ -8,7 +8,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -28,12 +27,8 @@ import {
   UploadCloud,
   X,
   DollarSign,
-  MapPin,
   Truck,
-  Video,
-  BadgeCent,
   Loader2,
-  Globe,
   ImageIcon,
   CheckCircle2,
 } from 'lucide-react';
@@ -48,7 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import type { Product } from '@/lib/types';
 
 const MAX_IMAGES = 5;
 

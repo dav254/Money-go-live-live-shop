@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -13,12 +12,10 @@ import {
   ShoppingBag,
   Package,
   Video,
-  Banknote,
   Store,
   HelpCircle,
   Users,
   Home,
-  User,
   MessageSquare,
   RadioTower,
   Info,

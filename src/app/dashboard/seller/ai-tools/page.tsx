@@ -5,7 +5,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { GenerateDescriptionForm } from '@/components/dashboard/generate-description-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bot, Film, Sparkles, Handshake, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail, Phone } from 'lucide-react';
+import { Film, Sparkles, ImageIcon, BadgeCent, RadioTower, Text, Loader2, Image as ImageGeneratorIcon, Mail, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -13,7 +13,6 @@ import { useUser, useUserProfile } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 
 const tools = [
   {
@@ -40,14 +39,6 @@ const tools = [
     href: '/dashboard/seller/ai-tools/email-marketer',
     cta: 'Launch Marketer',
     points: 40,
-  },
-  {
-    title: 'AI Live Selling Co-Pilot',
-    description: 'Get real-time suggestions and analysis of buyer comments during your live stream.',
-    icon: RadioTower,
-    href: '/dashboard/seller/ai-tools/live-copilot',
-    cta: 'Launch Co-Pilot',
-    points: 500,
   },
   {
     title: 'AI Image Generator',
@@ -144,7 +135,7 @@ const BuyPointsDialog = () => {
             <DialogHeader>
                 <DialogTitle>Buy AI Points</DialogTitle>
                 <DialogDescription>
-                    Points are used to power your AI tools. Choose a package to top up your balance.
+                    Points are used to power your AI tools and Live Shows. Choose a package to top up your balance.
                 </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">

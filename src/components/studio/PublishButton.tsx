@@ -7,52 +7,32 @@ import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore'
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { get as idbGet } from '@/lib/idb';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 export default function PublishButton() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
+  const storage = getStorage();
   const [isPublishing, setIsPublishing] = useState(false);
 
-  async function uploadToCloudinary(blob: Blob): Promise<string> {
-    const timestamp = Math.round(Date.now() / 1000);
-    const folder = 'product_videos';
-    const paramsToSign = { timestamp, folder };
+  async function uploadToFirebase(blob: Blob): Promise<string> {
+    if (!user) throw new Error('User not found.');
+    const filename = `products/${user.uid}/studio_${Date.now()}.webm`;
+    const storageRef = ref(storage, filename);
+    const uploadTask = uploadBytesResumable(storageRef, blob);
 
-    const signatureResponse = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paramsToSign }),
+    return new Promise((resolve, reject) => {
+      uploadTask.on('state_changed',
+        null,
+        (error) => reject(error),
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(url);
+        }
+      );
     });
-
-    if (!signatureResponse.ok) {
-      throw new Error('Failed to get upload signature.');
-    }
-    const { signature } = await signatureResponse.json();
-
-    const formData = new FormData();
-    formData.append('file', blob, 'recorded-video.webm');
-    formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY || '');
-    formData.append('timestamp', timestamp.toString());
-    formData.append('signature', signature);
-    formData.append('folder', folder);
-
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
-
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json();
-      throw new Error(errorData.error.message || 'Video upload failed.');
-    }
-
-    const uploadedData = await uploadResponse.json();
-    return uploadedData.secure_url;
   }
 
   async function handlePublish() {
@@ -69,7 +49,7 @@ export default function PublishButton() {
     }
 
     setIsPublishing(true);
-    toast({ title: 'Publishing...', description: 'Uploading your video. This may take a moment.' });
+    toast({ title: 'Publishing...', description: 'Uploading your video to your catalog.' });
 
     try {
       // Get the blob from IndexedDB
@@ -79,14 +59,14 @@ export default function PublishButton() {
           throw new Error('Could not find the recorded video to upload.');
       }
 
-      // Upload to Cloudinary
-      const permanentUrl = await uploadToCloudinary(videoBlob);
+      // Upload to Firebase Storage
+      const permanentUrl = await uploadToFirebase(videoBlob);
 
       // Update the product document in Firestore
       const productRef = doc(firestore, 'products', productId);
       await updateDoc(productRef, {
         videoUrls: arrayUnion(permanentUrl),
-        videoUrl: permanentUrl, // Also set the main videoUrl for compatibility
+        videoUrl: permanentUrl,
         hasVideo: true,
         updatedAt: serverTimestamp(),
       });
