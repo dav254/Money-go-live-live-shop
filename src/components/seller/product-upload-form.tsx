@@ -32,6 +32,7 @@ import {
   Loader2,
   ImageIcon,
   CheckCircle2,
+  Tag,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -42,7 +43,6 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/fi
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import type { Product } from '@/lib/types';
 
@@ -58,10 +58,6 @@ const formSchema = z.object({
   shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
   stock: z.coerce.number().int().min(0, { message: 'Stock must be a non-negative integer.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  country: z.string().min(1, { message: 'Country is required.' }),
-  county: z.string().optional(),
-  subCounty: z.string().optional(),
-  area: z.string().min(2, { message: 'City or Area is required.' }),
   deliveryOptions: z.string().min(5, { message: 'Please describe delivery options.' }),
   wasPrice: z.coerce.number().optional(),
 });
@@ -106,10 +102,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       shippingCost: productToEdit?.shippingCost || 0,
       stock: productToEdit?.stock || 0,
       description: productToEdit?.description || '',
-      country: productToEdit?.country || 'Kenya',
-      county: productToEdit?.county || '',
-      subCounty: productToEdit?.subCounty || '',
-      area: productToEdit?.area || '',
       deliveryOptions: productToEdit?.deliveryOptions || '',
       wasPrice: productToEdit?.wasPrice || undefined,
     },
@@ -221,8 +213,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       setIsUploading(false);
     }
   }
-
-  const selectedCounty = form.watch('county');
 
   return (
     <Form {...form}>
@@ -422,46 +412,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Truck className="text-primary" /> Logistics</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Truck className="text-primary" /> Fulfillment</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField control={form.control} name="country" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <FormControl><Input readOnly {...field} /></FormControl>
-                  </FormItem>
-                )} />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="county" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>County</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="subCounty" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub-County</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCounty}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {selectedCounty && kenyaLocations[selectedCounty]?.map(sc => <SelectItem key={sc} value={sc}>{sc}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                </div>
-                <FormField control={form.control} name="area" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City / Specific Area</FormLabel>
-                    <FormControl><Input placeholder="e.g. Westlands, CBD" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
                 <FormField control={form.control} name="shippingCost" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Shipping Fee (USD)</FormLabel>

@@ -41,6 +41,11 @@ export default function SellerShopPage() {
   // --- Data Composition ---
   useEffect(() => {
     if (shopData && profileData) {
+      // Build location string from detailed fields if available
+      const displayLocation = shopData.area && shopData.county 
+        ? `${shopData.area}, ${shopData.county}`
+        : (shopData.location || profileData.location || 'Not specified');
+
       const composedSeller: Seller = {
         id: sellerId,
         sellerId: sellerId,
@@ -48,7 +53,7 @@ export default function SellerShopPage() {
         description: shopData.description || profileData.bio || 'No description available.',
         avatar: { id: 'logo', imageUrl: shopData.logoUrl || profileData.profilePictureUrl || getPlaceholderImage(), description: 'Shop Logo', imageHint: 'shop logo' },
         banner: { id: 'banner', imageUrl: shopData.bannerUrl || getPlaceholderImage(), description: 'Shop Banner', imageHint: 'store banner' },
-        location: shopData.location || profileData.location || 'Not specified',
+        location: displayLocation,
         isVerified: profileData.verificationStatus === 'verified',
         rating: 4.8, 
         reviewsCount: shopData.reviewsCount || 0,

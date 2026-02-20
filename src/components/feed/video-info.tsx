@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -5,6 +6,7 @@ import Image from 'next/image';
 import { Verified, Star, MapPin, Radio } from 'lucide-react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import Link from 'next/link';
 
 interface VideoInfoProps {

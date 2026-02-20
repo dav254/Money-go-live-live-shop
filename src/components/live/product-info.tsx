@@ -1,14 +1,14 @@
 
 'use client';
 
-import type { Product, Review } from '@/lib/types';
+import type { Product, Review, SellerShop } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star, Store, Tag, Sparkles } from 'lucide-react';
+import { ShoppingCart, Star, Store, Tag, Sparkles, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, query, doc } from 'firebase/firestore';
 import React from 'react';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,12 @@ export function ProductInfo({ product }: ProductInfoProps) {
     return query(collection(firestore, 'products', product.id, 'reviews'));
   }, [firestore, product.id]);
 
+  const sellerShopRef = useMemoFirebase(() => {
+    return doc(firestore, 'sellerShops', product.sellerId);
+  }, [firestore, product.sellerId]);
+
   const { data: reviews } = useCollection<Review>(reviewsQuery);
+  const { data: shop } = useDoc<SellerShop>(sellerShopRef);
 
   const averageRating = React.useMemo(() => {
     if (!reviews || reviews.length === 0) return 0;
@@ -71,9 +76,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
                             <Tag className="h-2.5 w-2.5" /> {product.coupon.discount}% OFF
                         </div>
                     )}
-                    {product.condition === 'used' && (
-                        <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-bold uppercase tracking-widest">
-                            <Sparkles className="h-2.5 w-2.5" /> PRE-OWNED
+                    {shop?.location && (
+                        <div className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase tracking-widest truncate">
+                            <MapPin className="h-2.5 w-2.5" /> {shop.location}
                         </div>
                     )}
                 </div>

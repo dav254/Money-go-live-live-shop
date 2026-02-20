@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -24,6 +25,7 @@ import {
   Instagram,
   Twitter,
   Phone,
+  Globe,
 } from 'lucide-react';
 import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -35,6 +37,8 @@ import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { kenyaLocations } from '@/lib/location-data';
 
 export default function SellerSettingsPage() {
   const { user } = useUser();
@@ -62,7 +66,13 @@ export default function SellerSettingsPage() {
   const [contactWhatsapp, setContactWhatsapp] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [location, setLocation] = useState('');
+  
+  // Structured Logistics
+  const [country, setCountry] = useState('Kenya');
+  const [county, setCounty] = useState('');
+  const [subCounty, setSubCounty] = useState('');
+  const [area, setArea] = useState('');
+  
   const [storeHours, setStoreHours] = useState('');
   const [returnPolicy, setReturnPolicy] = useState('');
   const [deliveryPolicy, setDeliveryPolicy] = useState('');
@@ -79,7 +89,12 @@ export default function SellerSettingsPage() {
         setContactWhatsapp(shopData.contactWhatsapp || '');
         setContactPhone(shopData.contactPhone || '');
         setContactEmail(shopData.contactEmail || '');
-        setLocation(shopData.location || '');
+        
+        setCountry(shopData.country || 'Kenya');
+        setCounty(shopData.county || '');
+        setSubCounty(shopData.subCounty || '');
+        setArea(shopData.area || '');
+        
         setStoreHours(shopData.storeHours || '');
         setReturnPolicy(shopData.returnPolicy || '');
         setDeliveryPolicy(shopData.deliveryPolicy || '');
@@ -127,6 +142,8 @@ export default function SellerSettingsPage() {
     setIsSaving(true);
     try {
         const batch = writeBatch(firestore);
+        const locationString = area && county ? `${area}, ${county}` : (area || county || 'Not Specified');
+        
         const shopUpdate = { 
             shopName, 
             description: shopDescription, 
@@ -138,13 +155,22 @@ export default function SellerSettingsPage() {
             contactWhatsapp,
             contactPhone,
             contactEmail,
-            location,
+            location: locationString,
+            country,
+            county,
+            subCounty,
+            area,
             storeHours,
             returnPolicy,
             deliveryPolicy
         };
         batch.set(sellerShopRef, shopUpdate, { merge: true });
-        batch.update(doc(firestore, 'userProfiles', user.uid), { shopName, username: shopName, profilePictureUrl: logoUrl || '' });
+        batch.update(doc(firestore, 'userProfiles', user.uid), { 
+            shopName, 
+            username: shopName, 
+            profilePictureUrl: logoUrl || '',
+            location: locationString
+        });
         await batch.commit();
         toast({ title: 'Settings Saved!' });
     } catch (error) {
@@ -164,7 +190,11 @@ export default function SellerSettingsPage() {
             </Button>
         </div>
         <Tabs defaultValue="profile">
-          <TabsList className="bg-muted/50 p-1 mb-4"><TabsTrigger value="profile"><Store className="mr-2 h-4 w-4" /> Branding & Contact</TabsTrigger></TabsList>
+          <TabsList className="bg-muted/50 p-1 mb-4">
+            <TabsTrigger value="profile"><Store className="mr-2 h-4 w-4" /> Branding & Contact</TabsTrigger>
+            <TabsTrigger value="logistics"><Globe className="mr-2 h-4 w-4" /> Global Logistics</TabsTrigger>
+          </TabsList>
+          
           <TabsContent value="profile" className="space-y-6">
             <Card>
               <CardHeader><CardTitle>Store Branding</CardTitle><CardDescription>Update your shop's visual identity.</CardDescription></CardHeader>
@@ -203,7 +233,6 @@ export default function SellerSettingsPage() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2"><Label className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Support Email</Label><Input value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="help@yourstore.com" /></div>
                     <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> Business Phone</Label><Input value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="+254..." /></div>
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Physical Location</Label><Input value={location} onChange={e => setLocation(e.target.value)} placeholder="Nairobi, CBD" /></div>
                     <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="h-4 w-4 text-green-500" /> WhatsApp Number</Label><Input value={contactWhatsapp} onChange={e => setContactWhatsapp(e.target.value)} placeholder="For direct buyer chats" /></div>
                 </CardContent>
             </Card>
@@ -216,13 +245,59 @@ export default function SellerSettingsPage() {
                     <div className="space-y-2"><Label className="flex items-center gap-2"><Twitter className="h-4 w-4 text-sky-500" /> Twitter (X)</Label><Input value={twitterUrl} onChange={e => setTwitterUrl(e.target.value)} placeholder="@yourstore" /></div>
                 </CardContent>
             </Card>
+          </TabsContent>
 
+          <TabsContent value="logistics" className="space-y-6">
             <Card>
-                <CardHeader><CardTitle>Operational Policies</CardTitle></CardHeader>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><MapPin className="text-primary" /> Shop Logistics & Address</CardTitle>
+                    <CardDescription>This location will be shown on all your products and live shows.</CardDescription>
+                </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="space-y-2"><Label>Opening Hours</Label><Input value={storeHours} onChange={e => setStoreHours(e.target.value)} placeholder="e.g. 9 AM - 6 PM, Mon-Sat" /></div>
-                    <div className="space-y-2"><Label>Return Policy</Label><Textarea value={returnPolicy} onChange={e => setReturnPolicy(e.target.value)} placeholder="Describe your terms for returns and refunds." /></div>
-                    <div className="space-y-2"><Label>Delivery Policy</Label><Textarea value={deliveryPolicy} onChange={e => setDeliveryPolicy(e.target.value)} placeholder="How long does shipping take? Which couriers do you use?" /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label>Country</Label>
+                            <Input value={country} readOnly disabled />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>County</Label>
+                            <Select value={county} onValueChange={(val) => { setCounty(val); setSubCounty(''); }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select County" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.keys(kenyaLocations).map(c => (
+                                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Sub-County</Label>
+                            <Select value={subCounty} onValueChange={setSubCounty} disabled={!county}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select Sub-County" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {county && kenyaLocations[county]?.map(sc => (
+                                        <SelectItem key={sc} value={sc}>{sc}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>City / Specific Area</Label>
+                            <Input value={area} onChange={e => setArea(e.target.value)} placeholder="e.g. Westlands, CBD" />
+                        </div>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="space-y-4">
+                        <div className="space-y-2"><Label>Opening Hours</Label><Input value={storeHours} onChange={e => setStoreHours(e.target.value)} placeholder="e.g. 9 AM - 6 PM, Mon-Sat" /></div>
+                        <div className="space-y-2"><Label>Return Policy</Label><Textarea value={returnPolicy} onChange={e => setReturnPolicy(e.target.value)} placeholder="Describe your terms for returns and refunds." /></div>
+                        <div className="space-y-2"><Label>Delivery Policy</Label><Textarea value={deliveryPolicy} onChange={e => setDeliveryPolicy(e.target.value)} placeholder="How long does shipping take? Which couriers do you use?" /></div>
+                    </div>
                 </CardContent>
             </Card>
           </TabsContent>
