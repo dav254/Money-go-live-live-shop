@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MainLayout } from '@/components/layout/main-layout';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
@@ -23,18 +22,16 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useUser, useFirestore, errorEmitter } from '@/firebase';
-import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword, signOut } from 'firebase/auth';
+import { useUser, useFirestore, useUserProfile } from '@/firebase';
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
+import type { UserProfile } from '@/lib/types';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -46,7 +43,7 @@ const passwordFormSchema = z.object({
 });
 
 const profileFormSchema = z.object({
-    fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }).optional(),
+    fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
     username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
     phoneNumber: z.string().optional(),
     bio: z.string().max(180, "Bio cannot be longer than 180 characters").optional(),
@@ -57,7 +54,13 @@ const profileFormSchema = z.object({
     tiktokUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
-const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading }) => {
+interface SubComponentProps {
+    user: FirebaseUser | null;
+    userProfile: UserProfile | null;
+    isLoading: boolean;
+}
+
+const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading }: SubComponentProps) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +70,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-            setFiles(prev => [...prev, ...Array.from(event.target.files)]);
+            setFiles(prev => [...prev, ...Array.from(event.target.files!)]);
         }
     };
     
@@ -115,14 +118,14 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
         }
     };
     
-    if (isProfileLoading) return <p>Loading...</p>;
+    if (isProfileLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto" /></div>;
 
     if (userProfile?.verificationStatus === 'verified') {
         return (
             <Alert className="bg-green-600/10 border-green-600/50 text-green-300">
                 <ShieldCheck className="h-4 w-4 text-green-500" />
                 <AlertTitle>Verified Seller</AlertTitle>
-                <AlertDescription>Your account is verified.</AlertDescription>
+                <AlertDescription>Your account is verified. You have full access to platform features.</AlertDescription>
             </Alert>
         );
     }
@@ -134,7 +137,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} disabled={isUploading} />
                 <Button variant="outline" className="w-full h-24 border-dashed" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                     <UploadCloud className="mr-2" />
-                    {isUploading ? 'Uploading...' : 'Upload Docs'}
+                    {isUploading ? 'Uploading...' : 'Upload Docs (ID, Business Permit)'}
                 </Button>
             </div>
             {files.length > 0 && (
@@ -151,16 +154,17 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
                     ))}
                 </div>
             )}
-            <Button onClick={handleSubmitForVerification} disabled={isUploading || files.length === 0}>Submit Verification</Button>
+            <Button onClick={handleSubmitForVerification} disabled={isUploading || files.length === 0}>
+                {isUploading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
+                Submit for Verification
+            </Button>
         </div>
     );
 };
 
-const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading }) => {
+const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading }: SubComponentProps) => {
     const { toast } = useToast();
-    const auth = getAuth();
     const firestore = useFirestore();
-    const router = useRouter();
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
     const [isProfileSaving, setIsProfileSaving] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -181,7 +185,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             instagramUrl: userProfile?.socialLinks?.instagram || '',
             tiktokUrl: userProfile?.socialLinks?.tiktok || '',
         }
-    });
+    } as any);
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
@@ -200,11 +204,11 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                 phoneNumber: userProfile.phoneNumber || '',
                 bio: userProfile.bio || '',
                 location: userProfile.location || '',
-                website: userProfile.website || '',
-                facebookUrl: userProfile.socialLinks?.facebook || '',
-                instagramUrl: userProfile.socialLinks?.instagram || '',
-                tiktokUrl: userProfile.socialLinks?.tiktok || '',
-            });
+                website: (userProfile as any).website || '',
+                facebookUrl: (userProfile as any).socialLinks?.facebook || '',
+                instagramUrl: (userProfile as any).socialLinks?.instagram || '',
+                tiktokUrl: (userProfile as any).socialLinks?.tiktok || '',
+            } as any);
             setAvatarUrl(userProfile.profilePictureUrl || null);
         }
     }, [userProfile, profileForm]);
@@ -258,6 +262,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
     const onPasswordSubmit = async (values: z.infer<typeof passwordFormSchema>) => {
         if (!user || !user.email) return;
         setIsPasswordSaving(true);
+        const auth = getAuth();
         const credential = EmailAuthProvider.credential(user.email, values.oldPassword);
         try {
             await reauthenticateWithCredential(user, credential);
@@ -301,7 +306,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                                         {isUploading ? <Loader2 className="animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
                                         Change Picture
                                     </Button>
-                                    {isUploading && <Progress value={uploadProgress} className="h-1" />}
+                                    {isUploading && <Progress value={uploadProgress} className="h-1 mt-2" />}
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -392,7 +397,6 @@ export default function AccountSettingsPageWrapper() {
         );
     }
 
-    // Default to BuyerLayout if userRole is not set
     const Layout = userProfile?.userRole === 'seller' ? SellerLayout : 
                    userProfile?.userRole === 'reseller' ? ResellerLayout : BuyerLayout;
 

@@ -462,31 +462,29 @@ export default function BuyerProductPage() {
                         </div>
                     )}
 
-                    {!isResellerPage && (
-                        <Card className="bg-neutral-900 border-white/5 rounded-3xl overflow-hidden">
-                            <CardContent className="p-6 flex items-center gap-4">
-                                <Avatar className="h-14 w-14 border-2 border-primary/20">
-                                    <AvatarImage src={sellerLogo} />
-                                    <AvatarFallback className="bg-neutral-800 text-lg font-black uppercase">{sellerName?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-black text-lg uppercase tracking-tighter truncate leading-none mb-1">{sellerName}</p>
-                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                                        <span className="text-primary">{sellerFollowers.toLocaleString()} followers</span>
-                                        {sellerShop?.isVerified && <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="h-3 w-3" /> VERIFIED</span>}
-                                    </div>
+                    <Card className="bg-neutral-900 border-white/5 rounded-3xl overflow-hidden">
+                        <CardContent className="p-6 flex items-center gap-4">
+                            <Avatar className="h-14 w-14 border-2 border-primary/20">
+                                <AvatarImage src={sellerLogo} />
+                                <AvatarFallback className="bg-neutral-800 text-lg font-black uppercase">{sellerName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-black text-lg uppercase tracking-tighter truncate leading-none mb-1">{sellerName}</p>
+                                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                                    <span className="text-primary">{sellerFollowers.toLocaleString()} followers</span>
+                                    {sellerShop?.isVerified && <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="h-3 w-3" /> VERIFIED</span>}
                                 </div>
-                                <div className="flex gap-2">
-                                    <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="rounded-xl h-10 font-bold px-4" onClick={handleFollow}>
-                                        {isFollowing ? 'Following' : 'Follow'}
-                                    </Button>
-                                    <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 hover:bg-white/5 font-bold px-4" asChild>
-                                        <Link href={`/sellers/${sellerId}`}>Store</Link>
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="rounded-xl h-10 font-bold px-4" onClick={handleFollow}>
+                                    {isFollowing ? 'Following' : 'Follow'}
+                                </Button>
+                                <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 hover:bg-white/5 font-bold px-4" asChild>
+                                    <Link href={`/sellers/${sellerId}`}>Store</Link>
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
 
                     <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="description">
                         <AccordionItem value="description" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
@@ -568,20 +566,19 @@ export default function BuyerProductPage() {
                 </div>
             </div>
 
-            {!isResellerPage && (
-                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-xl border-t border-white/5 p-3 flex items-center gap-3">
-                    <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-3 py-1 group">
-                        <Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/>
-                        <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
-                    </Link>
-                    <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent">
-                        <MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" />
-                        <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span>
-                    </Button>
-                    <Button variant="secondary" className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs" onClick={handleAddToCart}>Add to Cart</Button>
-                    <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={handleBuyNow}>Buy It Now</Button>
-                </div>
-            )}
-        </LayoutComponent>
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-xl border-t border-white/5 p-3 flex items-center gap-3">
+                <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-3 py-1 group">
+                    <Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/>
+                    <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
+                </Link>
+                <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent">
+                    <MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" />
+                    <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span>
+                </Button>
+                <Button variant="secondary" className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs" onClick={handleAddToCart}>Add to Cart</Button>
+                <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={handleBuyNow}>Buy It Now</Button>
+            </div>
+        </div>
+    </LayoutComponent>
     );
 }
