@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2, Info } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2, Info, X, Maximize2 } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -24,6 +24,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { formatDistanceToNow } from 'date-fns';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { Dialog, DialogContent, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 
 const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
     <div className="flex items-center gap-2">
@@ -125,18 +126,44 @@ export default function BuyerProductPage() {
 
     const allMedia = useMemo(() => {
         if (!product) return [];
-        const media = [];
-        if (product.videoUrl) media.push({ url: product.videoUrl, type: 'video' as const });
-        if (product.videoUrls) media.push(...product.videoUrls.map(url => ({ url, type: 'video' as const })));
-        if (product.imageUrl) media.push({ url: product.imageUrl, type: 'image' as const });
-        if (product.imageUrls) media.push(...product.imageUrls.map(url => ({ url, type: 'image' as const })));
-        return Array.from(new Map(media.map(m => [m.url, m])).values());
+        const media: { url: string, type: 'video' | 'image' }[] = [];
+        
+        // Priority: Display exactly what the seller uploaded
+        if (product.videoUrl && product.videoUrl.trim() !== "") {
+            media.push({ url: product.videoUrl, type: 'video' });
+        }
+        if (product.videoUrls && Array.isArray(product.videoUrls)) {
+            product.videoUrls.forEach(url => {
+                if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
+                    media.push({ url, type: 'video' });
+                }
+            });
+        }
+        if (product.imageUrl && product.imageUrl.trim() !== "") {
+            if (!media.some(m => m.url === product.imageUrl)) {
+                media.push({ url: product.imageUrl, type: 'image' });
+            }
+        }
+        if (product.imageUrls && Array.isArray(product.imageUrls)) {
+            product.imageUrls.forEach(url => {
+                if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
+                    media.push({ url, type: 'image' });
+                }
+            });
+        }
+
+        // Only fallback if NO media exists at all
+        if (media.length === 0) {
+            media.push({ url: getPlaceholderImage(), type: 'image' });
+        }
+
+        return media;
     }, [product]);
 
     const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
 
     useEffect(() => {
-        if (allMedia.length > 1 && !selectedMedia) {
+        if (allMedia.length > 0 && !selectedMedia) {
             setSelectedMedia(allMedia[0]);
         }
     }, [allMedia, selectedMedia]);
@@ -247,7 +274,7 @@ export default function BuyerProductPage() {
     const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
     const filteredRecommendedProducts = useMemo(() => recommendedProducts?.filter(p => p.id !== productId) || [], [recommendedProducts, productId]);
 
-    if (isLoading) return <MainLayout><div className="p-8">Loading...</div></MainLayout>;
+    if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     
     const discountPercentage = product.wasPrice && product.price ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
@@ -257,28 +284,67 @@ export default function BuyerProductPage() {
 
     return (
         <LayoutComponent>
-            <div className="bg-black text-white pb-24">
+            <div className="bg-black text-white pb-24 min-h-screen">
                 <div className="relative w-full">
-                    <div className="aspect-square md:aspect-[16/10] w-full bg-black">
-                        {selectedMedia?.type === 'video' ? (
-                            <video src={selectedMedia.url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
+                    <div className="relative aspect-square md:aspect-[16/10] w-full bg-black group">
+                        {selectedMedia?.type === 'image' ? (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <div className="cursor-zoom-in relative w-full h-full">
+                                        <Image 
+                                            src={selectedMedia.url} 
+                                            alt={product.name} 
+                                            fill 
+                                            sizes="100vw" 
+                                            className="object-contain" 
+                                            priority 
+                                        />
+                                        <div className="absolute bottom-4 right-4 bg-black/50 p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Maximize2 className="h-5 w-5 text-white" />
+                                        </div>
+                                    </div>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 flex items-center justify-center z-[100]">
+                                    <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-8">
+                                        <DialogClose className="absolute top-6 right-6 z-[110] bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-md transition-all text-white">
+                                            <X className="h-8 w-8" />
+                                        </DialogClose>
+                                        <div className="relative w-full h-full">
+                                            <Image 
+                                                src={selectedMedia.url} 
+                                                alt={product.name} 
+                                                fill 
+                                                className="object-contain" 
+                                                quality={100}
+                                            />
+                                        </div>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         ) : (
-                            <Image src={selectedMedia?.url || getPlaceholderImage()} alt={product.name} fill sizes="100vw" className="object-contain" priority />
+                            <video 
+                                src={selectedMedia?.url} 
+                                className="w-full h-full object-contain" 
+                                autoPlay 
+                                muted 
+                                loop 
+                                playsInline 
+                            />
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
-                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 h-10 w-10 hover:bg-black/70 border-none" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
+                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 h-10 w-10 hover:bg-black/70 border-none backdrop-blur-md" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                     </div>
                     {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] h-7 px-3">{discountPercentage}% OFF</Badge>}
                 </div>
                 
                 {allMedia.length > 1 && (
-                    <div className="bg-neutral-900/50 py-3">
+                    <div className="bg-neutral-900/50 py-3 border-y border-white/5">
                         <Carousel opts={{ align: "start" }} className="w-full container px-4">
                             <CarouselContent className="-ml-2">
                                 {allMedia.map((media, i) => (
                                     <CarouselItem key={i} className="basis-1/4 sm:basis-1/5 pl-2">
-                                        <Card onClick={() => setSelectedMedia(media)} className={cn("overflow-hidden cursor-pointer bg-neutral-800 border-none transition-all", selectedMedia?.url === media.url && "ring-2 ring-primary scale-95")}>
+                                        <Card onClick={() => setSelectedMedia(media)} className={cn("overflow-hidden cursor-pointer bg-neutral-800 border-none transition-all", selectedMedia?.url === media.url && "ring-2 ring-primary scale-95 shadow-lg shadow-primary/20")}>
                                             <CardContent className="p-0 aspect-square relative">
                                                 <Image src={media.url} alt={`thumb ${i}`} fill sizes="(max-width: 640px) 25vw, 20vw" className="object-cover" />
                                                 {media.type === 'video' && <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white" /></div>}
@@ -374,14 +440,27 @@ export default function BuyerProductPage() {
                     
                     <div className="pt-8">
                         <h2 className="font-headline text-xl font-black uppercase tracking-tighter mb-6 flex items-center gap-3"><Plus className="text-primary" />More from this Shop</h2>
-                         {areRecsLoading ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">Loading...</div> : filteredRecommendedProducts.length > 0 ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}</div> : <p className="text-neutral-600 font-bold uppercase text-[10px] tracking-widest text-center py-12 border-2 border-dashed rounded-3xl border-white/5">No other products.</p>}
+                         {areRecsLoading ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {[...Array(4)].map((_, i) => <Skeleton key={i} className="aspect-square rounded-2xl" />)}
+                            </div>
+                         ) : filteredRecommendedProducts.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                            </div>
+                         ) : (
+                            <p className="text-neutral-600 font-bold uppercase text-[10px] tracking-widest text-center py-12 border-2 border-dashed rounded-3xl border-white/5">No other products.</p>
+                         )}
                     </div>
                 </div>
 
                 <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-xl border-t border-white/5 p-3 flex items-center gap-3">
                     <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-3 py-1 group"><Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/><span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span></Link>
                     {userProfile?.userRole !== 'reseller' && (
-                        <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent"><MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" /><span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span></Button>
+                        <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent">
+                            <MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" />
+                            <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span>
+                        </Button>
                     )}
                     <Button variant="secondary" className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs" onClick={handleAddToCart}>Add to Cart</Button>
                     <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={handleBuyNow}>Buy It Now</Button>
