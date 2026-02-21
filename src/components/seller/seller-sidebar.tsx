@@ -147,14 +147,12 @@ export function SellerSidebar() {
         <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
            <SidebarMenuItem>
-            <NavCollapsible 
-                title="Reseller Center"
-                icon={Users}
-                basePath="reseller"
-                items={[
-                    { href: 'rules', label: 'Commission Rules' },
-                ]}
-            />
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
+              <Link href="/dashboard/seller/reseller/rules">
+                <Users />
+                <span>Reseller Center</span>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/go-live')}>
