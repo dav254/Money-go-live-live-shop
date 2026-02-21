@@ -5,7 +5,8 @@ import {
   Sidebar, 
   SidebarContent, 
   SidebarProvider, 
-  SidebarInset 
+  SidebarInset,
+  SidebarHeader 
 } from '@/components/ui/sidebar';
 import { Toaster } from '../ui/toaster';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
@@ -14,6 +15,7 @@ import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
+import { Logo } from '../logo';
 
 export function BuyerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
   const { isLoading } = useUser();
@@ -30,6 +32,9 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
+        <SidebarHeader className="border-b bg-card p-4">
+          <Logo className="h-8 w-auto text-primary" />
+        </SidebarHeader>
         <SidebarContent>
           <BuyerSidebar />
         </SidebarContent>
