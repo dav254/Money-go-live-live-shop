@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Link as LinkIcon, TrendingUp, Trophy, Share2, BadgeCent, Wallet, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
@@ -129,8 +128,8 @@ export default function ResellerDashboardPage() {
             </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="bg-card/50 border-white/5">
+        <div className="grid grid-cols-1 gap-8">
+            <Card className="bg-card/50 border-white/5 w-full">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 font-headline text-lg uppercase tracking-tight">
                         <TrendingUp className="text-primary" />
@@ -166,19 +165,6 @@ export default function ResellerDashboardPage() {
                             </BarChart>
                         </ChartContainer>
                         )}
-                </CardContent>
-            </Card>
-
-            <Card className="bg-card/50 border-white/5">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 font-headline text-lg uppercase tracking-tight">
-                        <Trophy className="text-primary" />
-                        Top Earners
-                    </CardTitle>
-                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Highest commission products</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <TopPerformingProducts />
                 </CardContent>
             </Card>
         </div>

@@ -1,7 +1,3 @@
-
-
-'use client';
-
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';

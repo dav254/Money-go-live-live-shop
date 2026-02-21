@@ -1,7 +1,3 @@
-
-
-'use server';
-
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { db } from '@/firebase/server';
