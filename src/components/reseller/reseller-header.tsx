@@ -1,17 +1,15 @@
 'use client';
 
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
-import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
-import { Skeleton } from '../ui/skeleton';
 import { SidebarTrigger } from '../ui/sidebar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { ResellerSidebar } from './reseller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
 import type { UserProfile } from '@/lib/types';
+import Link from 'next/link';
 
 interface ResellerHeaderProps {
     userProfile: UserProfile | null;
@@ -19,8 +17,6 @@ interface ResellerHeaderProps {
 }
 
 export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) {
-  const resellerName = userProfile?.fullName || 'Reseller';
-
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
       <div className="flex items-center gap-2 md:gap-4">
@@ -52,13 +48,9 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
         <SidebarTrigger className="hidden md:flex" />
 
         <div className="hidden md:block">
-            {isLoading ? (
-              <Skeleton className="h-6 w-40" />
-            ) : (
-              <h1 className="text-lg font-semibold">
-                Welcome, <span className="text-primary">{resellerName}</span>
-              </h1>
-            )}
+            <h1 className="text-lg font-black uppercase tracking-tighter">
+              Reseller <span className="text-primary">Hub</span>
+            </h1>
         </div>
       </div>
       <div className="flex items-center gap-2">

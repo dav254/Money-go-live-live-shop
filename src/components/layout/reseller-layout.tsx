@@ -61,9 +61,9 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
           <ResellerSidebar />
         </SidebarContent>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="flex flex-col h-screen overflow-hidden">
         <ResellerHeader userProfile={userProfile} isLoading={isLoading} />
-        <main>
+        <main className="flex-1 overflow-y-auto">
           <FirebaseErrorListener />
           {children}
         </main>

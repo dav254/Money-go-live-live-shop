@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { SellerSidebar } from '@/components/seller/seller-sidebar';
 import { Logo } from '../logo';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { SellerHeader } from '../seller/seller-header';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';

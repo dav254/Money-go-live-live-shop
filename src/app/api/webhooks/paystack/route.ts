@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';
-import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
 export async function POST(request: Request) {
@@ -29,17 +29,17 @@ export async function POST(request: Request) {
         const amount = event.data.amount / 100;
 
         if (userId && points) {
-          const userProfileRef = doc(db, 'userProfiles', userId);
-          await updateDoc(userProfileRef, {
-            aiPoints: increment(points)
+          const userProfileRef = db.collection('userProfiles').doc(userId);
+          await userProfileRef.update({
+            aiPoints: FieldValue.increment(points)
           });
 
-          await addDoc(collection(db, 'payments'), {
+          await db.collection('payments').add({
             userId: userId,
             amount: amount,
             paymentMethod: `paystack_${event.data.channel}`,
             paymentStatus: 'completed',
-            paymentDate: serverTimestamp(),
+            paymentDate: FieldValue.serverTimestamp(),
             transactionType: 'points-purchase',
             transactionId: event.data.id,
           });
@@ -47,21 +47,22 @@ export async function POST(request: Request) {
       } else {
         const orderId = metadata?.orderId || event.data.reference;
         if (orderId) {
-          const orderRef = doc(db, 'orders', orderId);
-          const orderSnap = await getDoc(orderRef);
-          if (orderSnap.exists()) {
+          const orderRef = db.collection('orders').doc(orderId);
+          const orderSnap = await orderRef.get();
+          if (orderSnap.exists) {
             const orderData = orderSnap.data() as Order;
-            await updateDoc(orderRef, {
+            await orderRef.update({
               orderStatus: 'processing',
               paymentMethod: `paystack_${event.data.channel}`,
+              updatedAt: FieldValue.serverTimestamp(),
             });
-            await addDoc(collection(db, 'payments'), {
+            await db.collection('payments').add({
               orderId: orderId,
               userId: orderData.buyerId,
               amount: orderData.totalAmount,
               paymentMethod: `paystack_${event.data.channel}`,
               paymentStatus: 'completed',
-              paymentDate: serverTimestamp(),
+              paymentDate: FieldValue.serverTimestamp(),
               transactionType: 'product-purchase',
               transactionId: event.data.id,
             });
