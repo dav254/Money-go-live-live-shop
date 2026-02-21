@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -26,6 +27,8 @@ import {
   Phone,
   Globe,
   Info,
+  Target,
+  Plus,
 } from 'lucide-react';
 import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -39,6 +42,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { kenyaLocations } from '@/lib/location-data';
+import { Badge } from '@/components/ui/badge';
 
 export default function SellerSettingsPage() {
   const { user } = useUser();
@@ -73,6 +77,9 @@ export default function SellerSettingsPage() {
   const [cityTown, setCityTown] = useState('');
   const [area, setArea] = useState('');
   
+  const [targetLocations, setTargetLocations] = useState<string[]>([]);
+  const [newTarget, setNewTarget] = useState('');
+
   const [storeHours, setStoreHours] = useState('');
   const [returnPolicy, setReturnPolicy] = useState('');
   const [deliveryPolicy, setDeliveryPolicy] = useState('');
@@ -96,12 +103,24 @@ export default function SellerSettingsPage() {
         setStateProvince(shopData.stateProvince || '');
         setCityTown(shopData.cityTown || '');
         setArea(shopData.area || '');
+        setTargetLocations(shopData.targetLocations || []);
         
         setStoreHours(shopData.storeHours || '');
         setReturnPolicy(shopData.returnPolicy || '');
         setDeliveryPolicy(shopData.deliveryPolicy || '');
     }
   }, [shopData]);
+
+  const addTarget = () => {
+      if (newTarget && !targetLocations.includes(newTarget)) {
+          setTargetLocations([...targetLocations, newTarget]);
+          setNewTarget('');
+      }
+  };
+
+  const removeTarget = (loc: string) => {
+      setTargetLocations(targetLocations.filter(t => t !== loc));
+  };
 
   const uploadToFirebase = (file: File, type: 'logo' | 'banner'): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -170,6 +189,7 @@ export default function SellerSettingsPage() {
             stateProvince: country !== 'Kenya' ? stateProvince : '',
             cityTown: country !== 'Kenya' ? cityTown : '',
             area,
+            targetLocations,
             storeHours,
             returnPolicy,
             deliveryPolicy
@@ -202,7 +222,7 @@ export default function SellerSettingsPage() {
         <Tabs defaultValue="profile">
           <TabsList className="bg-muted/50 p-1 mb-4">
             <TabsTrigger value="profile"><Store className="mr-2 h-4 w-4" /> Branding & Contact</TabsTrigger>
-            <TabsTrigger value="logistics"><Globe className="mr-2 h-4 w-4" /> Logistics & About</TabsTrigger>
+            <TabsTrigger value="logistics"><Globe className="mr-2 h-4 w-4" /> Logistics & Target Market</TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile" className="space-y-6">
@@ -259,8 +279,8 @@ export default function SellerSettingsPage() {
           <TabsContent value="logistics" className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Info className="text-primary" /> About Seller</CardTitle>
-                    <CardDescription>Tell your story and define your business presence. This info is visible on all your products and live shows.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Info className="text-primary" /> About Seller & Logistics</CardTitle>
+                    <CardDescription>Define your location and your store's mission. This is visible to all buyers.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
@@ -269,14 +289,14 @@ export default function SellerSettingsPage() {
                             rows={5} 
                             value={shopDescription} 
                             onChange={(e) => setShopDescription(e.target.value)} 
-                            placeholder="Introduce your store to potential buyers. What makes you unique?"
+                            placeholder="Introduce your store. What makes you unique?"
                         />
                     </div>
 
                     <Separator />
 
                     <div className="space-y-4">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Shop Location</h3>
+                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Shop Physical Location</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label>Country</Label>
@@ -321,6 +341,26 @@ export default function SellerSettingsPage() {
                                 <Label>Specific Area / Street Address</Label>
                                 <Input value={area} onChange={e => setArea(e.target.value)} placeholder="e.g. Westlands, CBD, 5th Avenue" />
                             </div>
+                        </div>
+                    </div>
+                    
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2"><Target className="h-4 w-4" /> Target Markets</h3>
+                        <p className="text-xs text-muted-foreground">Select the cities or countries where you want your products to be shown first. Use 10 AI points to add a new target location.</p>
+                        <div className="flex gap-2">
+                            <Input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Add a city or country..." className="max-w-xs" />
+                            <Button variant="secondary" onClick={addTarget}><Plus className="h-4 w-4 mr-2" /> Add Target</Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {targetLocations.map(loc => (
+                                <Badge key={loc} variant="outline" className="pl-3 pr-1 py-1 h-8 gap-2 bg-primary/5 border-primary/20">
+                                    {loc}
+                                    <button onClick={() => removeTarget(loc)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+                                </Badge>
+                            ))}
+                            {targetLocations.length === 0 && <p className="text-sm text-muted-foreground italic">No specific target markets set. Your products will show globally.</p>}
                         </div>
                     </div>
                     

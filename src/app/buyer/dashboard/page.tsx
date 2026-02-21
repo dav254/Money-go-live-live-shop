@@ -12,19 +12,20 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Package, Radio, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, LayoutGrid, Users, Zap, Sparkles } from 'lucide-react';
+import { Package, Radio, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, LayoutGrid, Users, Zap, Sparkles, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, limit, orderBy, where, doc } from 'firebase/firestore';
 import type { Product, HomepageSlide, LiveSession, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
+import { getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 
 const categoryIcons: Record<string, React.ElementType> = {
     "Fashion & Apparel": ShoppingBag,
@@ -127,7 +128,15 @@ const HomepageCarousel = () => {
     }
 
     if (!slides || slides.length === 0) {
-        return null;
+        return (
+            <div className="relative aspect-[16/10] sm:aspect-[16/7] w-full overflow-hidden rounded-3xl group bg-neutral-900 border-2 border-dashed border-white/5 flex flex-col items-center justify-center text-center p-8">
+                <div className="p-4 bg-primary/10 rounded-full mb-4">
+                    <Sparkles className="h-12 w-12 text-primary animate-pulse" />
+                </div>
+                <h2 className="font-headline text-2xl sm:text-4xl font-black uppercase tracking-tighter">Offers Coming Soon</h2>
+                <p className="text-muted-foreground text-xs sm:text-sm font-bold uppercase tracking-widest mt-2">New seasonal collections and curated deals are being prepared by our sellers.</p>
+            </div>
+        );
     }
 
     return (
@@ -169,10 +178,12 @@ const HomepageCarousel = () => {
 export default function BuyerDashboardPage() {
   const firestore = useFirestore();
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
   useEffect(() => {
     const randomCategory = PRODUCT_CATEGORIES[Math.floor(Math.random() * PRODUCT_CATEGORIES.length)];
     setLastViewedCategory(randomCategory);
+    setUserLocation(getLocationFromStorage());
   }, []);
 
   const liveSessionsQuery = useMemoFirebase(() => {
@@ -185,6 +196,12 @@ export default function BuyerDashboardPage() {
     return query(collection(firestore, 'products'), where('wasPrice', '>', 0), limit(10));
   }, [firestore]);
 
+  // LOCAL ENGINE: Priority Products based on targetLocations matching user's city
+  const localProductsQuery = useMemoFirebase(() => {
+      if (!firestore || !userLocation) return null;
+      return query(collection(firestore, 'products'), where('location', '>=', userLocation.city), limit(10));
+  }, [firestore, userLocation]);
+
   const recommendedQuery = useMemoFirebase(() => {
     if (!firestore || !lastViewedCategory) return null;
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
@@ -192,6 +209,7 @@ export default function BuyerDashboardPage() {
 
   const { data: liveSessions } = useCollection<LiveSession>(liveSessionsQuery);
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
+  const { data: localProducts, isLoading: isLoadingLocal } = useCollection<Product>(localProductsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
   
   return (
@@ -243,6 +261,27 @@ export default function BuyerDashboardPage() {
                     </div>
                 </div>
             )}
+
+            {/* LOCAL ENGINE SECTION */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center gap-3">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">
+                            Selling in {userLocation?.city || 'Your Area'}
+                        </h2>
+                    </div>
+                </div>
+                {isLoadingLocal ? <div className="p-12 text-center opacity-20">Locating products...</div> : (localProducts && localProducts.length > 0) ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                        {localProducts.map(product => <ProductCard key={product.id} product={product} />)}
+                    </div>
+                ) : (
+                    <div className="bg-muted/30 border border-dashed rounded-3xl p-12 text-center">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500">No local sellers matched yet. Browsing broad items...</p>
+                    </div>
+                )}
+            </div>
 
             <div className="space-y-4">
                 <div className="flex items-center justify-between px-2">

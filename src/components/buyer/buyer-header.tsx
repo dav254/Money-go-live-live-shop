@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Video, Search, Menu, X, Radio } from 'lucide-react';
+import { Bell, MessageSquare, Video, Search, Menu, X, Radio, MapPin, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
@@ -15,6 +15,8 @@ import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser, useUserProfile } from '@/firebase';
+import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
+import { Badge } from '../ui/badge';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -23,10 +25,30 @@ export function BuyerHeader() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  
+  const [location, setLocation] = useState<UserLocation | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
 
   const isLoading = isUserLoading || isProfileLoading;
   const buyerName = userProfile?.fullName || 'Valued Buyer';
   
+  useEffect(() => {
+    const stored = getLocationFromStorage();
+    if (stored) {
+        setLocation(stored);
+    } else {
+        handleDetectLocation();
+    }
+  }, []);
+
+  const handleDetectLocation = async () => {
+      setIsDetecting(true);
+      const detected = await detectLocation();
+      setLocation(detected);
+      saveLocationToStorage(detected);
+      setIsDetecting(false);
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       const newQuery = searchQuery.trim();
@@ -42,10 +64,6 @@ export function BuyerHeader() {
     return () => clearTimeout(timer);
   }, [searchQuery, router, searchParams]);
 
-  useEffect(() => {
-    setSearchQuery(searchParams.get('q') || '');
-  }, [searchParams]);
-
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -56,7 +74,7 @@ export function BuyerHeader() {
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0">
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" className="md:hidden">
@@ -77,14 +95,26 @@ export function BuyerHeader() {
         
         <SidebarTrigger className="hidden md:flex" />
 
-        <div className="hidden md:block">
+        <div className="hidden lg:block min-w-0">
             {isLoading ? (
               <Skeleton className="h-6 w-40" />
             ) : (
-              <h1 className="text-lg font-semibold">
-                Welcome, <span className="text-primary">{buyerName}</span>
+              <h1 className="text-sm font-black uppercase tracking-tight truncate">
+                Shop Go Earn
               </h1>
             )}
+        </div>
+
+        <div className="flex items-center gap-2 ml-2">
+            <Badge variant="outline" className="h-8 rounded-full bg-muted/50 border-white/5 flex items-center gap-2 px-3 group transition-all hover:border-primary/30">
+                <MapPin className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground">
+                    {isDetecting ? 'Detecting...' : (location ? `${location.city}, ${location.country}` : 'Kenya')}
+                </span>
+                <button onClick={handleDetectLocation} className={cn("hover:text-primary transition-colors", isDetecting && "animate-spin")}>
+                    <RefreshCw className="h-2.5 w-2.5" />
+                </button>
+            </Badge>
         </div>
       </div>
 
@@ -97,7 +127,7 @@ export function BuyerHeader() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input 
               placeholder="Search products, sellers..." 
-              className="pl-9"
+              className="pl-9 bg-muted/30 border-white/5 rounded-xl"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -110,22 +140,15 @@ export function BuyerHeader() {
         </form>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSearchOpen(true)}>
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
         </Button>
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
+        <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild title="Live Now">
           <Link href="/buyer/live-now">
             <Radio className="h-5 w-5 text-red-600" />
-            <span className="sr-only">Live Now</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild>
-          <Link href="/buyer/live">
-            <Video className="h-5 w-5" />
-            <span className="sr-only">Live Feed</span>
           </Link>
         </Button>
         <UserNav />

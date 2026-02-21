@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2 } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2, Info } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -297,6 +297,7 @@ export default function BuyerProductPage() {
                         <div className="space-y-2">
                             <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black uppercase text-[10px] tracking-widest h-6 px-2">{product.category}</Badge>
+                                {product.brand && <Badge variant="outline" className="border-white/20 text-neutral-400 font-bold uppercase text-[10px] tracking-widest h-6 px-2">{product.brand}</Badge>}
                             </div>
                             <h1 className="font-headline text-3xl md:text-4xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
                             <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-neutral-500">
@@ -350,6 +351,26 @@ export default function BuyerProductPage() {
                                 <div className="prose prose-sm dark:prose-invert text-neutral-300 whitespace-pre-wrap">{product.description}</div>
                             </AccordionContent>
                         </AccordionItem>
+                        
+                        {(sellerShop?.returnPolicy || sellerShop?.deliveryPolicy) && (
+                            <AccordionItem value="policies" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
+                                <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">Shipping & Returns</AccordionTrigger>
+                                <AccordionContent className="pb-8 space-y-6">
+                                    {sellerShop?.deliveryPolicy && (
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-2 flex items-center gap-2"><Truck className="h-3 w-3" /> Delivery Policy</h4>
+                                            <p className="text-sm text-neutral-400">{sellerShop.deliveryPolicy}</p>
+                                        </div>
+                                    )}
+                                    {sellerShop?.returnPolicy && (
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-primary mb-2 flex items-center gap-2"><Package className="h-3 w-3" /> Return Policy</h4>
+                                            <p className="text-sm text-neutral-400">{sellerShop.returnPolicy}</p>
+                                        </div>
+                                    )}
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
                     </Accordion>
                     
                     <div className="pt-8">

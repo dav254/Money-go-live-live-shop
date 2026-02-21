@@ -153,6 +153,7 @@ export interface SellerShop {
     area?: string;
     country?: string;
     stateProvince?: string;
+    cityTown?: string;
     facebookUrl?: string;
     instagramUrl?: string;
     twitterUrl?: string;
@@ -162,6 +163,7 @@ export interface SellerShop {
     returnPolicy?: string;
     deliveryPolicy?: string;
     storeHours?: string;
+    targetLocations?: string[]; // Array of cities/counties/countries targeted
 }
 
 export type Seller = {
@@ -188,6 +190,7 @@ export type Seller = {
   facebookUrl?: string;
   instagramUrl?: string;
   twitterUrl?: string;
+  targetLocations?: string[];
 };
 
 export type Comment = {
