@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: (verification as any).error }, { status: (verification as any).status });
   }
   const sellerId = (verification as { uid: string }).uid;
+  const { prewarmedMeetingId } = await request.json();
 
   try {
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
       activeOffer: null,
+      videosdkMeetingId: prewarmedMeetingId || null
     }, { merge: true });
 
     await batch.commit();
@@ -125,7 +127,8 @@ export async function POST(request: Request) {
         liveSessionId: sessionRef.id,
         resumed: false,
         timeRemainingMs: SESSION_LIMIT_MS,
-        newBalance: currentPoints - GO_LIVE_COST
+        newBalance: currentPoints - GO_LIVE_COST,
+        videosdkMeetingId: prewarmedMeetingId
     });
 
   } catch (error: any) {

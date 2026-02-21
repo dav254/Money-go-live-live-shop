@@ -141,6 +141,7 @@ export default function SellerGoLivePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [meetingId, setMeetingId] = useState<string | null>(null);
+  const [prewarmedMeetingId, setPrewarmedMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -163,6 +164,48 @@ export default function SellerGoLivePage() {
   }, [firestore, user]);
 
   const { data: activeSession } = useDoc<LiveSession>(sessionRef);
+  
+  const fetchToken = useCallback(async () => {
+    try {
+      const res = await fetch('/api/videosdk/token');
+      if (!res.ok) throw new Error("Authentication failure");
+      const data = await res.json();
+      if (data.token) setToken(data.token);
+    } catch (err) {
+      console.error("Error fetching VideoSDK token:", err);
+      setError("Network latency detected. Please refresh.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchToken();
+  }, [fetchToken]);
+
+
+  useEffect(() => {
+    const prewarmMeeting = async () => {
+        if (token && !prewarmedMeetingId && !activeSession) {
+            console.log("Pre-warming a new meeting room...");
+            try {
+                const res = await fetch("https://api.videosdk.live/v2/rooms", {
+                    method: "POST",
+                    headers: { authorization: token, "Content-Type": "application/json" },
+                    body: JSON.stringify({}),
+                });
+                const { roomId } = await res.json();
+                if (roomId) {
+                    setPrewarmedMeetingId(roomId);
+                    console.log("Meeting room pre-warmed:", roomId);
+                } else {
+                    throw new Error("Failed to get roomId from VideoSDK");
+                }
+            } catch (err) {
+                console.warn("Could not pre-warm meeting room:", err);
+            }
+        }
+    };
+    prewarmMeeting();
+  }, [token, prewarmedMeetingId, activeSession]);
 
   useEffect(() => {
     if (!wantsToSetup) {
@@ -216,22 +259,6 @@ export default function SellerGoLivePage() {
     }
   }, [activeSession, wantsToSetup, firestore, user, toast]);
 
-  const fetchToken = useCallback(async () => {
-    try {
-      const res = await fetch('/api/videosdk/token');
-      if (!res.ok) throw new Error("Authentication failure");
-      const data = await res.json();
-      if (data.token) setToken(data.token);
-    } catch (err) {
-      console.error("Error fetching VideoSDK token:", err);
-      setError("Network latency detected. Please refresh.");
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchToken();
-  }, [fetchToken]);
-
   useEffect(() => {
     if (isLive && !isPaused) {
       timerRef.current = setInterval(() => {
@@ -273,36 +300,29 @@ export default function SellerGoLivePage() {
           headers: {
               'Authorization': `Bearer ${await user.getIdToken()}`,
               'Content-Type': 'application/json'
-          }
+          },
+          body: JSON.stringify({ prewarmedMeetingId })
       });
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.details || result.error || "Could not start session.");
 
-      let id = result.videosdkMeetingId;
-      if (!id) {
-          const createMeeting = async (authToken: string) => {
-            const res = await fetch("https://api.videosdk.live/v2/rooms", {
-                method: "POST",
-                headers: { authorization: authToken, "Content-Type": "application/json" },
-                body: JSON.stringify({}),
-            });
-            const { roomId } = await res.json();
-            return roomId;
-          };
-          id = await createMeeting(token);
-      }
+      const id = result.videosdkMeetingId || prewarmedMeetingId;
       
-      if (!id) throw new Error("Could not reach media bridge.");
+      if (!id) {
+          throw new Error("Could not secure a media bridge. Please try again.");
+      }
       
       const sessionRef = doc(firestore, 'liveSessions', user.uid);
       await updateDoc(sessionRef, { 
           videosdkMeetingId: id,
           status: 'upcoming' 
       });
-
+      
+      setPrewarmedMeetingId(null);
       setMeetingId(id);
       setWantsToSetup(true);
+
       if (result.resumed) {
           setTimeRemaining(result.timeRemainingMs);
           setIsPaused(true);
@@ -476,7 +496,9 @@ export default function SellerGoLivePage() {
                               <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover grayscale-[20%]" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                               <div className="absolute top-4 left-4">
-                                  <Badge className="bg-black/40 backdrop-blur-md border-white/10 text-[9px] font-black tracking-widest uppercase">Signal Preview</Badge>
+                                  <Badge className={cn("bg-black/40 backdrop-blur-md border-white/10 text-[9px] font-black tracking-widest uppercase", prewarmedMeetingId ? "text-green-400" : "text-yellow-400")}>
+                                    {prewarmedMeetingId ? 'SIGNAL LOCKED' : 'INITIATING SIGNAL'}
+                                  </Badge>
                               </div>
                               {hasPermissions === false && (
                                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
@@ -513,7 +535,7 @@ export default function SellerGoLivePage() {
                             size="lg" 
                             className="w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white bg-primary hover:bg-primary/90"
                             onClick={handleSetupPreview}
-                            disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession)}
+                            disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession) || !prewarmedMeetingId}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
                               {activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO'}
