@@ -163,14 +163,6 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={pathname === '/dashboard/products' && new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab') === 'studio'}>
-              <Link href="/dashboard/products?tab=studio">
-                <RadioTower />
-                <span>Video Studio</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-tools')}>
               <Link href="/dashboard/seller/ai-tools">
                 <Sparkles />
