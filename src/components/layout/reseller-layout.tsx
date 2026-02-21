@@ -39,7 +39,7 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center gap-2">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
         <span>Loading Reseller Dashboard...</span>
       </div>
     );
