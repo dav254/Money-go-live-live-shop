@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
@@ -11,13 +11,13 @@ import {
   CardFooter
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Link as LinkIcon, TrendingUp, Trophy, Share2, BadgeCent, Loader2, Wallet } from 'lucide-react';
+import { Link as LinkIcon, TrendingUp, Trophy, Share2, BadgeCent, Wallet, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TopPerformingProducts } from '@/components/reseller/top-performing-products';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import type { Order, UserProfile, Product } from '@/lib/types';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import type { Order, UserProfile } from '@/lib/types';
 import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
@@ -25,13 +25,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { addDays, format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Image from 'next/image';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const chartConfig = {
   earnings: {
@@ -41,7 +35,7 @@ const chartConfig = {
 };
 
 const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary, children }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean, isPrimary?: boolean, children?: React.ReactNode }) => (
-    <Card className={isPrimary ? 'bg-primary/10 border-primary flex flex-col' : 'flex flex-col'}>
+    <Card className={cn(isPrimary ? 'bg-primary/10 border-primary flex flex-col' : 'flex flex-col')}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -57,7 +51,7 @@ const StatCard = ({ title, value, icon: Icon, isLoading, isPrimary, children }: 
     </Card>
 );
 
-function ResellerDashboardPageContent() {
+export default function ResellerDashboardPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const firestore = useFirestore();
@@ -102,51 +96,51 @@ function ResellerDashboardPageContent() {
         return data;
     }, [orders]);
 
-
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
             <div>
-                <h1 className="font-headline text-3xl font-bold tracking-tight">
-                    Reseller Dashboard
+                <h1 className="font-headline text-3xl font-bold tracking-tight uppercase">
+                    Reseller Hub
                 </h1>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Growth & Performance</p>
             </div>
             <div className="flex items-center space-x-2">
                  <StatCard 
-                    title="Total Referral Earnings"
-                    value={`${totalReferralPoints.toLocaleString()} Points`}
+                    title="Referral Points"
+                    value={`${totalReferralPoints.toLocaleString()} PTS`}
                     icon={BadgeCent}
                     isLoading={isLoading}
                     isPrimary
                 >
-                     <Button size="sm" variant="outline" className="w-full" asChild>
+                     <Button size="sm" variant="outline" className="w-full font-black uppercase text-[10px]" asChild>
                         <Link href="/dashboard/reseller/wallet">
-                            <Wallet className="mr-2 h-4 w-4" /> Withdraw
+                            <Wallet className="mr-2 h-3 w-3" /> Withdraw
                         </Link>
                     </Button>
                 </StatCard>
-                <Button asChild>
+                <Button asChild className="h-12 px-6 font-black uppercase tracking-widest text-xs">
                     <Link href="/dashboard/reseller/products">
-                        <LinkIcon className="mr-2 h-4 w-4" />
-                        Share New Product
+                        <ShoppingBag className="mr-2 h-4 w-4" />
+                        Find Products
                     </Link>
                 </Button>
             </div>
         </div>
 
-        <div className="space-y-8 mt-6">
-            <Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="bg-card/50 border-white/5">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <TrendingUp />
-                        Performance Overview
+                    <CardTitle className="flex items-center gap-2 font-headline text-lg uppercase tracking-tight">
+                        <TrendingUp className="text-primary" />
+                        Performance Trend
                     </CardTitle>
-                    <CardDescription>Your commission earnings for the last 7 days.</CardDescription>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Commission earnings (Last 7 Days)</CardDescription>
                 </CardHeader>
                 <CardContent className="h-72">
                         {isLoading ? (
-                        <Skeleton className="h-full w-full" />
+                        <Skeleton className="h-full w-full rounded-xl" />
                         ) : (
                         <ChartContainer config={chartConfig} className="w-full h-full">
                             <BarChart accessibilityLayer data={chartData}>
@@ -155,18 +149,18 @@ function ResellerDashboardPageContent() {
                                     tickLine={false}
                                     axisLine={false}
                                     tickMargin={8}
-                                    fontSize={12}
+                                    fontSize={10}
                                 />
                                     <YAxis
                                     stroke="#888888"
-                                    fontSize={12}
+                                    fontSize={10}
                                     tickLine={false}
                                     axisLine={false}
                                     tickFormatter={(value) => `\$${value}`}
                                 />
-                                    <RechartsTooltip
-                                    cursor={{ fill: 'hsla(var(--muted))' }}
-                                    contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                                    <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent indicator="dot" />}
                                 />
                                 <Bar dataKey="earnings" fill="var(--color-earnings)" radius={[4, 4, 0, 0]} />
                             </BarChart>
@@ -175,22 +169,20 @@ function ResellerDashboardPageContent() {
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-card/50 border-white/5">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><TrendingUp /> Top Performing Products</CardTitle>
-                    <CardDescription>These are the products generating the most commission for you.</CardDescription>
+                    <CardTitle className="flex items-center gap-2 font-headline text-lg uppercase tracking-tight">
+                        <Trophy className="text-primary" />
+                        Top Earners
+                    </CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Highest commission products</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <TopPerformingProducts />
                 </CardContent>
             </Card>
         </div>
-        
       </div>
     </ResellerLayout>
   );
-}
-
-export default function ResellerDashboardPage() {
-    return <ResellerDashboardPageContent />
 }

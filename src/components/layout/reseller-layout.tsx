@@ -27,10 +27,8 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading) {
       if (!user) {
-        // Not logged in, redirect to login page
         router.replace('/login');
       } else if (userProfile && userProfile.userRole !== 'reseller') {
-        // Logged in, but not a reseller, redirect to homepage for role-based routing
         router.replace('/');
       }
     }
