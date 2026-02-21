@@ -2,15 +2,13 @@ import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';
 import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { Order, Product } from '@/lib/types';
-
+import type { Order } from '@/lib/types';
 
 export async function POST(request: Request) {
   const paystackSecret = process.env.PAYSTACK_SECRET_KEY!;
   const signature = request.headers.get('x-paystack-signature');
   
   const rawBody = await request.text();
-
   const hash = createHmac('sha512', paystackSecret).update(rawBody).digest('hex');
 
   if (hash !== signature) {
@@ -28,7 +26,7 @@ export async function POST(request: Request) {
       if (transactionType === 'points-purchase') {
         const userId = metadata.userId;
         const points = metadata.points;
-        const amount = event.data.amount / 100; // Convert from kobo to USD
+        const amount = event.data.amount / 100;
 
         if (userId && points) {
           const userProfileRef = doc(db, 'userProfiles', userId);
@@ -36,10 +34,8 @@ export async function POST(request: Request) {
             aiPoints: increment(points)
           });
 
-          // Create a payment log for this transaction
-          const paymentRef = collection(db, 'payments');
-          await addDoc(paymentRef, {
-            userId: userId, // Link to the user who bought points
+          await addDoc(collection(db, 'payments'), {
+            userId: userId,
             amount: amount,
             paymentMethod: `paystack_${event.data.channel}`,
             paymentStatus: 'completed',
@@ -47,47 +43,35 @@ export async function POST(request: Request) {
             transactionType: 'points-purchase',
             transactionId: event.data.id,
           });
-
-          console.log(`Credited ${points} points to user ${userId} and logged payment via Paystack.`);
         }
-
-      } else { // Default to product purchase
-        const orderId = metadata?.orderId || event.data.reference; // Fallback to reference
-        
+      } else {
+        const orderId = metadata?.orderId || event.data.reference;
         if (orderId) {
           const orderRef = doc(db, 'orders', orderId);
           const orderSnap = await getDoc(orderRef);
-          if (!orderSnap.exists()) {
-              throw new Error(`Order ${orderId} not found.`);
-          }
-          const orderData = orderSnap.data() as Order;
-          
-          await updateDoc(orderRef, {
-            orderStatus: 'processing',
-            paymentMethod: `paystack_${event.data.channel}`,
-          });
-          
-          const paymentRef = collection(db, 'payments');
-          await addDoc(paymentRef, {
+          if (orderSnap.exists()) {
+            const orderData = orderSnap.data() as Order;
+            await updateDoc(orderRef, {
+              orderStatus: 'processing',
+              paymentMethod: `paystack_${event.data.channel}`,
+            });
+            await addDoc(collection(db, 'payments'), {
               orderId: orderId,
-              userId: orderData.buyerId, 
+              userId: orderData.buyerId,
               amount: orderData.totalAmount,
               paymentMethod: `paystack_${event.data.channel}`,
               paymentStatus: 'completed',
               paymentDate: serverTimestamp(),
               transactionType: 'product-purchase',
               transactionId: event.data.id,
-          });
-          
-          console.log(`Order ${orderId} updated to processing and payment logged via Paystack webhook.`);
+            });
+          }
         }
       }
     }
-
     return NextResponse.json({ status: 'success' });
-
   } catch (error: any) {
     console.error('Paystack Webhook Error:', error);
-    return NextResponse.json({ error: 'Webhook processing failed', details: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 });
   }
 }
