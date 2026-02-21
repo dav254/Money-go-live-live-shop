@@ -62,8 +62,8 @@ const shortcuts = [
 
 const SellerInfo = ({ sellerId }: { sellerId: string }) => {
   const firestore = useFirestore();
-  const userRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
-  const { data: user, isLoading } = useDoc<UserProfile>(userRef);
+  const userProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
+  const { data: user, isLoading } = useDoc<UserProfile>(userProfileRef);
 
   if (isLoading) return <Skeleton className="h-4 w-24" />;
   return (
@@ -128,15 +128,7 @@ const HomepageCarousel = () => {
     }
 
     if (!slides || slides.length === 0) {
-        return (
-            <div className="relative aspect-[16/10] sm:aspect-[16/7] w-full overflow-hidden rounded-3xl group bg-neutral-900 border-2 border-dashed border-white/5 flex flex-col items-center justify-center text-center p-8">
-                <div className="p-4 bg-primary/10 rounded-full mb-4">
-                    <Sparkles className="h-12 w-12 text-primary animate-pulse" />
-                </div>
-                <h2 className="font-headline text-2xl sm:text-4xl font-black uppercase tracking-tighter">Offers Coming Soon</h2>
-                <p className="text-muted-foreground text-xs sm:text-sm font-bold uppercase tracking-widest mt-2">New seasonal collections and curated deals are being prepared by our sellers.</p>
-            </div>
-        );
+        return null;
     }
 
     return (
