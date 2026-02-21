@@ -1,6 +1,6 @@
-
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,12 +31,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
+import { useAuth, useUser, useUserProfile, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -51,6 +51,23 @@ export default function SignupPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      if (userProfile.userRole === 'seller') {
+        router.replace('/dashboard/seller');
+      } else if (userProfile.userRole === 'reseller') {
+        router.replace('/dashboard/reseller');
+      } else if (userProfile.userRole === 'admin') {
+        router.replace('/dashboard/admin');
+      } else {
+        router.replace('/buyer/dashboard');
+      }
+    }
+  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -69,7 +86,7 @@ export default function SignupPage() {
 
       const userDocRef = doc(firestore, "userProfiles", user.uid);
       
-      const userProfile: any = {
+      const profile = {
         id: user.uid,
         uid: user.uid,
         fullName: values.fullName,
@@ -77,54 +94,36 @@ export default function SignupPage() {
         email: values.email,
         joinDate: new Date().toISOString(),
         userRole: values.role,
-        aiPoints: 0, // Start with 0 points
+        aiPoints: 0,
+        status: 'active',
       };
 
-      // Check for a referral ID in local storage and add it to the profile
       const resellerRefId = localStorage.getItem('resellerRefId');
       if (resellerRefId) {
-          userProfile.referredBy = resellerRefId;
+          (profile as any).referredBy = resellerRefId;
       }
 
-      await setDoc(userDocRef, userProfile);
-
-      toast({
-        title: 'Account Created!',
-        description: "You've successfully signed up.",
-      });
+      await setDoc(userDocRef, profile);
+      toast({ title: 'Account Created!', description: "You've successfully signed up." });
       
-      // Clear the ref ID from storage after using it
-      if (resellerRefId) {
-        localStorage.removeItem('resellerRefId');
-      }
-      
-      if (values.role === 'seller') {
-        router.push('/dashboard/seller/about');
-      } else if (values.role === 'buyer') {
-        router.push('/buyer/about');
-      } else if (values.role === 'reseller') {
-        router.push('/dashboard/reseller');
-      } else {
-        router.push('/login');
-      }
-
+      if (resellerRefId) localStorage.removeItem('resellerRefId');
 
     } catch (error: any) {
       console.error('Signup Error:', error);
-      
-      let description = 'Could not create your account. Please try again.';
-      if (error.code === 'auth/email-already-in-use') {
-        description = 'This email is already registered. Please log in instead.';
-      } else if (error.message) {
-        description = error.message;
-      }
-      
       toast({
         variant: 'destructive',
         title: 'Signup Failed',
-        description: description,
+        description: error.message || 'Could not create your account.',
       });
     }
+  }
+
+  if (isUserLoading || isProfileLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (

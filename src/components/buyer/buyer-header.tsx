@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Bell, MessageSquare, Video, Search, Menu, X, Radio } from 'lucide-react';
-import { Logo } from '@/components/logo';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
@@ -68,9 +67,6 @@ export function BuyerHeader() {
           <SheetContent side="left" className="p-0">
             <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
-                <SheetTitle asChild>
-                  <Logo className="h-8 w-auto text-primary" />
-                </SheetTitle>
               </SheetHeader>
               <div className="p-4 pt-0">
                 <BuyerSidebar />

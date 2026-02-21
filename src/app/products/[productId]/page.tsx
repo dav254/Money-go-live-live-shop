@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -98,9 +97,8 @@ export default function BuyerProductPage() {
     const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = setQuantityState(1);
 
-    // This effect runs when the component mounts, which is when a video is viewed.
     useEffect(() => {
         if (firestore && productId && user) {
             const productRef = doc(firestore, 'products', productId);
@@ -108,7 +106,6 @@ export default function BuyerProductPage() {
         }
     }, [firestore, productId, user]);
 
-    // Capture reseller ref from URL and store it in localStorage
     useEffect(() => {
         const resellerRef = searchParams.get('ref');
         if (resellerRef) {
@@ -122,7 +119,6 @@ export default function BuyerProductPage() {
 
     const { data: product, isLoading: isProductLoading } = useDoc<Product>(productRef);
     
-    // Fetch seller data
     const sellerId = product?.sellerId;
     const sellerShopRef = useMemoFirebase(() => {
         return sellerId ? doc(firestore, 'sellerShops', sellerId) : null;
@@ -178,7 +174,7 @@ export default function BuyerProductPage() {
 
     const handleAddToCart = async () => {
         if (!user) {
-          router.push('/signup');
+          router.push('/login');
           return;
         }
         if (!product) return;
@@ -192,7 +188,7 @@ export default function BuyerProductPage() {
           quantity: increment(quantity),
           price: product.price,
           name: product.name,
-          imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200',
+          imageUrl: product.imageUrl || product.imageUrls?.[0] || getPlaceholderImage(),
           addedAt: serverTimestamp(),
         };
 
@@ -206,7 +202,7 @@ export default function BuyerProductPage() {
 
     const handleBuyNow = async () => {
         if (!user || !userProfile) {
-          router.push('/signup');
+          router.push('/login');
           return;
         }
         if (!product) return;
@@ -229,7 +225,7 @@ export default function BuyerProductPage() {
                 name: product.name || '',
                 price: product.price,
                 quantity: quantity,
-                imageUrl: product.imageUrl || product.imageUrls?.[0] || 'https://picsum.photos/seed/placeholder/200'
+                imageUrl: product.imageUrl || product.imageUrls?.[0] || getPlaceholderImage()
             }],
             subtotal: subtotal,
             productPrice: subtotal,
@@ -254,7 +250,7 @@ export default function BuyerProductPage() {
     
     const handleFollow = async () => {
         if (!user) {
-            router.push('/signup');
+            router.push('/login');
             return;
         }
 
@@ -317,7 +313,7 @@ export default function BuyerProductPage() {
     };
     
     const handleShare = () => {
-        const productUrl = `https://goearnvid.shop/products/${product.id}`;
+        const productUrl = window.location.href;
         navigator.clipboard.writeText(productUrl).then(() => {
             toast({ title: "Link Copied!", description: "Product link copied to your clipboard." });
         });
@@ -338,7 +334,7 @@ export default function BuyerProductPage() {
         return (
             <MainLayout>
                 <div className="flex h-96 items-center justify-center">
-                    <h2 className="text-2xl font-bold">Product not found</h2>
+                    <h2 className="text-2xl font-bold text-white">Product not found</h2>
                 </div>
             </MainLayout>
         );
@@ -346,11 +342,15 @@ export default function BuyerProductPage() {
     
     const discountPercentage = product.wasPrice ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
     const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Anonymous Seller';
-    const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || 'https://picsum.photos/seed/shoplogo/200';
+    const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || getPlaceholderImage();
     const sellerFollowers = sellerShop?.followers || 0;
     
     const isResellerPage = userProfile?.userRole === 'reseller';
     const LayoutComponent = isResellerPage ? ResellerLayout : MainLayout;
+
+    function setQuantityState(initial: number): [number, React.Dispatch<React.SetStateAction<number>>] {
+        return useState(initial);
+    }
 
     return (
         <LayoutComponent>
@@ -360,21 +360,22 @@ export default function BuyerProductPage() {
                         {selectedMedia?.type === 'video' ? (
                             <video src={selectedMedia.url} className="w-full h-full object-contain" autoPlay muted loop playsInline />
                         ) : (
-                            <Image src={selectedMedia?.url || 'https://picsum.photos/seed/placeholder/1000/1000'} alt={product.name || "Product image"} fill sizes="100vw" className="object-contain" priority />
+                            <Image src={selectedMedia?.url || getPlaceholderImage()} alt={product.name || "Product image"} fill sizes="100vw" className="object-contain" priority />
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
-                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
+                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70 border-none" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                     </div>
-                    {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-bold">{discountPercentage}% OFF</Badge>}
+                    {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] h-7 px-3">{discountPercentage}% OFF</Badge>}
                 </div>
+                
                 {allMedia.length > 1 && (
-                    <div className="bg-neutral-900 py-2">
-                        <Carousel opts={{ align: "start" }} className="w-full container px-0">
-                            <CarouselContent className="-ml-1">
+                    <div className="bg-neutral-900/50 py-3">
+                        <Carousel opts={{ align: "start" }} className="w-full container px-4">
+                            <CarouselContent className="-ml-2">
                                 {allMedia.map((media, i) => (
-                                    <CarouselItem key={i} className="basis-1/4 sm:basis-1/5 pl-1">
-                                        <Card onClick={() => setSelectedMedia(media)} className={cn("overflow-hidden cursor-pointer bg-neutral-800", selectedMedia?.url === media.url && "ring-2 ring-red-500")}>
+                                    <CarouselItem key={i} className="basis-1/4 sm:basis-1/5 pl-2">
+                                        <Card onClick={() => setSelectedMedia(media)} className={cn("overflow-hidden cursor-pointer bg-neutral-800 border-none transition-all", selectedMedia?.url === media.url && "ring-2 ring-primary scale-95")}>
                                             <CardContent className="p-0 aspect-square relative">
                                                 <Image src={media.url} alt={`thumbnail ${i}`} fill sizes="(max-width: 640px) 25vw, 20vw" className="object-cover" />
                                                 {media.type === 'video' && <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><Video className="h-6 w-6 text-white" /></div>}
@@ -387,33 +388,28 @@ export default function BuyerProductPage() {
                     </div>
                 )}
 
-                <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm text-red-500 font-semibold hover:underline cursor-pointer">{product.category}</p>
-                                {product.brand && (
-                                    <>
-                                        <span className="text-neutral-600">•</span>
-                                        <span className="text-sm font-bold text-neutral-300 uppercase tracking-widest">{product.brand}</span>
-                                    </>
-                                )}
+                <div className="container mx-auto max-w-4xl py-8 px-4 space-y-8">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black uppercase text-[10px] tracking-widest h-6 px-2">{product.category}</Badge>
+                                {product.brand && <Badge variant="outline" className="border-white/20 text-neutral-400 font-bold uppercase text-[10px] tracking-widest h-6 px-2">{product.brand}</Badge>}
                             </div>
-                            <h1 className="font-headline text-2xl md:text-3xl font-bold">{product.name}</h1>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-neutral-400">
+                            <h1 className="font-headline text-3xl md:text-4xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
+                            <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-neutral-500">
                                 <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
-                                <span>Sold {product.salesCount || 0}</span>
-                                {product.location && (
-                                    <span className="flex items-center gap-1 font-medium text-red-400">
-                                        <MapPin className="h-3 w-3" />
-                                        {product.location}
+                                <span>{product.salesCount || 0} Sold</span>
+                                {sellerShop?.location && (
+                                    <span className="flex items-center gap-1.5 text-primary">
+                                        <MapPin className="h-3.5 w-3.5" />
+                                        {sellerShop.location}
                                     </span>
                                 )}
                             </div>
                         </div>
                         {product.condition && (
                             <Badge variant={product.condition === 'new' ? 'default' : 'secondary'} className={cn(
-                                "h-8 px-4 rounded-xl font-black uppercase tracking-widest text-[10px]",
+                                "h-10 px-6 rounded-2xl font-black uppercase tracking-widest text-xs self-start",
                                 product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-500 text-black"
                             )}>
                                 {product.condition === 'new' ? 'Brand New' : 'Pre-owned'}
@@ -422,73 +418,86 @@ export default function BuyerProductPage() {
                     </div>
 
                      <div className="flex flex-col gap-1">
-                        <p className="text-3xl font-bold text-red-500">USD ${product.price.toLocaleString()}</p>
+                        <p className="text-4xl font-black text-primary tracking-tighter">USD ${product.price.toLocaleString()}</p>
                         {product.localPrice && product.localCurrency && product.localCurrency !== 'USD' && (
-                            <p className="text-sm text-neutral-400 flex items-center gap-1.5 font-bold uppercase tracking-widest">
-                                <Globe className="h-3 w-3" />
-                                Approx. {product.localCurrency} {product.localPrice.toLocaleString()}
+                            <p className="text-sm text-neutral-400 flex items-center gap-1.5 font-bold uppercase tracking-widest bg-white/5 w-fit px-3 py-1 rounded-full">
+                                <Globe className="h-3.5 w-3.5" />
+                                {product.localCurrency} {product.localPrice.toLocaleString()}
                             </p>
                         )}
                     </div>
                     
                     {product.coupon && (
-                        <div className="bg-yellow-500/10 border border-dashed border-yellow-500/50 text-yellow-300 p-3 rounded-lg flex items-center gap-3">
-                            <Tag className="h-5 w-5 text-yellow-400" />
+                        <div className="bg-yellow-500/10 border-2 border-dashed border-yellow-500/30 text-yellow-400 p-4 rounded-3xl flex items-center gap-4 animate-pulse-glow">
+                            <Tag className="h-6 w-6" />
                             <div>
-                                <p className="font-bold">Live Deal</p>
-                                <p className="text-sm">Use code <span className="font-mono bg-black/30 px-1.5 py-0.5 rounded-sm">{product.coupon.code}</span> for {product.coupon.discount}% off!</p>
+                                <p className="font-black text-xs uppercase tracking-widest">Active Live Deal</p>
+                                <p className="text-lg font-bold">Use <span className="text-white bg-yellow-600 px-2 py-0.5 rounded-lg">{product.coupon.code}</span> for {product.coupon.discount}% Discount!</p>
                             </div>
                         </div>
                     )}
 
-
-                    <Card className="bg-[#2a2a2a] border-neutral-800">
-                        <CardContent className="p-4 space-y-3 text-sm">
-                            <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-neutral-400" /> <span>Pickup / Ship from: <strong>{product.location || 'Kenya'}</strong></span></div>
-                            <div className="flex items-center gap-2"><Truck className="h-4 w-4 text-neutral-400" /> <span>Delivery: <strong className="text-white">{product.deliveryOptions || 'Standard Shipping'}</strong> - <strong className="text-white">USD ${product.shippingCost?.toLocaleString() || '0'}</strong></span></div>
-                            <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-neutral-400" /> <span>Buyer protection active</span></div>
+                    <Card className="bg-neutral-900 border-white/5 rounded-3xl">
+                        <CardContent className="p-6 space-y-4 text-sm font-medium">
+                            <div className="flex items-center gap-3 text-neutral-300"><MapPin className="h-5 w-5 text-primary" /> <span>Pickup / Ship from: <strong className="text-white uppercase tracking-tight">{sellerShop?.location || 'Store Location'}</strong></span></div>
+                            <div className="flex items-center gap-3 text-neutral-300"><Truck className="h-5 w-5 text-primary" /> <span>Delivery: <strong className="text-white">{product.deliveryOptions || 'Standard Shipping'}</strong> — <strong className="text-green-400">USD ${product.shippingCost?.toLocaleString() || '0.00'}</strong></span></div>
+                            <div className="flex items-center gap-3 text-neutral-300"><ShieldCheck className="h-5 w-5 text-blue-500" /> <span>Go Earn Buyer Protection Enabled</span></div>
                         </CardContent>
                     </Card>
 
-                    <div className="flex items-center justify-between">
-                        <p className="font-semibold">Quantity</p>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus className="h-4 w-4" /></Button>
-                            <span className="w-10 text-center font-bold">{quantity}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 bg-neutral-800 border-neutral-700" onClick={() => setQuantity(q => Math.min(product.stock || 99, q + 1))}><Plus className="h-4 w-4" /></Button>
+                    <div className="flex items-center justify-between bg-neutral-900/50 p-4 rounded-3xl border border-white/5">
+                        <p className="font-black uppercase tracking-widest text-xs text-neutral-500">Select Quantity</p>
+                        <div className="flex items-center gap-4">
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-white/5 border-white/5" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus className="h-4 w-4" /></Button>
+                            <span className="w-8 text-center font-black text-xl">{quantity}</span>
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-white/5 border-white/5" onClick={() => setQuantity(q => Math.min(product.stock || 99, q + 1))}><Plus className="h-4 w-4" /></Button>
                         </div>
                     </div>
-                    {product.stock != null && product.stock <= 5 && <p className="text-red-500 text-sm font-semibold">Only {product.stock} left in stock!</p>}
-
+                    
+                    {product.stock != null && product.stock <= 5 && (
+                        <div className="flex items-center gap-2 text-red-500 bg-red-500/10 p-3 rounded-2xl justify-center">
+                            <Zap className="h-4 w-4 fill-current" />
+                            <span className="text-xs font-black uppercase tracking-widest">Hurry! Only {product.stock} left in stock</span>
+                        </div>
+                    )}
 
                     {!isResellerPage && (
-                        <Card className="bg-[#2a2a2a] border-neutral-800">
-                            <CardContent className="p-4 flex items-center gap-4">
-                                <Avatar className="h-12 w-12 border"><AvatarImage src={sellerLogo} /><AvatarFallback>{sellerName?.charAt(0)}</AvatarFallback></Avatar>
-                                <div className="flex-1">
-                                    <p className="font-bold">{sellerName}</p>
-                                    <div className="flex items-center gap-2 text-xs text-neutral-400">
-                                        <span>{sellerFollowers.toLocaleString()} followers</span>
-                                        {sellerShop?.location && <span>• {sellerShop.location}</span>}
+                        <Card className="bg-neutral-900 border-white/5 rounded-3xl overflow-hidden">
+                            <CardContent className="p-6 flex items-center gap-4">
+                                <Avatar className="h-14 w-14 border-2 border-primary/20">
+                                    <AvatarImage src={sellerLogo} />
+                                    <AvatarFallback className="bg-neutral-800 text-lg font-black uppercase">{sellerName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-black text-lg uppercase tracking-tighter truncate leading-none mb-1">{sellerName}</p>
+                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                                        <span className="text-primary">{sellerFollowers.toLocaleString()} followers</span>
+                                        {sellerShop?.isVerified && <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="h-3 w-3" /> VERIFIED</span>}
                                     </div>
                                 </div>
-                                <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow'}</Button>
-                                <Button variant="outline" size="sm" className="bg-neutral-700 border-neutral-600 hover:bg-neutral-600" asChild>
-                                    <Link href={`/sellers/${sellerId}`}>Visit Shop</Link>
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="rounded-xl h-10 font-bold px-4" onClick={handleFollow}>
+                                        {isFollowing ? 'Following' : 'Follow'}
+                                    </Button>
+                                    <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 hover:bg-white/5 font-bold px-4" asChild>
+                                        <Link href={`/sellers/${sellerId}`}>Store</Link>
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     )}
 
-                    <Accordion type="single" collapsible className="w-full" defaultValue="description">
-                        <AccordionItem value="description">
-                            <AccordionTrigger>Product Description</AccordionTrigger>
-                            <AccordionContent className="space-y-4">
-                                <div className="prose prose-sm dark:prose-invert text-neutral-300 whitespace-pre-wrap">{product.description}</div>
+                    <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="description">
+                        <AccordionItem value="description" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
+                            <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">The Full Story</AccordionTrigger>
+                            <AccordionContent className="pb-8 space-y-6">
+                                <div className="prose prose-sm dark:prose-invert text-neutral-300 whitespace-pre-wrap leading-relaxed">
+                                    {product.description}
+                                </div>
                                 {product.tags && (
                                     <div className="flex flex-wrap gap-2 pt-4">
                                         {product.tags.split(',').map(tag => (
-                                            <Badge key={tag} variant="secondary" className="bg-neutral-800 text-neutral-400 border-none font-bold uppercase text-[10px] tracking-widest">
+                                            <Badge key={tag} variant="secondary" className="bg-white/5 hover:bg-white/10 text-neutral-400 border-none font-bold uppercase text-[9px] tracking-widest h-7 px-3 rounded-lg transition-colors">
                                                 #{tag.trim()}
                                             </Badge>
                                         ))}
@@ -496,49 +505,55 @@ export default function BuyerProductPage() {
                                 )}
                             </AccordionContent>
                         </AccordionItem>
-                        <AccordionItem value="reviews">
-                            <AccordionTrigger>Reviews & Ratings ({reviews?.length || 0})</AccordionTrigger>
-                            <AccordionContent>
+                        <AccordionItem value="reviews" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
+                            <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">Customer Reviews ({reviews?.length || 0})</AccordionTrigger>
+                            <AccordionContent className="pb-8">
                                 {areReviewsLoading ? (
-                                    <p>Loading reviews...</p>
+                                    <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
                                 ) : reviews && reviews.length > 0 ? (
                                     reviews.map(review => <ReviewCard key={review.id} review={review} />)
                                 ) : (
-                                    <p className="text-neutral-400 text-center py-4">No reviews yet.</p>
+                                    <div className="text-center py-12">
+                                        <Sparkles className="h-10 w-10 text-neutral-800 mx-auto mb-3" />
+                                        <p className="text-neutral-500 font-bold uppercase text-[10px] tracking-widest">No reviews yet. Be the first to share your thoughts!</p>
+                                    </div>
                                 )}
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                     
-                    <div>
-                        <h2 className="font-headline text-xl font-bold mt-8 mb-4">More from this Seller</h2>
+                    <div className="pt-8">
+                        <h2 className="font-headline text-xl font-black uppercase tracking-tighter mb-6 flex items-center gap-3">
+                            <Plus className="text-primary" /> 
+                            More from this Shop
+                        </h2>
                          {areRecsLoading ? (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <Skeleton className="h-64 w-full" /><Skeleton className="h-64 w-full" />
+                                <Skeleton className="h-64 rounded-3xl" /><Skeleton className="h-64 rounded-3xl" />
                             </div>
                          ) : filteredRecommendedProducts.length > 0 ? (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 {filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}
                             </div>
                          ) : (
-                             <p className="text-neutral-400 text-sm">No other products from this seller.</p>
+                             <p className="text-neutral-600 font-bold uppercase text-[10px] tracking-widest text-center py-12 border-2 border-dashed rounded-3xl border-white/5">No other products listed yet.</p>
                          )}
                     </div>
                 </div>
             </div>
 
             {!isResellerPage && (
-                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-sm border-t border-neutral-800 p-2 flex items-center gap-2">
-                    <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center p-2">
-                        <Store className="h-5 w-5 text-neutral-300"/>
-                        <span className="text-xs text-neutral-400">Shop</span>
+                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-xl border-t border-white/5 p-3 flex items-center gap-3">
+                    <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-3 py-1 group">
+                        <Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/>
+                        <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
                     </Link>
-                    <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center p-2 h-auto">
-                        <MessageSquare className="h-5 w-5 text-neutral-300" />
-                        <span className="text-xs text-neutral-400">Chat</span>
+                    <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent">
+                        <MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" />
+                        <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span>
                     </Button>
-                    <Button variant="secondary" className="flex-1 bg-[#2a2a2a] text-white" onClick={handleAddToCart}>Add to Cart</Button>
-                    <Button className="flex-1 bg-red-500 hover:bg-red-600" onClick={handleBuyNow}>Buy Now</Button>
+                    <Button variant="secondary" className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs" onClick={handleAddToCart}>Add to Cart</Button>
+                    <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={handleBuyNow}>Buy It Now</Button>
                 </div>
             )}
         </LayoutComponent>

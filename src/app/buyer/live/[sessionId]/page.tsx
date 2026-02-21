@@ -33,11 +33,11 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
 export default function BuyerLiveStreamViewPage() {
   const params = useParams();
   const router = useRouter();
-  const sellerId = params.sellerId as string;
+  const sessionId = params.sessionId as string;
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const sessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', sellerId), [firestore, sellerId]);
+  const sessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', sessionId), [firestore, sessionId]);
   const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
   const sellerRef = useMemoFirebase(() => {
@@ -82,7 +82,7 @@ export default function BuyerLiveStreamViewPage() {
           <p className="text-neutral-500 mb-8 max-w-sm text-sm">This live show has either ended or hasn't started yet. Browse the shop while you wait!</p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button size="lg" className="font-bold min-w-[200px]" onClick={() => router.push('/buyer/live-now')}>Discover Live Shows</Button>
-            <Button size="lg" variant="outline" className="font-bold border-white/10 text-white min-w-[200px]" onClick={() => router.push(`/sellers/${sellerId}`)}>Visit Shop Profile</Button>
+            <Button size="lg" variant="outline" className="font-bold border-white/10 text-white min-w-[200px]" onClick={() => router.push(`/sellers/${sessionId}`)}>Visit Shop Profile</Button>
           </div>
         </div>
       </BuyerLayout>
@@ -134,7 +134,7 @@ export default function BuyerLiveStreamViewPage() {
                             </SheetTitle>
                         </SheetHeader>
                         <div className="h-[calc(100vh-5rem)]">
-                            <LiveChat streamId={sellerId} />
+                            <LiveChat streamId={sessionId} />
                         </div>
                     </SheetContent>
                 </Sheet>
@@ -235,7 +235,7 @@ export default function BuyerLiveStreamViewPage() {
         </div>
 
         <div className="hidden lg:flex w-80 shrink-0 flex-col border-l border-white/10 bg-neutral-950 shadow-2xl">
-          <LiveChat streamId={sellerId} />
+          <LiveChat streamId={sessionId} />
         </div>
       </div>
     </BuyerLayout>

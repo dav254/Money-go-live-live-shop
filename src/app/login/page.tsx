@@ -1,6 +1,6 @@
-
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,11 +24,12 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser, useUserProfile } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -40,6 +41,28 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+
+  // Automatic redirect if already logged in
+  useEffect(() => {
+    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      if (userProfile.status === 'suspended') {
+        auth.signOut();
+        return;
+      }
+      
+      if (userProfile.userRole === 'seller') {
+        router.replace('/dashboard/seller');
+      } else if (userProfile.userRole === 'reseller') {
+        router.replace('/dashboard/reseller');
+      } else if (userProfile.userRole === 'admin') {
+        router.replace('/dashboard/admin');
+      } else {
+        router.replace('/buyer/dashboard');
+      }
+    }
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -54,16 +77,14 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Fetch user profile from Firestore
       const userDocRef = doc(firestore, 'userProfiles', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
-        const userProfile = userDocSnap.data();
+        const profile = userDocSnap.data();
         
-        // Check if the account is suspended
-        if (userProfile.status === 'suspended') {
-            await auth.signOut(); // Sign the user out immediately
+        if (profile.status === 'suspended') {
+            await auth.signOut();
             toast({
                 variant: 'destructive',
                 title: 'Account Suspended',
@@ -72,38 +93,12 @@ export default function LoginPage() {
             return;
         }
 
-        toast({
-            title: 'Login Successful!',
-            description: "Welcome back.",
-        });
-
-        if (userProfile.userRole === 'seller') {
-          router.push('/dashboard/seller');
-        } else if (userProfile.userRole === 'reseller') {
-          router.push('/dashboard/reseller');
-        } else if (userProfile.userRole === 'admin') {
-          router.push('/dashboard/admin');
-        } else {
-          router.push('/buyer/dashboard');
-        }
-      } else {
-        console.warn("No user profile found for UID:", user.uid);
-        router.push('/buyer/dashboard'); // Default redirect to buyer dashboard
+        toast({ title: 'Login Successful!', description: "Welcome back." });
       }
-
     } catch (error: any) {
-      // Default error messages
+      console.error('Login Error:', error);
       let title = 'Login Failed';
-      let description = 'An unknown error occurred. Please try again.';
-
-      // Check for specific auth errors to provide better user feedback
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        title = 'Invalid Credentials';
-        description = 'The email or password you entered is incorrect. Please try again.';
-      } else {
-        // Log other, unexpected errors to the console for debugging
-        console.error('Login Error:', error);
-      }
+      let description = 'Invalid email or password.';
       
       toast({
         variant: 'destructive',
@@ -111,6 +106,14 @@ export default function LoginPage() {
         description: description,
       });
     }
+  }
+
+  if (isUserLoading || isProfileLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (

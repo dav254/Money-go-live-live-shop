@@ -15,6 +15,7 @@ import { Search, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SellerLayout } from '@/components/layout/seller-layout';
+import { Badge } from '@/components/ui/badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,7 +79,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         seller: seller,
         video: {
           id: product.id,
-          imageUrl: product.imageUrl || getPlaceholderImage(),
+          imageUrl: product.imageUrl || getPlaceholderImage('product'),
           description: product.name || 'product media',
           imageHint: 'product',
           mediaType: (product.videoUrl && product.videoUrl.trim() !== "") ? 'video' : 'image',
@@ -89,8 +90,13 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
     };
 
     return (
-        <div className="h-full w-full snap-start flex-shrink-0">
+        <div className="h-full w-full snap-start flex-shrink-0 relative">
           <VideoCard item={feedItem} isIntersecting={isIntersecting} onScroll={onScroll} />
+           <div className="absolute bottom-24 right-4 z-20">
+              <Badge variant={product.condition === 'new' ? 'default' : 'secondary'} className="capitalize text-sm py-1 px-3 shadow-lg">
+                  {product.condition}
+              </Badge>
+          </div>
         </div>
     );
 }

@@ -5,7 +5,7 @@ import {
   Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
   Radio, Users, MessageSquare, Share2, CheckCircle, Heart, ShoppingBag, 
   Shield, Lock, CreditCard, User, Handshake, Globe, Cpu, Layers, MapPin,
-  RadioTower, Bot, Tag, Eye, DollarSign
+  RadioTower, Bot, Tag, Eye
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -71,7 +71,6 @@ const HomePageContent = () => {
   const roadmapSteps = [
     { icon: User, title: "Complete Your Shop Profile", description: "Add logo, banner & bio to build trust", gradient: "gradient-hero" },
     { icon: Upload, title: "Upload Your First Product", description: "Videos convert 10× more — use them", gradient: "gradient-hero" },
-    { icon: DollarSign, title: "Set Stock & Pricing", description: "Simple, clean, no confusing fees", gradient: "gradient-hero" },
     { icon: Users, title: "Enable Reseller Program", description: "Let others promote for free", gradient: "gradient-hero" },
     { icon: Radio, title: "Go Live", description: "Sell faster with real-time engagement", gradient: "gradient-hero" },
     { icon: Share2, title: "Share Your Shop Link", description: "Post on WhatsApp, IG, TikTok", gradient: "gradient-hero" },
