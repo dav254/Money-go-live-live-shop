@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -11,12 +12,12 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Package, Video, CreditCard, LayoutGrid, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, Radio, Users, ChevronRight, Zap } from 'lucide-react';
+import { Package, Radio, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, LayoutGrid, Users, Zap, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, limit, orderBy, where, doc } from 'firebase/firestore';
-import type { Product, SellerShop, HomepageSlide, LiveSession, UserProfile } from '@/lib/types';
+import type { Product, HomepageSlide, LiveSession, UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
@@ -46,7 +47,7 @@ const shortcuts = [
   },
   {
     title: 'Wallet',
-    icon: CreditCard,
+    icon: Zap,
     href: '/buyer/wallet',
     color: 'bg-green-500/20 text-green-500',
   },
@@ -121,8 +122,20 @@ const HomepageCarousel = () => {
 
     const { data: slides, isLoading } = useCollection<HomepageSlide>(slidesQuery);
 
-    if (isLoading || !slides || slides.length === 0) {
+    if (isLoading) {
         return <Skeleton className="w-full aspect-[16/9] sm:aspect-[16/7] rounded-3xl" />;
+    }
+
+    if (!slides || slides.length === 0) {
+        return (
+            <Card className="w-full aspect-[16/9] sm:aspect-[16/7] rounded-3xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center bg-neutral-900/50 p-8 text-center overflow-hidden">
+                <div className="p-4 bg-primary/10 rounded-full mb-4">
+                    <Sparkles className="h-12 w-12 text-primary animate-pulse" />
+                </div>
+                <h2 className="font-headline text-3xl sm:text-4xl font-black uppercase tracking-tighter">Offers Coming Soon</h2>
+                <p className="text-sm sm:text-base font-bold text-neutral-500 uppercase tracking-widest mt-2">We are curating exclusive deals for you. Stay tuned!</p>
+            </Card>
+        );
     }
 
     return (
@@ -276,13 +289,13 @@ export default function BuyerDashboardPage() {
                     <Zap className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                     <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">Today's Deals</h2>
                 </div>
-                {isLoadingDeals ? <ProductCarouselSkeleton /> : (
+                {isLoadingDeals ? <ProductCarouselSkeleton /> : (dealsProducts && dealsProducts.length > 0) ? (
                     <Carousel
                         opts={{ align: 'start' }}
                         className="w-full"
                     >
                         <CarouselContent className="-ml-2 sm:-ml-4">
-                        {(dealsProducts || []).map((product) => (
+                        {dealsProducts.map((product) => (
                             <CarouselItem
                             key={product.id}
                             className="basis-1/2 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 pl-2 sm:pl-4"
@@ -296,6 +309,8 @@ export default function BuyerDashboardPage() {
                         <CarouselPrevious className="hidden lg:flex" />
                         <CarouselNext className="hidden lg:flex" />
                     </Carousel>
+                ) : (
+                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center py-12 border border-dashed rounded-3xl border-white/5">Deals Coming Soon</p>
                 )}
             </div>
 
@@ -327,17 +342,11 @@ export default function BuyerDashboardPage() {
                         <CarouselNext className="hidden lg:flex" />
                     </Carousel>
                 ) : (
-                    <div className="text-center p-12 border-2 border-dashed rounded-3xl border-white/5 opacity-30">
-                        <p className="font-black uppercase tracking-widest text-[10px]">Browsing data needed for personalized recs</p>
+                    <div className="text-center p-12 border border-dashed rounded-3xl border-white/5 bg-neutral-900/20">
+                        <p className="font-black uppercase tracking-widest text-[10px] text-neutral-500">Shop your style — Discoveries coming soon</p>
                     </div>
                 )}
             </div>
-            {liveSessions?.length === 0 && dealsProducts?.length === 0 && recommendedProducts?.length === 0 && (
-                <div className="text-center p-12 border-2 border-dashed rounded-3xl border-white/5 ">
-                    <h2 className="text-2xl font-bold">Offers coming soon</h2>
-                    <p className="text-muted-foreground">Stay tuned for exciting deals and live events!</p>
-                </div>
-            )}
         </div>
     </BuyerLayout>
   );

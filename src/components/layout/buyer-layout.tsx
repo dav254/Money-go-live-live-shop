@@ -4,12 +4,10 @@
 import { 
   Sidebar, 
   SidebarContent, 
-  SidebarHeader, 
   SidebarProvider, 
   SidebarInset 
 } from '@/components/ui/sidebar';
 import { Toaster } from '../ui/toaster';
-import { Logo } from '../logo';
 import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useUser } from '@/firebase';
@@ -23,7 +21,7 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center gap-2">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
         <span>Loading Dashboard...</span>
       </div>
     );
@@ -32,9 +30,6 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
-        <SidebarHeader className="border-b bg-card p-4">
-          <Logo className="h-8 w-auto text-primary" />
-        </SidebarHeader>
         <SidebarContent>
           <BuyerSidebar />
         </SidebarContent>
