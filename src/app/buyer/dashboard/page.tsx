@@ -1,3 +1,4 @@
+
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -126,15 +127,7 @@ const HomepageCarousel = () => {
     }
 
     if (!slides || slides.length === 0) {
-        return (
-            <Card className="w-full aspect-[16/9] sm:aspect-[16/7] rounded-3xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center bg-neutral-900/50 p-8 text-center overflow-hidden">
-                <div className="p-4 bg-primary/10 rounded-full mb-4">
-                    <Sparkles className="h-12 w-12 text-primary animate-pulse" />
-                </div>
-                <h2 className="font-headline text-3xl sm:text-4xl font-black uppercase tracking-tighter">Offers Coming Soon</h2>
-                <p className="text-sm sm:text-base font-bold text-neutral-500 uppercase tracking-widest mt-2">We are curating exclusive deals for you. Stay tuned!</p>
-            </Card>
-        );
+        return null;
     }
 
     return (
@@ -173,16 +166,6 @@ const HomepageCarousel = () => {
     );
 };
 
-const ProductCarouselSkeleton = () => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="p-1">
-                <Skeleton className="h-64 w-full rounded-2xl" />
-            </div>
-        ))}
-    </div>
-);
-
 export default function BuyerDashboardPage() {
   const firestore = useFirestore();
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
@@ -207,7 +190,7 @@ export default function BuyerDashboardPage() {
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
   }, [firestore, lastViewedCategory]);
 
-  const { data: liveSessions, isLoading: isLoadingSellers } = useCollection<LiveSession>(liveSessionsQuery);
+  const { data: liveSessions } = useCollection<LiveSession>(liveSessionsQuery);
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
   
@@ -288,7 +271,7 @@ export default function BuyerDashboardPage() {
                     <Zap className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                     <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">Today's Deals</h2>
                 </div>
-                {isLoadingDeals ? <ProductCarouselSkeleton /> : (dealsProducts && dealsProducts.length > 0) ? (
+                {isLoadingDeals ? <div className="p-12 text-center opacity-20">Scanning deals...</div> : (dealsProducts && dealsProducts.length > 0) ? (
                     <Carousel
                         opts={{ align: 'start' }}
                         className="w-full"
@@ -309,7 +292,7 @@ export default function BuyerDashboardPage() {
                         <CarouselNext className="hidden lg:flex" />
                     </Carousel>
                 ) : (
-                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center py-12 border border-dashed rounded-3xl border-white/5">Deals Coming Soon</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500 text-center py-12">No active deals right now</p>
                 )}
             </div>
 
@@ -319,7 +302,7 @@ export default function BuyerDashboardPage() {
                     <h2 className="font-headline text-lg sm:text-xl font-black uppercase tracking-widest">For You</h2>
                 </div>
                 {isLoadingRecs ? (
-                    <ProductCarouselSkeleton />
+                    <div className="p-12 text-center opacity-20">Matching your style...</div>
                 ) : recommendedProducts && recommendedProducts.length > 0 ? (
                     <Carousel
                         opts={{ align: 'start' }}
@@ -341,8 +324,8 @@ export default function BuyerDashboardPage() {
                         <CarouselNext className="hidden lg:flex" />
                     </Carousel>
                 ) : (
-                    <div className="text-center p-12 border border-dashed rounded-3xl border-white/5 bg-neutral-900/20">
-                        <p className="font-black uppercase tracking-widest text-[10px] text-neutral-500">Shop your style — Discoveries coming soon</p>
+                    <div className="text-center p-12 bg-neutral-900/20 rounded-3xl">
+                        <p className="font-black uppercase tracking-widest text-[10px] text-neutral-500">Discoveries coming soon</p>
                     </div>
                 )}
             </div>

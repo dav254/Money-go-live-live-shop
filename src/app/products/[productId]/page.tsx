@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -33,23 +34,6 @@ const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
             ))}
         </div>
         {count !== undefined && <span className="text-xs text-neutral-400">({count} ratings)</span>}
-    </div>
-);
-
-const ProductPageSkeleton = () => (
-    <div className="bg-black text-white pb-24">
-        <div className="relative w-full aspect-square md:aspect-[16/10] bg-neutral-900">
-            <Skeleton className="w-full h-full" />
-        </div>
-        <div className="container mx-auto max-w-4xl py-6 px-4 space-y-6">
-            <div className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-4 w-48" />
-            </div>
-            <Skeleton className="h-28 w-full" />
-             <Skeleton className="h-12 w-full" />
-        </div>
     </div>
 );
 
@@ -264,14 +248,13 @@ export default function BuyerProductPage() {
     const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading;
     const filteredRecommendedProducts = useMemo(() => recommendedProducts?.filter(p => p.id !== productId) || [], [recommendedProducts, productId]);
 
-    if (isLoading) return <MainLayout><ProductPageSkeleton /></MainLayout>;
+    if (isLoading) return <MainLayout><div className="p-8">Loading...</div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     
     const discountPercentage = product.wasPrice && product.price ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
     const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Anonymous Seller';
     const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || getPlaceholderImage();
-    const isResellerPage = userProfile?.userRole === 'reseller';
-    const LayoutComponent = isResellerPage ? ResellerLayout : MainLayout;
+    const LayoutComponent = userProfile?.userRole === 'reseller' ? ResellerLayout : MainLayout;
 
     return (
         <LayoutComponent>
@@ -314,16 +297,13 @@ export default function BuyerProductPage() {
                         <div className="space-y-2">
                             <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black uppercase text-[10px] tracking-widest h-6 px-2">{product.category}</Badge>
-                                {product.brand && <Badge variant="outline" className="border-white/20 text-neutral-400 font-bold uppercase text-[10px] tracking-widest h-6 px-2"><Package className="h-3 w-3 mr-1" /> {product.brand}</Badge>}
                             </div>
                             <h1 className="font-headline text-3xl md:text-4xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
                             <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-neutral-500">
                                 <StarRating rating={product.rating || 0} count={reviews?.length || 0} />
                                 <span>{product.salesCount || 0} Sold</span>
-                                {sellerShop?.location && <span className="flex items-center gap-1.5 text-primary"><MapPin className="h-3.5 w-3.5" />{sellerShop.location}</span>}
                             </div>
                         </div>
-                        {product.condition && <Badge variant={product.condition === 'new' ? 'default' : 'secondary'} className={cn("h-10 px-6 rounded-2xl font-black uppercase tracking-widest text-xs self-start", product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-500 text-black")}>{product.condition === 'new' ? 'Brand New' : 'Pre-owned'}</Badge>}
                     </div>
 
                      <div className="flex flex-col gap-1">
@@ -337,7 +317,6 @@ export default function BuyerProductPage() {
                         <CardContent className="p-6 space-y-4 text-sm font-medium">
                             <div className="flex items-center gap-3 text-neutral-300"><MapPin className="h-5 w-5 text-primary" /> <span>Pickup / Ship from: <strong className="text-white uppercase tracking-tight">{sellerShop?.location || 'Store Location'}</strong></span></div>
                             <div className="flex items-center gap-3 text-neutral-300"><Truck className="h-5 w-5 text-primary" /> <span>Delivery: <strong className="text-white">{product.deliveryOptions || 'Standard Shipping'}</strong> — <strong className="text-green-400">USD ${product.shippingCost?.toLocaleString() || '0.00'}</strong></span></div>
-                            <div className="flex items-center gap-3 text-neutral-300"><ShieldCheck className="h-5 w-5 text-blue-500" /> <span>Go Earn Buyer Protection Enabled</span></div>
                         </CardContent>
                     </Card>
 
@@ -355,7 +334,7 @@ export default function BuyerProductPage() {
                             <Avatar className="h-14 w-14 border-2 border-primary/20"><AvatarImage src={sellerLogo} /><AvatarFallback className="bg-neutral-800 text-lg font-black uppercase">{sellerName?.charAt(0)}</AvatarFallback></Avatar>
                             <div className="flex-1 min-w-0">
                                 <p className="font-black text-lg uppercase tracking-tighter truncate leading-none mb-1">{sellerName}</p>
-                                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-neutral-500"><span className="text-primary">{sellerShop?.followers?.toLocaleString() || 0} followers</span>{sellerShop?.isVerified && <span className="flex items-center gap-1 text-blue-400"><ShieldCheck className="h-3 w-3" /> VERIFIED</span>}</div>
+                                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-neutral-500"><span className="text-primary">{sellerShop?.followers?.toLocaleString() || 0} followers</span></div>
                             </div>
                             <div className="flex gap-2">
                                 <Button variant={isFollowing ? 'secondary' : 'default'} size="sm" className="rounded-xl h-10 font-bold px-4" onClick={handleFollow}>{isFollowing ? 'Following' : 'Follow'}</Button>
@@ -368,27 +347,14 @@ export default function BuyerProductPage() {
                         <AccordionItem value="description" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
                             <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">The Full Story</AccordionTrigger>
                             <AccordionContent className="pb-8 space-y-6">
-                                <div className="prose prose-sm dark:prose-invert text-neutral-300 whitespace-pre-wrap leading-relaxed">{product.description}</div>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="policies" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
-                            <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">Shipping & Returns</AccordionTrigger>
-                            <AccordionContent className="pb-8 space-y-4 text-neutral-300 text-sm">
-                                <div><h4 className="font-bold text-white mb-1 uppercase text-[10px] tracking-widest flex items-center gap-2"><Truck className="h-3 w-3 text-primary" /> Delivery Policy</h4><p className="pl-5 border-l border-white/10">{sellerShop?.deliveryPolicy || "Standard delivery applies."}</p></div>
-                                <div><h4 className="font-bold text-white mb-1 uppercase text-[10px] tracking-widest flex items-center gap-2"><ShieldCheck className="h-3 w-3 text-primary" /> Return Policy</h4><p className="pl-5 border-l border-white/10">{sellerShop?.returnPolicy || "Contact seller for returns."}</p></div>
-                            </AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="reviews" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
-                            <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">Customer Reviews ({reviews?.length || 0})</AccordionTrigger>
-                            <AccordionContent className="pb-8">
-                                {areReviewsLoading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : reviews && reviews.length > 0 ? reviews.map(review => <ReviewCard key={review.id} review={review} />) : <div className="text-center py-12"><p className="text-neutral-500 font-bold uppercase text-[10px] tracking-widest">No reviews yet.</p></div>}
+                                <div className="prose prose-sm dark:prose-invert text-neutral-300 whitespace-pre-wrap">{product.description}</div>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                     
                     <div className="pt-8">
                         <h2 className="font-headline text-xl font-black uppercase tracking-tighter mb-6 flex items-center gap-3"><Plus className="text-primary" />More from this Shop</h2>
-                         {areRecsLoading ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4"><Skeleton className="h-64 rounded-3xl" /><Skeleton className="h-64 rounded-3xl" /></div> : filteredRecommendedProducts.length > 0 ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}</div> : <p className="text-neutral-600 font-bold uppercase text-[10px] tracking-widest text-center py-12 border-2 border-dashed rounded-3xl border-white/5">No other products.</p>}
+                         {areRecsLoading ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">Loading...</div> : filteredRecommendedProducts.length > 0 ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{filteredRecommendedProducts.map(p => <ProductCard key={p.id} product={p} />)}</div> : <p className="text-neutral-600 font-bold uppercase text-[10px] tracking-widest text-center py-12 border-2 border-dashed rounded-3xl border-white/5">No other products.</p>}
                     </div>
                 </div>
 

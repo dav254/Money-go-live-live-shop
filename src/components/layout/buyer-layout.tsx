@@ -1,3 +1,4 @@
+
 'use client';
 
 import { 
@@ -23,7 +24,7 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
     return (
       <div className="flex h-screen w-full items-center justify-center gap-2">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span>Loading Dashboard...</span>
+        <span>Loading...</span>
       </div>
     );
   }

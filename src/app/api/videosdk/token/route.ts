@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
@@ -9,7 +10,7 @@ export async function GET() {
   const API_KEY = process.env.VIDEOSDK_API_KEY;
   const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY;
 
-  // Frontend-only fallback mode
+  // Frontend-only fallback mode to prevent hard "Authentication failure" errors
   if (!API_KEY || !SECRET_KEY) {
     console.warn("[VideoSDK] API keys missing. Returning fallback token for development.");
     return NextResponse.json({ 
