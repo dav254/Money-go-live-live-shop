@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -120,7 +119,7 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
         </Link>
         {discountPercentage > 0 && (
-          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+          <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded shadow-xl">
             {discountPercentage}% OFF
           </div>
         )}
@@ -144,18 +143,18 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </div>
       <div className="p-3 flex-1 flex flex-col">
-        <h3 className="text-sm font-semibold truncate group-hover:text-red-400">
+        <h3 className="text-sm font-semibold truncate group-hover:text-primary">
             <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-lg font-bold text-primary">${product.price?.toLocaleString()}</span>
+          <span className="text-lg font-black text-primary">${product.price?.toLocaleString()}</span>
           {product.wasPrice && (
-            <span className="text-sm text-neutral-400 line-through">${product.wasPrice.toLocaleString()}</span>
+            <span className="text-xs text-neutral-500 line-through font-bold">${product.wasPrice.toLocaleString()}</span>
           )}
         </div>
         <div className="mt-auto pt-3 flex gap-2">
-            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-white">
-                <ShoppingCart className="h-4 w-4" />
+            <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-white font-black text-[10px] uppercase">
+                <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> ADD
             </Button>
             <Button asChild size="icon" variant="outline" className="shrink-0 border-neutral-700 hover:bg-neutral-800">
                 <Link href={`/products/${product.id}`}><Eye className="h-4 w-4" /></Link>

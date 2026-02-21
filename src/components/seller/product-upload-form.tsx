@@ -32,6 +32,7 @@ import {
   ImageIcon,
   CheckCircle2,
   Tag as TagIcon,
+  Percent,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -390,7 +391,8 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           <div className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><DollarSign className="text-primary" /> Pricing & Inventory</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Percent className="text-primary" /> Pricing & Discount</CardTitle>
+                <CardDescription>Set your selling price and an optional "Was Price" to show a discount.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -407,7 +409,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Local Price</FormLabel>
+                      <FormLabel>Sale Price ({form.watch('currency')})</FormLabel>
                       <FormControl><Input type="number" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -423,9 +425,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 )} />
                 <FormField control={form.control} name="wasPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Was Price (USD)</FormLabel>
-                      <FormControl><Input type="number" placeholder="Optional" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormDescription>Optional: The original price before discount.</FormDescription>
+                      <FormLabel>Was Price (USD) - <span className="text-destructive font-bold">Optional Discount</span></FormLabel>
+                      <FormControl><Input type="number" placeholder="e.g. 100" {...field} value={field.value ?? ''} /></FormControl>
+                      <FormDescription>The original price before the current sale price.</FormDescription>
                       <FormMessage />
                     </FormItem>
                 )} />

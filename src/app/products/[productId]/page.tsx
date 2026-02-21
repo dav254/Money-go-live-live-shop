@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -341,7 +340,7 @@ export default function BuyerProductPage() {
         );
     }
     
-    const discountPercentage = product.wasPrice ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
+    const discountPercentage = product.wasPrice && product.price ? Math.round(((product.wasPrice - product.price) / product.wasPrice) * 100) : 0;
     const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Anonymous Seller';
     const sellerLogo = sellerShop?.logoUrl || sellerProfile?.profilePictureUrl || getPlaceholderImage();
     const sellerFollowers = sellerShop?.followers || 0;
@@ -415,9 +414,14 @@ export default function BuyerProductPage() {
                     </div>
 
                      <div className="flex flex-col gap-1">
-                        <p className="text-4xl font-black text-primary tracking-tighter">USD ${product.price.toLocaleString()}</p>
+                        <div className="flex items-baseline gap-3">
+                            <p className="text-4xl font-black text-primary tracking-tighter">USD ${product.price.toLocaleString()}</p>
+                            {product.wasPrice && (
+                                <p className="text-xl text-neutral-500 line-through font-bold">${product.wasPrice.toLocaleString()}</p>
+                            )}
+                        </div>
                         {product.localPrice && product.localCurrency && product.localCurrency !== 'USD' && (
-                            <p className="text-sm text-neutral-400 flex items-center gap-1.5 font-bold uppercase tracking-widest bg-white/5 w-fit px-3 py-1 rounded-full">
+                            <p className="text-sm text-neutral-400 flex items-center gap-1.5 font-bold uppercase tracking-widest bg-white/5 w-fit px-3 py-1 rounded-full mt-2">
                                 <Globe className="h-3.5 w-3.5" />
                                 {product.localCurrency} {product.localPrice.toLocaleString()}
                             </p>
