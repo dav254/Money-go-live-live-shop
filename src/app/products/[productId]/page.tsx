@@ -11,7 +11,6 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2, Info, X, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -37,7 +36,6 @@ const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
 
 export default function BuyerProductPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
     const productId = params.productId as string;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();

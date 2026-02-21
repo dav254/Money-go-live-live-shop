@@ -1,7 +1,3 @@
-/**
- * DEPRECATED: This route has been moved to src/app/api/webhooks/paystack/route.ts
- * to comply with Next.js 15 App Router requirements and avoid duplicate page conflicts.
- */
-export default function handler(req: any, res: any) {
-  res.status(404).json({ message: "Moved to /src/app/api/webhooks/paystack/route.ts" });
-}
+// This route has been moved to /src/app/api/webhooks/paystack/route.ts
+// Content removed to avoid duplicate route conflicts in Next.js 15.
+export const dynamic = 'force-dynamic';
