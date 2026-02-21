@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -13,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2 } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -286,7 +285,7 @@ export default function BuyerProductPage() {
                         )}
                     </div>
                     <div className="absolute top-4 right-4 flex gap-2">
-                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 hover:bg-black/70 border-none" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
+                        <Button size="icon" variant="secondary" className="rounded-full bg-black/50 h-10 w-10 hover:bg-black/70 border-none" onClick={handleShare}><Share2 className="h-5 w-5" /></Button>
                     </div>
                     {discountPercentage > 0 && <Badge className="absolute top-4 left-4 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] h-7 px-3">{discountPercentage}% OFF</Badge>}
                 </div>

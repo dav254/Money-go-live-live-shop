@@ -1,20 +1,23 @@
-
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 /**
  * Securely generates a VideoSDK access token.
- * Optimized for version 2 protocols which offer faster participant discovery.
+ * Provides a fallback dummy token for frontend testing if keys are missing.
  */
 export async function GET() {
   const API_KEY = process.env.VIDEOSDK_API_KEY;
   const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY;
 
+  // Frontend-only fallback mode
   if (!API_KEY || !SECRET_KEY) {
-    return NextResponse.json(
-      { error: 'CONFIGURATION_REQUIRED', message: 'VideoSDK API keys are not configured. Please add VIDEOSDK_API_KEY and VIDEOSDK_SECRET_KEY to your .env file.' },
-      { status: 401 }
-    );
+    console.warn("[VideoSDK] API keys missing. Returning fallback token for development.");
+    return NextResponse.json({ 
+        token: "fallback_token_development_only",
+        isFallback: true 
+    }, {
+        headers: { 'X-VideoSDK-Status': 'development-fallback' }
+    });
   }
 
   try {

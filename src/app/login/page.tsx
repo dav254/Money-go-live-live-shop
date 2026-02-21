@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -101,10 +100,8 @@ export default function LoginPage() {
       console.error('Login Error:', error);
       let description = 'Invalid email or password.';
       
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         description = 'Incorrect email or password. Please check your details and try again.';
-      } else if (error.code === 'auth/user-not-found') {
-        description = 'No account found with this email.';
       }
       
       toast({
