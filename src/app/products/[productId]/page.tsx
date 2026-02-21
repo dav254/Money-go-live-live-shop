@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -11,28 +11,15 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, Globe, Sparkles, Clock, Package, Loader2, Info, X, Maximize2 } from 'lucide-react';
+import { Star, Truck, MapPin, MessageSquare, Plus, Store, Heart, Zap, Video, ShoppingCart, Tag, Minus, X, Maximize2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, useUserProfile, useCollection } from '@/firebase';
-import { doc, setDoc, increment, serverTimestamp, collection, updateDoc, arrayUnion, arrayRemove, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, useCollection } from '@/firebase';
+import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { formatDistanceToNow } from 'date-fns';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
-
-const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
-    <div className="flex items-center gap-2">
-        <div className="flex items-center text-yellow-400">
-            {[...Array(5)].map((_, i) => (
-                <Star key={i} className={`h-4 w-4 ${i < Math.round(rating) ? 'fill-current' : ''}`} />
-            ))}
-        </div>
-        {count !== undefined && <span className="text-xs text-neutral-400">({count} ratings)</span>}
-    </div>
-);
 
 export default function BuyerProductPage() {
     const params = useParams();
@@ -43,13 +30,6 @@ export default function BuyerProductPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [quantity, setQuantity] = useState(1);
-
-    useEffect(() => {
-        if (firestore && productId && user) {
-            const productRef = doc(firestore, 'products', productId);
-            updateDoc(productRef, { viewCount: increment(1) }).catch(console.error);
-        }
-    }, [firestore, productId, user]);
 
     const productRef = useMemoFirebase(() => {
         return productId ? doc(firestore, 'products', productId) : null;
@@ -73,14 +53,6 @@ export default function BuyerProductPage() {
         return query(collection(firestore, 'products', productId, 'reviews'), orderBy('createdAt', 'desc'));
     }, [firestore, productId]);
     const { data: reviews } = useCollection<Review>(reviewsQuery);
-    
-    const [isFollowing, setIsFollowing] = useState(false);
-
-    useEffect(() => {
-        if (userProfile && userProfile.following && sellerId) {
-            setIsFollowing(userProfile.following.includes(sellerId));
-        }
-    }, [userProfile, sellerId]);
 
     const allMedia = useMemo(() => {
         if (!product) return [];
@@ -144,7 +116,6 @@ export default function BuyerProductPage() {
     if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     
-    const sellerName = sellerShop?.shopName || sellerProfile?.fullName || 'Seller';
     const LayoutComponent = userProfile?.userRole === 'reseller' ? ResellerLayout : MainLayout;
 
     return (
@@ -164,8 +135,8 @@ export default function BuyerProductPage() {
                                 </DialogTrigger>
                                 <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 flex items-center justify-center z-[100]">
                                     <DialogHeader className="sr-only">
-                                        <DialogTitle>Zoom View</DialogTitle>
-                                        <DialogDescription>Detailed product image view</DialogDescription>
+                                        <DialogTitle>{product.name} Full View</DialogTitle>
+                                        <DialogDescription>A detailed full-screen view of the product image.</DialogDescription>
                                     </DialogHeader>
                                     <div className="relative w-full h-full flex items-center justify-center p-4">
                                         <DialogClose className="absolute top-6 right-6 z-[110] bg-white/10 hover:bg-white/20 p-3 rounded-full text-white">

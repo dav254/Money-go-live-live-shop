@@ -10,9 +10,8 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, ShoppingBag, Share2, BadgeCent, ArrowRight } from 'lucide-react';
+import { TrendingUp, ShoppingBag, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useUser, useUserProfile } from '@/firebase';
 
 export default function ResellerDashboardPage() {
