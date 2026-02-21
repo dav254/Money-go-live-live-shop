@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -9,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Star, Truck, MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { Star, Truck, MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, useCollection } from '@/firebase';
@@ -134,8 +135,8 @@ export default function BuyerProductPage() {
                                 </DialogTrigger>
                                 <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 flex items-center justify-center z-[100]">
                                     <DialogHeader className="sr-only">
-                                        <DialogTitle>{product.name} Full View</DialogTitle>
-                                        <DialogDescription>A detailed full-screen view of the product image.</DialogDescription>
+                                        <DialogTitle>{product.name} - Full Resolution View</DialogTitle>
+                                        <DialogDescription>A zoomed-in view of the product media gallery.</DialogDescription>
                                     </DialogHeader>
                                     <div className="relative w-full h-full flex items-center justify-center p-4">
                                         <DialogClose className="absolute top-6 right-6 z-[110] bg-white/10 hover:bg-white/20 p-3 rounded-full text-white">
@@ -154,9 +155,9 @@ export default function BuyerProductPage() {
                 </div>
                 
                 {allMedia.length > 1 && (
-                    <div className="bg-neutral-900/50 py-3 border-y border-white/5 overflow-x-auto flex gap-2 px-4">
+                    <div className="bg-neutral-900/50 py-3 border-y border-white/5 overflow-x-auto flex gap-2 px-4 scrollbar-hide">
                         {allMedia.map((media, i) => (
-                            <button key={i} onClick={() => setSelectedMedia(media)} className={cn("relative h-16 w-16 rounded-md overflow-hidden flex-shrink-0 border-2", selectedMedia?.url === media.url ? "border-primary" : "border-transparent")}>
+                            <button key={i} onClick={() => setSelectedMedia(media)} className={cn("relative h-16 w-16 rounded-md overflow-hidden flex-shrink-0 border-2 transition-all", selectedMedia?.url === media.url ? "border-primary scale-105" : "border-transparent opacity-60")}>
                                 <Image src={media.url} alt={`thumb ${i}`} fill className="object-cover" />
                             </button>
                         ))}
