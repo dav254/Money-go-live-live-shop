@@ -1,7 +1,6 @@
 
 'use client';
 
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Bell, Menu, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
