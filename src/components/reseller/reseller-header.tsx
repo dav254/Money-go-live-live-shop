@@ -64,12 +64,6 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/reseller/notifications">
-            <Bell />
-            <span className="sr-only">Notifications</span>
-          </Link>
-        </Button>
         <UserNav />
       </div>
     </header>

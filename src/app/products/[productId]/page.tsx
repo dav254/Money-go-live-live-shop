@@ -67,8 +67,8 @@ export default function BuyerProductPage() {
     const searchParams = useSearchParams();
     const productId = params.productId as string;
     const firestore = useFirestore();
-    const { user } = useUser();
-    const { userProfile } = useUserProfile(user?.uid);
+    const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
     const [quantity, setQuantity] = useState(1);
@@ -245,7 +245,7 @@ export default function BuyerProductPage() {
         });
     };
 
-    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading;
+    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
     const filteredRecommendedProducts = useMemo(() => recommendedProducts?.filter(p => p.id !== productId) || [], [recommendedProducts, productId]);
 
     if (isLoading) return <MainLayout><div className="p-8">Loading...</div></MainLayout>;
