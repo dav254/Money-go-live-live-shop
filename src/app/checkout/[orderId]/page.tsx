@@ -164,37 +164,6 @@ export default function CheckoutPage() {
             setIsLoadingPayment(null);
         }
     };
-    
-    const handleSimulatePayment = async () => {
-        if (!order || !user?.email) return;
-        setIsLoadingPayment('simulate');
-
-        try {
-            const response = await fetch('/api/checkout/simulate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: order.id }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Simulation failed.');
-            }
-            toast({
-                title: 'Payment Simulated!',
-                description: 'Your order is now being processed.',
-            });
-            router.push('/buyer/my-orders');
-        } catch (err: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Simulation Error',
-                description: err.message || 'Could not simulate payment.',
-            });
-        } finally {
-            setIsLoadingPayment(null);
-        }
-    };
 
     if (isLoading) {
         return (
@@ -291,17 +260,6 @@ export default function CheckoutPage() {
                          >
                             {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : <div className="h-6 w-6 bg-white rounded" />} 
                             Pay with PayPal
-                        </Button>
-                        <Separator />
-                         <Button
-                            size="lg"
-                            variant="secondary"
-                            className="w-full justify-start gap-4 h-16 text-lg"
-                            onClick={handleSimulatePayment}
-                            disabled={!!isLoadingPayment}
-                         >
-                            {isLoadingPayment === 'simulate' ? <Loader2 className="animate-spin" /> : <div className="h-6 w-6 bg-yellow-400 rounded" />} 
-                            Simulate Demo Payment
                         </Button>
                     </div>
                 </div>

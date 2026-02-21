@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -139,6 +140,7 @@ export default function SellerGoLivePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [prewarmedMeetingId, setPrewarmedMeetingId] = useState<string | null>(null);
@@ -147,11 +149,13 @@ export default function SellerGoLivePage() {
   const [isPaused, setIsPaused] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number>(SESSION_LIMIT_MS);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
-  
+  const [isCameraLive, setIsCameraLive] = useState<boolean | null>(null);
+
   const [offerTitle, setOfferTitle] = useState('');
   const [offerCode, setOfferCode] = useState('');
   const [isPublishingOffer, setIsPublishingOffer] = useState(false);
@@ -168,7 +172,14 @@ export default function SellerGoLivePage() {
   const fetchToken = useCallback(async () => {
     try {
       const res = await fetch('/api/videosdk/token');
-      if (!res.ok) throw new Error("Authentication failure");
+      if (!res.ok) {
+          const data = await res.json();
+          if (data.error === 'CONFIGURATION_REQUIRED') {
+              setIsConfigMissing(true);
+              return;
+          }
+          throw new Error("Authentication failure");
+      }
       const data = await res.json();
       if (data.token) setToken(data.token);
     } catch (err) {
@@ -185,7 +196,6 @@ export default function SellerGoLivePage() {
   useEffect(() => {
     const prewarmMeeting = async () => {
         if (token && !prewarmedMeetingId && !activeSession) {
-            console.log("Pre-warming a new meeting room...");
             try {
                 const res = await fetch("https://api.videosdk.live/v2/rooms", {
                     method: "POST",
@@ -195,7 +205,6 @@ export default function SellerGoLivePage() {
                 const { roomId } = await res.json();
                 if (roomId) {
                     setPrewarmedMeetingId(roomId);
-                    console.log("Meeting room pre-warmed:", roomId);
                 } else {
                     throw new Error("Failed to get roomId from VideoSDK");
                 }
@@ -207,26 +216,45 @@ export default function SellerGoLivePage() {
     prewarmMeeting();
   }, [token, prewarmedMeetingId, activeSession]);
 
+  const getCameraPermission = useCallback(async (forceRetry = false) => {
+    if (hasPermissions && !forceRetry) return;
+
+    setHasPermissions(null);
+    setIsCameraLive(null);
+    if (cameraCheckTimeoutRef.current) clearTimeout(cameraCheckTimeoutRef.current);
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setHasPermissions(true);
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            cameraCheckTimeoutRef.current = setTimeout(() => {
+                setIsCameraLive(isLive => isLive === true ? true : false);
+            }, 3000); 
+        }
+    } catch (err) {
+        console.warn("Hardware access denied in lobby:", err);
+        setHasPermissions(false);
+        setIsCameraLive(false);
+    }
+  }, [hasPermissions]);
+
   useEffect(() => {
     if (!wantsToSetup) {
-        const getCameraPermission = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                setHasPermissions(true);
-                if (videoRef.current) videoRef.current.srcObject = stream;
-            } catch (err) {
-                console.warn("Hardware access denied in lobby:", err);
-                setHasPermissions(false);
-            }
-        };
         getCameraPermission();
     }
     return () => {
         if (videoRef.current?.srcObject) {
             (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
         }
+        if (cameraCheckTimeoutRef.current) clearTimeout(cameraCheckTimeoutRef.current);
     };
-  }, [wantsToSetup]);
+  }, [wantsToSetup, getCameraPermission]);
+
+  const handleCameraOnPlay = () => {
+      if (cameraCheckTimeoutRef.current) clearTimeout(cameraCheckTimeoutRef.current);
+      setIsCameraLive(true);
+  };
 
   useEffect(() => {
     if (activeSession && activeSession.status !== 'ended' && !wantsToSetup) {
@@ -462,6 +490,82 @@ export default function SellerGoLivePage() {
       }
   };
 
+  const renderLobbyState = () => {
+      if (hasPermissions === null) {
+          return (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
+                  <p className="text-white/70 font-medium">Checking permissions...</p>
+              </div>
+          );
+      }
+      if (hasPermissions === false) {
+          return (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
+                  <VideoOff className="h-10 w-10 text-destructive mb-3" />
+                  <p className="text-white font-black uppercase tracking-tighter text-lg">Camera/Mic Denied</p>
+                  <p className="text-white/60 text-xs mt-2 max-w-xs">To go live, you must enable camera and microphone permissions in your browser settings for this site.</p>
+                  <Button variant="secondary" className="mt-4 font-bold" onClick={() => getCameraPermission(true)}>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Retry Permission Check
+                  </Button>
+              </div>
+          );
+      }
+      if (isCameraLive === null) {
+          return (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
+                  <p className="text-white/70 font-medium">Syncing camera feed...</p>
+              </div>
+          );
+      }
+      if (isCameraLive === false) {
+        return (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
+                <VideoOff className="h-10 w-10 text-destructive mb-3" />
+                <p className="text-white font-black uppercase tracking-tighter text-lg">Camera Offline</p>
+                <p className="text-white/60 text-xs mt-2 max-w-xs">Your camera is not sending a video signal. Check your connection and make sure your camera is not covered.</p>
+                <Button variant="secondary" className="mt-4 font-bold" onClick={() => getCameraPermission(true)}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Check Camera Again
+                </Button>
+            </div>
+        );
+    }
+      return null;
+  }
+
+  if (isConfigMissing) {
+    return (
+      <SellerLayout>
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] p-8">
+          <Card className="max-w-md w-full shadow-2xl border-yellow-500/20 bg-yellow-500/5">
+            <CardHeader className="text-center">
+              <div className="mx-auto bg-yellow-500/10 p-4 rounded-full w-fit mb-4">
+                <AlertCircle className="h-12 w-12 text-yellow-500" />
+              </div>
+              <CardTitle className="font-headline text-2xl font-black uppercase tracking-tighter">Configuration Required</CardTitle>
+              <CardDescription>
+                The media server (VideoSDK) has not been configured for this environment yet.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center text-sm text-neutral-400 space-y-4">
+              <p>Please contact your system administrator to add the following environment variables:</p>
+              <div className="bg-black/40 p-3 rounded-lg font-mono text-[10px] text-left space-y-1 border border-white/5">
+                <p>VIDEOSDK_API_KEY=your_key</p>
+                <p>VIDEOSDK_SECRET_KEY=your_secret</p>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full font-black uppercase" onClick={() => router.push('/dashboard/seller')}>BACK TO DASHBOARD</Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </SellerLayout>
+    );
+  }
+
   if (error) {
     return (
       <SellerLayout>
@@ -493,20 +597,14 @@ export default function SellerGoLivePage() {
                       </CardHeader>
                       <CardContent className="space-y-8">
                           <div className="relative aspect-video w-full bg-black rounded-2xl overflow-hidden border border-white/10 group shadow-2xl">
-                              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover grayscale-[20%]" />
+                              <video ref={videoRef} autoPlay muted playsInline onPlaying={handleCameraOnPlay} className="w-full h-full object-cover" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
                               <div className="absolute top-4 left-4">
-                                  <Badge className={cn("bg-black/40 backdrop-blur-md border-white/10 text-[9px] font-black tracking-widest uppercase", prewarmedMeetingId ? "text-green-400" : "text-yellow-400")}>
-                                    {prewarmedMeetingId ? 'SIGNAL LOCKED' : 'INITIATING SIGNAL'}
+                                  <Badge className={cn("bg-black/40 backdrop-blur-md border-white/10 text-[9px] font-black tracking-widest uppercase", prewarmedMeetingId && isCameraLive ? "text-green-400" : "text-yellow-400")}>
+                                    {prewarmedMeetingId && isCameraLive ? 'STUDIO READY' : 'INITIATING SIGNAL'}
                                   </Badge>
                               </div>
-                              {hasPermissions === false && (
-                                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-6">
-                                      <VideoOff className="h-10 w-10 text-destructive mb-3" />
-                                      <p className="text-white font-black uppercase tracking-tighter text-sm">Camera Permission Required</p>
-                                      <p className="text-white/40 text-[10px] mt-1 max-w-[200px]">We need to verify your gear before you can pay to start a session.</p>
-                                  </div>
-                              )}
+                              {renderLobbyState()}
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -535,7 +633,7 @@ export default function SellerGoLivePage() {
                             size="lg" 
                             className="w-full h-14 rounded-2xl font-black text-lg shadow-xl text-white bg-primary hover:bg-primary/90"
                             onClick={handleSetupPreview}
-                            disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession) || !prewarmedMeetingId}
+                            disabled={isStarting || ((userProfile?.aiPoints || 0) < 100 && !activeSession) || !prewarmedMeetingId || !isCameraLive}
                           >
                               {isStarting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Camera className="mr-2 h-6 w-6" />}
                               {activeSession ? 'RESUME MY SHOW' : 'ENTER STUDIO'}

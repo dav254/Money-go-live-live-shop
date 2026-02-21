@@ -332,6 +332,12 @@ export default function BuyerDashboardPage() {
                     </div>
                 )}
             </div>
+            {liveSessions?.length === 0 && dealsProducts?.length === 0 && recommendedProducts?.length === 0 && (
+                <div className="text-center p-12 border-2 border-dashed rounded-3xl border-white/5 ">
+                    <h2 className="text-2xl font-bold">Offers coming soon</h2>
+                    <p className="text-muted-foreground">Stay tuned for exciting deals and live events!</p>
+                </div>
+            )}
         </div>
     </BuyerLayout>
   );

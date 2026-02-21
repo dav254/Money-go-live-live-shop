@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -12,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles, Clock, Package } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles, Clock, Package, ArrowRight } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -65,7 +66,7 @@ const ProductPageSkeleton = () => (
 const ReviewCard = ({ review }: { review: Review }) => {
     const firestore = useFirestore();
     const userProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', review.buyerId), [firestore, review.buyerId]);
-    const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
+    const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
     return (
         <div className="flex gap-4 border-b border-neutral-800 py-4 last:border-b-0">
@@ -76,7 +77,7 @@ const ReviewCard = ({ review }: { review: Review }) => {
             <div className="flex-1">
                 <div className="flex items-center justify-between">
                     <p className="font-semibold text-sm">{userProfile?.fullName || 'Anonymous'}</p>
-                    <p className="text-xs text-neutral-400">{formatDistanceToNow(review.createdAt.toDate(), { addSuffix: true })}</p>
+                    <p className="text-xs text-neutral-400">{review.createdAt?.toDate ? formatDistanceToNow(review.createdAt.toDate(), { addSuffix: true }) : 'Just now'}</p>
                 </div>
                 <div className="my-1">
                     <StarRating rating={review.rating} />
@@ -578,7 +579,6 @@ export default function BuyerProductPage() {
                 <Button variant="secondary" className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs" onClick={handleAddToCart}>Add to Cart</Button>
                 <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={handleBuyNow}>Buy It Now</Button>
             </div>
-        </div>
-    </LayoutComponent>
+        </LayoutComponent>
     );
 }
