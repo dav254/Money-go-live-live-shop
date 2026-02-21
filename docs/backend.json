@@ -799,7 +799,10 @@
         "isLivePartner": {
           "type": "boolean",
           "description": "Whether the seller has unlocked full live streaming features."
-        }
+        },
+        "returnPolicy": { "type": "string" },
+        "deliveryPolicy": { "type": "string" },
+        "storeHours": { "type": "string" }
       },
       "required": [
         "id",

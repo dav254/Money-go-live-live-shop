@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -12,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles, Clock } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -97,7 +98,7 @@ export default function BuyerProductPage() {
     const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
-    const [quantity, setQuantity] = setQuantityState(1);
+    const [quantity, setQuantity] = useState(1);
 
     useEffect(() => {
         if (firestore && productId && user) {
@@ -348,10 +349,6 @@ export default function BuyerProductPage() {
     const isResellerPage = userProfile?.userRole === 'reseller';
     const LayoutComponent = isResellerPage ? ResellerLayout : MainLayout;
 
-    function setQuantityState(initial: number): [number, React.Dispatch<React.SetStateAction<number>>] {
-        return useState(initial);
-    }
-
     return (
         <LayoutComponent>
             <div className="bg-black text-white pb-24">
@@ -501,6 +498,31 @@ export default function BuyerProductPage() {
                                                 #{tag.trim()}
                                             </Badge>
                                         ))}
+                                    </div>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="policies" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
+                            <AccordionTrigger className="font-black uppercase tracking-widest text-xs hover:no-underline py-6">Shipping & Returns</AccordionTrigger>
+                            <AccordionContent className="pb-8 space-y-4 text-neutral-300 text-sm">
+                                <div>
+                                    <h4 className="font-bold text-white mb-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                        <Truck className="h-3 w-3 text-primary" /> Delivery Policy
+                                    </h4>
+                                    <p className="pl-5 border-l border-white/10">{sellerShop?.deliveryPolicy || "Standard delivery applies. Contact seller for details."}</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-white mb-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                        <ShieldCheck className="h-3 w-3 text-primary" /> Return Policy
+                                    </h4>
+                                    <p className="pl-5 border-l border-white/10">{sellerShop?.returnPolicy || "Please contact the seller regarding their return policy."}</p>
+                                </div>
+                                {sellerShop?.storeHours && (
+                                    <div>
+                                        <h4 className="font-bold text-white mb-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                            <Clock className="h-3 w-3 text-primary" /> Store Hours
+                                        </h4>
+                                        <p className="pl-5 border-l border-white/10">{sellerShop.storeHours}</p>
                                     </div>
                                 )}
                             </AccordionContent>
