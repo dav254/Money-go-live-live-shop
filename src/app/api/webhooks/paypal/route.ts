@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
-import { doc, updateDoc, increment, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
 export async function POST(request: Request) {
@@ -27,15 +27,16 @@ export async function POST(request: Request) {
                 const amount = parseFloat(purchaseUnit.amount.value);
 
                 if (userId && points) {
-                    await updateDoc(doc(db, 'userProfiles', userId), {
-                        aiPoints: increment(points)
+                    const userRef = db.collection('userProfiles').doc(userId);
+                    await userRef.update({
+                        aiPoints: FieldValue.increment(points)
                     });
-                    await addDoc(collection(db, 'payments'), {
+                    await db.collection('payments').add({
                         userId: userId,
                         amount: amount,
                         paymentMethod: 'paypal',
                         paymentStatus: 'completed',
-                        paymentDate: serverTimestamp(),
+                        paymentDate: FieldValue.serverTimestamp(),
                         transactionType: 'points-purchase',
                         transactionId: resource.id,
                     });
@@ -43,21 +44,22 @@ export async function POST(request: Request) {
             } else {
                 const orderId = metadata.orderId;
                 if (orderId) {
-                    const orderRef = doc(db, 'orders', orderId);
-                    const orderSnap = await getDoc(orderRef);
-                    if (orderSnap.exists()) {
+                    const orderRef = db.collection('orders').doc(orderId);
+                    const orderSnap = await orderRef.get();
+                    if (orderSnap.exists) {
                         const orderData = orderSnap.data() as Order;
-                        await updateDoc(orderRef, {
+                        await orderRef.update({
                             orderStatus: 'processing',
                             paymentMethod: 'paypal',
+                            updatedAt: FieldValue.serverTimestamp(),
                         });
-                        await addDoc(collection(db, 'payments'), {
+                        await db.collection('payments').add({
                             orderId: orderId,
                             userId: orderData.buyerId,
                             amount: orderData.totalAmount,
                             paymentMethod: 'paypal',
                             paymentStatus: 'completed',
-                            paymentDate: serverTimestamp(),
+                            paymentDate: FieldValue.serverTimestamp(),
                             transactionType: 'product-purchase',
                             transactionId: resource.id,
                         });
