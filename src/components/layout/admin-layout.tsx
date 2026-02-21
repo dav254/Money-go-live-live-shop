@@ -17,6 +17,7 @@ import { AdminHeader } from '../admin/admin-header';
 import { Logo } from '../logo';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -49,7 +50,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
             <Sidebar side="left" collapsible="icon">
                 <SidebarHeader className="border-b bg-card p-4">
-                    <Logo className="h-8 w-auto text-primary" />
+                    <Link href="/dashboard/admin">
+                      <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                    </Link>
                 </SidebarHeader>
                 <SidebarContent>
                     <AdminSidebar />

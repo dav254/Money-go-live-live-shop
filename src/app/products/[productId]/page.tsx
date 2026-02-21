@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -136,7 +137,7 @@ export default function BuyerProductPage() {
     const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
 
     useEffect(() => {
-        if (allMedia.length > 0 && !selectedMedia) {
+        if (allMedia.length > 1 && !selectedMedia) {
             setSelectedMedia(allMedia[0]);
         }
     }, [allMedia, selectedMedia]);

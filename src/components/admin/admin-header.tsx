@@ -37,7 +37,9 @@ export function AdminHeader() {
             <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
                 <SheetTitle asChild>
-                  <Logo className="h-8 w-auto text-primary" />
+                  <Link href="/dashboard/admin">
+                    <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                  </Link>
                 </SheetTitle>
               </SheetHeader>
               <div className="p-4 pt-0">

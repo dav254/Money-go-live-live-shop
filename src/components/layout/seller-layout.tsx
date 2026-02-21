@@ -18,6 +18,7 @@ import { SellerHeader } from '../seller/seller-header';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 export function SellerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -49,7 +50,9 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
         <SidebarHeader className="border-b bg-card p-4">
-          <Logo className="h-8 w-auto text-primary" />
+          <Link href="/dashboard/seller">
+            <Logo className="h-8 w-auto text-primary cursor-pointer" />
+          </Link>
         </SidebarHeader>
         <SidebarContent>
           <SellerSidebar />

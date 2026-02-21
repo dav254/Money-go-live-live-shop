@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useEffect, cloneElement } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Sidebar,
@@ -17,6 +18,7 @@ import { Logo } from '../logo';
 import { ResellerHeader } from '../reseller/reseller-header';
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 export function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
@@ -51,8 +53,10 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
-        <SidebarHeader>
-          <Logo className="h-8 w-auto text-primary" />
+        <SidebarHeader className="border-b bg-card p-4">
+          <Link href="/dashboard/reseller">
+            <Logo className="h-8 w-auto text-primary cursor-pointer" />
+          </Link>
         </SidebarHeader>
         <SidebarContent>
           <ResellerSidebar />
