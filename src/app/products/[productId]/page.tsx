@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -381,7 +380,9 @@ export default function BuyerProductPage() {
 
                 <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-xl border-t border-white/5 p-3 flex items-center gap-3">
                     <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-3 py-1 group"><Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/><span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span></Link>
-                    <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent"><MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" /><span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span></Button>
+                    {userProfile?.userRole !== 'reseller' && (
+                        <Button variant="ghost" onClick={handleMessageSeller} className="flex flex-col items-center px-3 py-1 h-auto group bg-transparent hover:bg-transparent"><MessageSquare className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors" /><span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Chat</span></Button>
+                    )}
                     <Button variant="secondary" className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs" onClick={handleAddToCart}>Add to Cart</Button>
                     <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" onClick={handleBuyNow}>Buy It Now</Button>
                 </div>

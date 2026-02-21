@@ -1,9 +1,8 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Bell, Menu, MessageSquare } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
@@ -21,7 +20,6 @@ interface ResellerHeaderProps {
 
 export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) {
   const resellerName = userProfile?.fullName || 'Reseller';
-  const resellerAvatar = userProfile?.profilePictureUrl || `https://picsum.photos/seed/${userProfile?.id}/100`;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
@@ -67,12 +65,6 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
           <Link href="/dashboard/reseller/notifications">
             <Bell />
             <span className="sr-only">Notifications</span>
-          </Link>
-        </Button>
-         <Button variant="ghost" size="icon" asChild>
-          <Link href="/messages">
-            <MessageSquare />
-            <span className="sr-only">Messages</span>
           </Link>
         </Button>
         <UserNav />

@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -14,20 +13,13 @@ import {
   FolderKanban,
   Banknote,
   Wallet,
-  BookOpen,
   HelpCircle,
-  User,
-  Search,
-  Bell,
-  Info,
   Users as UsersIcon,
-  Trophy,
-  MessageSquare,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
-import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUserProfile } from '@/firebase';
 
@@ -89,14 +81,6 @@ export function ResellerSidebar() {
               <span>Wallet & Payouts</span>
             </Link>
           </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-            <SidebarMenuButton asChild size="sm" isActive={isActive('/messages')} tooltip="Messages">
-            <Link href="/messages">
-                <MessageSquare />
-                <span>Messages</span>
-            </Link>
-            </SidebarMenuButton>
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={isActive('/dashboard/reseller/support')}>
