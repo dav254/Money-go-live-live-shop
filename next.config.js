@@ -9,8 +9,8 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '50mb',
+      allowedOrigins: ["9000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev"],
     },
-    allowedDevOrigins: ["https://9000-firebase-studio-1763190344911.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev"],
   },
   async headers() {
     return [

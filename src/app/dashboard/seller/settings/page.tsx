@@ -59,7 +59,6 @@ export default function SellerSettingsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
-  // URLs & Contact Info
   const [facebookUrl, setFacebookUrl] = useState('');
   const [instagramUrl, setInstagramUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
@@ -67,7 +66,6 @@ export default function SellerSettingsPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   
-  // Structured Logistics
   const [country, setCountry] = useState('Kenya');
   const [county, setCounty] = useState('');
   const [subCounty, setSubCounty] = useState('');

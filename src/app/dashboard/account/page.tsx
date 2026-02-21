@@ -363,7 +363,8 @@ export default function AccountSettingsPageWrapper() {
         );
     }
 
-    // Explicitly handle the component selection to prevent ChunkLoadErrors in specific routing conditions
+    if (!user) return null;
+
     const renderContent = () => {
         const content = <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />;
         

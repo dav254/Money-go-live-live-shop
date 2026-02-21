@@ -95,7 +95,6 @@ export default function SellerAnalyticsPage() {
   const firestore = useFirestore();
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>();
 
-  // --- Real Data Fetching ---
   const productsQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
@@ -145,8 +144,8 @@ export default function SellerAnalyticsPage() {
   const chartData = React.useMemo(() => {
     if (!orders) return [];
     const salesByDay: { [key: string]: number } = {};
-    const daysToDisplay = selectedDate ? 1 : 7;
-    const baseDate = selectedDate || new Date();
+    const daysToDisplay = 7;
+    const baseDate = new Date();
     for (let i = daysToDisplay - 1; i >= 0; i--) {
         const d = new Date(baseDate);
         d.setDate(baseDate.getDate() - i);
@@ -164,7 +163,7 @@ export default function SellerAnalyticsPage() {
     return Object.entries(salesByDay)
       .map(([date, revenue]) => ({ date, revenue }))
       .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [orders, selectedDate]);
+  }, [orders]);
   
   const topProducts = React.useMemo(() => {
     if (!products) return [];
@@ -173,7 +172,6 @@ export default function SellerAnalyticsPage() {
         .slice(0, 5);
     }, [products]);
 
-  // --- Mock Reseller Data (Frontend Only) ---
   const mockResellerData = [
     { date: '2026-02-15', revenue: 450 },
     { date: '2026-02-16', revenue: 890 },

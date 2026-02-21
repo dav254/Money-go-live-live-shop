@@ -10,10 +10,9 @@ export async function GET() {
   const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY;
 
   if (!API_KEY || !SECRET_KEY) {
-    console.error('CRITICAL: VideoSDK API_KEY or SECRET_KEY is not configured in .env');
     return NextResponse.json(
-      { error: 'VideoSDK is not correctly configured on the server.' },
-      { status: 500 }
+      { error: 'CONFIGURATION_REQUIRED', message: 'VideoSDK API keys are not configured. Please add VIDEOSDK_API_KEY and VIDEOSDK_SECRET_KEY to your .env file.' },
+      { status: 401 }
     );
   }
 
@@ -22,7 +21,7 @@ export async function GET() {
     const payload = {
       apikey: API_KEY,
       permissions: ['allow_join', 'allow_mod'], 
-      version: 2, // Use version 2 for optimized latency and participant discovery
+      version: 2, 
     };
 
     // @ts-ignore
@@ -30,14 +29,14 @@ export async function GET() {
 
     return NextResponse.json({ token }, {
         headers: {
-            'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
+            'Cache-Control': 'private, max-age=3600',
             'X-Signal-Version': '2.0'
         }
     });
   } catch (error: any) {
     console.error('Error generating VideoSDK token:', error);
     return NextResponse.json(
-      { error: 'Failed to generate access token.' },
+      { error: 'SERVER_ERROR', message: 'Failed to generate access token.' },
       { status: 500 }
     );
   }
