@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -17,6 +16,7 @@ import {
   HelpCircle,
   Users as UsersIcon,
   Info,
+  Store,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
