@@ -57,11 +57,12 @@ export default function SignupPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
-      if (userProfile.userRole === 'seller') {
+      const role = userProfile.userRole;
+      if (role === 'seller') {
         router.replace('/dashboard/seller');
-      } else if (userProfile.userRole === 'reseller') {
+      } else if (role === 'reseller') {
         router.replace('/dashboard/reseller');
-      } else if (userProfile.userRole === 'admin') {
+      } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
         router.replace('/buyer/dashboard');
@@ -82,13 +83,13 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
+      const signedUpUser = userCredential.user;
 
-      const userDocRef = doc(firestore, "userProfiles", user.uid);
+      const userDocRef = doc(firestore, "userProfiles", signedUpUser.uid);
       
       const profile = {
-        id: user.uid,
-        uid: user.uid,
+        id: signedUpUser.uid,
+        uid: signedUpUser.uid,
         fullName: values.fullName,
         username: values.username,
         email: values.email,

@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles, Clock } from 'lucide-react';
+import { Star, ShieldCheck, Truck, MapPin, MessageSquare, Plus, Share2, Store, Heart, Zap, Video, ShoppingCart, Eye, Tag, Minus, Globe, Sparkles, Clock, Package } from 'lucide-react';
 import { ProductCard } from '@/components/products/product-card';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review, Order } from '@/lib/types';
@@ -389,7 +389,7 @@ export default function BuyerProductPage() {
                         <div className="space-y-2">
                             <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="bg-primary/10 text-primary border-none font-black uppercase text-[10px] tracking-widest h-6 px-2">{product.category}</Badge>
-                                {product.brand && <Badge variant="outline" className="border-white/20 text-neutral-400 font-bold uppercase text-[10px] tracking-widest h-6 px-2">{product.brand}</Badge>}
+                                {product.brand && <Badge variant="outline" className="border-white/20 text-neutral-400 font-bold uppercase text-[10px] tracking-widest h-6 px-2"><Package className="h-3 w-3 mr-1" /> {product.brand}</Badge>}
                             </div>
                             <h1 className="font-headline text-3xl md:text-4xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
                             <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-neutral-500">

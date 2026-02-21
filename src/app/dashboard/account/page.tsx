@@ -48,10 +48,6 @@ const profileFormSchema = z.object({
     phoneNumber: z.string().optional(),
     bio: z.string().max(180, "Bio cannot be longer than 180 characters").optional(),
     location: z.string().optional(),
-    website: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-    facebookUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-    instagramUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-    tiktokUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 
 interface SubComponentProps {
@@ -180,12 +176,8 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             phoneNumber: userProfile?.phoneNumber || '',
             bio: userProfile?.bio || '',
             location: userProfile?.location || '',
-            website: userProfile?.website || '',
-            facebookUrl: userProfile?.socialLinks?.facebook || '',
-            instagramUrl: userProfile?.socialLinks?.instagram || '',
-            tiktokUrl: userProfile?.socialLinks?.tiktok || '',
         }
-    } as any);
+    });
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
@@ -204,11 +196,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                 phoneNumber: userProfile.phoneNumber || '',
                 bio: userProfile.bio || '',
                 location: userProfile.location || '',
-                website: (userProfile as any).website || '',
-                facebookUrl: (userProfile as any).socialLinks?.facebook || '',
-                instagramUrl: (userProfile as any).socialLinks?.instagram || '',
-                tiktokUrl: (userProfile as any).socialLinks?.tiktok || '',
-            } as any);
+            });
             setAvatarUrl(userProfile.profilePictureUrl || null);
         }
     }, [userProfile, profileForm]);
@@ -239,15 +227,9 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         if (!user) return;
         setIsProfileSaving(true);
         try {
-            const { facebookUrl, instagramUrl, tiktokUrl, ...rest } = values;
             const profileData = {
-                ...rest,
+                ...values,
                 profilePictureUrl: avatarUrl,
-                socialLinks: {
-                    facebook: facebookUrl,
-                    instagram: instagramUrl,
-                    tiktok: tiktokUrl,
-                }
             };
             await updateDoc(doc(firestore, 'userProfiles', user.uid), profileData);
             toast({ title: 'Profile Updated!' });
@@ -292,7 +274,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                     <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
                         <CardHeader>
                             <CardTitle>My Profile</CardTitle>
-                            <CardDescription>Update your personal and social information.</CardDescription>
+                            <CardDescription>Update your personal information.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="flex items-center gap-6">
@@ -326,22 +308,6 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                              <FormField control={profileForm.control} name="bio" render={({ field }) => (
                                 <FormItem><FormLabel>Bio</FormLabel><FormControl><Textarea {...field} placeholder="Tell us a little about yourself or your brand." /></FormControl><FormMessage /></FormItem>
                             )} />
-                            <Separator />
-                            <h3 className="text-lg font-medium">Online Presence</h3>
-                             <div className="space-y-4">
-                                <FormField control={profileForm.control} name="website" render={({ field }) => (
-                                    <FormItem><FormLabel>Website</FormLabel><FormControl><Input {...field} placeholder="https://your-shop.com" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={profileForm.control} name="facebookUrl" render={({ field }) => (
-                                    <FormItem><FormLabel>Facebook</FormLabel><FormControl><Input {...field} placeholder="https://facebook.com/your-profile" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={profileForm.control} name="instagramUrl" render={({ field }) => (
-                                    <FormItem><FormLabel>Instagram</FormLabel><FormControl><Input {...field} placeholder="https://instagram.com/your-profile" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={profileForm.control} name="tiktokUrl" render={({ field }) => (
-                                    <FormItem><FormLabel>TikTok</FormLabel><FormControl><Input {...field} placeholder="https://tiktok.com/@your-profile" /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            </div>
                             <Button type="submit" disabled={isProfileSaving}>{isProfileSaving && <Loader2 className="animate-spin mr-2" />}Save Changes</Button>
                         </CardContent>
                     </form>
@@ -397,12 +363,19 @@ export default function AccountSettingsPageWrapper() {
         );
     }
 
-    const Layout = userProfile?.userRole === 'seller' ? SellerLayout : 
-                   userProfile?.userRole === 'reseller' ? ResellerLayout : BuyerLayout;
+    // Explicitly handle the component selection to prevent ChunkLoadErrors in specific routing conditions
+    const renderContent = () => {
+        const content = <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />;
+        
+        switch (userProfile?.userRole) {
+            case 'seller':
+                return <SellerLayout>{content}</SellerLayout>;
+            case 'reseller':
+                return <ResellerLayout>{content}</ResellerLayout>;
+            default:
+                return <BuyerLayout>{content}</BuyerLayout>;
+        }
+    };
 
-    return (
-        <Layout>
-            <AccountSettingsContent user={user} userProfile={userProfile} isLoading={isLoading} />
-        </Layout>
-    );
+    return renderContent();
 }

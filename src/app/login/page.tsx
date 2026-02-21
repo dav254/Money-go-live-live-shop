@@ -52,11 +52,12 @@ export default function LoginPage() {
         return;
       }
       
-      if (userProfile.userRole === 'seller') {
+      const role = userProfile.userRole;
+      if (role === 'seller') {
         router.replace('/dashboard/seller');
-      } else if (userProfile.userRole === 'reseller') {
+      } else if (role === 'reseller') {
         router.replace('/dashboard/reseller');
-      } else if (userProfile.userRole === 'admin') {
+      } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
         router.replace('/buyer/dashboard');
@@ -75,9 +76,9 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
+      const loggedUser = userCredential.user;
 
-      const userDocRef = doc(firestore, 'userProfiles', user.uid);
+      const userDocRef = doc(firestore, 'userProfiles', loggedUser.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
