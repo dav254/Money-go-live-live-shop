@@ -37,6 +37,7 @@ import type { Order, Product, SellerShop } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ChartConfig } from '@/components/ui/chart';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 
 const SalesChart = dynamic(() =>
   import('@/components/seller/sales-chart').then((mod) => mod.SalesChart),
