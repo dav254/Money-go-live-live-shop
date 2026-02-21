@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -30,7 +29,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Image from 'next/image';
-import { TopSharedProductsTable } from '@/components/reseller/top-shared-products-table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -184,15 +182,6 @@ function ResellerDashboardPageContent() {
                 </CardHeader>
                 <CardContent>
                     <TopPerformingProducts />
-                </CardContent>
-            </Card>
-                <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Share2 /> Top Shared Products</CardTitle>
-                    <CardDescription>Your products being shared most frequently by the reseller network.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <TopSharedProductsTable />
                 </CardContent>
             </Card>
         </div>

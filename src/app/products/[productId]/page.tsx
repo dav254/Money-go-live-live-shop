@@ -24,7 +24,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { formatDistanceToNow } from 'date-fns';
 import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { Dialog, DialogContent, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogHeader } from '@/components/ui/dialog';
 
 const StarRating = ({ rating, count }: { rating: number, count?: number }) => (
     <div className="flex items-center gap-2">
@@ -128,7 +128,6 @@ export default function BuyerProductPage() {
         if (!product) return [];
         const media: { url: string, type: 'video' | 'image' }[] = [];
         
-        // Priority: Display exactly what the seller uploaded
         if (product.videoUrl && product.videoUrl.trim() !== "") {
             media.push({ url: product.videoUrl, type: 'video' });
         }
@@ -152,7 +151,6 @@ export default function BuyerProductPage() {
             });
         }
 
-        // Only fallback if NO media exists at all
         if (media.length === 0) {
             media.push({ url: getPlaceholderImage(), type: 'image' });
         }
@@ -305,6 +303,9 @@ export default function BuyerProductPage() {
                                     </div>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 flex items-center justify-center z-[100]">
+                                    <DialogHeader className="sr-only">
+                                        <DialogTitle>Product Image Zoom View</DialogTitle>
+                                    </DialogHeader>
                                     <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-8">
                                         <DialogClose className="absolute top-6 right-6 z-[110] bg-white/10 hover:bg-white/20 p-3 rounded-full backdrop-blur-md transition-all text-white">
                                             <X className="h-8 w-8" />
