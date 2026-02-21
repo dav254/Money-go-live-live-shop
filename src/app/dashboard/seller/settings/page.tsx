@@ -25,6 +25,7 @@ import {
   Twitter,
   Phone,
   Globe,
+  Info,
 } from 'lucide-react';
 import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -66,7 +67,7 @@ export default function SellerSettingsPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   
-  // Structured Logistics (Free Entry)
+  // Structured Logistics
   const [country, setCountry] = useState('Kenya');
   const [county, setCounty] = useState('');
   const [subCounty, setSubCounty] = useState('');
@@ -203,7 +204,7 @@ export default function SellerSettingsPage() {
         <Tabs defaultValue="profile">
           <TabsList className="bg-muted/50 p-1 mb-4">
             <TabsTrigger value="profile"><Store className="mr-2 h-4 w-4" /> Branding & Contact</TabsTrigger>
-            <TabsTrigger value="logistics"><Globe className="mr-2 h-4 w-4" /> Global Logistics</TabsTrigger>
+            <TabsTrigger value="logistics"><Globe className="mr-2 h-4 w-4" /> Logistics & About</TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile" className="space-y-6">
@@ -211,7 +212,6 @@ export default function SellerSettingsPage() {
               <CardHeader><CardTitle>Store Branding</CardTitle><CardDescription>Update your shop's visual identity.</CardDescription></CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2"><Label>Shop Name</Label><Input value={shopName} onChange={(e) => setShopName(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Description</Label><Textarea value={shopDescription} onChange={(e) => setShopDescription(e.target.value)} /></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label>Logo (Circular Profile)</Label>
@@ -261,53 +261,68 @@ export default function SellerSettingsPage() {
           <TabsContent value="logistics" className="space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><MapPin className="text-primary" /> Shop Logistics & Address</CardTitle>
-                    <CardDescription>This location will be shown on all your products and live shows.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Info className="text-primary" /> About Seller</CardTitle>
+                    <CardDescription>Tell your story and define your business presence. This info is visible on all your products and live shows.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label>Country</Label>
-                            <Input value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g. Kenya, Nigeria, USA" />
-                        </div>
-                        
-                        {country === 'Kenya' ? (
-                            <>
-                                <div className="space-y-2">
-                                    <Label>County</Label>
-                                    <Select value={county} onValueChange={(val) => { setCounty(val); setSubCounty(''); }}>
-                                        <SelectTrigger><SelectValue placeholder="Select County" /></SelectTrigger>
-                                        <SelectContent>
-                                            {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Sub-County</Label>
-                                    <Select value={subCounty} onValueChange={setSubCounty} disabled={!county}>
-                                        <SelectTrigger><SelectValue placeholder="Select Sub-County" /></SelectTrigger>
-                                        <SelectContent>
-                                            {county && kenyaLocations[county]?.map(sc => <SelectItem key={sc} value={sc}>{sc}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="space-y-2">
-                                    <Label>State / Province</Label>
-                                    <Input value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g. Lagos, California" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>City / Town</Label>
-                                    <Input value={cityTown} onChange={e => setCityTown(e.target.value)} placeholder="e.g. Ikeja, Los Angeles" />
-                                </div>
-                            </>
-                        )}
-                        
-                        <div className="space-y-2">
-                            <Label>Specific Area / Street Address</Label>
-                            <Input value={area} onChange={e => setArea(e.target.value)} placeholder="e.g. Westlands, CBD, 5th Avenue" />
+                    <div className="space-y-2">
+                        <Label>Store Description / Bio</Label>
+                        <Textarea 
+                            rows={5} 
+                            value={shopDescription} 
+                            onChange={(e) => setShopDescription(e.target.value)} 
+                            placeholder="Introduce your store to potential buyers. What makes you unique?"
+                        />
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2"><MapPin className="h-4 w-4" /> Shop Location</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label>Country</Label>
+                                <Input value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g. Kenya, Nigeria, USA" />
+                            </div>
+                            
+                            {country === 'Kenya' ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>County</Label>
+                                        <Select value={county} onValueChange={(val) => { setCounty(val); setSubCounty(''); }}>
+                                            <SelectTrigger><SelectValue placeholder="Select County" /></SelectTrigger>
+                                            <SelectContent>
+                                                {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Sub-County</Label>
+                                        <Select value={subCounty} onValueChange={setSubCounty} disabled={!county}>
+                                            <SelectTrigger><SelectValue placeholder="Select Sub-County" /></SelectTrigger>
+                                            <SelectContent>
+                                                {county && kenyaLocations[county]?.map(sc => <SelectItem key={sc} value={sc}>{sc}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label>State / Province</Label>
+                                        <Input value={stateProvince} onChange={e => setStateProvince(e.target.value)} placeholder="e.g. Lagos, California" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>City / Town</Label>
+                                        <Input value={cityTown} onChange={e => setCityTown(e.target.value)} placeholder="e.g. Ikeja, Los Angeles" />
+                                    </div>
+                                </>
+                            )}
+                            
+                            <div className="space-y-2">
+                                <Label>Specific Area / Street Address</Label>
+                                <Input value={area} onChange={e => setArea(e.target.value)} placeholder="e.g. Westlands, CBD, 5th Avenue" />
+                            </div>
                         </div>
                     </div>
                     
