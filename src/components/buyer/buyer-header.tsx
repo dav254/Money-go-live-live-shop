@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser, useUserProfile } from '@/firebase';
 import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 import { Badge } from '../ui/badge';
+import { Logo } from '../logo';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -30,7 +31,6 @@ export function BuyerHeader() {
   const [isDetecting, setIsDetecting] = useState(false);
 
   const isLoading = isUserLoading || isProfileLoading;
-  const buyerName = userProfile?.fullName || 'Valued Buyer';
   
   useEffect(() => {
     const stored = getLocationFromStorage();
@@ -85,6 +85,11 @@ export function BuyerHeader() {
           <SheetContent side="left" className="p-0">
             <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
+                <SheetTitle asChild>
+                  <Link href="/buyer/dashboard">
+                    <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                  </Link>
+                </SheetTitle>
               </SheetHeader>
               <div className="p-4 pt-0">
                 <BuyerSidebar />
@@ -99,9 +104,11 @@ export function BuyerHeader() {
             {isLoading ? (
               <Skeleton className="h-6 w-40" />
             ) : (
-              <h1 className="text-sm font-black uppercase tracking-tight truncate">
-                Shop Go Earn
-              </h1>
+              <Link href="/buyer/dashboard">
+                <h1 className="text-sm font-black uppercase tracking-tight truncate hover:text-primary transition-colors">
+                  Shop Go Earn
+                </h1>
+              </Link>
             )}
         </div>
 

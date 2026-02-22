@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { db } from '@/lib/db';
 
 // Mock data for demonstration
 const mockTransactions = [
@@ -55,17 +54,6 @@ export async function GET() {
     if (!session) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
-
-    // In a real application, you would fetch this data from your database
-    // For now, we're returning mock data.
-    // const transactions = await db.transaction.findMany({
-    //   where: {
-    //     userId: session.user.id,
-    //   },
-    //   orderBy: {
-    //     date: 'desc',
-    //   },
-    // });
 
     return NextResponse.json(mockTransactions);
   } catch (error) {

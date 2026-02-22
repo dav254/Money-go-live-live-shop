@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -24,17 +25,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: 'Order has already been processed' }, { status: 400 });
         }
         
-        // Use a batch to perform atomic operations
         const batch = db.batch();
 
-        // 1. Update order status to 'processing'
         batch.update(orderRef, {
             orderStatus: 'processing',
             paymentMethod: 'simulated_demo',
         });
         
-        // 2. Create a corresponding payment document
-        const paymentRef = db.collection('payments').doc(); // Auto-generate ID
+        const paymentRef = db.collection('payments').doc();
         batch.set(paymentRef, {
             orderId: orderId,
             userId: orderData.buyerId,
@@ -46,7 +44,6 @@ export async function POST(request: Request) {
             transactionId: `SIM_${Date.now()}`,
         });
         
-        // Commit the batch
         await batch.commit();
         
         return NextResponse.json({ success: true, message: 'Payment simulated successfully.' });
