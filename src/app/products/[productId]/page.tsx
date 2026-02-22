@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Star, Truck, MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Tag } from 'lucide-react';
+import { Star, Truck, MapPin, Plus, Store, Minus, X, Maximize2, Loader2, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, useCollection } from '@/firebase';

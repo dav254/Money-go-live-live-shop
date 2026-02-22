@@ -1,7 +1,7 @@
 
 // This file is deprecated to resolve a routing conflict with src/app/api/orders/move-to-delivery/route.ts
-// All logic has been moved to the App Router route handler.
+// Next.js 15 does not allow both a file and a directory-based route for the same endpoint.
 export const dynamic = 'force-dynamic';
 export async function GET() {
-    return new Response('Deprecated', { status: 404 });
+    return new Response('Route moved to App Router directory.', { status: 404 });
 }
