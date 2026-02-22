@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
@@ -23,7 +24,6 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { amount, email, gateway, metadata, transactionType, orderId } = body;
 
-        // Validation: No simulation allowed for points purchase
         if (!paystackSecret && gateway === 'paystack') {
             return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
         }
@@ -34,11 +34,10 @@ export async function POST(request: Request) {
         if (gateway === 'paystack') {
             if (!paystack) throw new Error("Paystack is not configured on this server.");
 
-            // Paystack handles channel detection (M-Pesa vs Card) based on currency and settings
             const response = await paystack.transaction.initialize({
                 email: email,
                 amount: Math.round(amount * 100), 
-                currency: 'USD', // Paystack will handle conversion or local channels if set up
+                currency: 'USD',
                 reference: reference,
                 metadata: {
                     ...metadata,
