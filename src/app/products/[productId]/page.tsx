@@ -29,7 +29,7 @@ export default function BuyerProductPage() {
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = setQuantity || useState(1);
 
     const productRef = useMemoFirebase(() => {
         return productId ? doc(firestore, 'products', productId) : null;

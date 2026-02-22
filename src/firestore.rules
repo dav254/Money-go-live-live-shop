@@ -93,7 +93,7 @@ service cloud.firestore {
     match /walletTransactions/{transactionId} {
         allow create: if false; 
         allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-        allow list: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow list: if request.auth != null && (request.query.limit <= 50 && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin'));
     }
 
     match /categories/{categoryId} {

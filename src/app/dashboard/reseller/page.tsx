@@ -11,7 +11,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, ShoppingBag, ArrowRight, Share2, Users, Wallet } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Share2, Users, Wallet, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useUserProfile } from '@/firebase';
 
