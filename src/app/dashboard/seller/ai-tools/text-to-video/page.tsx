@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Text, UploadCloud, Radio } from 'lucide-react';
+import { Loader2, Sparkles, Text, UploadCloud, Radio, Video } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useUser, useUserProfile } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function TextToVideoPage() {
     const { toast } = useToast();
