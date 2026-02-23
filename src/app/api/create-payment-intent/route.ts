@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
+import axios from 'axios';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -16,9 +17,7 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
-    const Paystack = (await import('paystack')).default;
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    const paystack = paystackSecret ? Paystack(paystackSecret) : null;
 
     try {
         const body = await request.json();
@@ -32,9 +31,7 @@ export async function POST(request: Request) {
         let checkoutUrl;
 
         if (gateway === 'paystack') {
-            if (!paystack) throw new Error("Paystack is not configured on this server.");
-
-            const response = await paystack.transaction.initialize({
+            const response = await axios.post('https://api.paystack.co/transaction/initialize', {
                 email: email,
                 amount: Math.round(amount * 100), 
                 currency: 'USD',
@@ -44,12 +41,16 @@ export async function POST(request: Request) {
                     orderId: orderId,
                     transactionType: transactionType || 'product-purchase'
                 }
+            }, {
+                headers: {
+                    Authorization: `Bearer ${paystackSecret}`
+                }
             });
             
-            if (!response.status || !response.data.authorization_url) {
-                throw new Error(response.message || 'Paystack initialization failed');
+            if (!response.data.status || !response.data.data.authorization_url) {
+                throw new Error(response.data.message || 'Paystack initialization failed');
             }
-            checkoutUrl = response.data.authorization_url;
+            checkoutUrl = response.data.data.authorization_url;
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();

@@ -1,15 +1,12 @@
 
-'use server';
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import type { UserProfile, PayoutMethod } from "@/lib/types";
-import Paystack from 'paystack';
+import axios from 'axios';
 
 admin.initializeApp();
 
 const db = admin.firestore();
-const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY || '');
 
 // Import the new commission recording function
 export { recordCommissionOnOrder } from './commissions';
@@ -18,7 +15,6 @@ export { recordCommissionOnOrder } from './commissions';
  * Automatically processes an order when its status is updated to 'delivered'.
  * It calculates and distributes earnings to the seller, reseller (if any),
  * the person who referred the seller, and the platform. It also creates
-
  * notifications for each party.
  */
 export const processOrderAndDistributeEarnings = functions.firestore
@@ -331,29 +327,38 @@ export const processPayout = functions.firestore
             let transactionId = `MOCK_${payoutId}`;
             
             if(methodDetails.type === 'bank' && process.env.PAYSTACK_SECRET_KEY) {
-                const recipientResponse = await paystack.transfer_recipient.create({
+                const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+                const recipientResponse = await axios.post('https://api.paystack.co/transferrecipient', {
                     type: 'nuban',
                     name: methodDetails.accountName,
                     account_number: methodDetails.accountNumber,
-                    bank_code: methodDetails.bankCode, // You need to store bank_code when saving method
-                    currency: 'NGN' // or the seller's local currency
+                    bank_code: methodDetails.bankCode,
+                    currency: 'NGN'
+                }, {
+                    headers: {
+                        Authorization: `Bearer ${paystackSecret}`
+                    }
                 });
 
-                if(!recipientResponse.status) {
-                    throw new Error(`Paystack Error (Recipient): ${recipientResponse.message}`);
+                if(!recipientResponse.data.status) {
+                    throw new Error(`Paystack Error (Recipient): ${recipientResponse.data.message}`);
                 }
 
-                const transferResponse = await paystack.transfer.initiate({
+                const transferResponse = await axios.post('https://api.paystack.co/transfer', {
                     source: 'balance',
-                    amount: amount * 100, // Paystack expects amount in kobo/cents
-                    recipient: recipientResponse.data.recipient_code,
+                    amount: amount * 100,
+                    recipient: recipientResponse.data.data.recipient_code,
                     reason: `Go Earn Payout: ${payoutId}`,
+                }, {
+                    headers: {
+                        Authorization: `Bearer ${paystackSecret}`
+                    }
                 });
 
-                if(!transferResponse.status || transferResponse.data.status !== 'success') {
-                    throw new Error(`Paystack Error (Transfer): ${transferResponse.message}`);
+                if(!transferResponse.data.status || transferResponse.data.data.status !== 'success') {
+                    throw new Error(`Paystack Error (Transfer): ${transferResponse.data.message}`);
                 }
-                transactionId = transferResponse.data.transfer_code;
+                transactionId = transferResponse.data.data.transfer_code;
 
             } else {
                  functions.logger.warn(`THIS IS A MOCK PAYOUT FOR ${payoutId}. NO REAL MONEY WAS SENT.`);
@@ -389,6 +394,4 @@ export const processPayout = functions.firestore
             return null;
         }
     });
-
-    export { recordCommissionOnOrder } from './commissions';
 
