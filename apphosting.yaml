@@ -1,23 +1,57 @@
+
 # Settings for Backend (on Cloud Run).
 # See https://firebase.google.com/docs/app-hosting/configure#cloud-run
 runConfig:
   minInstances: 0
-  # maxInstances: 100
-  # concurrency: 80
-  # cpu: 1
-  # memoryMiB: 512
+
+# Set the service account for the backend to one with the necessary permissions.
+serviceAccount: firebase-adminsdk-fbsvc@studio-1725493862-5cb95.iam.gserviceaccount.com
 
 # Environment variables and secrets.
-# env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
-  # - variable: MESSAGE
-  #   value: Hello world!
-  #   availability:
-  #     - BUILD
-  #     - RUNTIME
-
-  # Grant access to secrets in Cloud Secret Manager.
-  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
-  # - variable: MY_SECRET
-  #   secret: mySecretRef
+env:
+  - variable: GEMINI_API_KEY
+    value: "YOUR_GEMINI_API_KEY_HERE"
+    secret: true
+  - variable: NEXT_PUBLIC_TIKTOK_CLIENT_KEY
+    value: "YOUR_TIKTOK_CLIENT_KEY_HERE"
+  - variable: NEXT_PUBLIC_BASE_URL
+    value: "https://studio--studio-1725493862-5cb95.us-central1.hosted.app"
+  - variable: PAYPAL_CLIENT_ID
+    value: "YOUR_PAYPAL_CLIENT_ID_HERE"
+    secret: true
+  - variable: PAYPAL_CLIENT_SECRET
+    value: "YOUR_PAYPAL_CLIENT_SECRET_HERE"
+    secret: true
+  - variable: PAYPAL_ENVIRONMENT
+    value: "live" # or "sandbox"
+  - variable: PAYSTACK_SECRET_KEY
+    value: "YOUR_PAYSTACK_SECRET_KEY_HERE"
+    secret: true
+  - variable: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    value: "YOUR_CLOUDINARY_CLOUD_NAME_HERE"
+  - variable: NEXT_PUBLIC_CLOUDINARY_API_KEY
+    value: "YOUR_CLOUDINARY_API_KEY_HERE"
+  - variable: CLOUDINARY_API_SECRET
+    value: "YOUR_CLOUDINARY_API_SECRET_HERE"
+    secret: true
+  - variable: VIDEOSDK_API_KEY
+    value: "YOUR_VIDEOSDK_API_KEY_HERE"
+    secret: true
+  - variable: VIDEOSDK_SECRET_KEY
+    value: "YOUR_VIDEOSDK_SECRET_KEY_HERE"
+    secret: true
+  - variable: TIKTOK_CLIENT_KEY
+    value: "YOUR_TIKTOK_CLIENT_KEY_HERE"
+    secret: true
+  - variable: TIKTOK_CLIENT_SECRET
+    value: "YOUR_TIKTOK_CLIENT_SECRET_HERE"
+    secret: true
+  - variable: GOEARN_TIKTOK_ACCESS_TOKEN
+    value: "YOUR_GOEARN_TIKTOK_ACCESS_TOKEN_HERE"
+    secret: true
+  - variable: GOEARN_TIKTOK_OPEN_ID
+    value: "YOUR_GOEARN_TIKTOK_OPEN_ID_HERE"
+    secret: true
+  - variable: RESEND_API_KEY
+    value: "YOUR_RESEND_API_KEY_HERE"
+    secret: true

@@ -76,7 +76,7 @@ export default function ResellerDashboardPage() {
             <Card className="bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors">
                 <CardHeader>
                     <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                        <Wallet className="h-4 w-4" /> Commission Wallet
+                        <Wallet className="h-4 w-4 text-primary" /> Commission Wallet
                     </CardTitle>
                     <CardDescription className="text-primary/60">Withdraw your earned cash directly to your bank.</CardDescription>
                 </CardHeader>

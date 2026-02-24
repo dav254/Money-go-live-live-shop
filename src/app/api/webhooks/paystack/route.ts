@@ -1,10 +1,12 @@
-
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
+/**
+ * Paystack Webhook Handler (App Router)
+ */
 export async function POST(request: Request) {
   const paystackSecret = process.env.PAYSTACK_SECRET_KEY!;
   const signature = request.headers.get('x-paystack-signature');

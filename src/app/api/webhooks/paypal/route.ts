@@ -1,9 +1,11 @@
-
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { Order } from '@/lib/types';
 
+/**
+ * PayPal Webhook Handler (App Router)
+ */
 export async function POST(request: Request) {
     try {
         const event = await request.json();

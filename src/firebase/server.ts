@@ -1,26 +1,8 @@
-// This file is designated for server-side Firebase initialization.
-// It is crucial that this file does not contain the 'use client';' directive.
 
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import * as path from 'path';
-import * as fs from 'fs';
-
-let serviceAccount: any;
-try {
-  const serviceAccountPath = path.resolve(process.cwd(), 'service-account.json');
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccountFile = fs.readFileSync(serviceAccountPath, 'utf8');
-    serviceAccount = JSON.parse(serviceAccountFile);
-  } else {
-    console.warn("service-account.json not found. Server-side Firebase features will be disabled.");
-  }
-} catch (e) {
-    console.error("Failed to load or parse service-account.json.", e);
-}
-
 
 function initializeAdminApp(): App {
   const existingApp = getApps().find(app => app.name === '[DEFAULT]');
@@ -28,14 +10,27 @@ function initializeAdminApp(): App {
     return existingApp;
   }
 
-  if (!serviceAccount) {
-      throw new Error("Firebase Admin SDK could not be initialized because service-account.json is missing or invalid.");
+  // Use environment's default credentials in production (App Hosting)
+  if (process.env.NODE_ENV === 'production') {
+    return initializeApp({
+      storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
+    });
+  } 
+  // Use service account key for local development
+  else {
+    let serviceAccount: any;
+    try {
+      serviceAccount = require('../../service-account.json');
+    } catch (error) {
+      console.error("Could not load service-account.json for local development:", error);
+      throw new Error("Firebase Admin SDK could not be initialized for local development. Make sure 'service-account.json' is present in the root of your project.");
+    }
+    
+    return initializeApp({
+      credential: cert(serviceAccount),
+      storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
+    });
   }
-
-  return initializeApp({
-    credential: cert(serviceAccount),
-    storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
-  });
 }
 
 const app = initializeAdminApp();
