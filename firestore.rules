@@ -4,7 +4,7 @@ service cloud.firestore {
 
     match /userProfiles/{userId} {
       allow read: if true;
-      allow list: if request.auth != null && (request.auth.uid == resource.id || resource.data.referredBy == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow list: if request.auth != null && (request.auth.uid == userId || resource.data.referredBy == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
       allow update: if request.auth.uid == userId ||
                       (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
