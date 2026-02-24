@@ -15,7 +15,7 @@ env:
   - variable: NEXT_PUBLIC_TIKTOK_CLIENT_KEY
     value: "YOUR_TIKTOK_CLIENT_KEY_HERE"
   - variable: NEXT_PUBLIC_BASE_URL
-    value: "https://studio--studio-1725493862-5cb95.us-central1.hosted.app"
+    value: "https://goearnvid.shop"
   - variable: PAYPAL_CLIENT_ID
     value: "YOUR_PAYPAL_CLIENT_ID_HERE"
     secret: true

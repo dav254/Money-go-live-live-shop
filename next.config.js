@@ -9,6 +9,11 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '50mb',
+      allowedOrigins: [
+        "goearnvid.shop",
+        "studio--studio-1725493862-5cb95.us-central1.hosted.app",
+        "live-shopping-backend--studio-1725493862-5cb95.us-central1.hosted.app"
+      ],
     },
   },
   async headers() {
