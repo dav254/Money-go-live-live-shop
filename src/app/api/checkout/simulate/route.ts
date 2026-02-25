@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
