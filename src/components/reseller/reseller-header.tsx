@@ -20,7 +20,7 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
 
         <div className="hidden md:block">
             <Link href="/dashboard/reseller" className="flex items-center gap-2">
-              <Logo className="h-6 w-auto" />
+              <Logo className="h-8 w-auto text-primary cursor-pointer" />
               <h1 className="text-lg font-black uppercase tracking-tighter">
                 Reseller <span className="text-primary">Hub</span>
               </h1>
