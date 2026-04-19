@@ -12,7 +12,7 @@ import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebas
 import { ProductInfo } from '../live/product-info';
 import { collection, addDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { CommentDrawer } from './comment-drawer';
-import { ChevronLeft, ChevronRight, Video, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Video, Layers, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -24,13 +24,11 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
-  // Collect all available media for the product to ensure nothing is hidden
   const allMedia = useMemo(() => {
     if (!item.product) return [{ url: getPlaceholderImage(), type: 'image' as const }];
     
     const media: {url: string, type: 'video' | 'image'}[] = [];
     
-    // 1. Add all valid videos
     if (item.product.videoUrl && item.product.videoUrl.trim() !== "") {
       media.push({ url: item.product.videoUrl, type: 'video' });
     }
@@ -42,7 +40,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
       });
     }
     
-    // 2. Add all valid images
     if (item.product.imageUrl && item.product.imageUrl.trim() !== "") {
       if (!media.some(m => m.url === item.product.imageUrl)) {
         media.push({ url: item.product.imageUrl, type: 'image' });
@@ -72,9 +69,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   const firestore = useFirestore();
   
   const currentMedia = allMedia[currentMediaIndex];
-
-  // Auto-Cycle Media: If it's a static image, maybe move to next after 5s?
-  // For now, we'll keep it manual but make thumbnails very prominent.
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -108,7 +102,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
 
   const handleAddComment = async (text: string) => {
     if (!user || !firestore || !item.product.id) return; 
-
     try {
       await addDoc(collection(firestore, 'products', item.product.id, 'comments'), {
         text: text,
@@ -136,9 +129,22 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
     }
   };
 
+  const handleDismiss = () => {
+      if (onScroll) onScroll('down');
+  };
+
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
-      {/* Main Media Container */}
+      {/* Dismiss/X Button */}
+      <Button 
+        onClick={handleDismiss}
+        variant="ghost" 
+        size="icon" 
+        className="absolute top-20 right-4 z-50 h-12 w-12 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/10 shadow-2xl"
+      >
+        <X className="h-6 w-6" />
+      </Button>
+
       <AnimatePresence mode="wait">
         <motion.div
           key={currentMedia?.url}
@@ -177,7 +183,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
 
-      {/* Navigation Layer */}
       {allMedia.length > 1 && (
         <>
           <Button 
@@ -213,7 +218,6 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
       
       <VideoInfo seller={item.seller} />
 
-       {/* Media Thumbnails - HUD Style */}
        {allMedia.length > 1 && (
            <div className="absolute bottom-32 left-4 right-16 z-20 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                {allMedia.map((media, index) => (

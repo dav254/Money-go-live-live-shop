@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -16,7 +17,6 @@ import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, useCollection } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { ResellerLayout } from '@/components/layout/reseller-layout';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 
@@ -115,10 +115,8 @@ export default function BuyerProductPage() {
     if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     
-    const LayoutComponent = userProfile?.userRole === 'reseller' ? ResellerLayout : MainLayout;
-
     return (
-        <LayoutComponent>
+        <MainLayout>
             <div className="bg-black text-white pb-24 min-h-screen">
                 <div className="relative w-full">
                     <div className="relative aspect-square md:aspect-[16/10] w-full bg-black group">
@@ -200,6 +198,6 @@ export default function BuyerProductPage() {
                     <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase text-xs" onClick={handleBuyNow}>Buy Now</Button>
                 </div>
             </div>
-        </LayoutComponent>
+        </MainLayout>
     );
 }

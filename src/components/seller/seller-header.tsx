@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -12,13 +13,18 @@ import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
 import { useUser, useUserProfile } from '@/firebase';
+import { usePathname } from 'next/navigation';
 
 export function SellerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const pathname = usePathname();
 
   const isLoading = isUserLoading || isProfileLoading;
   const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
+  
+  // Custom behavior: Hide specific UI elements in the immersive live feed view
+  const isLiveFeed = pathname === '/dashboard/seller/live-feed';
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
@@ -62,19 +68,23 @@ export function SellerHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/seller/notifications">
-            <Bell />
-            <span className="sr-only">Notifications</span>
-          </Link>
-        </Button>
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/messages">
-            <MessageSquare />
-            <span className="sr-only">Messages</span>
-          </Link>
-        </Button>
+        {!isLiveFeed && (
+            <>
+                <ThemeToggle />
+                <Button variant="ghost" size="icon" asChild>
+                <Link href="/dashboard/seller/notifications">
+                    <Bell />
+                    <span className="sr-only">Notifications</span>
+                </Link>
+                </Button>
+                <Button variant="ghost" size="icon" asChild>
+                <Link href="/messages">
+                    <MessageSquare />
+                    <span className="sr-only">Messages</span>
+                </Link>
+                </Button>
+            </>
+        )}
         <UserNav />
       </div>
     </header>

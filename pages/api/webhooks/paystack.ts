@@ -1,3 +1,4 @@
+
 // This file is deprecated to resolve routing conflicts with the App Router.
 // The logic has been moved to /src/app/api/webhooks/paystack/route.ts
 export const dynamic = 'force-dynamic';
