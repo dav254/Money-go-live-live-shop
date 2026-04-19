@@ -4,7 +4,6 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * App Router endpoint to transition an order to the 'delivery' status.
- * Replaces the legacy pages/api route.
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get('Authorization');
