@@ -10,7 +10,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, ShoppingBag, ArrowRight } from 'lucide-react';
+import { TrendingUp, ShoppingBag, ArrowRight, Share2, Users, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useUserProfile } from '@/firebase';
 
@@ -28,7 +28,7 @@ export default function ResellerDashboardPage() {
                 <h1 className="font-headline text-3xl font-bold tracking-tight uppercase text-white">
                     Reseller Hub
                 </h1>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Manage Your Network</p>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Earn by Sharing</p>
             </div>
             <div className="flex items-center space-x-2">
                 <Button asChild className="h-12 px-6 font-black uppercase tracking-widest text-xs">
@@ -43,8 +43,11 @@ export default function ResellerDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-white">
             <Card className="bg-neutral-900 border-white/5">
                 <CardHeader>
-                    <CardTitle className="text-sm font-bold uppercase tracking-widest">Share Center</CardTitle>
-                    <CardDescription className="text-neutral-500">Get links and start earning.</CardDescription>
+                    <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Share2 className="h-4 w-4 text-primary" />
+                        Share Center
+                    </CardTitle>
+                    <CardDescription className="text-neutral-500">Get unique links and start earning.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Button asChild variant="outline" className="w-full border-white/10 hover:bg-white/5 text-white">
@@ -57,7 +60,10 @@ export default function ResellerDashboardPage() {
 
             <Card className="bg-neutral-900 border-white/5">
                 <CardHeader>
-                    <CardTitle className="text-sm font-bold uppercase tracking-widest">Rewards</CardTitle>
+                    <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Users className="h-4 w-4 text-primary" />
+                        Rewards
+                    </CardTitle>
                     <CardDescription className="text-neutral-500">Check your referral status.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -71,7 +77,10 @@ export default function ResellerDashboardPage() {
 
             <Card className="bg-primary/10 border-primary/20">
                 <CardHeader>
-                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary">Earnings</CardTitle>
+                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Wallet className="h-4 w-4" />
+                        Earnings
+                    </CardTitle>
                     <CardDescription className="text-primary/60">View your cleared commissions.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -91,18 +100,20 @@ export default function ResellerDashboardPage() {
                     Getting Started
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
                 <p className="text-sm text-neutral-400 leading-relaxed">
-                    Welcome to your Reseller Dashboard! To start earning, navigate to the **Products to Resell** section, choose a product, and share your unique link.
+                    Welcome to the Go Earn network! You can earn in two ways: by sharing product links and by inviting others to the platform.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <h4 className="font-bold text-xs uppercase mb-1 text-primary">Step 1</h4>
-                        <p className="text-xs text-neutral-500 uppercase font-bold tracking-tight">Pick a product with a high commission rate.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-6 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">1</div>
+                        <h4 className="font-bold text-xs uppercase text-white">Select High-Commission Items</h4>
+                        <p className="text-[10px] text-neutral-500 uppercase font-black tracking-widest">Find products with 15-25% commission for maximum profit.</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <h4 className="font-bold text-xs uppercase mb-1 text-primary">Step 2</h4>
-                        <p className="text-xs text-neutral-500 uppercase font-bold tracking-tight">Share your link with your social circles.</p>
+                    <div className="p-6 rounded-2xl bg-white/5 border border-white/5 space-y-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">2</div>
+                        <h4 className="font-bold text-xs uppercase text-white">Share Everywhere</h4>
+                        <p className="text-[10px] text-neutral-500 uppercase font-black tracking-widest">Post to WhatsApp status, TikTok, and IG stories with your ref link.</p>
                     </div>
                 </div>
             </CardContent>

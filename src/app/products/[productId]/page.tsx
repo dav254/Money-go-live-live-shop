@@ -134,8 +134,8 @@ export default function BuyerProductPage() {
                                 </DialogTrigger>
                                 <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 flex items-center justify-center z-[100]">
                                     <DialogHeader className="sr-only">
-                                        <DialogTitle>{product.name} Full View</DialogTitle>
-                                        <DialogDescription>A detailed full-screen view of the product image.</DialogDescription>
+                                        <DialogTitle>{product.name} - Immersive View</DialogTitle>
+                                        <DialogDescription>A full-screen view of the product image.</DialogDescription>
                                     </DialogHeader>
                                     <div className="relative w-full h-full flex items-center justify-center p-4">
                                         <DialogClose className="absolute top-6 right-6 z-[110] bg-white/10 hover:bg-white/20 p-3 rounded-full text-white">
