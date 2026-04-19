@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -14,16 +13,14 @@ import {
   Package,
   Store,
   HelpCircle,
-  Users,
   Home,
   MessageSquare,
-  RadioTower,
+  Radio,
+  Video,
   Info,
   Sparkles,
   AreaChart,
   Megaphone,
-  Radio,
-  Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -95,14 +92,6 @@ export function SellerSidebar() {
       <SidebarGroup>
         <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
-           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
-              <Link href="/dashboard/seller/reseller/rules">
-                <Users />
-                <span>Reseller Center</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/go-live')}>
               <Link href="/dashboard/seller/go-live">
