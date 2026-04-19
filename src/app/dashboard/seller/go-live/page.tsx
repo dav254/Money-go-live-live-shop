@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -8,20 +7,13 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, MessageSquare, ShoppingBag, BadgeCent, Share2, Copy, Sparkles, CreditCard, Video, Camera, Clock, Zap, X, Tag, Send, VideoOff, PauseCircle, PlayCircle, CheckCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { cn } from '@/lib/utils';
-import { LiveChat } from '@/components/buyer/LiveChat';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import type { Product, LiveSession } from '@/lib/types';
-import { useRouter } from 'next/navigation';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2, RefreshCw, AlertCircle, Video, Camera, Clock, BadgeCent, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useRouter } from 'next/navigation';
+import type { LiveSession } from '@/lib/types';
 
-const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
+const SESSION_LIMIT_MS = 70 * 60 * 1000;
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -32,73 +24,6 @@ const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'
     </div>
   ),
 });
-
-const BuyPointsDialog = () => {
-    const { user } = useUser();
-    const { toast } = useToast();
-    const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
-
-    const pointPackages = [
-        { points: 500, price: 5, description: 'Get started' },
-        { points: 1200, price: 10, description: 'Best value' },
-        { points: 3000, price: 25, description: 'Power user' },
-    ];
-
-    const handlePayment = async (gateway: 'paystack' | 'paypal', points: number, price: number) => {
-        if (!user?.email) {
-            toast({ variant: 'destructive', title: 'User email is missing.' });
-            return;
-        }
-        setIsLoadingPayment(gateway);
-        try {
-            const response = await fetch('/api/create-payment-intent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transactionType: 'points-purchase',
-                    amount: price,
-                    email: user.email,
-                    gateway: gateway,
-                    metadata: { userId: user.uid, points: points }
-                }),
-            });
-            const data = await response.json();
-            if (data.checkoutUrl) window.location.href = data.checkoutUrl;
-            else throw new Error(data.error || 'Failed to initiate payment');
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Payment Error', description: err.message });
-            setIsLoadingPayment(null);
-        }
-    };
-
-    return (
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Buy AI Points</DialogTitle>
-                <DialogDescription>Choose a package to top up your balance.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-                {pointPackages.map(pkg => (
-                    <Card key={pkg.points}>
-                        <CardContent className="p-4 flex items-center justify-between">
-                            <div>
-                                <p className="font-bold text-lg">{pkg.points.toLocaleString()} Points</p>
-                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xl font-bold text-primary">${pkg.price}</p>
-                                <div className="flex gap-2 mt-1">
-                                    <Button size="sm" onClick={() => handlePayment('paystack', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>Paystack</Button>
-                                    <Button size="sm" variant="secondary" onClick={() => handlePayment('paypal', pkg.points, pkg.price)} disabled={!!isLoadingPayment}>PayPal</Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-        </DialogContent>
-    );
-};
 
 export default function SellerGoLivePage() {
   const { user } = useUser();
@@ -112,13 +37,9 @@ export default function SellerGoLivePage() {
   const [prewarmedMeetingId, setPrewarmedMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isConfigMissing, setIsConfigMissing] = useState(false);
-  const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [wantsToSetup, setWantsToSetup] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<number>(SESSION_LIMIT_MS);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
 
   const fetchToken = useCallback(async () => {
@@ -130,7 +51,6 @@ export default function SellerGoLivePage() {
       if (data.token) setToken(data.token);
     } catch (err: any) {
       console.error("Error fetching VideoSDK token:", err);
-      setError(err.message || "Network error. Please refresh.");
     }
   }, []);
 
@@ -168,6 +88,21 @@ export default function SellerGoLivePage() {
     };
   }, [wantsToSetup, getCameraPermission]);
 
+  const handleStartBroadcast = async () => {
+    if (!user || !firestore) return;
+    try {
+        await updateDoc(doc(firestore, 'liveSessions', user.uid), {
+            status: 'live',
+            startTime: serverTimestamp(),
+            lastStartedAt: serverTimestamp()
+        });
+        setIsLive(true);
+        toast({ title: "BROADCAST STARTED", description: "You are now live to all buyers!" });
+    } catch (e) {
+        toast({ variant: 'destructive', title: "Failed to go live" });
+    }
+  }
+
   const handleSetupPreview = async () => {
     if (!user || !firestore || !token) return;
     setIsStarting(true);
@@ -181,8 +116,9 @@ export default function SellerGoLivePage() {
       if (!response.ok) throw new Error(result.error);
       setMeetingId(result.videosdkMeetingId || prewarmedMeetingId);
       setWantsToSetup(true);
-      setTimeRemaining(result.timeRemainingMs || SESSION_LIMIT_MS);
-    } catch (err: any) { setError(err.message); } finally { setIsStarting(false); }
+    } catch (err: any) { 
+        toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
+    } finally { setIsStarting(false); }
   };
 
   if (isConfigMissing) {
@@ -192,8 +128,8 @@ export default function SellerGoLivePage() {
           <Card className="max-w-md w-full border-yellow-500/20 bg-yellow-500/5">
             <CardHeader className="text-center">
               <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-              <CardTitle className="uppercase tracking-tighter">Configuration Required</CardTitle>
-              <CardDescription>VideoSDK API keys are missing from the environment variables.</CardDescription>
+              <CardTitle className="uppercase tracking-tighter text-white">Setup Required</CardTitle>
+              <CardDescription className="text-neutral-400">VideoSDK credentials are missing. Contact admin to enable live streaming.</CardDescription>
             </CardHeader>
             <CardFooter><Button className="w-full font-black uppercase" onClick={() => router.push('/dashboard/seller')}>BACK TO DASHBOARD</Button></CardFooter>
           </Card>
@@ -206,23 +142,39 @@ export default function SellerGoLivePage() {
       return (
           <SellerLayout>
               <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] p-4">
-                  <Card className="w-full max-w-2xl bg-neutral-900/50 backdrop-blur-xl border-white/5">
-                      <CardHeader className="text-center">
-                          <Video className="h-12 w-12 text-primary mx-auto mb-4" />
-                          <CardTitle className="text-3xl font-black uppercase tracking-tighter">Live Studio</CardTitle>
+                  <Card className="w-full max-w-2xl bg-neutral-900/50 backdrop-blur-xl border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+                      <CardHeader className="text-center pb-0 pt-8">
+                          <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto mb-6">
+                            <Video className="h-12 w-12 text-primary" />
+                          </div>
+                          <CardTitle className="text-4xl font-black uppercase tracking-tighter text-white">Live Studio</CardTitle>
+                          <CardDescription className="uppercase font-bold text-[10px] tracking-[0.2em] text-neutral-500 mt-2">Professional Broadcast Hub</CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-6">
-                          <div className="relative aspect-video w-full bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-                              {hasPermissions === false && <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-red-500 p-4 text-center">Camera Access Denied</div>}
+                      <CardContent className="space-y-8 p-8">
+                          <div className="relative aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-2xl group">
+                              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                              {hasPermissions === false && (
+                                  <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-center p-8">
+                                      <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+                                      <p className="text-white font-black uppercase tracking-widest text-xs">Camera Access Denied</p>
+                                      <p className="text-neutral-500 text-[10px] mt-2 max-w-[200px]">Please enable your camera and microphone in browser settings.</p>
+                                  </div>
+                              )}
                           </div>
                           <div className="grid grid-cols-2 gap-4">
-                              <div className="p-4 rounded-2xl bg-white/5 border border-white/5"><p className="text-[10px] font-black uppercase text-neutral-500">Airtime</p><p className="text-lg font-black">70 Mins</p></div>
-                              <div className="p-4 rounded-2xl bg-white/5 border border-white/5"><p className="text-[10px] font-black uppercase text-neutral-500">Balance</p><p className="text-lg font-black">{(userProfile?.aiPoints || 0).toLocaleString()} pts</p></div>
+                              <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
+                                  <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Session Limit</p>
+                                  <p className="text-2xl font-black text-white">70 MINS</p>
+                              </div>
+                              <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
+                                  <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Point Balance</p>
+                                  <p className="text-2xl font-black text-primary">{(userProfile?.aiPoints || 0).toLocaleString()}</p>
+                              </div>
                           </div>
                       </CardContent>
-                      <CardFooter>
-                          <Button size="lg" className="w-full h-14 rounded-2xl font-black text-lg bg-primary hover:bg-primary/90" onClick={handleSetupPreview} disabled={isStarting || (userProfile?.aiPoints || 0) < 100}>
+                      <CardFooter className="p-8 pt-0">
+                          <Button size="lg" className="w-full h-16 rounded-2xl font-black text-xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20" onClick={handleSetupPreview} disabled={isStarting || (userProfile?.aiPoints || 0) < 100}>
                               {isStarting ? <Loader2 className="animate-spin" /> : <Camera className="mr-2 h-6 w-6" />} ENTER STUDIO
                           </Button>
                       </CardFooter>
@@ -240,8 +192,8 @@ export default function SellerGoLivePage() {
               meetingId={meetingId} 
               participantName={userProfile?.shopName || "Seller"} 
               token={token}
-              isLive={isLive && !isPaused}
-              onBroadcast={() => setIsLive(true)}
+              isLive={isLive}
+              onBroadcast={handleStartBroadcast}
               onEnd={() => setWantsToSetup(false)}
             />
         )}

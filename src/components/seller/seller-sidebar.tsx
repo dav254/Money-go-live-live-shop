@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -21,7 +20,6 @@ import {
   Info,
   Sparkles,
   AreaChart,
-  Megaphone,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -29,7 +27,6 @@ import { useUser } from '@/firebase/auth/use-user';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUserProfile } from '@/firebase';
-import { cn } from '@/lib/utils';
 import React from 'react';
 
 export function SellerSidebar() {
@@ -114,14 +111,6 @@ export function SellerSidebar() {
               <Link href="/dashboard/seller/live-feed">
                 <Video />
                 <span>Live Feed</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ads')}>
-              <Link href="/dashboard/seller/ads">
-                <Megaphone />
-                <span>TikTok Boosts</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

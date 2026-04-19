@@ -1,10 +1,5 @@
-
-import { NextApiRequest, NextApiResponse } from 'next';
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const response = await fetch(`https://ipapi.co/${ip}/json/`);
-  const data = await response.json();
-
-  res.status(200).json({ country: data.country_name });
+// This file is deprecated to avoid conflicts with the Next.js 15 App Router.
+// Location logic has been moved to /src/lib/location-detection.ts
+export default function handler(req: any, res: any) {
+  res.status(404).end();
 }

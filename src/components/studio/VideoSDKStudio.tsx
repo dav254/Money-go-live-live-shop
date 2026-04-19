@@ -1,10 +1,17 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw, MessageSquare, ShoppingBag, Pin, PinOff, Zap, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LiveChat } from '@/components/buyer/LiveChat';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
+import { useUser, useFirestore } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local, enableWebcam } = useParticipant(participantId);
@@ -23,7 +30,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 
   const forceEnableWebcam = async () => {
       try {
-          // Force a hardware request before calling SDK method
           await navigator.mediaDevices.getUserMedia({ video: true });
           enableWebcam();
       } catch (err) {
@@ -32,7 +38,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   };
 
   return (
-    <div className="relative h-full w-full bg-black">
+    <div className="relative h-full w-full bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5">
       <video ref={videoRef} autoPlay playsInline muted={local} className="h-full w-full object-contain md:object-cover" />
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 backdrop-blur-sm p-6 text-center">
@@ -40,15 +46,13 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">Camera Preview Offline</p>
-          <p className="text-neutral-500 text-[10px] md:text-xs mt-3 uppercase tracking-widest font-bold max-w-[200px] mb-6">Device signal lost. Use the button below to force a hardware re-sync.</p>
-          
           <Button 
             variant="outline" 
-            className="border-primary/50 text-primary hover:bg-primary/10 font-black tracking-widest uppercase text-xs px-8 py-6 rounded-2xl"
+            className="mt-6 border-primary/50 text-primary hover:bg-primary/10 font-black tracking-widest uppercase text-xs px-8 py-6 rounded-2xl"
             onClick={forceEnableWebcam}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
-            FORCE CAMERA START
+            RE-SYNC CAMERA
           </Button>
         </div>
       )}
@@ -64,29 +68,8 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
     onEnd();
   };
 
-  const handleStartBroadcast = async () => {
-    // FORCE HARDWARE HANDSHAKE AT START
-    try {
-      // Force a hardware check to ensure camera/mic aren't dormant
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      
-      // Ensure SDK components are toggled ON
-      if (!webcamOn) enableWebcam();
-      if (!micOn) unmuteMic();
-      
-      // Give the SDK a moment to initialize the fresh streams before telling the backend we are 'live'
-      setTimeout(() => {
-        onBroadcast();
-      }, 500);
-    } catch (err) {
-      console.error("Force hardware on broadcast failed:", err);
-      // Still attempt broadcast as fallback
-      onBroadcast();
-    }
-  };
-
   return (
-    <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
       <Button
         size="icon"
         variant={micOn ? "secondary" : "destructive"}
@@ -108,7 +91,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 
       {!isLive ? (
         <Button
-          onClick={handleStartBroadcast}
+          onClick={onBroadcast}
           className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white"
         >
           START BROADCAST
@@ -128,6 +111,10 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
   const { join, isMeetingJoined, participants } = useMeeting();
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const hasAttemptedJoin = useRef(false);
 
   useEffect(() => {
@@ -137,37 +124,99 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
+  const handlePinProduct = async (product: any) => {
+    if (!user || !firestore) return;
+    try {
+        await updateDoc(doc(firestore, 'liveSessions', user.uid), { pinnedProductId: product.id });
+        setPinnedProductId(product.id);
+        toast({ title: 'Product Pinned!', description: `Buyers can now see "${product.name}" prominently.` });
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Pin Failed' });
+    }
+  };
+
+  const handleUnpinProduct = async () => {
+    if (!user || !firestore) return;
+    try {
+        await updateDoc(doc(firestore, 'liveSessions', user.uid), { pinnedProductId: null });
+        setPinnedProductId(null);
+        toast({ title: 'Product Unpinned' });
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Unpin Failed' });
+    }
+  };
+
   return (
-    <div className="relative h-full w-full flex flex-col bg-neutral-950 overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 z-30 p-4 flex items-center justify-between pointer-events-none">
-          <div className="flex items-center gap-2 pointer-events-auto">
-              <div className={cn(
-                  "px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest flex items-center gap-2 backdrop-blur-md border",
-                  isLive ? "bg-red-600 text-white border-red-500 animate-pulse" : "bg-neutral-800 text-neutral-400 border-white/5"
-              )}>
-                  <div className={cn("h-1.5 w-1.5 rounded-full", isLive ? "bg-white" : "bg-neutral-600")} />
-                  {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
+    <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
+      {/* Main Studio Area */}
+      <div className="flex-1 relative flex flex-col p-4 md:p-6 lg:p-8">
+          <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
+              <div className="pointer-events-auto">
+                  <div className={cn(
+                      "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
+                      isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
+                  )}>
+                      <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
+                      {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
+                  </div>
               </div>
           </div>
+
+          <div className="flex-1 relative">
+            <MeetingConsumer>
+              {({ participants }) => {
+                const localParticipant = Array.from(participants.values()).find(p => p.local);
+                return localParticipant ? (
+                  <ParticipantView participantId={localParticipant.id} />
+                ) : (
+                  <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-3xl">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                    <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Studio Signal Sync...</p>
+                  </div>
+                );
+              }}
+            </MeetingConsumer>
+          </div>
+
+          <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
       </div>
 
-      <div className="flex-1 relative">
-        <MeetingConsumer>
-          {({ participants }) => {
-            const localParticipant = Array.from(participants.values()).find(p => p.local);
-            return localParticipant ? (
-              <ParticipantView participantId={localParticipant.id} />
-            ) : (
-              <div className="h-full w-full flex flex-col items-center justify-center bg-black">
-                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Studio Signal Sync...</p>
+      {/* Side Panel: Chat & Products */}
+      <div className="w-80 lg:w-96 shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl">
+          <Tabs defaultValue="chat" className="flex-1 flex flex-col">
+              <div className="p-4 border-b border-white/5 bg-neutral-900/50">
+                  <TabsList className="grid w-full grid-cols-2 bg-black/40 h-11 p-1 rounded-xl">
+                      <TabsTrigger value="chat" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest">
+                          <MessageSquare className="h-3.5 w-3.5 mr-2" /> Chat
+                      </TabsTrigger>
+                      <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest">
+                          <ShoppingBag className="h-3.5 w-3.5 mr-2" /> Products
+                      </TabsTrigger>
+                  </TabsList>
               </div>
-            );
-          }}
-        </MeetingConsumer>
-      </div>
 
-      <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
+              <TabsContent value="chat" className="flex-1 mt-0">
+                  {user ? <LiveChat streamId={user.uid} /> : <div className="p-12 text-center text-neutral-500 uppercase font-black text-[10px] tracking-widest">Loading Chat...</div>}
+              </TabsContent>
+
+              <TabsContent value="products" className="flex-1 mt-0 flex flex-col">
+                  <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
+                      <ShieldCheck className="h-4 w-4 text-green-500" />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                      {user && (
+                          <LiveProductShelf 
+                              sellerId={user.uid} 
+                              onPinProduct={handlePinProduct} 
+                              onUnpinProduct={handleUnpinProduct}
+                              pinnedProductId={pinnedProductId}
+                          />
+                      )}
+                  </div>
+              </TabsContent>
+          </Tabs>
+      </div>
     </div>
   );
 };

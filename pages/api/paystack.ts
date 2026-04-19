@@ -1,5 +1,5 @@
-// This route has been moved to /src/app/api/create-payment-intent/route.ts to avoid conflicts in Next.js 15.
-export const dynamic = 'force-dynamic';
+// This file is deprecated to avoid conflicts with the Next.js 15 App Router.
+// Logic moved to /src/app/api/create-payment-intent/route.ts
 export default function handler(req: any, res: any) {
   res.status(404).end();
 }
