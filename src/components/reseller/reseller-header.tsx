@@ -48,9 +48,11 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
         <SidebarTrigger className="hidden md:flex" />
 
         <div className="hidden md:block">
-            <h1 className="text-lg font-black uppercase tracking-tighter">
-              Reseller <span className="text-primary">Hub</span>
-            </h1>
+            <Link href="/dashboard/reseller">
+                <h1 className="text-lg font-black uppercase tracking-tighter">
+                  Reseller <span className="text-primary">Hub</span>
+                </h1>
+            </Link>
         </div>
       </div>
       <div className="flex items-center gap-2">

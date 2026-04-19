@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -56,9 +55,11 @@ export function AdminHeader() {
           {isLoading ? (
             <Skeleton className="h-6 w-40" />
           ) : (
-            <h1 className="text-sm font-semibold">
-              Welcome, <span className="text-primary">{adminName}</span>
-            </h1>
+            <Link href="/dashboard/admin">
+                <h1 className="text-sm font-semibold">
+                  Welcome, <span className="text-primary">{adminName}</span>
+                </h1>
+            </Link>
           )}
         </div>
       </div>

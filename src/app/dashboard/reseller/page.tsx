@@ -18,8 +18,6 @@ export default function ResellerDashboardPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
-    const isLoading = isUserLoading || isProfileLoading;
-
   return (
     <ResellerLayout>
       <div className="flex-1 space-y-8 p-8 pt-6">

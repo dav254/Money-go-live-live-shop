@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -54,9 +53,11 @@ export function SellerHeader() {
           {isLoading ? (
             <Skeleton className="h-6 w-40" />
           ) : (
-            <h1 className="text-lg font-semibold">
-              Welcome, <span className="text-primary">{sellerName}</span>
-            </h1>
+            <Link href="/dashboard/seller">
+                <h1 className="text-lg font-semibold">
+                  Welcome, <span className="text-primary">{sellerName}</span>
+                </h1>
+            </Link>
           )}
         </div>
       </div>
