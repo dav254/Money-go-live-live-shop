@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -8,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser } from '@/firebase';
-import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, ImageIcon, XCircle } from 'lucide-react';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useUserProfile } from '@/firebase';
+import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, ImageIcon, XCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -17,63 +16,18 @@ import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-
-// --- FRONTEND ONLY MOCK DATA ---
-const mockRequests = [
-    {
-        id: 'req_1',
-        title: 'Need a professional plumber for Nairobi West',
-        description: 'I have a leaking sink in my kitchen that needs urgent fixing. Preferably someone available this afternoon. Needs to handle modern fittings.',
-        category: 'Home Services',
-        minBudget: 1000,
-        maxBudget: 2500,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Nairobi West',
-        requestType: 'video',
-        videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-1725493862-5cb95.firebasestorage.app/o/products%2Fdemo%2Fsample-video.mp4?alt=media',
-        deadline: 'Urgent',
-        status: 'open',
-        offersCount: 3,
-    },
-    {
-        id: 'req_2',
-        title: 'Looking for iPhone 15 Pro Max',
-        description: 'Want a brand new iPhone 15 Pro Max, 256GB. Must be sealed with warranty. White Titanium preferred.',
-        category: 'Electronics',
-        minBudget: 150000,
-        maxBudget: 180000,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Westlands',
-        requestType: 'text',
-        imageUrls: ['https://picsum.photos/seed/iphone15/600/400'],
-        deadline: 'Within 3 Days',
-        status: 'open',
-        offersCount: 5,
-    },
-    {
-        id: 'req_3',
-        title: 'Barber needed for home service',
-        description: 'Need a barber who can come to Kilimani for a clean cut. Must have all tools and follow hygiene protocols.',
-        category: 'Health & Wellness',
-        minBudget: 1500,
-        maxBudget: 3000,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Kilimani',
-        requestType: 'text',
-        deadline: 'Flexible',
-        status: 'open',
-        offersCount: 0,
-    }
-];
+import { collection, doc, addDoc, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
+import type { BuyerRequest, Offer } from '@/lib/types';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 export default function SendOfferPage() {
   const params = useParams();
   const requestId = params.requestId as string;
   const router = useRouter();
   const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
+  const storage = getStorage();
   const { toast } = useToast();
 
   const [price, setPrice] = useState('');
@@ -89,8 +43,13 @@ export default function SendOfferPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // Find the request from mock data
-  const request = mockRequests.find(r => r.id === requestId) || mockRequests[0];
+  // Fetch real request data
+  const requestRef = useMemoFirebase(() => {
+      if (!firestore || !requestId) return null;
+      return doc(firestore, 'requests', requestId);
+  }, [firestore, requestId]);
+
+  const { data: request, isLoading } = useDoc<BuyerRequest>(requestRef);
 
   const startRecording = async () => {
     try {
@@ -127,7 +86,7 @@ export default function SendOfferPage() {
 
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !request) return;
+    if (!user || !request || !firestore) return;
 
     if (!price || !message) {
       toast({ variant: 'destructive', title: 'Details Required' });
@@ -135,17 +94,68 @@ export default function SendOfferPage() {
     }
 
     setIsSubmitting(true);
-    setUploadProgress(20);
+    setUploadProgress(10);
 
-    // Simulate upload and submission
-    setTimeout(() => {
+    try {
+        let offerVideoUrl = null;
+
+        // 1. Upload Video Pitch if present
+        if (videoFile) {
+            const path = `offers/${user.uid}/${Date.now()}_pitch.mp4`;
+            const storageRef = ref(storage, path);
+            const uploadTask = uploadBytesResumable(storageRef, videoFile);
+
+            offerVideoUrl = await new Promise((resolve, reject) => {
+                uploadTask.on('state_changed', 
+                    (snap) => setUploadProgress(10 + (snap.bytesTransferred / snap.totalBytes) * 80),
+                    (err) => reject(err),
+                    async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
+                );
+            });
+        }
+
+        // 2. Save Offer
+        const offerData: Omit<Offer, 'id'> = {
+            requestId: requestId,
+            sellerId: user.uid,
+            sellerName: userProfile?.shopName || userProfile?.fullName || 'Verified Seller',
+            sellerAvatar: userProfile?.profilePictureUrl || '',
+            price: Number(price),
+            message: message,
+            videoUrl: offerVideoUrl as string | undefined,
+            deliveryTime: deliveryTime,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+        };
+
+        await addDoc(collection(firestore, 'offers'), offerData);
+
+        // 3. Update Request Offer Count
+        await updateDoc(doc(firestore, 'requests', requestId), {
+            offersCount: increment(1)
+        });
+
         setUploadProgress(100);
-        setTimeout(() => {
-            toast({ title: 'Offer Sent (Demo)!', description: 'Your pitch has been submitted successfully.' });
-            router.push('/seller/offers');
-        }, 500);
-    }, 1500);
+        toast({ title: 'Pitch Sent!', description: 'Your competitive offer has been submitted.' });
+        router.push('/seller/offers');
+
+    } catch (error: any) {
+        console.error("Submission failed:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not send offer. Please check your connection.' });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <SellerLayout>
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      </SellerLayout>
+    );
+  }
 
   if (!request) {
     return (

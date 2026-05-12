@@ -13,64 +13,16 @@ import {
     MessageSquare,
     Users,
     Megaphone,
-    Video
+    Video,
+    Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { BuyerRequest } from '@/lib/types';
 
-// --- FRONTEND ONLY MOCK DATA ---
-const mockRequests = [
-    {
-        id: '1',
-        title: 'Need a professional plumber for Nairobi West',
-        description: 'I have a leaking sink in my kitchen that needs urgent fixing. Preferably someone available this afternoon.',
-        category: 'Home Services',
-        minBudget: 1000,
-        maxBudget: 2500,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Nairobi West',
-        requestType: 'text',
-        deadline: 'Urgent',
-        status: 'open',
-        offersCount: 3,
-        selectedSellerId: null,
-    },
-    {
-        id: '2',
-        title: 'Looking for iPhone 15 Pro Max',
-        description: 'Want a brand new iPhone 15 Pro Max, 256GB. Must be sealed with warranty.',
-        category: 'Electronics',
-        minBudget: 150000,
-        maxBudget: 180000,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Westlands',
-        requestType: 'video',
-        deadline: 'Within 3 Days',
-        status: 'selected',
-        offersCount: 5,
-        selectedSellerId: 'seller123',
-    },
-    {
-        id: '3',
-        title: 'Delivery of Fresh Groceries',
-        description: 'Need a steady supplier for fresh organic vegetables delivered to Kilimani twice a week.',
-        category: 'Food & Groceries',
-        minBudget: 2000,
-        maxBudget: 5000,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Kilimani',
-        requestType: 'text',
-        deadline: 'Flexible',
-        status: 'closed',
-        offersCount: 12,
-        selectedSellerId: 'seller456',
-    }
-];
-
-const RequestCard = ({ req }: any) => {
+const RequestCard = ({ req }: { req: BuyerRequest }) => {
     const isSelected = req.status === 'selected';
     const isClosed = req.status === 'closed';
 
@@ -103,7 +55,7 @@ const RequestCard = ({ req }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-tighter">
                         <Tag className="h-3.5 w-3.5" />
-                        {req.currency} {req.minBudget.toLocaleString()} - {req.maxBudget.toLocaleString()}
+                        KES {req.minBudget?.toLocaleString()} - {req.maxBudget?.toLocaleString()}
                     </div>
                     <div className="flex items-center justify-end gap-2 text-[10px] font-black text-neutral-500 uppercase tracking-widest">
                         <Clock className="h-3.5 w-3.5" />
@@ -119,11 +71,11 @@ const RequestCard = ({ req }: any) => {
                 <div className="w-full flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/60">
                         <Users className="h-3.5 w-3.5 text-primary" />
-                        {req.offersCount} Pitches
+                        {req.offersCount || 0} Pitches
                     </div>
                     {isSelected ? (
                         <Button className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl bg-blue-600 hover:bg-blue-700" asChild>
-                            <Link href={`/chat/mock_${req.id}`}>
+                            <Link href={`/chat/${req.id}_${req.selectedSellerId}`}>
                                 Go to Chat <MessageSquare className="ml-2 h-3.5 w-3.5" />
                             </Link>
                         </Button>
@@ -145,6 +97,20 @@ const RequestCard = ({ req }: any) => {
 }
 
 export default function MyRequestsPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const myRequestsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(
+            collection(firestore, 'requests'),
+            where('buyerId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+        );
+    }, [user, firestore]);
+
+    const { data: requests, isLoading } = useCollection<BuyerRequest>(myRequestsQuery);
+
     return (
         <BuyerLayout>
             <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
@@ -160,11 +126,29 @@ export default function MyRequestsPage() {
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {mockRequests.map(req => (
-                        <RequestCard key={req.id} req={req} />
-                    ))}
-                </div>
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-50">
+                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                        <p className="text-xs font-black uppercase tracking-widest">Loading broadcasts...</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {requests && requests.length > 0 ? (
+                            requests.map(req => (
+                                <RequestCard key={req.id} req={req} />
+                            ))
+                        ) : (
+                            <div className="col-span-full py-24 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5 flex flex-col items-center">
+                                <Megaphone className="h-12 w-12 text-muted-foreground/20 mb-4" />
+                                <h3 className="text-white font-black uppercase tracking-tighter text-xl">No Needs Broadcasted</h3>
+                                <p className="text-neutral-500 font-medium text-sm mt-2 max-w-xs">You haven't posted any requests yet. Start your first broadcast to attract local sellers!</p>
+                                <Button className="mt-8 font-black uppercase tracking-widest text-[10px] h-12 px-10 rounded-2xl" asChild>
+                                    <Link href="/buyer/post-request">Start Broadcasting</Link>
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </BuyerLayout>
     )

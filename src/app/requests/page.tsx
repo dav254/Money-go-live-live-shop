@@ -1,76 +1,37 @@
-
 'use client';
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search, Megaphone, ImageIcon, Layers } from 'lucide-react';
+import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search, Megaphone, ImageIcon, Layers, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
-
-// --- FRONTEND ONLY MOCK DATA ---
-const mockRequests = [
-    {
-        id: 'req_1',
-        title: 'Need a professional plumber for Nairobi West',
-        description: 'I have a leaking sink in my kitchen that needs urgent fixing. Preferably someone available this afternoon. Needs to handle modern fittings.',
-        category: 'Home Services',
-        minBudget: 1000,
-        maxBudget: 2500,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Nairobi West',
-        requestType: 'video',
-        videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-1725493862-5cb95.firebasestorage.app/o/products%2Fdemo%2Fsample-video.mp4?alt=media', // Placeholder
-        deadline: 'Urgent',
-        status: 'open',
-        offersCount: 3,
-        createdAt: { toDate: () => new Date() },
-    },
-    {
-        id: 'req_2',
-        title: 'Looking for iPhone 15 Pro Max',
-        description: 'Want a brand new iPhone 15 Pro Max, 256GB. Must be sealed with warranty. White Titanium preferred.',
-        category: 'Electronics',
-        minBudget: 150000,
-        maxBudget: 180000,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Westlands',
-        requestType: 'text',
-        imageUrls: ['https://picsum.photos/seed/iphone15/600/400'],
-        deadline: 'Within 3 Days',
-        status: 'open',
-        offersCount: 5,
-        createdAt: { toDate: () => new Date(Date.now() - 3600000) },
-    },
-    {
-        id: 'req_3',
-        title: 'Barber needed for home service',
-        description: 'Need a barber who can come to Kilimani for a clean cut. Must have all tools and follow hygiene protocols.',
-        category: 'Health & Wellness',
-        minBudget: 1500,
-        maxBudget: 3000,
-        currency: 'KES',
-        county: 'Nairobi',
-        area: 'Kilimani',
-        requestType: 'text',
-        deadline: 'Flexible',
-        status: 'open',
-        offersCount: 0,
-        createdAt: { toDate: () => new Date(Date.now() - 86400000) },
-    }
-];
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { BuyerRequest } from '@/lib/types';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function SellerRequestsMarketplacePage() {
   const [searchTerm, setSearchQuery] = useState('');
+  const firestore = useFirestore();
 
-  const filtered = mockRequests.filter(r => 
-    r.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const requestsQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(
+          collection(firestore, 'requests'),
+          where('status', '==', 'open'),
+          orderBy('createdAt', 'desc')
+      );
+  }, [firestore]);
+
+  const { data: requests, isLoading } = useCollection<BuyerRequest>(requestsQuery);
+
+  const filtered = (requests || []).filter(r => 
+    r.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -79,14 +40,14 @@ export default function SellerRequestsMarketplacePage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tighter text-white">Marketplace Leads</h1>
-            <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest mt-1">Direct inquiries from active buyers (Demo Mode)</p>
+            <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest mt-1">Direct inquiries from active buyers</p>
           </div>
           
           <div className="flex items-center gap-3">
             <div className="bg-primary/10 border border-primary/20 rounded-2xl px-6 py-2 flex items-center gap-4 shadow-xl">
                  <div className="text-right">
                     <p className="text-[8px] font-black uppercase text-primary tracking-widest">Active Needs</p>
-                    <p className="text-xl font-black text-white">{filtered.length}</p>
+                    <p className="text-xl font-black text-white">{isLoading ? '...' : filtered.length}</p>
                  </div>
                  <div className="h-8 w-px bg-primary/20" />
                  <Target className="h-6 w-6 text-primary" />
@@ -112,24 +73,31 @@ export default function SellerRequestsMarketplacePage() {
             </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.length > 0 ? (
-            filtered.map((request) => (
-              <LeadCard key={request.id} request={request as any} />
-            ))
-          ) : (
-            <div className="col-span-full py-24 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5">
-              <Megaphone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
-              <p className="text-neutral-500 font-black uppercase tracking-widest text-xs">No matching leads found at the moment.</p>
+        {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 opacity-50">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-xs font-black uppercase tracking-widest">Scanning Marketplace...</p>
             </div>
-          )}
-        </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.length > 0 ? (
+                filtered.map((request) => (
+                <LeadCard key={request.id} request={request} />
+                ))
+            ) : (
+                <div className="col-span-full py-24 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5">
+                <Megaphone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+                <p className="text-neutral-500 font-black uppercase tracking-widest text-xs">No matching leads found at the moment.</p>
+                </div>
+            )}
+            </div>
+        )}
       </div>
     </SellerLayout>
   );
 }
 
-function LeadCard({ request }: { request: any }) {
+function LeadCard({ request }: { request: BuyerRequest }) {
     const mainThumbnail = request.imageUrls?.[0];
 
     return (
@@ -152,7 +120,9 @@ function LeadCard({ request }: { request: any }) {
                 {request.videoUrl ? (
                     <video src={request.videoUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
                 ) : mainThumbnail ? (
-                    <Image src={mainThumbnail} alt={request.title} fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative w-full h-full">
+                        <Image src={mainThumbnail} alt={request.title} fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                    </div>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center opacity-10">
                         <Layers className="h-16 w-16 text-white" />
@@ -168,6 +138,9 @@ function LeadCard({ request }: { request: any }) {
                 <CardTitle className="text-xl font-black uppercase tracking-tight line-clamp-2 group-hover:text-primary transition-colors leading-tight text-white">
                     {request.title}
                 </CardTitle>
+                <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest mt-1">
+                    Posted {request.createdAt?.toDate ? formatDistanceToNow(request.createdAt.toDate(), { addSuffix: true }) : 'Recently'}
+                </p>
             </CardHeader>
             
             <CardContent className="px-8 flex-1 space-y-6">
