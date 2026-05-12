@@ -1,34 +1,80 @@
 
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, addDoc, collection, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
-import type { BuyerRequest } from '@/lib/types';
-import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, ImageIcon } from 'lucide-react';
+import { useUser } from '@/firebase';
+import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, ImageIcon, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 
+// --- FRONTEND ONLY MOCK DATA ---
+const mockRequests = [
+    {
+        id: 'req_1',
+        title: 'Need a professional plumber for Nairobi West',
+        description: 'I have a leaking sink in my kitchen that needs urgent fixing. Preferably someone available this afternoon. Needs to handle modern fittings.',
+        category: 'Home Services',
+        minBudget: 1000,
+        maxBudget: 2500,
+        currency: 'KES',
+        county: 'Nairobi',
+        area: 'Nairobi West',
+        requestType: 'video',
+        videoUrl: 'https://firebasestorage.googleapis.com/v0/b/studio-1725493862-5cb95.firebasestorage.app/o/products%2Fdemo%2Fsample-video.mp4?alt=media',
+        deadline: 'Urgent',
+        status: 'open',
+        offersCount: 3,
+    },
+    {
+        id: 'req_2',
+        title: 'Looking for iPhone 15 Pro Max',
+        description: 'Want a brand new iPhone 15 Pro Max, 256GB. Must be sealed with warranty. White Titanium preferred.',
+        category: 'Electronics',
+        minBudget: 150000,
+        maxBudget: 180000,
+        currency: 'KES',
+        county: 'Nairobi',
+        area: 'Westlands',
+        requestType: 'text',
+        imageUrls: ['https://picsum.photos/seed/iphone15/600/400'],
+        deadline: 'Within 3 Days',
+        status: 'open',
+        offersCount: 5,
+    },
+    {
+        id: 'req_3',
+        title: 'Barber needed for home service',
+        description: 'Need a barber who can come to Kilimani for a clean cut. Must have all tools and follow hygiene protocols.',
+        category: 'Health & Wellness',
+        minBudget: 1500,
+        maxBudget: 3000,
+        currency: 'KES',
+        county: 'Nairobi',
+        area: 'Kilimani',
+        requestType: 'text',
+        deadline: 'Flexible',
+        status: 'open',
+        offersCount: 0,
+    }
+];
+
 export default function SendOfferPage() {
   const params = useParams();
   const requestId = params.requestId as string;
   const router = useRouter();
   const { user } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
-  const storage = getStorage();
 
   const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
@@ -43,8 +89,8 @@ export default function SendOfferPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const requestRef = useMemoFirebase(() => doc(firestore, 'requests', requestId), [firestore, requestId]);
-  const { data: request, isLoading } = useDoc<BuyerRequest>(requestRef);
+  // Find the request from mock data
+  const request = mockRequests.find(r => r.id === requestId) || mockRequests[0];
 
   const startRecording = async () => {
     try {
@@ -81,7 +127,7 @@ export default function SendOfferPage() {
 
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !firestore || !request) return;
+    if (!user || !request) return;
 
     if (!price || !message) {
       toast({ variant: 'destructive', title: 'Details Required' });
@@ -89,63 +135,27 @@ export default function SendOfferPage() {
     }
 
     setIsSubmitting(true);
-    setUploadProgress(0);
+    setUploadProgress(20);
 
-    try {
-      let videoUrl = '';
-      if (videoFile) {
-        const path = `offers/${user.uid}/${Date.now()}_resp.mp4`;
-        const storageRef = ref(storage, path);
-        const uploadTask = uploadBytesResumable(storageRef, videoFile);
-
-        videoUrl = await new Promise((resolve, reject) => {
-            uploadTask.on('state_changed', 
-                (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
-                (err) => reject(err),
-                async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
-            );
-        });
-      }
-
-      const offerData = {
-        requestId,
-        sellerId: user.uid,
-        sellerName: user.displayName || 'Go Earn Seller',
-        sellerAvatar: user.photoURL || '',
-        price: Number(price),
-        message,
-        videoUrl,
-        deliveryTime,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      };
-
-      await addDoc(collection(firestore, 'offers'), offerData);
-      await updateDoc(requestRef, { offersCount: increment(1) });
-
-      toast({ title: 'Offer Sent!', description: 'Buyer has been notified.' });
-      router.push('/seller/offers');
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Simulate upload and submission
+    setTimeout(() => {
+        setUploadProgress(100);
+        setTimeout(() => {
+            toast({ title: 'Offer Sent (Demo)!', description: 'Your pitch has been submitted successfully.' });
+            router.push('/seller/offers');
+        }, 500);
+    }, 1500);
   };
-
-  if (isLoading) {
-    return (
-      <SellerLayout>
-        <div className="flex h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </SellerLayout>
-    );
-  }
 
   if (!request) {
     return (
       <SellerLayout>
-        <div className="p-8 text-center"><h2 className="text-xl font-bold text-white">Request not found</h2></div>
+        <div className="p-8 text-center flex flex-col items-center justify-center h-[60vh]">
+            <XCircle className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
+            <h2 className="text-xl font-bold text-white">Lead Not Found</h2>
+            <p className="text-muted-foreground mt-2">This request might have been closed or removed.</p>
+            <Button variant="link" onClick={() => router.push('/requests')}>Back to Marketplace</Button>
+        </div>
       </SellerLayout>
     );
   }
@@ -191,7 +201,7 @@ export default function SendOfferPage() {
                     <p className="text-lg font-black text-primary">KES {request.minBudget?.toLocaleString()} - {request.maxBudget?.toLocaleString()}</p>
                   </div>
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
-                    <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Timeline</p>
+                    <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Deadline</p>
                     <p className="text-lg font-black text-white uppercase">{request.deadline}</p>
                   </div>
                 </div>
