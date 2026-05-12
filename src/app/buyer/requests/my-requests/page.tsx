@@ -2,31 +2,77 @@
 
 import React from 'react';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import type { BuyerRequest } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { 
     Tag, 
     Clock, 
     MapPin, 
     ArrowRight, 
-    Video, 
     MessageSquare,
-    AlertCircle,
-    CheckCircle2,
     Users,
-    Megaphone
+    Megaphone,
+    Video
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
 
-const RequestCard = ({ req }: { req: BuyerRequest }) => {
+// --- FRONTEND ONLY MOCK DATA ---
+const mockRequests = [
+    {
+        id: '1',
+        title: 'Need a professional plumber for Nairobi West',
+        description: 'I have a leaking sink in my kitchen that needs urgent fixing. Preferably someone available this afternoon.',
+        category: 'Home Services',
+        minBudget: 1000,
+        maxBudget: 2500,
+        currency: 'KES',
+        county: 'Nairobi',
+        area: 'Nairobi West',
+        requestType: 'text',
+        deadline: 'Urgent',
+        status: 'open',
+        offersCount: 3,
+        selectedSellerId: null,
+    },
+    {
+        id: '2',
+        title: 'Looking for iPhone 15 Pro Max',
+        description: 'Want a brand new iPhone 15 Pro Max, 256GB. Must be sealed with warranty.',
+        category: 'Electronics',
+        minBudget: 150000,
+        maxBudget: 180000,
+        currency: 'KES',
+        county: 'Nairobi',
+        area: 'Westlands',
+        requestType: 'video',
+        deadline: 'Within 3 Days',
+        status: 'selected',
+        offersCount: 5,
+        selectedSellerId: 'seller123',
+    },
+    {
+        id: '3',
+        title: 'Delivery of Fresh Groceries',
+        description: 'Need a steady supplier for fresh organic vegetables delivered to Kilimani twice a week.',
+        category: 'Food & Groceries',
+        minBudget: 2000,
+        maxBudget: 5000,
+        currency: 'KES',
+        county: 'Nairobi',
+        area: 'Kilimani',
+        requestType: 'text',
+        deadline: 'Flexible',
+        status: 'closed',
+        offersCount: 12,
+        selectedSellerId: 'seller456',
+    }
+];
+
+const RequestCard = ({ req }: any) => {
     const isSelected = req.status === 'selected';
+    const isClosed = req.status === 'closed';
 
     return (
         <Card className="bg-neutral-900/50 border-white/5 rounded-3xl overflow-hidden hover:border-primary/20 transition-all group relative">
@@ -43,7 +89,7 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
                         "uppercase text-[8px] font-black border-none px-2 py-0.5 rounded-full",
                         req.status === 'open' ? "bg-green-500/10 text-green-500" : isSelected ? "bg-blue-500/10 text-blue-500" : "bg-neutral-800 text-neutral-400"
                     )}>
-                        {req.status === 'open' ? 'Live Broadcast' : isSelected ? 'Offer Accepted' : req.status}
+                        {req.status === 'open' ? 'Live Broadcast' : isSelected ? 'Offer Accepted' : 'Completed'}
                     </Badge>
                 </div>
                 <CardTitle className="text-xl font-black uppercase tracking-tight line-clamp-1 group-hover:text-primary transition-colors">
@@ -57,7 +103,7 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-tighter">
                         <Tag className="h-3.5 w-3.5" />
-                        KES {req.minBudget.toLocaleString()} - {req.maxBudget.toLocaleString()}
+                        {req.currency} {req.minBudget.toLocaleString()} - {req.maxBudget.toLocaleString()}
                     </div>
                     <div className="flex items-center justify-end gap-2 text-[10px] font-black text-neutral-500 uppercase tracking-widest">
                         <Clock className="h-3.5 w-3.5" />
@@ -73,17 +119,21 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
                 <div className="w-full flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-white/60">
                         <Users className="h-3.5 w-3.5 text-primary" />
-                        {req.offersCount || 0} Pitches
+                        {req.offersCount} Pitches
                     </div>
                     {isSelected ? (
                         <Button className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl bg-blue-600 hover:bg-blue-700" asChild>
-                            <Link href={`/chat/${req.id}_${req.selectedSellerId}`}>
+                            <Link href={`/chat/mock_${req.id}`}>
                                 Go to Chat <MessageSquare className="ml-2 h-3.5 w-3.5" />
                             </Link>
                         </Button>
+                    ) : isClosed ? (
+                         <Button variant="ghost" disabled className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl">
+                            Request Closed
+                        </Button>
                     ) : (
                         <Button className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl" asChild>
-                            <Link href={`/buyer/requests/my-requests/${req.id}`}>
+                            <Link href={`/buyer/requests/${req.id}/offers`}>
                                 View Pitches <ArrowRight className="ml-2 h-3.5 w-3.5" />
                             </Link>
                         </Button>
@@ -95,20 +145,6 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
 }
 
 export default function MyRequestsPage() {
-    const { user } = useUser();
-    const firestore = useFirestore();
-
-    const myRequestsQuery = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return query(
-            collection(firestore, 'requests'),
-            where('buyerId', '==', user.uid),
-            orderBy('createdAt', 'desc')
-        );
-    }, [user, firestore]);
-
-    const { data: requests, isLoading } = useCollection<BuyerRequest>(myRequestsQuery);
-
     return (
         <BuyerLayout>
             <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
@@ -124,30 +160,11 @@ export default function MyRequestsPage() {
                     </Button>
                 </div>
 
-                {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[...Array(3)].map((_, i) => (
-                            <Skeleton key={i} className="h-64 w-full rounded-3xl" />
-                        ))}
-                    </div>
-                ) : requests && requests.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {requests.map(req => (
-                            <RequestCard key={req.id} req={req} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-20 bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5 text-center px-8">
-                        <div className="p-6 bg-primary/10 rounded-full mb-6">
-                            <Megaphone className="h-12 w-12 text-primary opacity-20" />
-                        </div>
-                        <h3 className="text-2xl font-black uppercase tracking-tighter">No Active Broadcasts</h3>
-                        <p className="text-neutral-500 max-w-sm mt-4 font-medium leading-relaxed">You haven't told sellers what you need yet. Broadcast your first need to start receiving competitive offers.</p>
-                        <Button className="mt-8 font-black uppercase tracking-widest h-14 px-10 rounded-2xl" asChild>
-                            <Link href="/buyer/post-request">Start Broadcasting</Link>
-                        </Button>
-                    </div>
-                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {mockRequests.map(req => (
+                        <RequestCard key={req.id} req={req} />
+                    ))}
+                </div>
             </div>
         </BuyerLayout>
     )
