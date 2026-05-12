@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,16 +42,15 @@ import {
   UploadCloud, 
   X, 
   Video, 
-  Image as ImageIcon, 
   Loader2, 
   Megaphone, 
   CheckCircle2, 
   MapPin, 
-  DollarSign,
   Keyboard,
   Camera,
   RefreshCw,
-  Locate
+  Locate,
+  StopCircle
 } from 'lucide-react';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
@@ -94,9 +93,6 @@ export default function PostRequestPage() {
   const chunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoUploadRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -265,12 +261,14 @@ export default function PostRequestPage() {
             
             <div className="flex bg-muted p-1 rounded-xl">
                 <button 
+                    type="button"
                     onClick={() => setRequestType('text')}
                     className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'text' ? "bg-background shadow-lg" : "text-muted-foreground")}
                 >
                     <Keyboard className="h-4 w-4" /> Type Request
                 </button>
                 <button 
+                    type="button"
                     onClick={() => setRequestType('video')}
                     className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'video' ? "bg-background shadow-lg" : "text-muted-foreground")}
                 >
@@ -355,7 +353,7 @@ export default function PostRequestPage() {
                                 {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            </FormMessage>
+                            <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="deadline" render={({ field }) => (
@@ -474,20 +472,3 @@ export default function PostRequestPage() {
     </BuyerLayout>
   );
 }
-
-const StopCircle = (props: any) => (
-  <svg
-    {...props}
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect width="18" height="18" x="3" y="3" rx="2" />
-  </svg>
-);
