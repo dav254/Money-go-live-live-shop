@@ -18,18 +18,21 @@ import {
     MessageSquare,
     AlertCircle,
     CheckCircle2,
-    Users
+    Users,
+    Megaphone
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
 const RequestCard = ({ req }: { req: BuyerRequest }) => {
+    const isSelected = req.status === 'selected';
+
     return (
         <Card className="bg-neutral-900/50 border-white/5 rounded-3xl overflow-hidden hover:border-primary/20 transition-all group relative">
             <div className={cn(
-                "absolute top-0 left-0 w-1.5 h-full",
-                req.status === 'open' ? "bg-primary" : "bg-neutral-600"
+                "absolute top-0 left-0 w-1.5 h-full transition-colors",
+                req.status === 'open' ? "bg-primary" : isSelected ? "bg-green-500" : "bg-neutral-600"
             )} />
             <CardHeader className="p-6 pb-2">
                 <div className="flex justify-between items-start mb-4">
@@ -38,9 +41,9 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
                     </Badge>
                     <Badge variant="outline" className={cn(
                         "uppercase text-[8px] font-black border-none px-2 py-0.5 rounded-full",
-                        req.status === 'open' ? "bg-green-500/10 text-green-500" : "bg-neutral-800 text-neutral-400"
+                        req.status === 'open' ? "bg-green-500/10 text-green-500" : isSelected ? "bg-blue-500/10 text-blue-500" : "bg-neutral-800 text-neutral-400"
                     )}>
-                        {req.status === 'open' ? 'Live Broadcast' : req.status}
+                        {req.status === 'open' ? 'Live Broadcast' : isSelected ? 'Offer Accepted' : req.status}
                     </Badge>
                 </div>
                 <CardTitle className="text-xl font-black uppercase tracking-tight line-clamp-1 group-hover:text-primary transition-colors">
@@ -57,12 +60,12 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
                         KES {req.minBudget.toLocaleString()} - {req.maxBudget.toLocaleString()}
                     </div>
                     <div className="flex items-center justify-end gap-2 text-[10px] font-black text-neutral-500 uppercase tracking-widest">
-                        <Clock className="h-3 w-3" />
+                        <Clock className="h-3.5 w-3.5" />
                         {req.deadline}
                     </div>
                 </div>
                 <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">
-                    <MapPin className="h-3 w-3 text-primary" />
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
                     {req.area}, {req.county}
                 </div>
             </CardContent>
@@ -72,11 +75,19 @@ const RequestCard = ({ req }: { req: BuyerRequest }) => {
                         <Users className="h-3.5 w-3.5 text-primary" />
                         {req.offersCount || 0} Pitches
                     </div>
-                    <Button className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl" asChild>
-                        <Link href={`/buyer/requests/my-requests/${req.id}`}>
-                            View Offers <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                        </Link>
-                    </Button>
+                    {isSelected ? (
+                        <Button className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl bg-blue-600 hover:bg-blue-700" asChild>
+                            <Link href={`/chat/${req.id}_${req.selectedSellerId}`}>
+                                Go to Chat <MessageSquare className="ml-2 h-3.5 w-3.5" />
+                            </Link>
+                        </Button>
+                    ) : (
+                        <Button className="font-black uppercase tracking-widest text-[10px] h-10 rounded-xl" asChild>
+                            <Link href={`/buyer/requests/my-requests/${req.id}`}>
+                                View Pitches <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                            </Link>
+                        </Button>
+                    )}
                 </div>
             </CardFooter>
         </Card>

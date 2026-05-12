@@ -56,6 +56,7 @@ import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
@@ -371,7 +372,3 @@ export default function PostRequestPage() {
     </BuyerLayout>
   );
 }
-
-const Label = ({ children, className }: any) => (
-    <span className={cn("block text-sm font-medium text-foreground", className)}>{children}</span>
-);
