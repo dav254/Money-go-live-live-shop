@@ -16,6 +16,9 @@ import {
   CreditCard,
   Radio,
   Video,
+  PlusCircle,
+  ListOrdered,
+  Megaphone,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -66,6 +69,28 @@ export function BuyerSidebar() {
             <Link href="/messages">
               <MessageSquare />
               <span>Messages</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+
+    <SidebarGroup>
+      <SidebarGroupLabel>Needs & Broadcasts</SidebarGroupLabel>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/post-request')} tooltip="Broadcast a Need">
+            <Link href="/buyer/post-request">
+              <Megaphone className="text-primary" />
+              <span>Broadcast a Need</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/requests/my-requests')} tooltip="My Needs">
+            <Link href="/buyer/requests/my-requests">
+              <ListOrdered />
+              <span>My Active Needs</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
