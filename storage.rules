@@ -1,38 +1,40 @@
+
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Helper to check if user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Match any file in the 'products' folder
-    // Path: products/{userId}/{filename}
     match /products/{userId}/{allPaths=**} {
-      // Public read for marketplace visibility
       allow read;
-      // Write access only for the owner of the folder
+      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /requests/{userId}/{allPaths=**} {
+      allow read;
+      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /offers/{userId}/{allPaths=**} {
+      allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
-    // Match shop branding (logos, banners)
     match /shops/{userId}/{allPaths=**} {
       allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
-    // Match support evidence and documents
     match /support/{userId}/{allPaths=**} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Match delivery proofs
     match /delivery_proofs/{allPaths=**} {
        allow read, write: if isSignedIn();
     }
     
-    // Allow chats media
     match /chats/{chatId}/{allPaths=**} {
        allow read, write: if isSignedIn();
     }

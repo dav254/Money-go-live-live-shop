@@ -1,10 +1,11 @@
+
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search, Megaphone } from 'lucide-react';
+import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search, Megaphone, ImageIcon, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -12,6 +13,7 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { BuyerRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
 
 export default function SellerRequestsMarketplacePage() {
   const firestore = useFirestore();
@@ -37,7 +39,7 @@ export default function SellerRequestsMarketplacePage() {
       <div className="p-6 space-y-8 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-black uppercase tracking-tighter">Marketplace Leads</h1>
+            <h1 className="text-3xl font-black uppercase tracking-tighter text-white">Marketplace Leads</h1>
             <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest mt-1">Direct inquiries from active buyers</p>
           </div>
           
@@ -54,16 +56,16 @@ export default function SellerRequestsMarketplacePage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-1 group">
+            <div className="relative flex-1 group w-full">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input 
                     placeholder="Search keywords or categories..." 
-                    className="pl-12 h-14 bg-neutral-900 border-white/5 rounded-2xl shadow-xl"
+                    className="pl-12 h-14 bg-neutral-900 border-white/5 rounded-2xl shadow-xl text-white"
                     value={searchTerm}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
-            <Button variant="outline" className="h-14 px-8 rounded-2xl border-white/5 bg-neutral-900 shadow-xl font-black uppercase text-[10px] tracking-widest">
+            <Button variant="outline" className="h-14 px-8 rounded-2xl border-white/5 bg-neutral-900 shadow-xl font-black uppercase text-[10px] tracking-widest text-white">
                 <Filter className="mr-2 h-4 w-4" /> Filters
             </Button>
             <Button variant="secondary" className="h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest bg-blue-600/10 text-blue-400 border-blue-500/20">
@@ -91,34 +93,56 @@ export default function SellerRequestsMarketplacePage() {
 }
 
 function LeadCard({ request }: { request: BuyerRequest }) {
+    const hasMedia = request.videoUrl || (request.imageUrls && request.imageUrls.length > 0);
+    const mainThumbnail = request.imageUrls?.[0];
+
     return (
         <Card className="bg-neutral-900/50 border-white/5 hover:border-primary/30 transition-all group overflow-hidden rounded-[2rem] flex flex-col relative">
-            {request.requestType === 'video' && (
+            {request.requestType === 'video' ? (
                 <div className="absolute top-4 right-4 z-10">
-                    <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full px-3 py-1">
+                    <Badge className="bg-red-600 text-white border-none text-[8px] font-black uppercase tracking-widest rounded-full px-3 py-1 shadow-xl">
                         <Video className="h-3 w-3 mr-1" /> Video Request
                     </Badge>
                 </div>
-            )}
+            ) : request.imageUrls?.length > 0 ? (
+                <div className="absolute top-4 right-4 z-10">
+                    <Badge className="bg-blue-600 text-white border-none text-[8px] font-black uppercase tracking-widest rounded-full px-3 py-1 shadow-xl">
+                        <ImageIcon className="h-3 w-3 mr-1" /> {request.imageUrls.length} Images
+                    </Badge>
+                </div>
+            ) : null}
             
+            <div className="relative aspect-video w-full bg-black overflow-hidden border-b border-white/5">
+                {request.videoUrl ? (
+                    <video src={request.videoUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
+                ) : mainThumbnail ? (
+                    <Image src={mainThumbnail} alt={request.title} fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center opacity-10">
+                        <Layers className="h-16 w-16 text-white" />
+                    </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent" />
+            </div>
+
             <CardHeader className="p-8 pb-4">
                 <Badge variant="outline" className="w-fit mb-4 text-[8px] font-black uppercase tracking-widest border-primary/20 text-primary bg-primary/5">
                     {request.category}
                 </Badge>
-                <CardTitle className="text-xl font-black uppercase tracking-tight line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                <CardTitle className="text-xl font-black uppercase tracking-tight line-clamp-2 group-hover:text-primary transition-colors leading-tight text-white">
                     {request.title}
                 </CardTitle>
             </CardHeader>
             
             <CardContent className="px-8 flex-1 space-y-6">
-                <p className="text-sm text-neutral-400 font-medium leading-relaxed line-clamp-3">
+                <p className="text-sm text-neutral-400 font-medium leading-relaxed line-clamp-2">
                     {request.description}
                 </p>
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1 shadow-lg">
                         <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Budget</p>
-                        <p className="text-sm font-black text-white">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
+                        <p className="text-sm font-black text-white">KES {request.minBudget?.toLocaleString()} - {request.maxBudget?.toLocaleString()}</p>
                     </div>
                      <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1 shadow-lg">
                         <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Deadline</p>
@@ -133,9 +157,9 @@ function LeadCard({ request }: { request: BuyerRequest }) {
             </CardContent>
             
             <CardFooter className="p-8 pt-4">
-                <Button className="w-full font-black uppercase tracking-widest text-xs h-14 rounded-2xl shadow-xl shadow-primary/10" asChild>
+                <Button className="w-full font-black uppercase tracking-widest text-xs h-14 rounded-2xl shadow-xl shadow-primary/10 bg-primary hover:bg-primary/90 text-white" asChild>
                     <Link href={`/seller/send-offer/${request.id}`}>
-                        Open Lead <ArrowRight className="ml-2 h-4 w-4" />
+                        Send Offer <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                 </Button>
             </CardFooter>

@@ -10,13 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, addDoc, collection, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
-import type { BuyerRequest, UserProfile } from '@/lib/types';
-import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, CheckCircle, Video, Camera, StopCircle, Trash2, BadgeCent } from 'lucide-react';
+import type { BuyerRequest } from '@/lib/types';
+import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
+import Image from 'next/image';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 
 export default function SendOfferPage() {
   const params = useParams();
@@ -142,7 +145,7 @@ export default function SendOfferPage() {
   if (!request) {
     return (
       <SellerLayout>
-        <div className="p-8 text-center"><h2 className="text-xl font-bold">Request not found</h2></div>
+        <div className="p-8 text-center"><h2 className="text-xl font-bold text-white">Request not found</h2></div>
       </SellerLayout>
     );
   }
@@ -150,18 +153,19 @@ export default function SendOfferPage() {
   return (
     <SellerLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-8">
-        <Button variant="ghost" className="mb-4 uppercase font-black text-[10px] tracking-[0.2em]" onClick={() => router.back()}>
+        <Button variant="ghost" className="mb-4 uppercase font-black text-[10px] tracking-[0.2em] text-white" onClick={() => router.back()}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lead Market
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          {/* Buyer Request Display */}
           <div className="space-y-6 lg:sticky lg:top-24">
             <Card className="bg-neutral-900/50 border-white/5 overflow-hidden rounded-[2.5rem] shadow-2xl">
               <CardHeader className="p-8 pb-4">
                 <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full mb-4 w-fit px-3 py-1">
                     {request.category}
                 </Badge>
-                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight">{request.title}</CardTitle>
+                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight text-white">{request.title}</CardTitle>
                 <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed">{request.description}</CardDescription>
               </CardHeader>
               <CardContent className="p-8 space-y-8">
@@ -170,11 +174,21 @@ export default function SendOfferPage() {
                     <video src={request.videoUrl} controls className="w-full h-full object-cover" />
                   </div>
                 )}
+
+                {request.imageUrls && request.imageUrls.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                        {request.imageUrls.map((url, i) => (
+                            <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10">
+                                <Image src={url} alt={`Evidence ${i}`} fill className="object-cover" />
+                            </div>
+                        ))}
+                    </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Buyer Budget</p>
-                    <p className="text-lg font-black text-primary">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
+                    <p className="text-lg font-black text-primary">KES {request.minBudget?.toLocaleString()} - {request.maxBudget?.toLocaleString()}</p>
                   </div>
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Timeline</p>
@@ -190,11 +204,12 @@ export default function SendOfferPage() {
             </Card>
           </div>
 
+          {/* Seller Offer Form */}
           <div className="space-y-6">
             <Card className="bg-neutral-950 border-primary/20 shadow-[0_0_100px_rgba(255,100,0,0.1)] rounded-[2.5rem] overflow-hidden">
               <CardHeader className="p-8 pb-4 bg-primary/5 border-b border-white/5">
-                <CardTitle className="text-2xl font-black uppercase tracking-tighter text-white">Send Offer</CardTitle>
-                <CardDescription className="font-bold text-primary/60 text-xs uppercase tracking-widest">Compete for this lead with your best pitch.</CardDescription>
+                <CardTitle className="text-2xl font-black uppercase tracking-tighter text-white">Send Your Pitch</CardTitle>
+                <CardDescription className="font-bold text-primary/60 text-xs uppercase tracking-widest">Craft a competitive offer to win this customer.</CardDescription>
               </CardHeader>
               <form onSubmit={handleSendOffer}>
                 <CardContent className="p-8 space-y-8">
@@ -246,7 +261,7 @@ export default function SendOfferPage() {
                             id="price"
                             type="number"
                             placeholder="e.g. 2200"
-                            className="pl-12 h-14 bg-white/5 rounded-2xl border-white/10 text-lg font-black focus-visible:ring-primary shadow-inner"
+                            className="pl-12 h-14 bg-white/5 rounded-2xl border-white/10 text-lg font-black focus-visible:ring-primary shadow-inner text-white"
                             value={price}
                             onChange={(e) => setPrice(e.target.value)}
                             required
@@ -259,7 +274,7 @@ export default function SendOfferPage() {
                         <Input
                         id="delivery"
                         placeholder="e.g. Delivery within 1 Hour"
-                        className="h-14 bg-white/5 rounded-2xl border-white/10 font-bold shadow-inner"
+                        className="h-14 bg-white/5 rounded-2xl border-white/10 font-bold shadow-inner text-white"
                         value={deliveryTime}
                         onChange={(e) => setDeliveryTime(e.target.value)}
                         required
@@ -271,8 +286,8 @@ export default function SendOfferPage() {
                         <Textarea
                         id="message"
                         rows={5}
-                        placeholder="Explain why the buyer should choose your shop. Mention quality, guarantees, or specific product features."
-                        className="bg-white/5 rounded-2xl border-white/10 text-sm font-medium leading-relaxed shadow-inner"
+                        placeholder="Explain why the buyer should choose you..."
+                        className="bg-white/5 rounded-2xl border-white/10 text-sm font-medium leading-relaxed shadow-inner text-white"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         required
@@ -283,7 +298,7 @@ export default function SendOfferPage() {
                 <CardFooter className="p-8 pt-0 flex flex-col gap-6">
                   {isSubmitting && (
                       <div className="w-full space-y-2 px-2">
-                          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-primary"><span>Transmitting Lead Data...</span><span>{Math.round(uploadProgress)}%</span></div>
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-primary"><span>Transmitting Data...</span><span>{Math.round(uploadProgress)}%</span></div>
                           <Progress value={uploadProgress} className="h-1" />
                       </div>
                   )}
@@ -291,7 +306,6 @@ export default function SendOfferPage() {
                     {isSubmitting ? <Loader2 className="animate-spin mr-2 h-6 w-6" /> : <Send className="mr-2 h-6 w-6" />}
                     SEND PITCH NOW
                   </Button>
-                  <p className="text-[9px] font-bold text-center text-neutral-600 uppercase tracking-widest leading-relaxed">By sending, you commit to fulfilling this order if selected. Integrity is key to Go Earn growth.</p>
                 </CardFooter>
               </form>
             </Card>

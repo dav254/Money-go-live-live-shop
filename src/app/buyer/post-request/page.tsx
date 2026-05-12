@@ -50,7 +50,8 @@ import {
   Camera,
   RefreshCw,
   Locate,
-  StopCircle
+  StopCircle,
+  ImageIcon
 } from 'lucide-react';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
@@ -58,6 +59,9 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
+
+const MAX_IMAGES = 3;
+const MAX_VIDEO_DURATION = 30;
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
@@ -83,7 +87,7 @@ export default function PostRequestPage() {
 
   const [requestMode, setRequestType] = useState<'video' | 'text'>('text');
   const [isUploading, setIsUploading] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>(new Array(MAX_IMAGES).fill(null));
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
@@ -151,9 +155,9 @@ export default function PostRequestPage() {
     if (isRecording) {
       interval = setInterval(() => {
         setRecordingDuration(prev => {
-            if (prev >= 30) {
+            if (prev >= MAX_VIDEO_DURATION) {
                 stopRecording();
-                return 30;
+                return MAX_VIDEO_DURATION;
             }
             return prev + 1;
         });
@@ -161,6 +165,21 @@ export default function PostRequestPage() {
     }
     return () => clearInterval(interval);
   }, [isRecording]);
+
+  const handleImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const newFiles = [...imageFiles];
+        newFiles[index] = file;
+        setImageFiles(newFiles);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    const newFiles = [...imageFiles];
+    newFiles[index] = null;
+    setImageFiles(newFiles);
+  };
 
   const detectGPS = () => {
     if (!navigator.geolocation) {
@@ -206,17 +225,23 @@ export default function PostRequestPage() {
       let videoUrl = null;
       let imageUrls: string[] = [];
 
+      // 1. Upload Video
       if (videoFile) {
         const path = `requests/${user.uid}/${Date.now()}_video.mp4`;
         videoUrl = await uploadFile(videoFile, path);
       }
 
-      if (imageFile) {
-        const path = `requests/${user.uid}/${Date.now()}_image.png`;
-        const url = await uploadFile(imageFile, path);
-        imageUrls.push(url);
+      // 2. Upload Images
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        if (file) {
+          const path = `requests/${user.uid}/${Date.now()}_img_${i}.png`;
+          const url = await uploadFile(file, path);
+          imageUrls.push(url);
+        }
       }
 
+      // 3. Save to Firestore
       const requestData = {
         ...values,
         buyerId: user.uid,
@@ -254,23 +279,23 @@ export default function PostRequestPage() {
                     <Megaphone className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                    <h1 className="font-headline text-3xl font-black uppercase tracking-tighter">Broadcast a Need</h1>
+                    <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">Broadcast a Need</h1>
                     <p className="text-muted-foreground font-medium">Attract the right sellers in seconds.</p>
                 </div>
             </div>
             
-            <div className="flex bg-muted p-1 rounded-xl">
+            <div className="flex bg-neutral-900 p-1 rounded-xl border border-white/5">
                 <button 
                     type="button"
                     onClick={() => setRequestType('text')}
-                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'text' ? "bg-background shadow-lg" : "text-muted-foreground")}
+                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'text' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground")}
                 >
                     <Keyboard className="h-4 w-4" /> Type Request
                 </button>
                 <button 
                     type="button"
                     onClick={() => setRequestType('video')}
-                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'video' ? "bg-background shadow-lg" : "text-muted-foreground")}
+                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'video' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground")}
                 >
                     <Video className="h-4 w-4" /> Record Video
                 </button>
@@ -282,10 +307,11 @@ export default function PostRequestPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               <div className="lg:col-span-2 space-y-8">
-                {requestMode === 'video' && (
+                {requestMode === 'video' ? (
                     <Card className="bg-neutral-900 border-primary/20 overflow-hidden shadow-2xl">
                         <CardHeader className="bg-primary/5 border-b border-primary/10">
                             <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Step 1: Record Your Need</CardTitle>
+                            <CardDescription>Explain what you are looking for. Max 30 seconds.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
                             <div className="relative aspect-video rounded-2xl bg-black border border-white/10 overflow-hidden group shadow-2xl">
@@ -319,12 +345,51 @@ export default function PostRequestPage() {
                                         type="button" 
                                         variant="outline" 
                                         size="lg"
-                                        className="flex-1 h-16 rounded-2xl font-black border-white/10"
+                                        className="flex-1 h-16 rounded-2xl font-black border-white/10 text-white"
                                         onClick={() => setVideoFile(null)}
                                     >
                                         <RefreshCw className="mr-2 h-5 w-5" /> RE-RECORD
                                     </Button>
                                 )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="bg-neutral-900 border-white/5 shadow-2xl">
+                        <CardHeader>
+                            <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Media Evidence</CardTitle>
+                            <CardDescription>Upload up to 3 clear images of what you need.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-3 gap-4">
+                                {imageFiles.map((file, i) => (
+                                    <div key={i} className="relative aspect-square rounded-2xl bg-neutral-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden hover:border-primary/50 transition-all cursor-pointer group">
+                                        {file ? (
+                                            <>
+                                                <Image src={URL.createObjectURL(file)} alt={`Need ${i}`} fill className="object-cover" />
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => removeImage(i)}
+                                                    className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-2" onClick={() => (document.getElementById(`img-input-${i}`) as HTMLInputElement)?.click()}>
+                                                <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">Slot {i+1}</span>
+                                                <input 
+                                                    id={`img-input-${i}`} 
+                                                    type="file" 
+                                                    accept="image/*" 
+                                                    className="hidden" 
+                                                    onChange={(e) => handleImageChange(i, e)}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>
@@ -337,8 +402,8 @@ export default function PostRequestPage() {
                   <CardContent className="space-y-6">
                     <FormField control={form.control} name="title" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest">Summary</FormLabel>
-                        <FormControl><Input placeholder="e.g. Need office laptop under 30k" className="h-12 bg-white/5 border-white/10" {...field} /></FormControl>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Summary</FormLabel>
+                        <FormControl><Input placeholder="e.g. Need office laptop under 30k" className="h-12 bg-black/40 border-white/10 text-white" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -346,9 +411,9 @@ export default function PostRequestPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="category" render={({ field }) => (
                             <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest">Category</FormLabel>
+                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Category</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                 {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                                 </SelectContent>
@@ -358,9 +423,9 @@ export default function PostRequestPage() {
                         )} />
                         <FormField control={form.control} name="deadline" render={({ field }) => (
                             <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest">Priority</FormLabel>
+                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Priority</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="urgent">Urgent (Today)</SelectItem>
                                     <SelectItem value="3-days">Within 3 Days</SelectItem>
@@ -374,8 +439,8 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="description" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest">Details</FormLabel>
-                        <FormControl><Textarea rows={6} className="bg-white/5 border-white/10" placeholder="Describe what you need in detail..." {...field} /></FormControl>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Details</FormLabel>
+                        <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 text-white" placeholder="Describe what you need in detail..." {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -392,14 +457,14 @@ export default function PostRequestPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="minBudget" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest">Min (KES)</FormLabel>
-                                <FormControl><Input type="number" className="h-12 bg-white/5 border-white/10" {...field} /></FormControl>
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Min (KES)</FormLabel>
+                                <FormControl><Input type="number" className="h-12 bg-black/40 border-white/10 text-white" {...field} /></FormControl>
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="maxBudget" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest">Max (KES)</FormLabel>
-                                <FormControl><Input type="number" className="h-12 bg-white/5 border-white/10" {...field} /></FormControl>
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Max (KES)</FormLabel>
+                                <FormControl><Input type="number" className="h-12 bg-black/40 border-white/10 text-white" {...field} /></FormControl>
                             </FormItem>
                         )} />
                     </div>
@@ -413,9 +478,9 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="county" render={({ field }) => (
                         <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest">County</FormLabel>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">County</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                            <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                             <SelectContent>
                                 {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                             </SelectContent>
@@ -426,17 +491,17 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="area" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest">Town / Area</FormLabel>
-                        <FormControl><Input placeholder="e.g. Westlands" className="h-12 bg-white/5 border-white/10" {...field} /></FormControl>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Town / Area</FormLabel>
+                        <FormControl><Input placeholder="e.g. Westlands" className="h-12 bg-black/40 border-white/10 text-white" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     
                     <FormField control={form.control} name="contactMethod" render={({ field }) => (
                         <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest">Contact Priority</FormLabel>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Contact Priority</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger className="h-12 bg-white/5 border-white/10"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                            <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                             <SelectContent>
                                 <SelectItem value="chat">In-App Chat</SelectItem>
                                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
@@ -451,7 +516,7 @@ export default function PostRequestPage() {
 
                 <div className="space-y-4">
                      {isUploading && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 px-2">
                              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
                                  <span>Broadcasting...</span>
                                  <span>{Math.round(uploadProgress)}%</span>
@@ -459,7 +524,7 @@ export default function PostRequestPage() {
                              <Progress value={uploadProgress} className="h-1" />
                         </div>
                      )}
-                    <Button type="submit" className="w-full h-16 font-black uppercase tracking-widest text-lg shadow-xl shadow-primary/20" disabled={isUploading}>
+                    <Button type="submit" className="w-full h-16 font-black uppercase tracking-widest text-lg bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 rounded-2xl" disabled={isUploading}>
                         {isUploading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" />}
                         PUBLISH BROADCAST
                     </Button>

@@ -75,6 +75,16 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   timestamp: any;
+  messageType?: 'text' | 'image' | 'video' | 'file' | 'product';
+  mediaUrl?: string;
+  mediaMetadata?: {
+      name: string;
+      size: number;
+      type: string;
+  };
+  productId?: string;
+  isRead?: boolean;
+  readAt?: any;
 }
 
 export interface Product {
@@ -270,4 +280,13 @@ export interface LiveSession {
         publishedAt: any;
     } | null;
     sales?: number;
+}
+
+export interface Chat {
+    id: string;
+    participantIds: string[];
+    lastMessage?: string;
+    lastMessageTimestamp?: any;
+    deletedFor?: string[];
+    otherParticipant?: UserProfile;
 }
