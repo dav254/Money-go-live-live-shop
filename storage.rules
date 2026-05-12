@@ -7,34 +7,44 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Allow users to manage their own product media
     match /products/{userId}/{allPaths=**} {
       allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Allow buyers to upload request media (Video/Images)
+    // Path: requests/{userId}/{fileName}
     match /requests/{userId}/{allPaths=**} {
       allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Allow sellers to upload offer/pitch videos
     match /offers/{userId}/{allPaths=**} {
       allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
+    // Shop branding (Logos/Banners)
     match /shops/{userId}/{allPaths=**} {
       allow read;
       allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
+    // Support ticket attachments
     match /support/{userId}/{allPaths=**} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Publicly readable delivery proofs
     match /delivery_proofs/{allPaths=**} {
-       allow read, write: if isSignedIn();
+       allow read;
+       allow write: if isSignedIn();
     }
     
+    // Chat attachments
     match /chats/{chatId}/{allPaths=**} {
        allow read, write: if isSignedIn();
     }
