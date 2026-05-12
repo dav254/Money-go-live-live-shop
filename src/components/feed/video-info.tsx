@@ -3,10 +3,8 @@
 
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
-import { Verified, Star, MapPin, Radio } from 'lucide-react';
+import { Verified, Star, MapPin } from 'lucide-react';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
 import Link from 'next/link';
 
 interface VideoInfoProps {
@@ -46,19 +44,11 @@ export function VideoInfo({ seller }: VideoInfoProps) {
                 data-ai-hint={seller.avatar?.imageHint || 'seller avatar'}
               />
             )}
-            {seller.isLive && (
-                <div className="absolute inset-0 border-2 border-red-500 rounded-full animate-pulse" />
-            )}
           </Link>
           <div>
             <div className="flex items-center gap-2">
                 <Link href={`/sellers/${seller.id}`} className="font-bold text-white text-lg drop-shadow-md hover:underline">{seller.name || 'Seller Store'}</Link>
                 {seller.isVerified && <Verified className="h-4 w-4 text-blue-400 fill-current shadow-sm" />}
-                {seller.isLive && (
-                    <Link href={`/buyer/live/${seller.id}`}>
-                        <Badge className="bg-red-600 hover:bg-red-700 animate-pulse text-[10px] px-1.5 py-0 h-4 border-none">LIVE</Badge>
-                    </Link>
-                )}
             </div>
             <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-2 text-xs text-neutral-200 drop-shadow-md">
@@ -78,15 +68,6 @@ export function VideoInfo({ seller }: VideoInfoProps) {
             </div>
           </div>
         </div>
-        
-        {seller.isLive && (
-            <Button asChild size="sm" variant="destructive" className="rounded-full h-8 font-bold text-xs bg-red-600 hover:bg-red-700 shadow-lg">
-                <Link href={`/buyer/live/${seller.id}`}>
-                    <Radio className="mr-1.5 h-3.5 w-3.5" />
-                    WATCH LIVE
-                </Link>
-            </Button>
-        )}
       </div>
     </div>
   );
