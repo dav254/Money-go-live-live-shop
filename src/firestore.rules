@@ -76,7 +76,18 @@ service cloud.firestore {
     
     match /notifications/{notificationId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if isSignedIn(); // Allow system/admin to write
+      allow write: if isSignedIn(); 
+    }
+    
+    // Wallet Transactions
+    match /walletTransactions/{transactionId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'platform_revenue');
+    }
+    
+    // Payouts
+    match /payouts/{payoutId} {
+      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if isSignedIn();
     }
   }
 }
