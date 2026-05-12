@@ -17,7 +17,6 @@ import {
   MessageSquare,
   Radio,
   Video,
-  Info,
   Sparkles,
   AreaChart,
 } from 'lucide-react';
@@ -120,14 +119,6 @@ export function SellerSidebar() {
       <SidebarGroup>
         <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/about')}>
-                <Link href="/dashboard/seller/about">
-                  <Info />
-                  <span>About Us</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
              <SidebarMenuItem>
                 <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
                   <Link href="/dashboard/seller/help">

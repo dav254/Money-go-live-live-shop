@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -12,7 +11,6 @@ import {
   MessageSquare,
   Home,
   Package,
-  Info,
   HelpCircle,
   ShoppingCart,
   CreditCard,
@@ -97,14 +95,6 @@ export function BuyerSidebar() {
       </SidebarGroup>
 
     <SidebarMenu className="mt-auto">
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/about')}>
-            <Link href="/buyer/about">
-              <Info />
-              <span>About Us</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
         <SidebarMenuItem>
             <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/help')}>
             <Link href="/buyer/help">
