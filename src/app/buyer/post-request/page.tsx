@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Button } from '@/components/ui/form';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -53,6 +53,9 @@ import {
 } from 'lucide-react';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
+import Image from 'next/image';
+import { Progress } from '@/components/ui/progress';
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
