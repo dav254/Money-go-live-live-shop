@@ -1,197 +1,52 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /userProfiles/{userId} {
+    match /users/{userId} {
       allow read: if true;
-      allow list: if request.auth != null && (request.auth.uid == userId || resource.data.referredBy == request.auth.uid);
-      allow update: if request.auth.uid == userId ||
-                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
-                      (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
-      allow create: if request.auth.uid != null;
-      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-      
-      match /cart/{productId} {
-        allow read, write: if request.auth.uid == userId;
-      }
-      match /paymentMethods/{paymentMethodId} {
-        allow read, write: if request.auth.uid == userId;
-      }
-      match /payoutMethods/{payoutMethodId} {
-        allow read, write: if request.auth.uid == userId;
-      }
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    match /boost_requests/{boostId} {
-      allow create: if request.auth.uid == request.resource.data.sellerId;
-      allow list: if request.auth != null && (request.auth.uid == resource.data.sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-      allow read: if (request.auth.uid == resource.data.sellerId) || 
-                         get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-      allow update, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    match /userProfiles/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /requests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
+      allow update, delete: if request.auth != null && (resource.data.buyerId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    match /offers/{offerId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
+    }
+
+    match /conversations/{conversationId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
+      match /comments/{commentId} { allow read, create: if request.auth != null; }
+      match /reviews/{reviewId} { allow read, create: if request.auth != null; }
     }
     
     match /sellerShops/{shopId} {
       allow read: if true;
-      allow update: if request.auth.uid == shopId && !('followers' in request.resource.data);
-      allow write: if request.auth.uid == shopId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /products/{productId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if request.resource.data.sellerId == request.auth.uid;
-      allow update: if 
-        (resource.data.sellerId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys()
-           .hasAny(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt']))
-        ||
-        (request.auth != null &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
-      allow delete: if resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-
-      match /comments/{commentId} {
-        allow list, read: if true;
-        allow create: if request.auth != null;
-      }
-      match /reviews/{reviewId} {
-          allow read, list: if true;
-          allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
-      }
-    }
-    
-    match /errorLogs/{errorId} {
-      allow create: if request.auth != null;
-      allow list, read, update, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-    
-     match /activityLogs/{logId} {
-      allow list, read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /orders/{orderId} {
-       allow list: if request.auth != null;
-      allow read: if request.auth != null && 
-                     (resource.data.buyerId == request.auth.uid || 
-                      resource.data.sellerId == request.auth.uid ||
-                      resource.data.resellerId == request.auth.uid ||
-                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-      allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null && 
-                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
-                      resource.data.sellerId == request.auth.uid);
-    }
-    
-    match /payouts/{payoutId} {
-      allow read: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      allow update: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /walletTransactions/{transactionId} {
-        allow create: if false; 
-        allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-        allow list: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-    }
-
-    match /categories/{categoryId} {
-        allow read: if true;
-        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-    
-    match /homepageSlides/{slideId} {
-        allow read, list: if true;
-        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /helpArticles/{articleId} {
-        allow read: if true;
-        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /supportTickets/{ticketId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow list: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
-      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /complaints/{complaintId} {
-      allow create: if request.auth != null && request.resource.data.complainantId == request.auth.uid;
-      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      allow write: if request.auth != null && (request.auth.uid == shopId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     match /liveSessions/{sessionId} {
       allow read: if true;
-      allow create, update: if request.auth.uid == sessionId;
-      match /chat/{messageId} { allow read, write: if request.auth != null; }
-      match /events/{eventId} { allow read, write, list: if request.auth != null; }
-      match /signaling/{signalId} { allow read, write: if request.auth != null; }
-    }
-    
-    match /resellActivities/{activityId} {
-        allow list: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
-        allow get: if request.auth != null && (resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid);
-        allow write: if false;
-    }
-
-    match /resellerApplications/{applicationId} {
-      allow create: if request.auth != null && request.resource.data.resellerId == request.auth.uid;
-      allow read: if request.auth != null && resource.data.sellerId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.sellerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
-    }
-    
-    match /aiPosterRequests/{requestId} {
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /adCampaigns/{campaignId} {
-      allow create, read, update: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
-      allow list: if request.auth != null && (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' || resource.data.sellerId == request.auth.uid);
-      allow read, list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-    
-    match /systemSettings/{settingId} {
-        allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-    
-    match /fraudAlerts/{alertId} {
-      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-    
-    match /contentModerationQueue/{itemId} {
-      allow list, read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
-
-    match /payments/{paymentId} {
-      allow read, write: if request.auth != null;
-    }
-    match /aiProductDescriptions/{descId} {
-      allow read, write: if request.auth != null;
-    }
-    
-    match /notifications/{notificationId} {
-      allow get, update: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow list: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null;
-    }
-    
-    match /admins/{adminId} {
-      allow read, write: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-      match /adminChat/{messageId} {
-        allow read, write: if request.auth != null && request.auth.uid == adminId;
-      }
-    }
-    match /chats/{chatId} {
-      function isAdmin() { return get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin'; }
-      allow list: if request.auth != null && (request.auth.uid in resource.data.participantIds || isAdmin());
-      allow create: if request.auth != null && request.resource.data.participantIds.size() == 2 && request.auth.uid in request.resource.data.participantIds;
-      allow read, update: if (request.auth != null && request.auth.uid in resource.data.participantIds) || isAdmin();
-      match /messages/{messageId} {
-        allow read, write: if (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds) || isAdmin();
-      }
+      allow write: if request.auth != null && (request.auth.uid == sessionId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
   }
 }

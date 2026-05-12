@@ -1,7 +1,6 @@
 
 import { Timestamp } from 'firebase/firestore';
 
-// Represents the user's public profile
 export interface UserProfile {
     id: string;
     uid: string;
@@ -11,7 +10,7 @@ export interface UserProfile {
     username: string;
     photoURL?: string;
     profilePictureUrl?: string;
-    userRole: 'seller' | 'buyer' | 'admin' | 'reseller';
+    role: 'seller' | 'buyer' | 'admin' | 'reseller';
     aiPoints: number;
     createdAt: Timestamp;
     joinDate: string;
@@ -21,22 +20,57 @@ export interface UserProfile {
     status: 'active' | 'suspended';
     verificationStatus?: 'pending' | 'verified' | 'rejected';
     following?: string[];
-    shopName?: string; // For sellers
+    shopName?: string;
     walletBalance?: number;
-    wishlist?: string[]; // Array of product IDs
-    referredBy?: string; // ID of the user who referred this user
+    wishlist?: string[];
+    referredBy?: string;
     referralBonusAwarded?: boolean;
-    lastSeen?: any; // Timestamp
-    connections?: {
-      tiktok?: {
-        openId: string;
-        accessToken: string;
-        refreshToken: string;
-        expiresAt: Date;
-        scopes: string[];
-        connectedAt: Date;
-      }
-    }
+    lastSeen?: any;
+}
+
+export interface BuyerRequest {
+  id: string;
+  buyerId: string;
+  title: string;
+  description: string;
+  category: string;
+  subcategory?: string;
+  minBudget: number;
+  maxBudget: number;
+  currency: string;
+  country: string;
+  county: string;
+  area: string;
+  contactMethod: string;
+  deadline: string;
+  imageUrls: string[];
+  videoUrl: string | null;
+  status: 'open' | 'selected' | 'closed';
+  offersCount: number;
+  selectedSellerId: string | null;
+  views: number;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface Offer {
+  id: string;
+  requestId: string;
+  sellerId: string;
+  sellerName?: string;
+  sellerAvatar?: string;
+  price: number;
+  message: string;
+  deliveryTime: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: any;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: any;
 }
 
 export interface Product {
@@ -76,66 +110,6 @@ export interface Product {
     updatedAt?: any;
 }
 
-export interface Chat {
-    id: string;
-    participantIds: string[];
-    lastMessage: string;
-    lastMessageTimestamp: any;
-    otherParticipant?: UserProfile;
-    deletedFor?: string[];
-    unreadCount?: Record<string, number>;
-}
-
-export interface ChatMessage {
-    id: string;
-    senderId: string;
-    messageText?: string;
-    messageType: 'text' | 'image' | 'video' | 'file' | 'product';
-    mediaUrl?: string;
-    mediaMetadata?: {
-        name: string;
-        size: number;
-        type: string;
-    };
-    productId?: string;
-    timestamp: any;
-    isRead?: boolean;
-    readAt?: any;
-}
-
-export interface Order {
-  id: string;
-  buyerId: string;
-  sellerId: string;
-  items?: {
-    productId: string;
-    name: string;
-    price: number;
-    quantity: number;
-    imageUrl: string;
-  }[];
-  subtotal?: number;
-  shippingCost: number;
-  totalAmount: number;
-  orderDate: any;
-  shippingAddress: string;
-  orderStatus: 'pending' | 'processing' | 'shipped' | 'delivery' | 'delivered' | 'cancelled' | 'disputed' | 'refunded';
-  paymentMethod: string;
-  resellerId?: string;
-  platformFee?: number;
-  resellerCommission?: number;
-  commissionEarned?: number;
-  disputeReason?: string;
-  buyerConfirmed?: boolean;
-  deliveredAt?: any;
-  deliveryProof?: string | null;
-  courierName?: string | null;
-  dispatchNote?: string | null;
-  productName?: string;
-  productImage?: string;
-  productPrice?: number;
-}
-
 export interface SellerShop {
     id: string;
     sellerId: string;
@@ -163,7 +137,7 @@ export interface SellerShop {
     returnPolicy?: string;
     deliveryPolicy?: string;
     storeHours?: string;
-    targetLocations?: string[]; // Array of cities/counties/countries targeted
+    targetLocations?: string[];
 }
 
 export type Seller = {
