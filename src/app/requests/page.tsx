@@ -1,11 +1,10 @@
-
 'use client';
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search } from 'lucide-react';
+import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -117,11 +116,11 @@ function LeadCard({ request }: { request: BuyerRequest }) {
                 </p>
                 
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1 shadow-lg">
                         <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Budget</p>
                         <p className="text-sm font-black text-white">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
                     </div>
-                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1 shadow-lg">
                         <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Deadline</p>
                         <p className="text-sm font-black text-white uppercase">{request.deadline}</p>
                     </div>
