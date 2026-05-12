@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -11,9 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, addDoc, collection, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
 import type { BuyerRequest, UserProfile } from '@/lib/types';
-import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, CheckCircle, Video } from 'lucide-react';
+import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, CheckCircle, Video, Camera, StopCircle, Trash2, BadgeCent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 export default function SendOfferPage() {
   const params = useParams();
@@ -22,27 +25,85 @@ export default function SendOfferPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const storage = getStorage();
 
   const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
   const [deliveryTime, setDeliveryTime] = useState('24 Hours');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Media State
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const requestRef = useMemoFirebase(() => doc(firestore, 'requests', requestId), [firestore, requestId]);
   const { data: request, isLoading } = useDoc<BuyerRequest>(requestRef);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'video/mp4' });
+        setVideoFile(new File([blob], `response_${Date.now()}.mp4`, { type: 'video/mp4' }));
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Camera Error' });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !firestore || !request) return;
 
     if (!price || !message) {
-      toast({ variant: 'destructive', title: 'Missing details', description: 'Please provide a price and a message for your offer.' });
+      toast({ variant: 'destructive', title: 'Details Required' });
       return;
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     try {
+      let videoUrl = '';
+      if (videoFile) {
+        const path = `offers/${user.uid}/${Date.now()}_resp.mp4`;
+        const storageRef = ref(storage, path);
+        const uploadTask = uploadBytesResumable(storageRef, videoFile);
+
+        videoUrl = await new Promise((resolve, reject) => {
+            uploadTask.on('state_changed', 
+                (snap) => setUploadProgress((snap.bytesTransferred / snap.totalBytes) * 100),
+                (err) => reject(err),
+                async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
+            );
+        });
+      }
+
       const offerData = {
         requestId,
         sellerId: user.uid,
@@ -50,19 +111,16 @@ export default function SendOfferPage() {
         sellerAvatar: user.photoURL || '',
         price: Number(price),
         message,
+        videoUrl,
         deliveryTime,
         status: 'pending',
         createdAt: serverTimestamp(),
       };
 
       await addDoc(collection(firestore, 'offers'), offerData);
-      
-      // Increment offer count on request
-      await updateDoc(requestRef, {
-        offersCount: increment(1)
-      });
+      await updateDoc(requestRef, { offersCount: increment(1) });
 
-      toast({ title: 'Offer Sent!', description: 'Your pitch has been submitted to the buyer.' });
+      toast({ title: 'Offer Sent!', description: 'Buyer has been notified.' });
       router.push('/seller/offers');
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -84,113 +142,156 @@ export default function SendOfferPage() {
   if (!request) {
     return (
       <SellerLayout>
-        <div className="p-8 text-center">
-          <h2 className="text-xl font-bold">Request not found</h2>
-          <Button onClick={() => router.push('/requests')} className="mt-4">Back to Marketplace</Button>
-        </div>
+        <div className="p-8 text-center"><h2 className="text-xl font-bold">Request not found</h2></div>
       </SellerLayout>
     );
   }
 
   return (
     <SellerLayout>
-      <div className="p-6 max-w-4xl mx-auto space-y-8">
+      <div className="p-6 max-w-6xl mx-auto space-y-8">
         <Button variant="ghost" className="mb-4 uppercase font-black text-[10px] tracking-[0.2em]" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lead
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lead Market
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Request Details */}
-          <div className="space-y-6">
-            <Card className="bg-neutral-900/50 border-white/5 overflow-hidden">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <Badge className="bg-primary/20 text-primary uppercase font-black text-[8px] tracking-widest">{request.category}</Badge>
-                </div>
-                <CardTitle className="text-2xl font-black uppercase tracking-tighter mt-4">{request.title}</CardTitle>
-                <CardDescription className="text-neutral-400 font-medium">{request.description}</CardDescription>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div className="space-y-6 lg:sticky lg:top-24">
+            <Card className="bg-neutral-900/50 border-white/5 overflow-hidden rounded-[2.5rem] shadow-2xl">
+              <CardHeader className="p-8 pb-4">
+                <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full mb-4 w-fit px-3 py-1">
+                    {request.category}
+                </Badge>
+                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight">{request.title}</CardTitle>
+                <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed">{request.description}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-8 space-y-8">
                 {request.videoUrl && (
-                  <div className="aspect-video w-full bg-black rounded-xl overflow-hidden border border-white/10">
-                    <video src={request.videoUrl} controls className="w-full h-full" />
+                  <div className="aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-inner group">
+                    <video src={request.videoUrl} controls className="w-full h-full object-cover" />
                   </div>
                 )}
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                    <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest mb-1">Budget Range</p>
-                    <p className="text-sm font-bold text-primary">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
+                  <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
+                    <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Buyer Budget</p>
+                    <p className="text-lg font-black text-primary">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                    <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest mb-1">Deadline</p>
-                    <p className="text-sm font-bold text-white uppercase">{request.deadline}</p>
+                  <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
+                    <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Timeline</p>
+                    <p className="text-lg font-black text-white uppercase">{request.deadline}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-bold text-neutral-400 uppercase tracking-widest">
-                  <MapPin className="h-4 w-4 text-primary" />
+                <div className="flex items-center gap-3 text-xs font-black text-neutral-400 uppercase tracking-widest px-2">
+                  <div className="p-2 bg-primary/10 rounded-full"><MapPin className="h-4 w-4 text-primary" /></div>
                   {request.area}, {request.county}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Pitch Form */}
           <div className="space-y-6">
-            <Card className="bg-neutral-950 border-primary/20 shadow-2xl shadow-primary/10">
-              <CardHeader>
-                <CardTitle className="text-xl font-black uppercase tracking-tighter">Send Your Offer</CardTitle>
-                <CardDescription>Winning pitches are fast, clear, and competitively priced.</CardDescription>
+            <Card className="bg-neutral-950 border-primary/20 shadow-[0_0_100px_rgba(255,100,0,0.1)] rounded-[2.5rem] overflow-hidden">
+              <CardHeader className="p-8 pb-4 bg-primary/5 border-b border-white/5">
+                <CardTitle className="text-2xl font-black uppercase tracking-tighter text-white">Send Offer</CardTitle>
+                <CardDescription className="font-bold text-primary/60 text-xs uppercase tracking-widest">Compete for this lead with your best pitch.</CardDescription>
               </CardHeader>
               <form onSubmit={handleSendOffer}>
-                <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="price" className="uppercase text-[10px] font-black tracking-widest">Your Price (KES)</Label>
-                    <div className="relative">
-                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
-                      <Input
-                        id="price"
-                        type="number"
-                        placeholder="e.g. 1500"
-                        className="pl-10 h-12 bg-white/5 rounded-xl border-white/10"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value)}
+                <CardContent className="p-8 space-y-8">
+                  
+                  <div className="space-y-4">
+                    <Label className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Video Pitch (Optional)</Label>
+                    <div className="relative aspect-video rounded-3xl bg-neutral-900 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden group">
+                        {videoFile ? (
+                            <>
+                                <video src={URL.createObjectURL(videoFile)} className="h-full w-full object-cover" />
+                                <Button type="button" variant="destructive" size="icon" className="absolute top-4 right-4 h-10 w-10 rounded-full shadow-2xl" onClick={() => setVideoFile(null)}><Trash2 className="h-5 w-5"/></Button>
+                            </>
+                        ) : isRecording ? (
+                            <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+                        ) : (
+                            <div className="flex flex-col items-center gap-3">
+                                <Video className="h-10 w-10 text-neutral-700" />
+                                <p className="text-[10px] font-black text-neutral-600 uppercase">Pitch with video for 5x trust</p>
+                            </div>
+                        )}
+                        
+                        {isRecording && (
+                            <div className="absolute top-4 left-4 bg-red-600 px-3 py-1.5 rounded-full flex items-center gap-2 animate-pulse shadow-xl">
+                                <div className="h-2 w-2 rounded-full bg-white" />
+                                <span className="text-[10px] font-black text-white">RECORDING PITCH</span>
+                            </div>
+                        )}
+                    </div>
+                    <Button 
+                        type="button" 
+                        variant="secondary"
+                        className="w-full h-12 rounded-xl font-black uppercase text-[10px] tracking-widest"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        disabled={!!videoFile}
+                    >
+                        {isRecording ? <StopCircle className="mr-2 h-4 w-4" /> : <Camera className="mr-2 h-4 w-4" />}
+                        {isRecording ? 'STOP & SAVE PITCH' : 'RECORD VIDEO RESPONSE'}
+                    </Button>
+                  </div>
+
+                  <Separator className="bg-white/5" />
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="price" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Your Price (KES)</Label>
+                        <div className="relative">
+                        <Tag className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/40" />
+                        <Input
+                            id="price"
+                            type="number"
+                            placeholder="e.g. 2200"
+                            className="pl-12 h-14 bg-white/5 rounded-2xl border-white/10 text-lg font-black focus-visible:ring-primary shadow-inner"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                            required
+                        />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="delivery" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Fulfillment Time</Label>
+                        <Input
+                        id="delivery"
+                        placeholder="e.g. Delivery within 1 Hour"
+                        className="h-14 bg-white/5 rounded-2xl border-white/10 font-bold shadow-inner"
+                        value={deliveryTime}
+                        onChange={(e) => setDeliveryTime(e.target.value)}
                         required
-                      />
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Sales Pitch / Message</Label>
+                        <Textarea
+                        id="message"
+                        rows={5}
+                        placeholder="Explain why the buyer should choose your shop. Mention quality, guarantees, or specific product features."
+                        className="bg-white/5 rounded-2xl border-white/10 text-sm font-medium leading-relaxed shadow-inner"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        required
+                        />
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="delivery" className="uppercase text-[10px] font-black tracking-widest">Delivery Time</Label>
-                    <Input
-                      id="delivery"
-                      placeholder="e.g. Within 2 Hours"
-                      className="h-12 bg-white/5 rounded-xl border-white/10"
-                      value={deliveryTime}
-                      onChange={(e) => setDeliveryTime(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest">Pitch Message</Label>
-                    <Textarea
-                      id="message"
-                      rows={5}
-                      placeholder="Why should the buyer choose you? Mention your experience or specific solution."
-                      className="bg-white/5 rounded-xl border-white/10"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      required
-                    />
-                  </div>
                 </CardContent>
-                <CardFooter>
-                  <Button type="submit" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                <CardFooter className="p-8 pt-0 flex flex-col gap-6">
+                  {isSubmitting && (
+                      <div className="w-full space-y-2 px-2">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-primary"><span>Transmitting Lead Data...</span><span>{Math.round(uploadProgress)}%</span></div>
+                          <Progress value={uploadProgress} className="h-1" />
+                      </div>
+                  )}
+                  <Button type="submit" className="w-full h-16 rounded-[1.5rem] font-black uppercase tracking-widest text-lg bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/30" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin mr-2 h-6 w-6" /> : <Send className="mr-2 h-6 w-6" />}
                     SEND PITCH NOW
                   </Button>
+                  <p className="text-[9px] font-bold text-center text-neutral-600 uppercase tracking-widest leading-relaxed">By sending, you commit to fulfilling this order if selected. Integrity is key to Go Earn growth.</p>
                 </CardFooter>
               </form>
             </Card>
@@ -200,19 +301,3 @@ export default function SendOfferPage() {
     </SellerLayout>
   );
 }
-
-const Label = ({ children, className, ...props }: any) => (
-  <label className={cn("block text-sm font-medium text-foreground", className)} {...props}>
-    {children}
-  </label>
-);
-
-const Badge = ({ children, variant = 'default', className }: any) => (
-  <span className={cn(
-    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
-    variant === 'default' ? "bg-primary text-primary-foreground" : "bg-neutral-800 text-neutral-300",
-    className
-  )}>
-    {children}
-  </span>
-);

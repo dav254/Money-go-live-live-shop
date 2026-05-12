@@ -41,6 +41,9 @@ export interface BuyerRequest {
   country: string;
   county: string;
   area: string;
+  latitude?: number;
+  longitude?: number;
+  requestType: 'video' | 'text';
   contactMethod: string;
   deadline: string;
   imageUrls: string[];
@@ -61,6 +64,7 @@ export interface Offer {
   sellerAvatar?: string;
   price: number;
   message: string;
+  videoUrl?: string;
   deliveryTime: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: any;

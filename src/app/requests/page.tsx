@@ -1,102 +1,145 @@
 
 'use client';
 
-import { useRequests } from '@/hooks/useRequests';
+import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Tag, ArrowRight, Video } from 'lucide-react';
+import { MapPin, Clock, Tag, ArrowRight, Video, Target, Locate, Filter, Search } from 'lucide-react';
 import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { useUserProfile, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { BuyerRequest } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 
-export default function RequestsPage() {
-  const { requests, loading } = useRequests();
-  const { user } = useUser();
-  const { userProfile } = useUserProfile(user?.uid);
+export default function SellerRequestsMarketplacePage() {
+  const firestore = useFirestore();
+  const [searchTerm, setSearchQuery] = useState('');
 
-  const Layout = userProfile?.role === 'seller' ? SellerLayout : BuyerLayout;
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex h-screen items-center justify-center">
-          <p className="animate-pulse font-black uppercase tracking-widest text-primary">Scanning Marketplace...</p>
-        </div>
-      </Layout>
+  const requestsQuery = useMemoFirebase(() => {
+    return query(
+        collection(firestore, 'requests'), 
+        where('status', '==', 'open'),
+        orderBy('createdAt', 'desc')
     );
-  }
+  }, [firestore]);
 
-  const openRequests = requests.filter(r => r.status === 'open');
+  const { data: requests, isLoading } = useCollection<BuyerRequest>(requestsQuery);
+
+  const filtered = requests?.filter(r => 
+    r.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <Layout>
+    <SellerLayout>
       <div className="p-6 space-y-8 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tighter">Marketplace Leads</h1>
-            <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest">Browse what buyers need right now</p>
+            <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest mt-1">Direct inquiries from active buyers</p>
           </div>
-          <Badge variant="outline" className="w-fit h-8 px-4 rounded-full border-primary/20 bg-primary/5 text-primary font-bold">
-            {openRequests.length} Active Requests
-          </Badge>
+          
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/10 border border-primary/20 rounded-2xl px-6 py-2 flex items-center gap-4 shadow-xl">
+                 <div className="text-right">
+                    <p className="text-[8px] font-black uppercase text-primary tracking-widest">Active Needs</p>
+                    <p className="text-xl font-black text-white">{requests?.length || 0}</p>
+                 </div>
+                 <div className="h-8 w-px bg-primary/20" />
+                 <Target className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-1 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input 
+                    placeholder="Search keywords or categories..." 
+                    className="pl-12 h-14 bg-neutral-900 border-white/5 rounded-2xl shadow-xl"
+                    value={searchTerm}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
+            <Button variant="outline" className="h-14 px-8 rounded-2xl border-white/5 bg-neutral-900 shadow-xl font-black uppercase text-[10px] tracking-widest">
+                <Filter className="mr-2 h-4 w-4" /> Filters
+            </Button>
+            <Button variant="secondary" className="h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest bg-blue-600/10 text-blue-400 border-blue-500/20">
+                <Locate className="mr-2 h-4 w-4" /> Nearby Leads
+            </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {openRequests.map((request) => (
-            <Card key={request.id} className="bg-neutral-900/50 border-white/5 hover:border-primary/30 transition-all group overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start mb-4">
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-widest">
-                    {request.category}
-                  </Badge>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground uppercase">
-                    <Clock className="h-3 w-3" />
-                    {request.deadline}
-                  </div>
-                </div>
-                <CardTitle className="text-lg font-black uppercase tracking-tight line-clamp-1 group-hover:text-primary transition-colors">
-                  {request.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-neutral-400 line-clamp-2 min-h-[40px]">
-                  {request.description}
-                </p>
-                <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-tighter">
-                  <div className="flex items-center gap-1.5 text-primary">
-                    <Tag className="h-3.5 w-3.5" />
-                    KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-neutral-500">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {request.area}, {request.county}
-                  </div>
-                </div>
-                {request.videoUrl && (
-                  <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest">
-                    <Video className="h-3.5 w-3.5" />
-                    Includes Video Request
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter className="pt-0">
-                <Button className="w-full font-black uppercase tracking-widest text-xs h-12 rounded-xl" asChild>
-                  <Link href={`/seller/send-offer/${request.id}`}>
-                    View Details & Pitch <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-          {openRequests.length === 0 && (
-            <div className="col-span-full py-20 text-center bg-neutral-900/30 rounded-3xl border border-dashed border-white/10">
-              <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">No active buyer requests found.</p>
+          {isLoading ? (
+             [...Array(6)].map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-3xl" />)
+          ) : filtered && filtered.length > 0 ? (
+            filtered.map((request) => (
+              <LeadCard key={request.id} request={request} />
+            ))
+          ) : (
+            <div className="col-span-full py-24 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5">
+              <Megaphone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+              <p className="text-neutral-500 font-black uppercase tracking-widest text-xs">No matching leads found at the moment.</p>
             </div>
           )}
         </div>
       </div>
-    </Layout>
+    </SellerLayout>
   );
+}
+
+function LeadCard({ request }: { request: BuyerRequest }) {
+    return (
+        <Card className="bg-neutral-900/50 border-white/5 hover:border-primary/30 transition-all group overflow-hidden rounded-[2rem] flex flex-col relative">
+            {request.requestType === 'video' && (
+                <div className="absolute top-4 right-4 z-10">
+                    <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full px-3 py-1">
+                        <Video className="h-3 w-3 mr-1" /> Video Request
+                    </Badge>
+                </div>
+            )}
+            
+            <CardHeader className="p-8 pb-4">
+                <Badge variant="outline" className="w-fit mb-4 text-[8px] font-black uppercase tracking-widest border-primary/20 text-primary bg-primary/5">
+                    {request.category}
+                </Badge>
+                <CardTitle className="text-xl font-black uppercase tracking-tight line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                    {request.title}
+                </CardTitle>
+            </CardHeader>
+            
+            <CardContent className="px-8 flex-1 space-y-6">
+                <p className="text-sm text-neutral-400 font-medium leading-relaxed line-clamp-3">
+                    {request.description}
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                        <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Budget</p>
+                        <p className="text-sm font-black text-white">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
+                    </div>
+                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1">
+                        <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Deadline</p>
+                        <p className="text-sm font-black text-white uppercase">{request.deadline}</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-[10px] font-black text-neutral-400 uppercase tracking-[0.2em]">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    {request.area}, {request.county}
+                </div>
+            </CardContent>
+            
+            <CardFooter className="p-8 pt-4">
+                <Button className="w-full font-black uppercase tracking-widest text-xs h-14 rounded-2xl shadow-xl shadow-primary/10" asChild>
+                    <Link href={`/seller/send-offer/${request.id}`}>
+                        Open Lead <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </CardFooter>
+        </Card>
+    )
 }

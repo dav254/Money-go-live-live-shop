@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -19,6 +20,7 @@ import {
   Video,
   Sparkles,
   AreaChart,
+  UserSearch,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -87,8 +89,16 @@ export function SellerSidebar() {
       </SidebarGroup>
 
       <SidebarGroup>
-        <SidebarGroupLabel>Growth</SidebarGroupLabel>
+        <SidebarGroupLabel>Growth & Leads</SidebarGroupLabel>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/requests')}>
+              <Link href="/requests">
+                <UserSearch className="text-primary" />
+                <span>Customer Requests</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/go-live')}>
               <Link href="/dashboard/seller/go-live">
