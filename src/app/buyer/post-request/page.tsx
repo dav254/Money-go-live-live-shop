@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -22,7 +21,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -85,7 +83,7 @@ export default function PostRequestPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [requestMode, setRequestType] = useState<'video' | 'text'>('text');
+  const [requestMode, setRequestMode] = useState<'video' | 'text'>('text');
   const [isUploading, setIsUploading] = useState(false);
   const [imageFiles, setImageFiles] = useState<(File | null)[]>(new Array(MAX_IMAGES).fill(null));
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -205,7 +203,10 @@ export default function PostRequestPage() {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setUploadProgress(progress);
         },
-        (error) => reject(error),
+        (error) => {
+            console.error("File upload error:", error);
+            reject(error);
+        },
         async () => {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
           resolve(url);
@@ -225,7 +226,7 @@ export default function PostRequestPage() {
       let videoUrl = null;
       let imageUrls: string[] = [];
 
-      // 1. Upload Video
+      // 1. Upload Video if it exists
       if (videoFile) {
         const path = `requests/${user.uid}/${Date.now()}_video.mp4`;
         videoUrl = await uploadFile(videoFile, path);
@@ -263,7 +264,8 @@ export default function PostRequestPage() {
       toast({ title: 'Broadcast Published!', description: 'Sellers will be notified.' });
       router.push('/buyer/requests/my-requests');
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Broadcast Failed', description: error.message });
+      console.error("Broadcast failed:", error);
+      toast({ variant: 'destructive', title: 'Broadcast Failed', description: error.message || "Unauthorized access to storage. Check settings." });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -287,14 +289,14 @@ export default function PostRequestPage() {
             <div className="flex bg-neutral-900 p-1 rounded-xl border border-white/5">
                 <button 
                     type="button"
-                    onClick={() => setRequestType('text')}
+                    onClick={() => setRequestMode('text')}
                     className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'text' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground")}
                 >
                     <Keyboard className="h-4 w-4" /> Type Request
                 </button>
                 <button 
                     type="button"
-                    onClick={() => setRequestType('video')}
+                    onClick={() => setRequestMode('video')}
                     className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'video' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground")}
                 >
                     <Video className="h-4 w-4" /> Record Video
@@ -366,7 +368,7 @@ export default function PostRequestPage() {
                                     <div key={i} className="relative aspect-square rounded-2xl bg-neutral-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden hover:border-primary/50 transition-all cursor-pointer group">
                                         {file ? (
                                             <>
-                                                <Image src={URL.createObjectURL(file as File)} alt={`Need ${i}`} fill className="object-cover" />
+                                                <Image src={typeof file === 'string' ? file : URL.createObjectURL(file)} alt={`Need ${i}`} fill className="object-cover" />
                                                 <button 
                                                     type="button"
                                                     onClick={() => removeImage(i)}
@@ -411,28 +413,36 @@ export default function PostRequestPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="category" render={({ field }) => (
                             <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Category</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Category</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className="h-12 bg-black/40 border-white/10 text-white">
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="deadline" render={({ field }) => (
                             <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Priority</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="urgent">Urgent (Today)</SelectItem>
-                                    <SelectItem value="3-days">Within 3 Days</SelectItem>
-                                    <SelectItem value="flexible">Flexible</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Priority</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className="h-12 bg-black/40 border-white/10 text-white">
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="urgent">Urgent (Today)</SelectItem>
+                                        <SelectItem value="3-days">Within 3 Days</SelectItem>
+                                        <SelectItem value="flexible">Flexible</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
                             </FormItem>
                         )} />
                     </div>
@@ -478,14 +488,18 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="county" render={({ field }) => (
                         <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">County</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
+                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">County</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger className="h-12 bg-black/40 border-white/10 text-white">
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
                         </FormItem>
                     )} />
 
@@ -499,16 +513,20 @@ export default function PostRequestPage() {
                     
                     <FormField control={form.control} name="contactMethod" render={({ field }) => (
                         <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Contact Priority</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 text-white"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="chat">In-App Chat</SelectItem>
-                                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                                <SelectItem value="phone">Phone Call</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
+                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-400">Contact Priority</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger className="h-12 bg-black/40 border-white/10 text-white">
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="chat">In-App Chat</SelectItem>
+                                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                                    <SelectItem value="phone">Phone Call</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
                         </FormItem>
                     )} />
                   </CardContent>
@@ -518,7 +536,7 @@ export default function PostRequestPage() {
                      {isUploading && (
                         <div className="space-y-2 px-2">
                              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
-                                 <span>Broadcasting...</span>
+                                 <span>Broadcasting Media...</span>
                                  <span>{Math.round(uploadProgress)}%</span>
                              </div>
                              <Progress value={uploadProgress} className="h-1" />
