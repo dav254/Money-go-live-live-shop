@@ -37,7 +37,6 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { 
-  UploadCloud, 
   X, 
   Video, 
   Loader2, 
@@ -48,17 +47,14 @@ import {
   Camera,
   RefreshCw,
   Locate,
-  StopCircle,
-  ImageIcon
+  StopCircle
 } from 'lucide-react';
 import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 
-const MAX_IMAGES = 3;
 const MAX_VIDEO_DURATION = 30;
 
 const formSchema = z.object({
@@ -79,13 +75,12 @@ const formSchema = z.object({
 export default function PostRequestPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = getStorage(); // Use default storage instance for better auth sync
+  const storage = getStorage();
   const { toast } = useToast();
   const router = useRouter();
 
   const [requestMode, setRequestMode] = useState<'video' | 'text'>('text');
   const [isUploading, setIsUploading] = useState(false);
-  const [imageFiles, setImageFiles] = useState<(File | null)[]>(new Array(MAX_IMAGES).fill(null));
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
@@ -164,21 +159,6 @@ export default function PostRequestPage() {
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const handleImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const newFiles = [...imageFiles];
-        newFiles[index] = file;
-        setImageFiles(newFiles);
-    }
-  };
-
-  const removeImage = (index: number) => {
-    const newFiles = [...imageFiles];
-    newFiles[index] = null;
-    setImageFiles(newFiles);
-  };
-
   const detectGPS = () => {
     if (!navigator.geolocation) {
         toast({ title: 'Geolocation Not Supported' });
@@ -196,7 +176,6 @@ export default function PostRequestPage() {
   const uploadFile = (file: File, path: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const storageRef = ref(storage, path);
-      // Explicitly include contentType to ensure Storage rules are satisfied
       const uploadTask = uploadBytesResumable(storageRef, file, {
           contentType: file.type
       });
@@ -227,7 +206,6 @@ export default function PostRequestPage() {
 
     try {
       let videoUrl = null;
-      let imageUrls: string[] = [];
 
       // 1. Upload Video if it exists
       if (videoFile) {
@@ -235,23 +213,13 @@ export default function PostRequestPage() {
         videoUrl = await uploadFile(videoFile, path);
       }
 
-      // 2. Upload Images
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        if (file instanceof File) {
-          const path = `requests/${user.uid}/${Date.now()}_img_${i}.png`;
-          const url = await uploadFile(file, path);
-          imageUrls.push(url);
-        }
-      }
-
-      // 3. Save to Firestore
+      // 2. Save to Firestore
       const requestData = {
         ...values,
         buyerId: user.uid,
         status: 'open',
         videoUrl,
-        imageUrls,
+        imageUrls: [], // Images removed
         latitude: coords?.lat || null,
         longitude: coords?.lng || null,
         requestType: requestMode,
@@ -291,14 +259,14 @@ export default function PostRequestPage() {
             
             <div className="flex bg-neutral-900 p-1 rounded-xl border border-white/5">
                 <button 
-                    type="button"
+                    type="button" 
                     onClick={() => setRequestMode('text')}
                     className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'text' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground")}
                 >
                     <Keyboard className="h-4 w-4" /> Type Request
                 </button>
                 <button 
-                    type="button"
+                    type="button" 
                     onClick={() => setRequestMode('video')}
                     className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", requestMode === 'video' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground")}
                 >
@@ -312,10 +280,10 @@ export default function PostRequestPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
               <div className="lg:col-span-2 space-y-8">
-                {requestMode === 'video' ? (
+                {requestMode === 'video' && (
                     <Card className="bg-neutral-900 border-primary/20 overflow-hidden shadow-2xl">
                         <CardHeader className="bg-primary/5 border-b border-primary/10">
-                            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Step 1: Record Your Need</CardTitle>
+                            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Record Your Need</CardTitle>
                             <CardDescription>Explain what you are looking for. Max 30 seconds.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
@@ -356,45 +324,6 @@ export default function PostRequestPage() {
                                         <RefreshCw className="mr-2 h-5 w-5" /> RE-RECORD
                                     </Button>
                                 )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <Card className="bg-neutral-900 border-white/5 shadow-2xl">
-                        <CardHeader>
-                            <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Media Evidence</CardTitle>
-                            <CardDescription>Upload up to 3 clear images of what you need.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid grid-cols-3 gap-4">
-                                {imageFiles.map((file, i) => (
-                                    <div key={i} className="relative aspect-square rounded-2xl bg-neutral-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden hover:border-primary/50 transition-all cursor-pointer group">
-                                        {file ? (
-                                            <>
-                                                <Image src={typeof file === 'string' ? file : URL.createObjectURL(file)} alt={`Need ${i}`} fill className="object-cover" />
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => removeImage(i)}
-                                                    className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-2" onClick={() => (document.getElementById(`img-input-${i}`) as HTMLInputElement)?.click()}>
-                                                <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">Slot {i+1}</span>
-                                                <input 
-                                                    id={`img-input-${i}`} 
-                                                    type="file" 
-                                                    accept="image/*" 
-                                                    className="hidden" 
-                                                    onChange={(e) => handleImageChange(i, e)}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
                             </div>
                         </CardContent>
                     </Card>
