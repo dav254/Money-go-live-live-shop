@@ -13,22 +13,21 @@ service firebase.storage {
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Allow buyers to upload request media (Video/Images)
-    // This fixed the storage/unauthorized error
+    // Allow buyers to upload and manage request media (Video/Images)
     match /requests/{userId}/{allPaths=**} {
-      allow read;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Allow sellers to upload offer/pitch videos
     match /offers/{userId}/{allPaths=**} {
-      allow read;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if true;
+      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
     
     // Shop branding (Logos/Banners)
     match /shops/{userId}/{allPaths=**} {
-      allow read;
+      allow read: if true;
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
     
@@ -40,7 +39,7 @@ service firebase.storage {
 
     // Publicly readable delivery proofs
     match /delivery_proofs/{allPaths=**} {
-       allow read;
+       allow read: if true;
        allow write: if isSignedIn();
     }
     

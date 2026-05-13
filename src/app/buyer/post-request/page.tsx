@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, useFirebaseApp } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -81,7 +81,8 @@ const formSchema = z.object({
 export default function PostRequestPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = getStorage();
+  const firebaseApp = useFirebaseApp();
+  const storage = getStorage(firebaseApp);
   const { toast } = useToast();
   const router = useRouter();
 
