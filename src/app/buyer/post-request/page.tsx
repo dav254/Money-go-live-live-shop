@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useFirebaseApp } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -81,8 +81,7 @@ const formSchema = z.object({
 export default function PostRequestPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const firebaseApp = useFirebaseApp();
-  const storage = getStorage(firebaseApp);
+  const storage = getStorage();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -235,7 +234,7 @@ export default function PostRequestPage() {
       // 2. Upload Images
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
-        if (file) {
+        if (file instanceof File) {
           const path = `requests/${user.uid}/${Date.now()}_img_${i}.png`;
           const url = await uploadFile(file, path);
           imageUrls.push(url);
@@ -367,7 +366,7 @@ export default function PostRequestPage() {
                                     <div key={i} className="relative aspect-square rounded-2xl bg-neutral-950 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden hover:border-primary/50 transition-all cursor-pointer group">
                                         {file ? (
                                             <>
-                                                <Image src={URL.createObjectURL(file)} alt={`Need ${i}`} fill className="object-cover" />
+                                                <Image src={URL.createObjectURL(file as File)} alt={`Need ${i}`} fill className="object-cover" />
                                                 <button 
                                                     type="button"
                                                     onClick={() => removeImage(i)}

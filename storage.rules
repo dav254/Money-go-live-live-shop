@@ -14,20 +14,21 @@ service firebase.storage {
     }
 
     // Allow buyers to upload and manage request media (Video/Images)
+    // Path synced with product logic to ensure reliable authorization
     match /requests/{userId}/{allPaths=**} {
-      allow read: if true;
-      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      allow read;
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Allow sellers to upload offer/pitch videos
     match /offers/{userId}/{allPaths=**} {
-      allow read: if true;
-      allow create, update, delete: if isSignedIn() && request.auth.uid == userId;
+      allow read;
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
     
     // Shop branding (Logos/Banners)
     match /shops/{userId}/{allPaths=**} {
-      allow read: if true;
+      allow read;
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
     
@@ -39,7 +40,7 @@ service firebase.storage {
 
     // Publicly readable delivery proofs
     match /delivery_proofs/{allPaths=**} {
-       allow read: if true;
+       allow read;
        allow write: if isSignedIn();
     }
     
