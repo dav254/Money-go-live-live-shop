@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore, useFirebaseApp } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -79,8 +79,7 @@ const formSchema = z.object({
 export default function PostRequestPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const app = useFirebaseApp(); // Access the initialized app
-  const storage = getStorage(app); // Ensure storage uses the authenticated app instance
+  const storage = getStorage(); // Use default storage instance for better auth sync
   const { toast } = useToast();
   const router = useRouter();
 
@@ -197,7 +196,10 @@ export default function PostRequestPage() {
   const uploadFile = (file: File, path: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const storageRef = ref(storage, path);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      // Explicitly include contentType to ensure Storage rules are satisfied
+      const uploadTask = uploadBytesResumable(storageRef, file, {
+          contentType: file.type
+      });
 
       uploadTask.on('state_changed',
         (snapshot) => {

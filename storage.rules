@@ -2,6 +2,7 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // Basic Auth Helper
     function isSignedIn() {
       return request.auth != null;
     }
@@ -9,43 +10,43 @@ service firebase.storage {
     // Allow users to manage their own product media
     match /products/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Allow buyers to upload and manage request media (Video/Images)
-    // Path synced with product logic to ensure reliable authorization
+    // Synchronized with product logic for maximum reliability
     match /requests/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Allow sellers to upload offer/pitch videos
     match /offers/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Shop branding (Logos/Banners)
     match /shops/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // Support ticket attachments
     match /support/{userId}/{allPaths=**} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Publicly readable delivery proofs
     match /delivery_proofs/{allPaths=**} {
        allow read: if true;
-       allow write: if isSignedIn();
+       allow write: if request.auth != null;
     }
     
     // Chat attachments
     match /chats/{chatId}/{allPaths=**} {
-       allow read, write: if isSignedIn();
+       allow read, write: if request.auth != null;
     }
   }
 }
