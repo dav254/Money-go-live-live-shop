@@ -135,10 +135,10 @@ export function LiveChat({ streamId }: LiveChatProps) {
   return (
       <div className="flex flex-col h-full bg-black">
         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-neutral-950/50">
-            <p className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
+            <div className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
                 Live Chat
-            </p>
+            </div>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-3 w-3 text-green-500" />
                 <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
