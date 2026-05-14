@@ -97,7 +97,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
       
       <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
 
-      {/* NEW: Chat and Product Toggles */}
       <Button
         size="icon"
         variant="ghost"
@@ -145,7 +144,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, isMeetingJoined, participants } = useMeeting();
+  const { join, isMeetingJoined, participants, enableWebcam } = useMeeting();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -161,6 +160,13 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         join();
     }
   }, [join, isMeetingJoined]);
+
+  // Ensure camera is on when live status is confirmed
+  useEffect(() => {
+    if (isMeetingJoined && isLive) {
+        enableWebcam();
+    }
+  }, [isMeetingJoined, isLive, enableWebcam]);
 
   const handleTogglePanel = (panel: 'chat' | 'products') => {
       setActivePanel(prev => prev === panel ? null : panel);
@@ -190,7 +196,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
   return (
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
-      {/* Main Studio Area */}
       <div className="flex-1 relative flex flex-col p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out">
           <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
               <div className="pointer-events-auto">
@@ -232,7 +237,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
           />
       </div>
 
-      {/* Side Panel: Chat & Products (Conditional/Toggleable) */}
       <div className={cn(
           "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden",
           activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 border-none"

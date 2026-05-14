@@ -6,7 +6,7 @@ import { VideoOff, Loader2, SignalHigh, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn } = useParticipant(participantId);
+  const { webcamStream, webcamOn, isLocal } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -22,7 +22,13 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 
   return (
     <div className="relative h-full w-full bg-black overflow-hidden rounded-xl border border-white/10 shadow-2xl">
-      <video ref={videoRef} autoPlay playsInline className="h-full w-full object-contain md:object-cover" />
+      <video 
+        ref={videoRef} 
+        autoPlay 
+        playsInline 
+        className="h-full w-full object-contain md:object-cover"
+        style={{ transform: isLocal ? 'scaleX(-1)' : 'none' }}
+      />
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/90 backdrop-blur-sm">
           <VideoOff className="h-16 w-16 text-muted-foreground mb-4" />
@@ -35,7 +41,15 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
 };
 
 const ViewerMeetingView = () => {
-  const { join, participants, isMeetingJoined } = useMeeting();
+  const { join, participants, isMeetingJoined } = useMeeting({
+    onStreamEnabled: (stream) => {
+        if (stream.kind === 'video') console.log("Host stream detected");
+    },
+    onParticipantJoined: (participant) => {
+        console.log("Seller entered room:", participant.displayName);
+    }
+  });
+
   const [retryCount, setRetryCount] = useState(0);
   const hasAttemptedJoin = useRef(false);
   
@@ -51,20 +65,22 @@ const ViewerMeetingView = () => {
     }
   }, [handleJoin, isMeetingJoined]);
 
-  useEffect(() => {
-    if (isMeetingJoined && participants.size <= 1 && retryCount < 3) {
-        const timer = setTimeout(() => {
-            console.log("Searching for host signal...");
-            setRetryCount(prev => prev + 1);
-        }, 10000);
-        return () => clearTimeout(timer);
-    }
-  }, [isMeetingJoined, participants.size, retryCount]);
-
+  // Find the non-local participant (The Seller)
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
     return participantsArray.find(p => !p.local) || null;
   }, [participants]);
+
+  // Auto-recovery if host is missing
+  useEffect(() => {
+    let interval: any;
+    if (isMeetingJoined && !host) {
+        interval = setInterval(() => {
+            setRetryCount(prev => prev + 1);
+        }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isMeetingJoined, host]);
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -76,17 +92,17 @@ const ViewerMeetingView = () => {
               <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
               <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
           </div>
-          <p className="text-white font-black text-xl tracking-tight uppercase">Connecting to Seller</p>
+          <p className="text-white font-black text-xl tracking-tight uppercase">Discovering Host Signal</p>
           <div className="flex items-center gap-2 mt-6 text-[10px] text-neutral-500 uppercase font-black tracking-widest bg-neutral-900 px-4 py-2 rounded-full border border-white/5">
               <SignalHigh className="h-3 w-3 text-green-500" />
-              <span>Host Discovery Active</span>
+              <span>Real-time Sync Active (Attempt {retryCount})</span>
           </div>
           <Button 
             variant="ghost" 
             className="mt-8 text-neutral-500 hover:text-white text-[10px] font-black uppercase tracking-widest"
             onClick={() => window.location.reload()}
           >
-            <RefreshCw className="mr-2 h-3 w-3" /> Re-sync Handshake
+            <RefreshCw className="mr-2 h-3 w-3" /> Manual Handshake
           </Button>
         </div>
       )}
@@ -115,7 +131,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-xl border border-white/5">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-white font-black uppercase tracking-widest text-[10px]">Authenticating Signal...</p>
+        <p className="text-white font-black uppercase tracking-widest text-[10px]">Connecting to Signal Network...</p>
       </div>
     );
   }
@@ -126,9 +142,8 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         meetingId,
         micEnabled: false,
         webcamEnabled: false,
-        name: "Customer",
+        name: "Viewer",
         mode: "CONFERENCE",
-        multiStream: false, 
       }}
       token={token}
     >
