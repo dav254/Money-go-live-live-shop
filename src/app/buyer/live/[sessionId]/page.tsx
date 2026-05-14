@@ -6,8 +6,9 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { LiveSession } from '@/lib/types';
-import { Loader2, Radio, SignalHigh } from 'lucide-react';
+import { Loader2, Radio } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { cn } from '@/lib/utils';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -20,7 +21,7 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
 });
 
 /**
- * PHASE 1: Real-time Stream Connectivity
+ * PHASE 1: Real-time Stream Connectivity (Fixed)
  * This page monitors the session and connects to the VideoSDK room instantly when live.
  */
 export default function BuyerLiveStreamViewPage() {
