@@ -17,18 +17,19 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isMuted, setIsMuted] = useState(true);
 
-  // Handle Video Track
+  // Handle Video Track - Ensure aggressive playback
   useEffect(() => {
     if (videoRef.current && webcamStream) {
       const mediaStream = new MediaStream();
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
       
-      videoRef.current.play().catch(err => {
-          if (err.name !== 'AbortError') {
-              console.warn("[VideoSDK] Video play prevented:", err);
-          }
-      });
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+          playPromise.catch(err => {
+              if (err.name !== 'AbortError') console.warn("[VideoSDK] Video play prevented:", err);
+          });
+      }
     }
   }, [webcamStream]);
 
@@ -39,7 +40,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       mediaStream.addTrack(micStream.track);
       audioRef.current.srcObject = mediaStream;
       
-      // Attempt to play if user already unmuted locally
       if (!isMuted) {
           audioRef.current.play().catch(err => {
              console.warn("[VideoSDK] Audio play failed:", err);
@@ -84,10 +84,11 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
+                    className="z-50"
                 >
                     <Button 
                         variant="secondary" 
-                        className="pointer-events-auto bg-primary text-white font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-2xl"
+                        className="pointer-events-auto bg-primary text-white font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-2xl hover:scale-105 transition-transform"
                         onClick={handleUnmute}
                     >
                         <Volume2 className="mr-2 h-5 w-5" /> TAP TO UNMUTE
@@ -105,7 +106,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         </div>
       )}
 
-      {/* Small Toggle in Corner */}
       <div className="absolute bottom-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button 
             size="icon" 
@@ -120,9 +120,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   );
 };
 
-/**
- * Internal meeting logic for the buyer.
- */
 const ViewerMeetingView = () => {
   const { join, participants, isMeetingJoined } = useMeeting();
   const hasAttemptedJoin = useRef(false);
@@ -139,9 +136,9 @@ const ViewerMeetingView = () => {
     }
   }, [handleJoin, isMeetingJoined]);
 
+  // Priority Participant Selector: Always pick the host (seller) who has their camera on
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
-    // Prioritize participants who have webcam active as the primary visual host
     return participantsArray.find(p => !p.local && p.webcamOn) || 
            participantsArray.find(p => !p.local) || 
            null;
@@ -160,7 +157,7 @@ const ViewerMeetingView = () => {
           <p className="text-white font-black text-xl tracking-tight uppercase">Synchronizing Live Feed</p>
           <div className="flex items-center gap-2 mt-6 text-[10px] text-neutral-500 uppercase font-black tracking-widest bg-neutral-900 px-4 py-2 rounded-full border border-white/5">
               <SignalHigh className="h-3 w-3 text-green-500" />
-              <span>Searching for Host Signature...</span>
+              <span>Scanning for Host Signature...</span>
           </div>
           <Button 
             variant="ghost" 

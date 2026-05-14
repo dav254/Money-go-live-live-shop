@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
-import { Radio, Users, Play, VideoOff } from 'lucide-react';
+import { Radio, Users, Play, VideoOff, Signal } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useDoc } from '@/firebase/firestore/use-doc';
@@ -34,28 +33,31 @@ const SellerInfo = ({ sellerId }: { sellerId: string }) => {
 
 const StreamCard = ({ session }: { session: LiveSession }) => {
   return (
-    <Card className="overflow-hidden group hover:border-primary/50 transition-all border-2">
-      <div className="relative aspect-video bg-black flex items-center justify-center">
+    <Card className="overflow-hidden group hover:border-primary transition-all border-2 bg-neutral-900/50 border-white/5">
+      <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
         <div className="absolute top-2 left-2 z-10">
-          <Badge className="bg-red-600 hover:bg-red-700 flex items-center gap-1 animate-pulse">
+          <Badge className="bg-red-600 hover:bg-red-700 flex items-center gap-1 animate-pulse border-none">
             <Radio className="h-3 w-3" /> LIVE
           </Badge>
         </div>
         <div className="absolute bottom-2 left-2 z-10">
-          <Badge variant="secondary" className="bg-black/50 text-white border-none flex items-center gap-1">
-            <Users className="h-3 w-3" /> {session.viewerCount || 0}
+          <Badge variant="secondary" className="bg-black/50 text-white border-none flex items-center gap-1 backdrop-blur-sm">
+            <Users className="h-3 w-3 text-primary" /> {session.viewerCount || 0}
           </Badge>
         </div>
-        <Play className="h-12 w-12 text-white/50 group-hover:text-white group-hover:scale-110 transition-all" />
+        <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity">
+            <img src={`https://picsum.photos/seed/${session.id}/600/400`} alt="preview" className="w-full h-full object-cover" />
+        </div>
+        <Play className="h-12 w-12 text-white/50 group-hover:text-white group-hover:scale-110 transition-all relative z-10" />
       </div>
       <CardHeader className="p-4">
-        <CardTitle className="text-lg line-clamp-1">{session.title}</CardTitle>
+        <CardTitle className="text-lg line-clamp-1 text-white">{session.title}</CardTitle>
         <CardDescription>
           <SellerInfo sellerId={session.sellerId} />
         </CardDescription>
       </CardHeader>
       <CardFooter className="p-4 pt-0">
-        <Button asChild className="w-full bg-primary hover:bg-primary/90 font-bold" size="sm">
+        <Button asChild className="w-full bg-primary hover:bg-primary/90 font-black uppercase tracking-widest text-xs h-11" size="sm">
           <Link href={`/buyer/live/${session.id}`}>Watch Now</Link>
         </Button>
       </CardFooter>
@@ -66,52 +68,53 @@ const StreamCard = ({ session }: { session: LiveSession }) => {
 export default function BuyerLiveNowPage() {
   const firestore = useFirestore();
 
+  // STRICT FILTER: Only show sessions that are 'live' AND have a meeting ID
   const liveSessionsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+    return query(
+        collection(firestore, 'liveSessions'), 
+        where('status', '==', 'live')
+    );
   }, [firestore]);
 
   const { data: sessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
 
-  // Deduplicate sessions by sellerId, keeping the most recent one
-  const uniqueSessions = React.useMemo(() => {
+  // Deep validation: Ensure we only show sessions that are ACTUALLY live right now
+  const verifiedSessions = React.useMemo(() => {
     if (!sessions) return [];
     
-    const sessionsBySeller: Record<string, LiveSession> = {};
-    
-    sessions.forEach(session => {
-      const sellerId = session.sellerId;
-      const currentStored = sessionsBySeller[sellerId];
-      
-      // If we don't have this seller yet, or this session is newer than the stored one
-      if (!currentStored || 
-          (session.startTime?.toMillis?.() || 0) > (currentStored.startTime?.toMillis?.() || 0)) {
-        sessionsBySeller[sellerId] = session;
-      }
-    });
-    
-    return Object.values(sessionsBySeller).sort((a, b) => 
+    return sessions.filter(session => {
+        // Must have a meeting ID and have started recently
+        if (!session.videosdkMeetingId) return false;
+        
+        // Heartbeat check: If it was started more than 24 hours ago, it's stale
+        const startTime = session.startTime?.toMillis?.() || 0;
+        const now = Date.now();
+        if (now - startTime > 24 * 60 * 60 * 1000) return false;
+
+        return true;
+    }).sort((a, b) => 
       (b.startTime?.toMillis?.() || 0) - (a.startTime?.toMillis?.() || 0)
     );
   }, [sessions]);
 
   return (
     <BuyerLayout>
-      <div className="flex-1 space-y-6 p-8 pt-6 max-w-7xl mx-auto">
+      <div className="flex-1 space-y-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-headline text-3xl font-bold tracking-tight flex items-center gap-3">
-              <Radio className="h-8 w-8 text-red-600" />
+            <h1 className="font-headline text-3xl font-black uppercase tracking-tighter flex items-center gap-3">
+              <Radio className="h-8 w-8 text-red-600 animate-pulse" />
               Live Now
             </h1>
-            <p className="text-muted-foreground">Watch real sellers, ask questions, and shop live.</p>
+            <p className="text-muted-foreground font-medium text-sm">Authentic shopping experiences happening right now.</p>
           </div>
         </div>
 
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <Skeleton className="aspect-video w-full" />
+              <Card key={i} className="overflow-hidden border-white/5 bg-neutral-900/50">
+                <Skeleton className="aspect-video w-full rounded-none" />
                 <CardHeader>
                   <Skeleton className="h-6 w-3/4 mb-2" />
                   <Skeleton className="h-4 w-1/2" />
@@ -119,20 +122,23 @@ export default function BuyerLiveNowPage() {
               </Card>
             ))}
           </div>
-        ) : uniqueSessions.length > 0 ? (
+        ) : verifiedSessions.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {uniqueSessions.map(session => (
+            {verifiedSessions.map(session => (
               <StreamCard key={session.id} session={session} />
             ))}
           </div>
         ) : (
-          <Card className="bg-muted/30 border-dashed border-2 py-24 text-center">
+          <Card className="bg-muted/10 border-dashed border-2 py-32 text-center border-white/10">
             <CardContent>
-              <div className="mx-auto bg-muted p-4 rounded-full w-fit mb-4">
-                <VideoOff className="h-12 w-12 text-muted-foreground" />
+              <div className="mx-auto bg-neutral-900 p-6 rounded-full w-fit mb-6 border border-white/5">
+                <VideoOff className="h-12 w-12 text-muted-foreground opacity-50" />
               </div>
-              <h2 className="text-xl font-bold">No active shows right now</h2>
-              <p className="text-muted-foreground">Check back later or follow your favorite sellers to get notified.</p>
+              <h2 className="text-2xl font-black uppercase tracking-tight text-white">No Active Shows</h2>
+              <p className="text-muted-foreground max-w-xs mx-auto mt-2 font-medium">Check back soon or follow your favorite sellers to get notified when they start a broadcast.</p>
+              <Button variant="outline" className="mt-8 font-black uppercase tracking-widest text-[10px]" asChild>
+                <Link href="/buyer/dashboard">Discover Products</Link>
+              </Button>
             </CardContent>
           </Card>
         )}

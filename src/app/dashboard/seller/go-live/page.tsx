@@ -142,11 +142,10 @@ export default function SellerGoLivePage() {
   const handleStartBroadcast = async () => {
     if (!user || !firestore || !meetingId) return;
     try {
-        // CRITICAL FIX: Ensure the meetingId is saved to the session document
-        // so buyers can find the host room instantly.
+        // UPDATE GLOBAL STATUS: Make the stream visible to all buyers instantly
         await updateDoc(doc(firestore, 'liveSessions', user.uid), {
             status: 'live',
-            videosdkMeetingId: meetingId,
+            videosdkMeetingId: meetingId, // Ensure meeting ID is attached to the live status
             startTime: serverTimestamp(),
             lastStartedAt: serverTimestamp()
         });
@@ -193,13 +192,11 @@ export default function SellerGoLivePage() {
       return (
           <SellerLayout fullWidth>
               <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex flex-col">
-                  {/* Immediate Camera Preview */}
                   <div className="absolute inset-0 z-0">
                     <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover opacity-60 transition-transform duration-700 hover:scale-105" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                   </div>
 
-                  {/* Top Bar Info */}
                   <div className="absolute top-6 left-6 z-10 flex items-center gap-4">
                      <Badge variant="outline" className="h-10 px-4 rounded-xl border-white/10 bg-black/40 backdrop-blur-md text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
                         <BadgeCent className="h-4 w-4 text-primary" />
@@ -207,7 +204,6 @@ export default function SellerGoLivePage() {
                      </Badge>
                   </div>
 
-                  {/* Central Control Area */}
                   <div className="flex-1 flex flex-col items-center justify-center relative z-20 p-6 text-center">
                       <div className="max-w-md w-full animate-in fade-in zoom-in-95 duration-500">
                           <div className="mb-8 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
@@ -238,7 +234,6 @@ export default function SellerGoLivePage() {
                       </div>
                   </div>
 
-                  {/* Corner Visual Tips */}
                   <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end pointer-events-none opacity-40">
                       <div className="space-y-1">
                           <p className="text-[9px] font-black uppercase tracking-widest text-primary">Pro Tip</p>
@@ -261,7 +256,11 @@ export default function SellerGoLivePage() {
               token={token}
               isLive={isLive}
               onBroadcast={handleStartBroadcast}
-              onEnd={() => setWantsToSetup(false)}
+              onEnd={() => {
+                setWantsToSetup(false);
+                setIsLive(false);
+                setMeetingId(null);
+              }}
             />
         )}
       </div>
