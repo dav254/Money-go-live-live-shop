@@ -5,7 +5,6 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
 const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
 
-// Helper to verify user token and get UID
 async function verifyUser(request: Request) {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -23,7 +22,6 @@ async function verifyUser(request: Request) {
 
 /**
  * POST handler to create a fresh live session.
- * Resuming is disabled per user request.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -47,11 +45,10 @@ export async function POST(request: Request) {
     const currentPoints = userProfile?.aiPoints || 0;
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    // Check for points
     if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
-            details: `You need ${GO_LIVE_COST} points to start a 70-minute session. Your balance is ${currentPoints}.`,
+            details: `You need ${GO_LIVE_COST} points to start a 70-minute session.`,
             needsPoints: true 
         }, { status: 402 });
     }
@@ -64,6 +61,7 @@ export async function POST(request: Request) {
     });
 
     // 2. Initialize new session document (Always overwrites for a fresh start)
+    // We set status to upcoming. It only becomes 'live' when the seller clicks Broadcast.
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
@@ -72,7 +70,7 @@ export async function POST(request: Request) {
       productIds: [],
       viewerCount: 0,
       initialStartTime: Timestamp.now(),
-      startTime: Timestamp.now(),
+      startTime: Timestamp.now(), // This will be updated again when broadcast starts
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
       activeOffer: null,
@@ -85,8 +83,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
         success: true, 
         liveSessionId: sessionRef.id,
-        resumed: false,
-        timeRemainingMs: SESSION_LIMIT_MS,
         newBalance: currentPoints - GO_LIVE_COST,
         videosdkMeetingId: prewarmedMeetingId
     });
@@ -121,13 +117,14 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Forbidden: Access denied.' }, { status: 403 });
     }
 
+    // CRITICAL: End status and clear meeting ID to kick buyers out instantly
     await sessionRef.update({
       status: 'ended',
       endTime: Timestamp.now(),
       videosdkMeetingId: null,
       pinnedProductId: null,
       activeOffer: null,
-      timeRemainingMs: 0, // Mark as consumed
+      timeRemainingMs: 0,
     });
 
     return NextResponse.json({ success: true, message: 'Live session ended.' });

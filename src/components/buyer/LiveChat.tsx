@@ -24,7 +24,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  // Fetch the current session to get its startTime
+  // Subscribe to the live session to monitor startTime for fresh-start filtering
   const sessionRef = React.useMemo(() => {
     if (!firestore || !streamId) return null;
     return doc(firestore, 'liveSessions', streamId);
@@ -32,10 +32,13 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   const { data: session } = useDoc<LiveSession>(sessionRef);
 
+  // FRESH START: Clear optimistic messages if the session startTime changes (meaning a new show began)
+  useEffect(() => {
+      setOptimisticMessages([]);
+  }, [session?.startTime]);
+
   useEffect(() => {
     if (user && firestore) {
-        doc(firestore, 'userProfiles', user.uid);
-        // Simple fetch for local state
         const fetchProfile = async () => {
             const snap = await (await import('firebase/firestore')).getDoc(doc(firestore, 'userProfiles', user.uid));
             if (snap.exists()) setUserData(snap.data() as UserProfile);
@@ -44,18 +47,19 @@ export function LiveChat({ streamId }: LiveChatProps) {
     }
   }, [user, firestore]);
 
-  // FRESH START FILTER: Only show messages sent after the session's current startTime
+  // FRESH START FILTER: Only show messages sent after the current show's startTime
   const messagesQuery = React.useMemo(() => {
-    if (!firestore || !streamId || !session?.startTime) return null;
+    if (!firestore || !streamId || !session?.startTime || session.status === 'ended') return null;
     return query(
         collection(firestore, `liveSessions/${streamId}/chat`), 
         where('timestamp', '>=', session.startTime),
         orderBy('timestamp', 'asc')
     );
-  }, [firestore, streamId, session?.startTime]);
+  }, [firestore, streamId, session?.startTime, session?.status]);
 
   const { data: serverMessages, isLoading } = useCollection<ChatMessage>(messagesQuery);
 
+  // Clear optimistic messages once server messages are received
   useEffect(() => {
     if (serverMessages) setOptimisticMessages([]);
   }, [serverMessages]);
@@ -106,6 +110,16 @@ export function LiveChat({ streamId }: LiveChatProps) {
     setNewMessage(prev => `@${userName} ${prev}`);
   };
 
+  // If the show has ended, chats "vanish" by being hidden from the UI
+  if (session?.status === 'ended') {
+      return (
+          <div className="flex flex-col h-full items-center justify-center p-8 text-center opacity-40">
+              <MessageSquare className="h-12 w-12 mb-4" />
+              <p className="text-xs font-black uppercase tracking-widest">Show Concluded</p>
+          </div>
+      );
+  }
+
   const allMessages = [...(serverMessages || []), ...optimisticMessages];
 
   return (
@@ -113,11 +127,11 @@ export function LiveChat({ streamId }: LiveChatProps) {
         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-neutral-950/50">
             <p className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
                 <MessageSquare className="h-3 w-3 text-primary" /> 
-                Live Engagement
+                Live Chat
             </p>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-3 w-3 text-green-500" />
-                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
+                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Secure</span>
             </div>
         </div>
         
@@ -140,7 +154,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
                   return (
                     <div key={msg.id} className={cn("flex flex-col group", alignRight ? "items-end" : "items-start", msg.isSending && "opacity-70")}>
                         <div className={cn("flex max-w-[85%] gap-2", alignRight ? "flex-row-reverse text-right" : "flex-row text-left")}>
-                            <Avatar className="h-7 w-7 border border-white/10 shrink-0">
+                            <Avatar className="h-7 w-7 border border-white/10 shrink-0 shadow-lg">
                                 <AvatarImage src={msg.senderAvatar} />
                                 <AvatarFallback className="bg-neutral-800 text-[10px]"><User className="h-3 w-3" /></AvatarFallback>
                             </Avatar>
@@ -152,17 +166,9 @@ export function LiveChat({ streamId }: LiveChatProps) {
                                     >
                                         {msg.senderName}
                                     </button>
-                                    {!msg.isSending && (
-                                        <button 
-                                            onClick={() => handleReply(msg.senderName)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-neutral-500 hover:text-white"
-                                        >
-                                            <Reply className="h-3 w-3" />
-                                        </button>
-                                    )}
                                 </div>
                                 <p className={cn(
-                                    "text-sm leading-tight p-2 rounded-lg border shadow-sm",
+                                    "text-sm leading-tight p-2.5 rounded-2xl border shadow-sm",
                                     alignRight 
                                         ? "bg-primary text-primary-foreground border-primary rounded-tr-none" 
                                         : "bg-white/5 text-neutral-200 border-white/5 rounded-tl-none"
@@ -182,7 +188,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
                 <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={user ? "Reply to buyers..." : "Log in to chat"}
+                    placeholder={user ? "Say something..." : "Login to chat"}
                     className="bg-neutral-900 border-white/5 text-white rounded-xl h-11"
                     disabled={!user}
                 />

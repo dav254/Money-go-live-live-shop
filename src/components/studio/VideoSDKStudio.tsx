@@ -126,6 +126,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
+  // ACTIVATE TRACKS ONLY WHEN BROADCAST STARTS
   useEffect(() => {
     if (isMeetingJoined && isLive && !hasEnabledTracks.current) {
         hasEnabledTracks.current = true;
@@ -190,7 +191,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                 return localParticipant ? (
                   <div className="relative h-full w-full">
                     <ParticipantView participantId={localParticipant.id} />
-                    {/* Floating Chat Overlay for Seller */}
                     <FloatingChatOverlay 
                       streamId={user?.uid || ''} 
                       className="absolute bottom-20 left-4 z-40"
@@ -202,7 +202,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                         <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                         <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
                     </div>
-                    <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Studio Signal Sync...</p>
+                    <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline text-center">Synchronizing Studio Hub...</p>
                   </div>
                 );
               }}
@@ -281,14 +281,13 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         name: participantName,
         mode: "CONFERENCE",
         multiStream: false,
-        // UNLOCK FULL CAMERA QUALITY
         webcamConfig: {
-            resolution: "hhd", // High-Definition 1080p
-            optimizationMode: "motion", // High FPS for smooth movement
+            resolution: "hhd",
+            optimizationMode: "motion",
             multiStream: false,
         },
         micConfig: {
-            quality: "high_res", // Crystal clear audio
+            quality: "high_res",
         }
       }}
       token={token}
