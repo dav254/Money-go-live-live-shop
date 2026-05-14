@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -14,6 +15,7 @@ import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
 import { Button } from '@/components/ui/button';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
+import { LivePromoOverlay } from '@/components/live/LivePromoOverlay';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -119,6 +121,13 @@ export default function BuyerLiveSessionPage() {
           <div className="absolute inset-0 z-0">
             <VideoSDKViewer meetingId={session.videosdkMeetingId} />
           </div>
+
+          {/* Top Deal Overlay */}
+          {session.activeOffer && (
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4">
+                  <LivePromoOverlay offer={session.activeOffer} />
+              </div>
+          )}
 
           {/* Top Status */}
           <div className="absolute top-6 left-6 z-10 flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl animate-pulse">

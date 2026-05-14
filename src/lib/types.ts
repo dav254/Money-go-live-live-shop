@@ -275,9 +275,11 @@ export interface LiveSession {
     initialStartTime: any;
     pinnedProductId?: string | null;
     activeOffer?: {
+        type: 'flash' | 'limited' | 'countdown';
         title: string;
         code: string;
-        publishedAt: any;
+        discountValue: string;
+        expiresAt: any;
     } | null;
     sales?: number;
 }

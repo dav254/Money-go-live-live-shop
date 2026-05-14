@@ -1,9 +1,10 @@
+
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -11,6 +12,7 @@ import { useUser, useFirestore } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
+import { LivePromoPanel } from './LivePromoPanel';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local } = useParticipant(participantId);
@@ -46,8 +48,8 @@ interface StudioControlsProps {
     onEnd: () => void;
     onBroadcast: () => void;
     isLive: boolean;
-    activePanel: 'chat' | 'products' | null;
-    onTogglePanel: (panel: 'chat' | 'products') => void;
+    activePanel: 'chat' | 'products' | 'promos' | null;
+    onTogglePanel: (panel: 'chat' | 'products' | 'promos') => void;
 }
 
 const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel }: StudioControlsProps) => {
@@ -85,6 +87,18 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         <ShoppingBag className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
 
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => onTogglePanel('promos')}
+        className={cn(
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            activePanel === 'promos' ? "bg-yellow-500 text-black scale-110 shadow-lg shadow-yellow-500/20" : "text-white/70 hover:bg-white/10"
+        )}
+      >
+        <Zap className="h-4 w-4 md:h-5 md:w-5" />
+      </Button>
+
       <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
 
       {!isLive ? (
@@ -114,7 +128,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const { toast } = useToast();
   
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
+  const [activePanel, setActivePanel] = useState<'chat' | 'products' | 'promos' | null>(null);
   
   const hasAttemptedJoin = useRef(false);
   const hasEnabledTracks = useRef(false);
@@ -143,7 +157,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [isMeetingJoined, isLive, enableWebcam, unmuteMic]);
 
-  const handleTogglePanel = (panel: 'chat' | 'products') => {
+  const handleTogglePanel = (panel: 'chat' | 'products' | 'promos') => {
       setActivePanel(prev => prev === panel ? null : panel);
   };
 
@@ -225,7 +239,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
           <div className="flex flex-col h-full w-80 lg:w-96">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
-                    {activePanel === 'chat' ? 'Public Chat' : 'Catalog Tools'}
+                    {activePanel === 'chat' ? 'Public Chat' : activePanel === 'products' ? 'Catalog Tools' : 'Live Promos'}
                   </p>
                   <Button 
                     variant="ghost" 
@@ -255,6 +269,15 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                                   pinnedProductId={pinnedProductId}
                               />
                           )}
+                      </div>
+                  </div>
+                  <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'promos' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20">
+                          <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Growth Tools</p>
+                          <Sparkles className="h-4 w-4 text-yellow-500" />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                          {user && <LivePromoPanel streamId={user.uid} />}
                       </div>
                   </div>
               </div>
