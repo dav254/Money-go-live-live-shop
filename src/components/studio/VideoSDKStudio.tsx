@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw, MessageSquare, ShoppingBag, Pin, PinOff, Zap, ShieldCheck } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw, MessageSquare, ShoppingBag, Pin, PinOff, Zap, ShieldCheck, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -60,7 +60,15 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   );
 };
 
-const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
+interface StudioControlsProps {
+    onEnd: () => void;
+    onBroadcast: () => void;
+    isLive: boolean;
+    activePanel: 'chat' | 'products' | null;
+    onTogglePanel: (panel: 'chat' | 'products') => void;
+}
+
+const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel }: StudioControlsProps) => {
   const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
 
   const handleEndClick = () => {
@@ -89,10 +97,37 @@ const StudioControls = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onB
       
       <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
 
+      {/* NEW: Chat and Product Toggles */}
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => onTogglePanel('chat')}
+        className={cn(
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            activePanel === 'chat' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
+        )}
+      >
+        <MessageSquare className="h-4 w-4 md:h-5 md:w-5" />
+      </Button>
+
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => onTogglePanel('products')}
+        className={cn(
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            activePanel === 'products' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
+        )}
+      >
+        <ShoppingBag className="h-4 w-4 md:h-5 md:w-5" />
+      </Button>
+
+      <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
+
       {!isLive ? (
         <Button
           onClick={onBroadcast}
-          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white"
+          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none"
         >
           START BROADCAST
         </Button>
@@ -114,7 +149,10 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
+  
   const hasAttemptedJoin = useRef(false);
 
   useEffect(() => {
@@ -123,6 +161,10 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         join();
     }
   }, [join, isMeetingJoined]);
+
+  const handleTogglePanel = (panel: 'chat' | 'products') => {
+      setActivePanel(prev => prev === panel ? null : panel);
+  };
 
   const handlePinProduct = async (product: any) => {
     if (!user || !firestore) return;
@@ -149,7 +191,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   return (
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
       {/* Main Studio Area */}
-      <div className="flex-1 relative flex flex-col p-4 md:p-6 lg:p-8">
+      <div className="flex-1 relative flex flex-col p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out">
           <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
               <div className="pointer-events-auto">
                   <div className={cn(
@@ -170,7 +212,10 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                   <ParticipantView participantId={localParticipant.id} />
                 ) : (
                   <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-3xl">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                        <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
+                    </div>
                     <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline">Studio Signal Sync...</p>
                   </div>
                 );
@@ -178,21 +223,26 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
             </MeetingConsumer>
           </div>
 
-          <StudioControls onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />
+          <StudioControls 
+            onEnd={onEnd} 
+            onBroadcast={onBroadcast} 
+            isLive={isLive} 
+            activePanel={activePanel}
+            onTogglePanel={handleTogglePanel}
+          />
       </div>
 
-      {/* Side Panel: Chat & Products */}
-      <div className="w-80 lg:w-96 shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl">
-          <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-              <div className="p-4 border-b border-white/5 bg-neutral-900/50">
-                  <TabsList className="grid w-full grid-cols-2 bg-black/40 h-11 p-1 rounded-xl">
-                      <TabsTrigger value="chat" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest">
-                          <MessageSquare className="h-3.5 w-3.5 mr-2" /> Chat
-                      </TabsTrigger>
-                      <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-white font-black text-[10px] uppercase tracking-widest">
-                          <ShoppingBag className="h-3.5 w-3.5 mr-2" /> Products
-                      </TabsTrigger>
-                  </TabsList>
+      {/* Side Panel: Chat & Products (Conditional/Toggleable) */}
+      <div className={cn(
+          "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden",
+          activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 border-none"
+      )}>
+          <Tabs value={activePanel || ''} onValueChange={(val) => setActivePanel(val as any)} className="flex-1 flex flex-col w-80 lg:w-96">
+              <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between">
+                  <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">Studio Toolbox</p>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-white" onClick={() => setActivePanel(null)}>
+                      <ChevronRight className="h-4 w-4" />
+                  </Button>
               </div>
 
               <TabsContent value="chat" className="flex-1 mt-0">
