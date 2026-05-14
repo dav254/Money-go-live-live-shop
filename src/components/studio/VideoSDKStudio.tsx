@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, MessageSquare, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -12,7 +12,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn, local, enableWebcam } = useParticipant(participantId);
+  const { webcamStream, webcamOn, local } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -35,13 +35,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">Camera Preview Offline</p>
-          <Button 
-            variant="outline" 
-            className="mt-6 border-primary/50 text-primary hover:bg-primary/10 font-black tracking-widest uppercase text-xs px-8 py-6 rounded-2xl"
-            onClick={() => enableWebcam()}
-          >
-            RESTORE CAMERA
-          </Button>
         </div>
       )}
     </div>
@@ -57,7 +50,7 @@ interface StudioControlsProps {
 }
 
 const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel }: StudioControlsProps) => {
-  const { leave, enableWebcam, disableWebcam, webcamOn } = useMeeting();
+  const { leave } = useMeeting();
 
   const handleEndClick = () => {
     leave();
@@ -66,17 +59,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
-      <Button
-        size="icon"
-        variant={webcamOn ? "secondary" : "destructive"}
-        onClick={() => webcamOn ? disableWebcam() : enableWebcam()}
-        className="rounded-xl h-10 w-10 md:h-12 md:w-12 transition-colors"
-      >
-        {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5 text-white" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5 text-white" />}
-      </Button>
       
-      <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
-
       <Button
         size="icon"
         variant="ghost"

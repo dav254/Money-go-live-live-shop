@@ -1,14 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import type { LiveSession } from '@/lib/types';
-import { Loader2, Radio } from 'lucide-react';
+import type { LiveSession, Product } from '@/lib/types';
+import { Loader2, MessageSquare, ShoppingBag, X, Radio } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
+import { LiveChat } from '@/components/buyer/LiveChat';
+import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
+import { PinnedProduct } from '@/components/live/PinnedProduct';
+import { Button } from '@/components/ui/button';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -26,6 +30,8 @@ export default function BuyerLiveSessionPage() {
   const sessionId = params.sessionId as string;
   const firestore = useFirestore();
 
+  const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
+
   // Subscribe to the live session document
   const sessionRef = useMemoFirebase(() => {
     if (!firestore || !sessionId) return null;
@@ -34,8 +40,16 @@ export default function BuyerLiveSessionPage() {
 
   const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
+  // Fetch Pinned Product details if it exists
+  const pinnedProductRef = useMemoFirebase(() => {
+    if (!firestore || !session?.pinnedProductId) return null;
+    return doc(firestore, 'products', session.pinnedProductId);
+  }, [firestore, session?.pinnedProductId]);
+
+  const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
+
   // Auto-redirect if session ended
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isSessionLoading && session?.status === 'ended') {
       router.push('/buyer/live-now');
     }
@@ -52,7 +66,6 @@ export default function BuyerLiveSessionPage() {
     );
   }
 
-  // Handle case where session doesn't exist or isn't live yet
   if (!session || session.status !== 'live' || !session.videosdkMeetingId) {
     return (
       <BuyerLayout fullWidth>
@@ -60,8 +73,7 @@ export default function BuyerLiveSessionPage() {
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-6">
             <Radio className="h-12 w-12 text-neutral-700" />
           </div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Connecting to Host...</h1>
-          <p className="text-neutral-500 mt-2 max-w-xs mx-auto text-sm font-medium">Waiting for the seller to begin the broadcast. Hang tight!</p>
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Waiting for Host...</h1>
           <button 
             className="mt-8 px-6 py-2 bg-primary text-white font-bold rounded-xl uppercase text-[10px] tracking-widest"
             onClick={() => router.push('/buyer/live-now')}
@@ -75,18 +87,84 @@ export default function BuyerLiveSessionPage() {
 
   return (
     <BuyerLayout fullWidth>
-      <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden">
-        {/* Full-screen Video Section */}
-        <div className="absolute inset-0 z-0">
-          <VideoSDKViewer meetingId={session.videosdkMeetingId} />
-        </div>
+      <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex">
+        {/* Main Stream Area */}
+        <div className="flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 z-0">
+            <VideoSDKViewer meetingId={session.videosdkMeetingId} />
+          </div>
 
-        {/* Status Overlay */}
-        <div className="absolute top-6 left-6 z-10 pointer-events-none">
-          <div className="flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl shadow-red-600/20 animate-pulse">
+          {/* Top Status */}
+          <div className="absolute top-6 left-6 z-10 flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl animate-pulse">
             <div className="h-2 w-2 rounded-full bg-white" />
             <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Now</span>
           </div>
+
+          {/* Floating Pinned Product (Footer) */}
+          {pinnedProduct && (
+              <div className="absolute bottom-24 left-6 z-40 max-w-[calc(100%-120px)] animate-in slide-in-from-bottom-4">
+                  <PinnedProduct product={pinnedProduct} />
+              </div>
+          )}
+
+          {/* Buyer Action Toggles (Right Side) */}
+          <div className="absolute bottom-6 right-6 z-40 flex flex-col gap-3">
+              <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setActivePanel(activePanel === 'chat' ? null : 'chat')}
+                  className={cn(
+                      "h-12 w-12 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all",
+                      activePanel === 'chat' ? "bg-primary text-white scale-110" : "bg-black/40 text-white/70"
+                  )}
+              >
+                  <MessageSquare className="h-5 w-5" />
+              </Button>
+              <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setActivePanel(activePanel === 'products' ? null : 'products')}
+                  className={cn(
+                      "h-12 w-12 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all",
+                      activePanel === 'products' ? "bg-primary text-white scale-110" : "bg-black/40 text-white/70"
+                  )}
+              >
+                  <ShoppingBag className="h-5 w-5" />
+              </Button>
+          </div>
+        </div>
+
+        {/* Side Panels */}
+        <div className={cn(
+            "shrink-0 bg-neutral-950 border-l border-white/5 transition-all duration-300 ease-in-out flex flex-col h-full",
+            activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 overflow-hidden border-none"
+        )}>
+            <div className="w-80 lg:w-96 h-full flex flex-col relative">
+                {/* Panel Header */}
+                <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                    <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
+                        {activePanel === 'chat' ? 'Public Chat' : 'Seller Catalog'}
+                    </h3>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setActivePanel(null)}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+
+                {/* Panel Content */}
+                <div className="flex-1 overflow-hidden relative">
+                    <div className={cn("absolute inset-0 transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                        <LiveChat streamId={session.sellerId} />
+                    </div>
+                    <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'products' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                        <LiveProductShelf 
+                            sellerId={session.sellerId} 
+                            pinnedProductId={session.pinnedProductId || null}
+                            onPinProduct={() => {}} // Buyers can't pin, just view
+                            onUnpinProduct={() => {}} 
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
       </div>
     </BuyerLayout>
