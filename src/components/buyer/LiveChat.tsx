@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, MessageSquare, ShieldCheck, User, Reply, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, ShieldCheck, User, Loader2 } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useDoc } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, where } from 'firebase/firestore';
 import type { ChatMessage, UserProfile, LiveSession } from '@/lib/types';
@@ -24,18 +24,21 @@ export function LiveChat({ streamId }: LiveChatProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  // Subscribe to the live session to monitor startTime for fresh-start filtering
+  // 1. Subscribe to the live session to monitor status and startTime
   const sessionRef = React.useMemo(() => {
     if (!firestore || !streamId) return null;
     return doc(firestore, 'liveSessions', streamId);
   }, [firestore, streamId]);
 
-  const { data: session } = useDoc<LiveSession>(sessionRef);
+  const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
 
-  // FRESH START: Clear optimistic messages if the session startTime changes (meaning a new show began)
+  // 2. VANISH LOGIC: Clear all local state when the show ends or resets
   useEffect(() => {
-      setOptimisticMessages([]);
-  }, [session?.startTime]);
+      if (session?.status !== 'live') {
+          setOptimisticMessages([]);
+          setNewMessage('');
+      }
+  }, [session?.status, session?.startTime]);
 
   useEffect(() => {
     if (user && firestore) {
@@ -47,9 +50,11 @@ export function LiveChat({ streamId }: LiveChatProps) {
     }
   }, [user, firestore]);
 
-  // FRESH START FILTER: Only show messages sent after the current show's startTime
+  // 3. FRESH START FILTER: Only show messages sent after the current show's startTime
   const messagesQuery = React.useMemo(() => {
-    if (!firestore || !streamId || !session?.startTime || session.status === 'ended') return null;
+    // If not live, or no startTime, don't even run the query
+    if (!firestore || !streamId || !session?.startTime || session.status !== 'live') return null;
+    
     return query(
         collection(firestore, `liveSessions/${streamId}/chat`), 
         where('timestamp', '>=', session.startTime),
@@ -59,7 +64,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   const { data: serverMessages, isLoading } = useCollection<ChatMessage>(messagesQuery);
 
-  // Clear optimistic messages once server messages are received
+  // Clear optimistic messages once server messages catch up
   useEffect(() => {
     if (serverMessages) setOptimisticMessages([]);
   }, [serverMessages]);
@@ -71,7 +76,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !firestore || !streamId || !user) return;
+    if (!newMessage.trim() || !firestore || !streamId || !user || session?.status !== 'live') return;
 
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Member';
     const messageText = newMessage.trim();
@@ -110,12 +115,17 @@ export function LiveChat({ streamId }: LiveChatProps) {
     setNewMessage(prev => `@${userName} ${prev}`);
   };
 
-  // If the show has ended, chats "vanish" by being hidden from the UI
-  if (session?.status === 'ended') {
+  // 4. THE VANISH SCREEN: If show is not active, hide all chat UI
+  if (session?.status !== 'live') {
       return (
-          <div className="flex flex-col h-full items-center justify-center p-8 text-center opacity-40">
-              <MessageSquare className="h-12 w-12 mb-4" />
-              <p className="text-xs font-black uppercase tracking-widest">Show Concluded</p>
+          <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-black">
+              <div className="p-4 rounded-full bg-white/5 border border-white/10 mb-4">
+                <MessageSquare className="h-10 w-10 text-neutral-700" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">
+                  {session?.status === 'ended' ? 'Show Concluded' : 'Preview Mode'}
+              </p>
+              <p className="text-xs text-neutral-600 font-medium mt-2">Chat will reset and activate once the show begins.</p>
           </div>
       );
   }
@@ -126,12 +136,12 @@ export function LiveChat({ streamId }: LiveChatProps) {
       <div className="flex flex-col h-full bg-black">
         <div className="p-4 border-b border-white/10 flex items-center justify-between bg-neutral-950/50">
             <p className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                <MessageSquare className="h-3 w-3 text-primary" /> 
+                <div className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
                 Live Chat
             </p>
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
                 <ShieldCheck className="h-3 w-3 text-green-500" />
-                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Secure</span>
+                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
             </div>
         </div>
         
@@ -156,7 +166,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
                         <div className={cn("flex max-w-[85%] gap-2", alignRight ? "flex-row-reverse text-right" : "flex-row text-left")}>
                             <Avatar className="h-7 w-7 border border-white/10 shrink-0 shadow-lg">
                                 <AvatarImage src={msg.senderAvatar} />
-                                <AvatarFallback className="bg-neutral-800 text-[10px]"><User className="h-3 w-3" /></AvatarFallback>
+                                <AvatarFallback className="bg-neutral-800 text-[8px]"><User className="h-3 w-3" /></AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
                                 <div className={cn("flex items-center gap-2 mb-0.5", alignRight ? "flex-row-reverse" : "flex-row")}>
@@ -189,10 +199,10 @@ export function LiveChat({ streamId }: LiveChatProps) {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder={user ? "Say something..." : "Login to chat"}
-                    className="bg-neutral-900 border-white/5 text-white rounded-xl h-11"
-                    disabled={!user}
+                    className="bg-neutral-900 border-white/10 text-white rounded-xl h-11 focus-visible:ring-primary"
+                    disabled={!user || session?.status !== 'live'}
                 />
-                <Button type="submit" size="icon" className="bg-primary rounded-xl h-11 w-11 shrink-0" disabled={!user || !newMessage.trim()}>
+                <Button type="submit" size="icon" className="bg-primary rounded-xl h-11 w-11 shrink-0" disabled={!user || !newMessage.trim() || session?.status !== 'live'}>
                     <Send className="h-4 w-4" />
                 </Button>
             </form>

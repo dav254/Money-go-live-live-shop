@@ -62,6 +62,7 @@ export async function POST(request: Request) {
 
     // 2. Initialize new session document (Always overwrites for a fresh start)
     // We set status to upcoming. It only becomes 'live' when the seller clicks Broadcast.
+    // The startTime is set to now, but it will be moved forward again when the broadcast starts.
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       productIds: [],
       viewerCount: 0,
       initialStartTime: Timestamp.now(),
-      startTime: Timestamp.now(), // This will be updated again when broadcast starts
+      startTime: Timestamp.now(), 
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
       activeOffer: null,
@@ -117,7 +118,9 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Forbidden: Access denied.' }, { status: 403 });
     }
 
-    // CRITICAL: End status and clear meeting ID to kick buyers out instantly
+    // CRITICAL: End status and clear meeting ID to kick buyers out instantly.
+    // We reset the startTime to a future date or essentially clear interactive states
+    // so the chat vanishes and doesn't leak into the next show.
     await sessionRef.update({
       status: 'ended',
       endTime: Timestamp.now(),

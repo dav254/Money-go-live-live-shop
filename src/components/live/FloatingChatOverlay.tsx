@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { useCollection, useFirestore } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useCollection, useFirestore, useDoc } from '@/firebase';
+import { collection, query, orderBy, limit, doc, where } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { LiveSession } from '@/lib/types';
 
 interface FloatingChatOverlayProps {
   streamId: string;
@@ -16,20 +17,30 @@ interface FloatingChatOverlayProps {
 /**
  * A dynamic, non-stagnant chat overlay for live sessions.
  * Messages "rise" from the bottom and expire after a set time.
+ * VANISH LOGIC: Overlay hides instantly if the show is not live.
  */
 export function FloatingChatOverlay({ streamId, className }: FloatingChatOverlayProps) {
   const firestore = useFirestore();
   const [activeMessages, setActiveMessages] = useState<any[]>([]);
 
-  // We only care about the very latest messages for the floating overlay
-  const messagesQuery = React.useMemo(() => {
+  // Monitor session status
+  const sessionRef = React.useMemo(() => {
     if (!firestore || !streamId) return null;
+    return doc(firestore, 'liveSessions', streamId);
+  }, [firestore, streamId]);
+
+  const { data: session } = useDoc<LiveSession>(sessionRef);
+
+  // We only care about the very latest messages that occur AFTER the current show started
+  const messagesQuery = React.useMemo(() => {
+    if (!firestore || !streamId || !session?.startTime || session.status !== 'live') return null;
     return query(
       collection(firestore, `liveSessions/${streamId}/chat`),
+      where('timestamp', '>=', session.startTime),
       orderBy('timestamp', 'desc'),
       limit(5) 
     );
-  }, [firestore, streamId]);
+  }, [firestore, streamId, session?.startTime, session?.status]);
 
   const { data: messages } = useCollection(messagesQuery);
 
@@ -39,9 +50,7 @@ export function FloatingChatOverlay({ streamId, className }: FloatingChatOverlay
       const now = Date.now();
       
       setActiveMessages(prev => {
-        // Map current server messages to local state with birth timestamps
         const synced = [...messages].reverse().map(m => {
-          // If message already exists in state, keep its original birth timestamp
           const existing = prev.find(p => p.id === m.id);
           return {
             ...m,
@@ -62,6 +71,9 @@ export function FloatingChatOverlay({ streamId, className }: FloatingChatOverlay
     return () => clearInterval(timer);
   }, []);
 
+  // Hide overlay if show is not active
+  if (session?.status !== 'live') return null;
+
   return (
     <div className={cn("pointer-events-none flex flex-col justify-end p-4 h-[320px] w-full", className)}>
       <div className="flex flex-col gap-2 max-w-[280px] sm:max-w-xs">
@@ -69,7 +81,7 @@ export function FloatingChatOverlay({ streamId, className }: FloatingChatOverlay
           {activeMessages.map((msg: any) => (
             <motion.div
               key={msg.id}
-              layout // Automatically animates the position change when items above/below are removed
+              layout
               initial={{ opacity: 0, y: 30, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -30, scale: 0.9, transition: { duration: 0.5 } }}
