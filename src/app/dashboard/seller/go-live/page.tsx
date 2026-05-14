@@ -5,15 +5,12 @@ import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, RefreshCw, AlertCircle, Video, Camera, Clock, BadgeCent, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
 import type { LiveSession } from '@/lib/types';
-
-const SESSION_LIMIT_MS = 70 * 60 * 1000;
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -41,6 +38,7 @@ export default function SellerGoLivePage() {
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -54,8 +52,36 @@ export default function SellerGoLivePage() {
     }
   }, []);
 
+  const handleSetupPreview = useCallback(async (isAuto = false) => {
+    if (!user || !token) return;
+    setIsStarting(true);
+    try {
+      const response = await fetch('/api/live-session', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prewarmedMeetingId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      
+      setMeetingId(result.videosdkMeetingId || prewarmedMeetingId);
+      setWantsToSetup(true);
+      if (isAuto) {
+          toast({ title: "Welcome Back", description: "Resuming your active live session." });
+      }
+    } catch (err: any) { 
+        if (!isAuto) {
+            toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
+        }
+    } finally { 
+        setIsStarting(false);
+        setIsCheckingSession(false);
+    }
+  }, [user, token, prewarmedMeetingId, toast]);
+
   useEffect(() => { fetchToken(); }, [fetchToken]);
 
+  // Pre-warm meeting room logic
   useEffect(() => {
     const prewarmMeeting = async () => {
         if (token && !prewarmedMeetingId) {
@@ -73,6 +99,30 @@ export default function SellerGoLivePage() {
     prewarmMeeting();
   }, [token, prewarmedMeetingId]);
 
+  // Auto-resume check
+  useEffect(() => {
+      if (user && token && isCheckingSession) {
+          const checkActiveSession = async () => {
+              try {
+                  const snap = await getDoc(doc(firestore, 'liveSessions', user.uid));
+                  if (snap.exists()) {
+                      const data = snap.data() as LiveSession;
+                      if (data.status !== 'ended' && data.timeRemainingMs > 0) {
+                          handleSetupPreview(true);
+                      } else {
+                          setIsCheckingSession(false);
+                      }
+                  } else {
+                      setIsCheckingSession(false);
+                  }
+              } catch (e) {
+                  setIsCheckingSession(false);
+              }
+          };
+          checkActiveSession();
+      }
+  }, [user, token, firestore, isCheckingSession, handleSetupPreview]);
+
   const getCameraPermission = useCallback(async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -82,11 +132,11 @@ export default function SellerGoLivePage() {
   }, []);
 
   useEffect(() => {
-    if (!wantsToSetup) getCameraPermission();
+    if (!wantsToSetup && !isCheckingSession) getCameraPermission();
     return () => {
         if (videoRef.current?.srcObject) (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     };
-  }, [wantsToSetup, getCameraPermission]);
+  }, [wantsToSetup, getCameraPermission, isCheckingSession]);
 
   const handleStartBroadcast = async () => {
     if (!user || !firestore) return;
@@ -103,24 +153,6 @@ export default function SellerGoLivePage() {
     }
   }
 
-  const handleSetupPreview = async () => {
-    if (!user || !firestore || !token) return;
-    setIsStarting(true);
-    try {
-      const response = await fetch('/api/live-session', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prewarmedMeetingId })
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      setMeetingId(result.videosdkMeetingId || prewarmedMeetingId);
-      setWantsToSetup(true);
-    } catch (err: any) { 
-        toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
-    } finally { setIsStarting(false); }
-  };
-
   if (isConfigMissing) {
     return (
       <SellerLayout>
@@ -136,6 +168,21 @@ export default function SellerGoLivePage() {
         </div>
       </SellerLayout>
     );
+  }
+
+  if (isCheckingSession || (isStarting && !wantsToSetup)) {
+      return (
+          <SellerLayout>
+              <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)]">
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                    <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
+                </div>
+                <h2 className="font-cyber text-xl font-black uppercase tracking-tighter">Syncing Studio...</h2>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2">Checking signal & session status</p>
+              </div>
+          </SellerLayout>
+      )
   }
 
   if (!wantsToSetup || !meetingId) {
@@ -174,8 +221,13 @@ export default function SellerGoLivePage() {
                           </div>
                       </CardContent>
                       <CardFooter className="p-8 pt-0">
-                          <Button size="lg" className="w-full h-16 rounded-2xl font-black text-xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20" onClick={handleSetupPreview} disabled={isStarting || (userProfile?.aiPoints || 0) < 100}>
-                              {isStarting ? <Loader2 className="animate-spin" /> : <Camera className="mr-2 h-6 w-6" />} ENTER STUDIO
+                          <Button 
+                            size="lg" 
+                            className="w-full h-16 rounded-2xl font-black text-xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20" 
+                            onClick={() => handleSetupPreview(false)} 
+                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
+                          >
+                              {isStarting ? <Loader2 className="animate-spin" /> : <Camera className="mr-2 h-6 w-6" />} START SESSION (100 PTS)
                           </Button>
                       </CardFooter>
                   </Card>
