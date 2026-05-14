@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -8,11 +7,12 @@ import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck,
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc } from '@/firebase';
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 import { LivePromoPanel } from './LivePromoPanel';
+import type { LiveSession } from '@/lib/types';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local } = useParticipant(participantId);
@@ -50,9 +50,10 @@ interface StudioControlsProps {
     isLive: boolean;
     activePanel: 'chat' | 'products' | 'promos' | null;
     onTogglePanel: (panel: 'chat' | 'products' | 'promos') => void;
+    hasUnreadChat: boolean;
 }
 
-const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel }: StudioControlsProps) => {
+const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel, hasUnreadChat }: StudioControlsProps) => {
   const { leave } = useMeeting();
 
   const handleEndClick = () => {
@@ -68,11 +69,17 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('chat')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all relative",
             activePanel === 'chat' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
         <MessageSquare className="h-4 w-4 md:h-5 md:w-5" />
+        {hasUnreadChat && activePanel !== 'chat' && (
+          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border border-black"></span>
+          </span>
+        )}
       </Button>
 
       <Button
@@ -129,9 +136,37 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'chat' | 'products' | 'promos' | null>(null);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
   
   const hasAttemptedJoin = useRef(false);
   const hasEnabledTracks = useRef(false);
+
+  // Monitor session for startTime to filter messages
+  const sessionRef = React.useMemo(() => (firestore && user) ? doc(firestore, 'liveSessions', user.uid) : null, [firestore, user]);
+  const { data: session } = useDoc<LiveSession>(sessionRef);
+
+  // Unread chat notification logic for Seller
+  useEffect(() => {
+    if (!firestore || !user?.uid || !isLive || activePanel === 'chat' || !session?.startTime) {
+      if (activePanel === 'chat') setHasUnreadChat(false);
+      return;
+    }
+
+    const q = query(
+      collection(firestore, `liveSessions/${user.uid}/chat`),
+      where('timestamp', '>', session.startTime),
+      orderBy('timestamp', 'desc'),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty && activePanel !== 'chat') {
+        setHasUnreadChat(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firestore, user?.uid, isLive, activePanel, session?.startTime]);
 
   useEffect(() => {
     if (!isMeetingJoined && !hasAttemptedJoin.current) {
@@ -229,14 +264,15 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
             isLive={isLive} 
             activePanel={activePanel}
             onTogglePanel={handleTogglePanel}
+            hasUnreadChat={hasUnreadChat}
           />
       </div>
 
       <div className={cn(
           "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden h-full",
-          activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 border-none"
+          activePanel ? "w-full md:w-80 lg:w-96" : "w-0 opacity-0 border-none"
       )}>
-          <div className="flex flex-col h-full w-80 lg:w-96">
+          <div className="flex flex-col h-full w-full md:w-80 lg:w-96">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
                     {activePanel === 'chat' ? 'Public Chat' : activePanel === 'products' ? 'Catalog Tools' : 'Live Promos'}

@@ -1,11 +1,10 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
 import { Loader2, MessageSquare, ShoppingBag, X, Radio, VideoOff } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -34,6 +33,7 @@ export default function BuyerLiveSessionPage() {
   const firestore = useFirestore();
 
   const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
 
   // Subscribe to the live session document
   const sessionRef = useMemoFirebase(() => {
@@ -42,6 +42,29 @@ export default function BuyerLiveSessionPage() {
   }, [firestore, sessionId]);
 
   const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
+
+  // Unread chat notification logic
+  useEffect(() => {
+    if (!firestore || !sessionId || !session?.startTime || activePanel === 'chat') {
+      if (activePanel === 'chat') setHasUnreadChat(false);
+      return;
+    }
+
+    const q = query(
+      collection(firestore, `liveSessions/${sessionId}/chat`),
+      where('timestamp', '>', session.startTime),
+      orderBy('timestamp', 'desc'),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty && activePanel !== 'chat') {
+        setHasUnreadChat(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firestore, sessionId, session?.startTime, activePanel]);
 
   // Fetch Pinned Product details if it exists
   const pinnedProductRef = useMemoFirebase(() => {
@@ -158,11 +181,17 @@ export default function BuyerLiveSessionPage() {
                   variant="ghost"
                   onClick={() => setActivePanel(activePanel === 'chat' ? null : 'chat')}
                   className={cn(
-                      "h-12 w-12 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all",
+                      "h-12 w-12 rounded-full backdrop-blur-xl border border-white/10 shadow-2xl transition-all relative",
                       activePanel === 'chat' ? "bg-primary text-white scale-110" : "bg-black/40 text-white/70"
                   )}
               >
                   <MessageSquare className="h-5 w-5" />
+                  {hasUnreadChat && activePanel !== 'chat' && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-black"></span>
+                    </span>
+                  )}
               </Button>
               <Button
                   size="icon"
@@ -181,9 +210,9 @@ export default function BuyerLiveSessionPage() {
         {/* Side Panels */}
         <div className={cn(
             "shrink-0 bg-neutral-950 border-l border-white/5 transition-all duration-300 ease-in-out flex flex-col h-full",
-            activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 overflow-hidden border-none"
+            activePanel ? "w-full md:w-80 lg:w-96" : "w-0 opacity-0 overflow-hidden border-none"
         )}>
-            <div className="w-80 lg:w-96 h-full flex flex-col relative">
+            <div className="w-full md:w-80 lg:w-96 h-full flex flex-col relative">
                 {/* Panel Header */}
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
                     <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
