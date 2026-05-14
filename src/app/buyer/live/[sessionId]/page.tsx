@@ -13,6 +13,7 @@ import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { PinnedProduct } from '@/components/live/PinnedProduct';
 import { Button } from '@/components/ui/button';
+import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -99,6 +100,15 @@ export default function BuyerLiveSessionPage() {
             <div className="h-2 w-2 rounded-full bg-white" />
             <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Now</span>
           </div>
+
+          {/* Floating Chat Overlay (Always visible over video) */}
+          <FloatingChatOverlay 
+            streamId={session.sellerId} 
+            className={cn(
+              "absolute bottom-24 left-0 z-30 transition-all duration-300",
+              pinnedProduct ? "mb-20" : "mb-0"
+            )}
+          />
 
           {/* Floating Pinned Product (Footer) */}
           {pinnedProduct && (

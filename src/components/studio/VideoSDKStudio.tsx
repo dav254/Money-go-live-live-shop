@@ -10,6 +10,7 @@ import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local } = useParticipant(participantId);
@@ -125,18 +126,16 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
-  // SAFE TRACK ACTIVATION: Handles potential "track ended" or transition errors
   useEffect(() => {
     if (isMeetingJoined && isLive && !hasEnabledTracks.current) {
         hasEnabledTracks.current = true;
         const activateTracks = async () => {
             try {
-                // Check if tracks are in a valid state before producing
                 await enableWebcam();
                 await unmuteMic();
             } catch (err: any) {
                 console.warn("[Studio] Track activation warning:", err.message);
-                hasEnabledTracks.current = false; // Allow retry
+                hasEnabledTracks.current = false;
             }
         };
         activateTracks();
@@ -189,7 +188,14 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
               {({ participants }) => {
                 const localParticipant = Array.from(participants.values()).find(p => p.local);
                 return localParticipant ? (
-                  <ParticipantView participantId={localParticipant.id} />
+                  <div className="relative h-full w-full">
+                    <ParticipantView participantId={localParticipant.id} />
+                    {/* Floating Chat Overlay for Seller */}
+                    <FloatingChatOverlay 
+                      streamId={user?.uid || ''} 
+                      className="absolute bottom-20 left-4 z-40"
+                    />
+                  </div>
                 ) : (
                   <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-3xl">
                     <div className="relative mb-6">
