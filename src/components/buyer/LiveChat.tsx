@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -6,9 +5,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, MessageSquare, ShieldCheck, User, Reply, Loader2 } from 'lucide-react';
-import { useCollection, useFirestore, useUser } from '@/firebase';
-import { collection, query, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
-import type { ChatMessage, UserProfile } from '@/lib/types';
+import { useCollection, useFirestore, useUser, useDoc } from '@/firebase';
+import { collection, query, orderBy, addDoc, serverTimestamp, doc, where } from 'firebase/firestore';
+import type { ChatMessage, UserProfile, LiveSession } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -25,18 +24,35 @@ export function LiveChat({ streamId }: LiveChatProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
+  // Fetch the current session to get its startTime
+  const sessionRef = React.useMemo(() => {
+    if (!firestore || !streamId) return null;
+    return doc(firestore, 'liveSessions', streamId);
+  }, [firestore, streamId]);
+
+  const { data: session } = useDoc<LiveSession>(sessionRef);
+
   useEffect(() => {
     if (user && firestore) {
-        getDoc(doc(firestore, 'userProfiles', user.uid)).then(snap => {
+        doc(firestore, 'userProfiles', user.uid);
+        // Simple fetch for local state
+        const fetchProfile = async () => {
+            const snap = await (await import('firebase/firestore')).getDoc(doc(firestore, 'userProfiles', user.uid));
             if (snap.exists()) setUserData(snap.data() as UserProfile);
-        });
+        };
+        fetchProfile();
     }
   }, [user, firestore]);
 
+  // FRESH START FILTER: Only show messages sent after the session's current startTime
   const messagesQuery = React.useMemo(() => {
-    if (!firestore || !streamId) return null;
-    return query(collection(firestore, `liveSessions/${streamId}/chat`), orderBy('timestamp', 'asc'));
-  }, [firestore, streamId]);
+    if (!firestore || !streamId || !session?.startTime) return null;
+    return query(
+        collection(firestore, `liveSessions/${streamId}/chat`), 
+        where('timestamp', '>=', session.startTime),
+        orderBy('timestamp', 'asc')
+    );
+  }, [firestore, streamId, session?.startTime]);
 
   const { data: serverMessages, isLoading } = useCollection<ChatMessage>(messagesQuery);
 
@@ -56,7 +72,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
     const identifiedName = userData?.shopName || userData?.fullName || user.displayName || 'Member';
     const messageText = newMessage.trim();
     
-    // INSTANT RESPONSE: Create an optimistic message
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg = {
         id: tempId,
@@ -120,7 +135,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
               )}
               {allMessages.map((msg: any) => {
                   const isProvider = msg.senderRole === 'seller' || msg.senderRole === 'admin';
-                  // MARKETPLACE PERSPECTIVE: Buyers & Resellers align RIGHT
                   const alignRight = !isProvider; 
 
                   return (

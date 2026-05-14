@@ -1,11 +1,9 @@
-
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
 const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
-const EXPIRY_HOURS = 24;
 
 // Helper to verify user token and get UID
 async function verifyUser(request: Request) {
@@ -24,8 +22,8 @@ async function verifyUser(request: Request) {
 }
 
 /**
- * POST handler to create or resume a live session.
- * Prevents double deduction and handles time reconciliation.
+ * POST handler to create a fresh live session.
+ * Resuming is disabled per user request.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -39,10 +37,7 @@ export async function POST(request: Request) {
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
     const sessionRef = db.collection('liveSessions').doc(sellerId);
     
-    const [userProfileDoc, sessionDoc] = await Promise.all([
-        userProfileRef.get(),
-        sessionRef.get()
-    ]);
+    const userProfileDoc = await userProfileRef.get();
     
     if (!userProfileDoc.exists) {
         return NextResponse.json({ error: 'User profile not found.' }, { status: 404 });
@@ -52,43 +47,7 @@ export async function POST(request: Request) {
     const currentPoints = userProfile?.aiPoints || 0;
     const sellerName = userProfile?.shopName || userProfile?.fullName || 'Seller';
 
-    // --- SESSION RECOVERY LOGIC (Anti-Theft) ---
-    if (sessionDoc.exists) {
-        const sessionData = sessionDoc.data();
-        const initialStart = sessionData?.initialStartTime?.toDate();
-        const now = new Date();
-        
-        // Check if session is within 24h and has airtime remaining
-        const hoursDiff = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
-        
-        if (hoursDiff < EXPIRY_HOURS && sessionData?.status !== 'ended' && (sessionData?.timeRemainingMs || 0) > 0) {
-            console.log(`[API] Recovering existing session for ${sellerId}. Balance: ${sessionData.timeRemainingMs}ms`);
-            
-            // Reconcile time if the user left while "Live"
-            let reconciledRemaining = sessionData.timeRemainingMs;
-            if (sessionData.status === 'live' && sessionData.lastStartedAt) {
-                const lastStart = sessionData.lastStartedAt.toDate().getTime();
-                const elapsed = now.getTime() - lastStart;
-                reconciledRemaining = Math.max(0, reconciledRemaining - elapsed);
-                
-                // Update Firestore immediately to reflect reconciliation
-                await sessionRef.update({
-                    timeRemainingMs: reconciledRemaining,
-                    status: 'paused' // Set to paused for safety upon recovery
-                });
-            }
-
-            return NextResponse.json({ 
-                success: true, 
-                liveSessionId: sessionRef.id,
-                resumed: true,
-                timeRemainingMs: reconciledRemaining,
-                videosdkMeetingId: sessionData.videosdkMeetingId
-            });
-        }
-    }
-
-    // --- NEW SESSION LOGIC ---
+    // Check for points
     if (currentPoints < GO_LIVE_COST) {
         return NextResponse.json({ 
             error: 'Insufficient AI Points', 
@@ -104,7 +63,7 @@ export async function POST(request: Request) {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
 
-    // 2. Initialize new session document
+    // 2. Initialize new session document (Always overwrites for a fresh start)
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
@@ -117,8 +76,9 @@ export async function POST(request: Request) {
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
       activeOffer: null,
-      videosdkMeetingId: prewarmedMeetingId || null
-    }, { merge: true });
+      videosdkMeetingId: prewarmedMeetingId || null,
+      pinnedProductId: null,
+    });
 
     await batch.commit();
 
@@ -132,7 +92,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error creating/resuming live session:', error);
+    console.error('Error creating live session:', error);
     return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
   }
 }

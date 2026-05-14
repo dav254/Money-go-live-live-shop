@@ -5,12 +5,11 @@ import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
-import type { LiveSession } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
@@ -39,7 +38,6 @@ export default function SellerGoLivePage() {
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -53,7 +51,7 @@ export default function SellerGoLivePage() {
     }
   }, []);
 
-  const handleSetupPreview = useCallback(async (isAuto = false) => {
+  const handleSetupPreview = useCallback(async () => {
     if (!user || !token) return;
     setIsStarting(true);
     try {
@@ -67,16 +65,10 @@ export default function SellerGoLivePage() {
       
       setMeetingId(result.videosdkMeetingId || prewarmedMeetingId);
       setWantsToSetup(true);
-      if (isAuto) {
-          toast({ title: "Welcome Back", description: "Resuming your active live session." });
-      }
     } catch (err: any) { 
-        if (!isAuto) {
-            toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
-        }
+        toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
     } finally { 
         setIsStarting(false);
-        setIsCheckingSession(false);
     }
   }, [user, token, prewarmedMeetingId, toast]);
 
@@ -100,30 +92,6 @@ export default function SellerGoLivePage() {
     prewarmMeeting();
   }, [token, prewarmedMeetingId]);
 
-  // Auto-resume check
-  useEffect(() => {
-      if (user && token && isCheckingSession) {
-          const checkActiveSession = async () => {
-              try {
-                  const snap = await getDoc(doc(firestore, 'liveSessions', user.uid));
-                  if (snap.exists()) {
-                      const data = snap.data() as LiveSession;
-                      if (data.status !== 'ended' && data.timeRemainingMs > 0) {
-                          handleSetupPreview(true);
-                      } else {
-                          setIsCheckingSession(false);
-                      }
-                  } else {
-                      setIsCheckingSession(false);
-                  }
-              } catch (e) {
-                  setIsCheckingSession(false);
-              }
-          };
-          checkActiveSession();
-      }
-  }, [user, token, firestore, isCheckingSession, handleSetupPreview]);
-
   const getCameraPermission = useCallback(async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -133,16 +101,15 @@ export default function SellerGoLivePage() {
   }, []);
 
   useEffect(() => {
-    if (!wantsToSetup && !isCheckingSession) getCameraPermission();
+    if (!wantsToSetup) getCameraPermission();
     return () => {
         if (videoRef.current?.srcObject) (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     };
-  }, [wantsToSetup, getCameraPermission, isCheckingSession]);
+  }, [wantsToSetup, getCameraPermission]);
 
   const handleStartBroadcast = async () => {
     if (!user || !firestore || !meetingId) return;
     try {
-        // UPDATE GLOBAL STATUS: Make the stream visible to all buyers instantly
         await updateDoc(doc(firestore, 'liveSessions', user.uid), {
             status: 'live',
             videosdkMeetingId: meetingId, 
@@ -159,14 +126,12 @@ export default function SellerGoLivePage() {
   const handleEndBroadcast = async () => {
     if (!user) return;
     
-    // INSTANT FEEDBACK
     setWantsToSetup(false);
     setIsLive(false);
     setMeetingId(null);
     toast({ title: "SHOW ENDED", description: "Broadcast has been terminated." });
 
     try {
-        // TELL FIRESTORE TO DISCONNECT BUYERS
         await fetch('/api/live-session', {
             method: 'PUT',
             headers: { 
@@ -197,7 +162,7 @@ export default function SellerGoLivePage() {
     );
   }
 
-  if (isCheckingSession || (isStarting && !wantsToSetup)) {
+  if (isStarting && !wantsToSetup) {
       return (
           <SellerLayout>
               <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)]">
@@ -206,7 +171,7 @@ export default function SellerGoLivePage() {
                     <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
                 </div>
                 <h2 className="font-cyber text-xl font-black uppercase tracking-tighter">Syncing Studio...</h2>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2">Checking signal & session status</p>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2">Initializing signal</p>
               </div>
           </SellerLayout>
       )
@@ -237,7 +202,7 @@ export default function SellerGoLivePage() {
                           <Button 
                             size="lg" 
                             className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
-                            onClick={() => handleSetupPreview(false)} 
+                            onClick={handleSetupPreview} 
                             disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
                           >
                               {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 

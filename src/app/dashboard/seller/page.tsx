@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -75,16 +74,10 @@ export default function SellerDashboardPage() {
     return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
   }, [firestore, user]);
 
-  const liveSessionRef = useMemoFirebase(() => {
-      if (!user) return null;
-      return doc(firestore, 'liveSessions', user.uid);
-  }, [firestore, user]);
-
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
   const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
-  const { data: activeSession } = useDoc<LiveSession>(liveSessionRef);
 
   const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading;
 
@@ -102,15 +95,6 @@ export default function SellerDashboardPage() {
     try { await deleteDoc(doc(firestore, 'products', productId)); toast({ title: "Product Deleted" }); } catch (e) { toast({ variant: 'destructive', title: "Error" }); }
   };
 
-  // Improved check for session recovery
-  const isSessionActive = React.useMemo(() => {
-      if (!activeSession || activeSession.status === 'ended' || activeSession.timeRemainingMs <= 0) return false;
-      const now = new Date();
-      const initialStart = activeSession.initialStartTime?.toDate();
-      const hoursDiff = initialStart ? (now.getTime() - initialStart.getTime()) / (1000 * 60 * 60) : 999;
-      return hoursDiff < 24;
-  }, [activeSession]);
-  
   return (
     <SellerLayout>
       <div className="p-4 sm:p-6 lg:p-8 bg-background min-h-full space-y-8">
@@ -123,27 +107,6 @@ export default function SellerDashboardPage() {
             </div>
           </div>
         </div>
-
-        {isSessionActive && (
-            <Card className="bg-primary/10 border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
-                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-primary/20 rounded-full animate-pulse">
-                            <Radio className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                            <CardTitle className="text-lg font-black uppercase tracking-tight">Recover Active Session</CardTitle>
-                            <CardDescription className="font-bold text-primary/80">You have airtime remaining from your last paid session. Resume now to avoid wasting points!</CardDescription>
-                        </div>
-                    </div>
-                    <Button asChild size="lg" className="w-full sm:w-auto font-black bg-primary hover:bg-primary/90 text-white rounded-xl shadow-xl shadow-primary/20">
-                        <Link href="/dashboard/seller/go-live">
-                            GO TO LIVE STUDIO <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Followers</CardTitle><Users className="h-4 w-4 text-primary" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{shopData?.followers || 0}</div>}</CardContent></Card>
