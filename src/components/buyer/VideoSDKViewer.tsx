@@ -2,41 +2,75 @@
 
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, SignalHigh, RefreshCw } from 'lucide-react';
+import { VideoOff, Loader2, SignalHigh, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '../ui/button';
+import { cn } from '@/lib/utils';
 
 /**
  * Renders the seller's video stream for the buyer.
- * Optimized for instant track attachment.
+ * Attaches both video and audio tracks.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn, isLocal } = useParticipant(participantId);
+  const { webcamStream, micStream, webcamOn, isLocal } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(true);
 
   useEffect(() => {
-    if (videoRef.current && webcamStream) {
+    if (videoRef.current) {
       const mediaStream = new MediaStream();
-      mediaStream.addTrack(webcamStream.track);
+      
+      if (webcamStream) {
+        mediaStream.addTrack(webcamStream.track);
+      }
+      
+      if (micStream) {
+        mediaStream.addTrack(micStream.track);
+      }
+      
       videoRef.current.srcObject = mediaStream;
       
-      // Force play and catch any autoplay blockages
       videoRef.current.play().catch(err => {
           if (err.name !== 'AbortError') {
-              console.warn("[VideoSDK] Autoplay prevented, waiting for user interaction or sync:", err);
+              console.warn("[VideoSDK] Play prevented, awaiting interaction:", err);
           }
       });
     }
-  }, [webcamStream]);
+  }, [webcamStream, micStream]);
+
+  const toggleLocalMute = () => {
+      if (videoRef.current) {
+          const newMuteState = !videoRef.current.muted;
+          videoRef.current.muted = newMuteState;
+          setIsMuted(newMuteState);
+      }
+  };
 
   return (
-    <div className="relative h-full w-full bg-black overflow-hidden rounded-xl border border-white/10 shadow-2xl">
+    <div className="relative h-full w-full bg-black overflow-hidden rounded-xl border border-white/10 shadow-2xl group">
       <video 
         ref={videoRef} 
         autoPlay 
         playsInline 
+        muted={isMuted}
         className="h-full w-full object-contain md:object-cover"
         style={{ transform: isLocal ? 'scaleX(-1)' : 'none' }}
       />
+      
+      {/* Immersive Unmute Overlay */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <AnimatePresence>
+            {isMuted && webcamOn && (
+                <Button 
+                    variant="secondary" 
+                    className="pointer-events-auto bg-primary text-white font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-2xl animate-in zoom-in-90 duration-300"
+                    onClick={toggleLocalMute}
+                >
+                    <Volume2 className="mr-2 h-5 w-5" /> TAP TO UNMUTE
+                </Button>
+            )}
+          </AnimatePresence>
+      </div>
+
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/90 backdrop-blur-sm">
           <VideoOff className="h-16 w-16 text-muted-foreground mb-4" />
@@ -44,24 +78,27 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <p className="text-neutral-400 mt-2 text-xs uppercase tracking-widest">Seller is adjusting camera...</p>
         </div>
       )}
+
+      {/* Small Toggle in Corner */}
+      <div className="absolute bottom-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="bg-black/40 hover:bg-black/60 rounded-full h-10 w-10 text-white" 
+            onClick={toggleLocalMute}
+          >
+              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </Button>
+      </div>
     </div>
   );
 };
 
 /**
  * Internal meeting logic for the buyer.
- * Prioritizes identifying the speaker (seller) instantly.
  */
 const ViewerMeetingView = () => {
-  const { join, participants, isMeetingJoined } = useMeeting({
-    onStreamEnabled: (stream) => {
-        if (stream.kind === 'video') console.log("[VideoSDK] Seller stream detected, attaching...");
-    },
-    onParticipantJoined: (participant) => {
-        console.log("[VideoSDK] New participant:", participant.displayName);
-    }
-  });
-
+  const { join, participants, isMeetingJoined } = useMeeting();
   const hasAttemptedJoin = useRef(false);
   
   const handleJoin = useCallback(() => {
@@ -76,12 +113,8 @@ const ViewerMeetingView = () => {
     }
   }, [handleJoin, isMeetingJoined]);
 
-  // Find the seller: The non-local participant who has a webcam enabled.
-  // This is much faster than just looking for any participant.
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
-    // The seller is the one with the webcam on. 
-    // Fallback to the first non-local participant if necessary.
     return participantsArray.find(p => !p.local && p.webcamOn) || 
            participantsArray.find(p => !p.local) || 
            null;
@@ -115,6 +148,8 @@ const ViewerMeetingView = () => {
   );
 };
 
+import { AnimatePresence } from 'framer-motion';
+
 export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
   const [token, setToken] = useState<string | null>(null);
 
@@ -122,7 +157,6 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     const fetchToken = async () => {
       try {
         const res = await fetch('/api/videosdk/token');
-        if (!res.ok) throw new Error("Token failure");
         const data = await res.json();
         if (data.token) setToken(data.token);
       } catch (err) {

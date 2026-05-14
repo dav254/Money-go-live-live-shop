@@ -82,7 +82,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         size="icon"
         variant={micOn ? "secondary" : "destructive"}
         onClick={() => micOn ? muteMic() : unmuteMic()}
-        className="rounded-xl h-10 w-10 md:h-12 md:w-12"
+        className="rounded-xl h-10 w-10 md:h-12 md:w-12 transition-colors"
       >
         {micOn ? <Mic className="h-4 w-4 md:h-5 md:w-5 text-white" /> : <MicOff className="h-4 w-4 md:h-5 md:w-5 text-white" />}
       </Button>
@@ -90,7 +90,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         size="icon"
         variant={webcamOn ? "secondary" : "destructive"}
         onClick={() => webcamOn ? disableWebcam() : enableWebcam()}
-        className="rounded-xl h-10 w-10 md:h-12 md:w-12"
+        className="rounded-xl h-10 w-10 md:h-12 md:w-12 transition-colors"
       >
         {webcamOn ? <Video className="h-4 w-4 md:h-5 md:w-5 text-white" /> : <VideoOff className="h-4 w-4 md:h-5 md:w-5 text-white" />}
       </Button>
@@ -144,7 +144,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, isMeetingJoined, participants, enableWebcam } = useMeeting();
+  const { join, isMeetingJoined, participants, enableWebcam, unmuteMic } = useMeeting();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -161,12 +161,13 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
-  // Ensure camera is on when live status is confirmed
+  // Ensure camera and mic are unmuted when broadcast starts
   useEffect(() => {
     if (isMeetingJoined && isLive) {
         enableWebcam();
+        unmuteMic();
     }
-  }, [isMeetingJoined, isLive, enableWebcam]);
+  }, [isMeetingJoined, isLive, enableWebcam, unmuteMic]);
 
   const handleTogglePanel = (panel: 'chat' | 'products') => {
       setActivePanel(prev => prev === panel ? null : panel);
@@ -196,7 +197,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
   return (
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
-      <div className="flex-1 relative flex flex-col p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out">
+      <div className="flex-1 relative flex flex-col p-4 md:p-6 transition-all duration-500 ease-in-out">
           <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
               <div className="pointer-events-auto">
                   <div className={cn(
@@ -241,7 +242,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
           "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden",
           activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 border-none"
       )}>
-          <Tabs value={activePanel || ''} onValueChange={(val) => setActivePanel(val as any)} className="flex-1 flex flex-col w-80 lg:w-96">
+          <Tabs value={activePanel || ''} className="flex-1 flex flex-col w-80 lg:w-96">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">Studio Toolbox</p>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-white" onClick={() => setActivePanel(null)}>
