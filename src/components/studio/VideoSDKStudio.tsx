@@ -281,6 +281,15 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         name: participantName,
         mode: "CONFERENCE",
         multiStream: false,
+        // UNLOCK FULL CAMERA QUALITY
+        webcamConfig: {
+            resolution: "hhd", // High-Definition 1080p
+            optimizationMode: "motion", // High FPS for smooth movement
+            multiStream: false,
+        },
+        micConfig: {
+            quality: "high_res", // Crystal clear audio
+        }
       }}
       token={token}
     >

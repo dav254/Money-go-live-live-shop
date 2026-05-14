@@ -136,6 +136,9 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         webcamEnabled: false,
         name: "Buyer",
         mode: "CONFERENCE",
+        // FASTEST POSSIBLE LATENCY
+        multiStream: false,
+        subscribeFullStream: true, // Do not downscale quality
       }}
       token={token}
     >
