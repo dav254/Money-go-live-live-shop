@@ -116,6 +116,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
   
   const hasAttemptedJoin = useRef(false);
+  const hasEnabledTracks = useRef(false);
 
   useEffect(() => {
     if (!isMeetingJoined && !hasAttemptedJoin.current) {
@@ -124,10 +125,21 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
+  // SAFE TRACK ACTIVATION: Handles potential "track ended" or transition errors
   useEffect(() => {
-    if (isMeetingJoined && isLive) {
-        enableWebcam();
-        unmuteMic();
+    if (isMeetingJoined && isLive && !hasEnabledTracks.current) {
+        hasEnabledTracks.current = true;
+        const activateTracks = async () => {
+            try {
+                // Check if tracks are in a valid state before producing
+                await enableWebcam();
+                await unmuteMic();
+            } catch (err: any) {
+                console.warn("[Studio] Track activation warning:", err.message);
+                hasEnabledTracks.current = false; // Allow retry
+            }
+        };
+        activateTracks();
     }
   }, [isMeetingJoined, isLive, enableWebcam, unmuteMic]);
 

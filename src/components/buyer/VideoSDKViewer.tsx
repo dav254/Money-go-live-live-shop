@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, SignalHigh, RefreshCw } from 'lucide-react';
+import { VideoOff, Loader2, SignalHigh } from 'lucide-react';
 
 /**
  * Renders the seller's video stream for the buyer.
@@ -26,7 +26,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
     }
   }, [webcamStream]);
 
-  // Handle Audio Track - Active by default
+  // Handle Audio Track
   useEffect(() => {
     if (audioRef.current && micStream) {
       const mediaStream = new MediaStream();
@@ -76,6 +76,7 @@ const ViewerMeetingView = () => {
   // Priority Participant Selector: Always pick the host (seller)
   const host = React.useMemo(() => {
     const participantsArray = Array.from(participants.values());
+    // In a live show, the one with webcamOn is the host
     return participantsArray.find(p => !p.local && p.webcamOn) || 
            participantsArray.find(p => !p.local) || 
            null;
