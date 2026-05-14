@@ -61,8 +61,8 @@ const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
   description: z.string().min(10, "Please provide more details about what you need."),
   category: z.string().min(1, "Please select a category."),
-  minBudget: z.coerce.number().min(0).optional(),
-  maxBudget: z.coerce.number().min(0).optional(),
+  minBudget: z.coerce.number().min(0, "Budget must be positive"),
+  maxBudget: z.coerce.number().min(0, "Budget must be positive"),
   currency: z.string().default('KES'),
   country: z.string().default('Kenya'),
   county: z.string().min(1, "Please select your county."),
@@ -199,7 +199,7 @@ export default function PostRequestPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
-      toast({ variant: 'destructive', title: 'Authentication Error', description: 'Please sign in.' });
+      toast({ variant: 'destructive', title: 'Authentication Error', description: 'Please sign in to broadcast your need.' });
       return;
     }
     setIsUploading(true);
@@ -207,19 +207,19 @@ export default function PostRequestPage() {
     try {
       let videoUrl = null;
 
-      // 1. Upload Video if it exists
+      // Handle Video Upload (Piping to Storage)
       if (videoFile) {
         const path = `requests/${user.uid}/${Date.now()}_video.mp4`;
         videoUrl = await uploadFile(videoFile, path);
       }
 
-      // 2. Save to Firestore
+      // Save to Firestore (The core "Pipe" to backend)
       const requestData = {
         ...values,
         buyerId: user.uid,
         status: 'open',
         videoUrl,
-        imageUrls: [], // Images removed
+        imageUrls: [], 
         latitude: coords?.lat || null,
         longitude: coords?.lng || null,
         requestType: requestMode,
@@ -232,11 +232,11 @@ export default function PostRequestPage() {
 
       await addDoc(collection(firestore, 'requests'), requestData);
       
-      toast({ title: 'Broadcast Published!', description: 'Sellers will be notified.' });
+      toast({ title: 'Broadcast Published!', description: 'Sellers in your area will be notified.' });
       router.push('/buyer/requests/my-requests');
     } catch (error: any) {
       console.error("Broadcast failed:", error);
-      toast({ variant: 'destructive', title: 'Broadcast Failed', description: error.message || "Unauthorized access to storage." });
+      toast({ variant: 'destructive', title: 'Broadcast Failed', description: error.message || "Failed to save your request." });
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -468,7 +468,7 @@ export default function PostRequestPage() {
                      {isUploading && (
                         <div className="space-y-2 px-2">
                              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary">
-                                 <span>Broadcasting Media...</span>
+                                 <span>Broadcasting Data...</span>
                                  <span>{Math.round(uploadProgress)}%</span>
                              </div>
                              <Progress value={uploadProgress} className="h-1" />
