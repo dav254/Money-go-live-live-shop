@@ -4,14 +4,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, Video, Camera, Clock, BadgeCent, ArrowRight, Zap } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import type { LiveSession } from '@/lib/types';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
@@ -141,10 +140,13 @@ export default function SellerGoLivePage() {
   }, [wantsToSetup, getCameraPermission, isCheckingSession]);
 
   const handleStartBroadcast = async () => {
-    if (!user || !firestore) return;
+    if (!user || !firestore || !meetingId) return;
     try {
+        // CRITICAL FIX: Ensure the meetingId is saved to the session document
+        // so buyers can find the host room instantly.
         await updateDoc(doc(firestore, 'liveSessions', user.uid), {
             status: 'live',
+            videosdkMeetingId: meetingId,
             startTime: serverTimestamp(),
             lastStartedAt: serverTimestamp()
         });

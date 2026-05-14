@@ -3,14 +3,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw, MessageSquare, ShoppingBag, Pin, PinOff, Zap, ShieldCheck, ChevronRight } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw, MessageSquare, ShoppingBag, ShieldCheck, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -144,7 +143,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, isMeetingJoined, participants, enableWebcam, unmuteMic } = useMeeting();
+  const { join, isMeetingJoined, enableWebcam, unmuteMic } = useMeeting();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -161,7 +160,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
-  // Ensure camera and mic are unmuted when broadcast starts
   useEffect(() => {
     if (isMeetingJoined && isLive) {
         enableWebcam();
@@ -239,38 +237,39 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
       </div>
 
       <div className={cn(
-          "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden",
+          "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden h-full",
           activePanel ? "w-80 lg:w-96" : "w-0 opacity-0 border-none"
       )}>
-          <Tabs value={activePanel || ''} className="flex-1 flex flex-col w-80 lg:w-96">
-              <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between">
+          <div className="flex flex-col h-full w-80 lg:w-96">
+              <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">Studio Toolbox</p>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-white" onClick={() => setActivePanel(null)}>
                       <ChevronRight className="h-4 w-4" />
                   </Button>
               </div>
 
-              <TabsContent value="chat" className="flex-1 mt-0">
-                  {user ? <LiveChat streamId={user.uid} /> : <div className="p-12 text-center text-neutral-500 uppercase font-black text-[10px] tracking-widest">Loading Chat...</div>}
-              </TabsContent>
-
-              <TabsContent value="products" className="flex-1 mt-0 flex flex-col">
-                  <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                      <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
-                      <ShieldCheck className="h-4 w-4 text-green-500" />
+              <div className="flex-1 overflow-hidden relative">
+                  <div className={cn("absolute inset-0 transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                      {user ? <LiveChat streamId={user.uid} /> : null}
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                      {user && (
-                          <LiveProductShelf 
-                              sellerId={user.uid} 
-                              onPinProduct={handlePinProduct} 
-                              onUnpinProduct={handleUnpinProduct}
-                              pinnedProductId={pinnedProductId}
-                          />
-                      )}
+                  <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'products' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20">
+                          <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
+                          <ShieldCheck className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                          {user && (
+                              <LiveProductShelf 
+                                  sellerId={user.uid} 
+                                  onPinProduct={handlePinProduct} 
+                                  onUnpinProduct={handleUnpinProduct}
+                                  pinnedProductId={pinnedProductId}
+                              />
+                          )}
+                      </div>
                   </div>
-              </TabsContent>
-          </Tabs>
+              </div>
+          </div>
       </div>
     </div>
   );

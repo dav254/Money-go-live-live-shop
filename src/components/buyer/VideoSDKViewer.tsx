@@ -4,44 +4,61 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { VideoOff, Loader2, SignalHigh, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '../ui/button';
+import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 /**
  * Renders the seller's video stream for the buyer.
- * Attaches both video and audio tracks.
+ * Separates audio and video for reliable browser handling.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream, webcamOn, isLocal } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isMuted, setIsMuted] = useState(true);
 
+  // Handle Video Track
   useEffect(() => {
-    if (videoRef.current) {
+    if (videoRef.current && webcamStream) {
       const mediaStream = new MediaStream();
-      
-      if (webcamStream) {
-        mediaStream.addTrack(webcamStream.track);
-      }
-      
-      if (micStream) {
-        mediaStream.addTrack(micStream.track);
-      }
-      
+      mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
       
       videoRef.current.play().catch(err => {
           if (err.name !== 'AbortError') {
-              console.warn("[VideoSDK] Play prevented, awaiting interaction:", err);
+              console.warn("[VideoSDK] Video play prevented:", err);
           }
       });
     }
-  }, [webcamStream, micStream]);
+  }, [webcamStream]);
+
+  // Handle Audio Track
+  useEffect(() => {
+    if (audioRef.current && micStream) {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(micStream.track);
+      audioRef.current.srcObject = mediaStream;
+      
+      audioRef.current.play().catch(err => {
+          if (err.name !== 'AbortError') {
+              console.warn("[VideoSDK] Audio play prevented:", err);
+          }
+      });
+    }
+  }, [micStream]);
 
   const toggleLocalMute = () => {
+      const newMuteState = !isMuted;
+      setIsMuted(newMuteState);
+      
+      if (audioRef.current) {
+          audioRef.current.muted = newMuteState;
+          if (!newMuteState) {
+              audioRef.current.play().catch(console.error);
+          }
+      }
       if (videoRef.current) {
-          const newMuteState = !videoRef.current.muted;
           videoRef.current.muted = newMuteState;
-          setIsMuted(newMuteState);
       }
   };
 
@@ -51,22 +68,29 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         ref={videoRef} 
         autoPlay 
         playsInline 
-        muted={isMuted}
+        muted={true} // Video always muted for autoplay, audio handled separately
         className="h-full w-full object-contain md:object-cover"
         style={{ transform: isLocal ? 'scaleX(-1)' : 'none' }}
       />
+      <audio ref={audioRef} autoPlay playsInline muted={isMuted} />
       
       {/* Immersive Unmute Overlay */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <AnimatePresence>
             {isMuted && webcamOn && (
-                <Button 
-                    variant="secondary" 
-                    className="pointer-events-auto bg-primary text-white font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-2xl animate-in zoom-in-90 duration-300"
-                    onClick={toggleLocalMute}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
                 >
-                    <Volume2 className="mr-2 h-5 w-5" /> TAP TO UNMUTE
-                </Button>
+                    <Button 
+                        variant="secondary" 
+                        className="pointer-events-auto bg-primary text-white font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-2xl"
+                        onClick={toggleLocalMute}
+                    >
+                        <Volume2 className="mr-2 h-5 w-5" /> TAP TO UNMUTE
+                    </Button>
+                </motion.div>
             )}
           </AnimatePresence>
       </div>
@@ -115,6 +139,7 @@ const ViewerMeetingView = () => {
 
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
+    // Find the seller: anyone who isn't local.
     return participantsArray.find(p => !p.local && p.webcamOn) || 
            participantsArray.find(p => !p.local) || 
            null;
@@ -147,8 +172,6 @@ const ViewerMeetingView = () => {
     </div>
   );
 };
-
-import { AnimatePresence } from 'framer-motion';
 
 export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
   const [token, setToken] = useState<string | null>(null);
