@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -218,7 +218,17 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
       )}>
           <div className="flex flex-col h-full w-80 lg:w-96">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
-                  <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">Studio Toolbox</p>
+                  <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
+                    {activePanel === 'chat' ? 'Public Chat' : 'Catalog Tools'}
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full hover:bg-white/5" 
+                    onClick={() => setActivePanel(null)}
+                  >
+                    <X className="h-4 w-4 text-white/40" />
+                  </Button>
               </div>
 
               <div className="flex-1 overflow-hidden relative">
