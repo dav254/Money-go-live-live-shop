@@ -9,7 +9,6 @@ import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {

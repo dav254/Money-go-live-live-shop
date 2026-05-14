@@ -1,10 +1,9 @@
-
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 /**
  * Securely generates a VideoSDK access token.
- * Provides a fallback dummy token for frontend testing if keys are missing.
+ * Optimized for speed to prevent handshake timeouts.
  */
 export async function GET() {
   const API_KEY = process.env.VIDEOSDK_API_KEY;
@@ -17,7 +16,10 @@ export async function GET() {
         token: "fallback_token_development_only",
         isFallback: true 
     }, {
-        headers: { 'X-VideoSDK-Status': 'development-fallback' }
+        headers: { 
+          'X-VideoSDK-Status': 'development-fallback',
+          'Cache-Control': 'no-store' 
+        }
     });
   }
 

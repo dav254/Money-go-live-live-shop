@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Renders the seller's video stream for the buyer.
- * Separates audio and video for reliable browser handling.
+ * Correctly handles the unmute logic by separating audio element management.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream, webcamOn, isLocal } = useParticipant(participantId);
@@ -32,33 +32,35 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
     }
   }, [webcamStream]);
 
-  // Handle Audio Track
+  // Handle Audio Track separately with its own persistent element
   useEffect(() => {
     if (audioRef.current && micStream) {
       const mediaStream = new MediaStream();
       mediaStream.addTrack(micStream.track);
       audioRef.current.srcObject = mediaStream;
       
-      audioRef.current.play().catch(err => {
-          if (err.name !== 'AbortError') {
-              console.warn("[VideoSDK] Audio play prevented:", err);
-          }
-      });
-    }
-  }, [micStream]);
-
-  const toggleLocalMute = () => {
-      const newMuteState = !isMuted;
-      setIsMuted(newMuteState);
-      
-      if (audioRef.current) {
-          audioRef.current.muted = newMuteState;
-          if (!newMuteState) {
-              audioRef.current.play().catch(console.error);
-          }
+      // Attempt to play if user already unmuted locally
+      if (!isMuted) {
+          audioRef.current.play().catch(err => {
+             console.warn("[VideoSDK] Audio play failed:", err);
+          });
       }
-      if (videoRef.current) {
-          videoRef.current.muted = newMuteState;
+    }
+  }, [micStream, isMuted]);
+
+  const handleUnmute = () => {
+      setIsMuted(false);
+      if (audioRef.current) {
+          audioRef.current.muted = false;
+          audioRef.current.play().catch(console.error);
+      }
+  };
+
+  const handleMute = () => {
+      setIsMuted(true);
+      if (audioRef.current) {
+          audioRef.current.muted = true;
+          audioRef.current.pause();
       }
   };
 
@@ -68,7 +70,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         ref={videoRef} 
         autoPlay 
         playsInline 
-        muted={true} // Video always muted for autoplay, audio handled separately
+        muted={true} 
         className="h-full w-full object-contain md:object-cover"
         style={{ transform: isLocal ? 'scaleX(-1)' : 'none' }}
       />
@@ -86,7 +88,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
                     <Button 
                         variant="secondary" 
                         className="pointer-events-auto bg-primary text-white font-black uppercase tracking-widest px-8 h-14 rounded-2xl shadow-2xl"
-                        onClick={toggleLocalMute}
+                        onClick={handleUnmute}
                     >
                         <Volume2 className="mr-2 h-5 w-5" /> TAP TO UNMUTE
                     </Button>
@@ -109,7 +111,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             size="icon" 
             variant="ghost" 
             className="bg-black/40 hover:bg-black/60 rounded-full h-10 w-10 text-white" 
-            onClick={toggleLocalMute}
+            onClick={isMuted ? handleUnmute : handleMute}
           >
               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
           </Button>
@@ -139,7 +141,7 @@ const ViewerMeetingView = () => {
 
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
-    // Find the seller: anyone who isn't local.
+    // Prioritize participants who have webcam active as the primary visual host
     return participantsArray.find(p => !p.local && p.webcamOn) || 
            participantsArray.find(p => !p.local) || 
            null;
