@@ -15,16 +15,12 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
   loading: () => (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-8">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Initializing Studio Signal...</p>
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Initializing Signal Sync...</p>
     </div>
   ),
 });
 
-/**
- * PHASE 1: Real-time Stream Connectivity (Fixed)
- * This page monitors the session and connects to the VideoSDK room instantly when live.
- */
-export default function BuyerLiveStreamViewPage() {
+export default function BuyerLiveSessionPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.sessionId as string;
@@ -50,7 +46,7 @@ export default function BuyerLiveStreamViewPage() {
       <BuyerLayout fullWidth>
         <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-4">Verifying Session...</p>
+          <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-4">Syncing Studio Signal...</p>
         </div>
       </BuyerLayout>
     );
@@ -64,15 +60,14 @@ export default function BuyerLiveStreamViewPage() {
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-6">
             <Radio className="h-12 w-12 text-neutral-700" />
           </div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Show hasn't started</h1>
-          <p className="text-neutral-500 mt-2 max-w-xs mx-auto text-sm font-medium">The seller hasn't hit the "Start Broadcast" button yet. Stay tuned!</p>
-          <Button 
-            variant="ghost" 
-            className="mt-8 text-primary font-black uppercase tracking-widest text-[10px]"
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Connecting to Host...</h1>
+          <p className="text-neutral-500 mt-2 max-w-xs mx-auto text-sm font-medium">Waiting for the seller to begin the broadcast. Hang tight!</p>
+          <button 
+            className="mt-8 px-6 py-2 bg-primary text-white font-bold rounded-xl uppercase text-[10px] tracking-widest"
             onClick={() => router.push('/buyer/live-now')}
           >
             Back to lobby
-          </Button>
+          </button>
         </div>
       </BuyerLayout>
     );
@@ -97,16 +92,3 @@ export default function BuyerLiveStreamViewPage() {
     </BuyerLayout>
   );
 }
-
-const Button = ({ children, className, variant, onClick }: any) => (
-  <button 
-    onClick={onClick}
-    className={cn(
-      "px-4 py-2 rounded-xl transition-all",
-      variant === 'ghost' ? "hover:bg-white/10" : "bg-primary text-white",
-      className
-    )}
-  >
-    {children}
-  </button>
-);

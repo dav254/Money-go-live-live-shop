@@ -3,12 +3,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, Video, VideoOff, Mic, MicOff, RefreshCw, MessageSquare, ShoppingBag, ShieldCheck, ChevronRight } from 'lucide-react';
+import { StopCircle, Loader2, Video, VideoOff, MessageSquare, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -26,15 +26,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
     }
   }, [webcamStream, webcamOn]);
 
-  const forceEnableWebcam = async () => {
-      try {
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          enableWebcam();
-      } catch (err) {
-          console.error("Force webcam failed:", err);
-      }
-  };
-
   return (
     <div className="relative h-full w-full bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5">
       <video ref={videoRef} autoPlay playsInline muted={local} className="h-full w-full object-contain md:object-cover" />
@@ -47,10 +38,9 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <Button 
             variant="outline" 
             className="mt-6 border-primary/50 text-primary hover:bg-primary/10 font-black tracking-widest uppercase text-xs px-8 py-6 rounded-2xl"
-            onClick={forceEnableWebcam}
+            onClick={() => enableWebcam()}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            RE-SYNC CAMERA
+            RESTORE CAMERA
           </Button>
         </div>
       )}
@@ -67,7 +57,7 @@ interface StudioControlsProps {
 }
 
 const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel }: StudioControlsProps) => {
-  const { leave, enableWebcam, disableWebcam, unmuteMic, muteMic, webcamOn, micOn } = useMeeting();
+  const { leave, enableWebcam, disableWebcam, webcamOn } = useMeeting();
 
   const handleEndClick = () => {
     leave();
@@ -76,14 +66,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
-      <Button
-        size="icon"
-        variant={micOn ? "secondary" : "destructive"}
-        onClick={() => micOn ? muteMic() : unmuteMic()}
-        className="rounded-xl h-10 w-10 md:h-12 md:w-12 transition-colors"
-      >
-        {micOn ? <Mic className="h-4 w-4 md:h-5 md:w-5 text-white" /> : <MicOff className="h-4 w-4 md:h-5 md:w-5 text-white" />}
-      </Button>
       <Button
         size="icon"
         variant={webcamOn ? "secondary" : "destructive"}
@@ -242,9 +224,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
           <div className="flex flex-col h-full w-80 lg:w-96">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">Studio Toolbox</p>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-white/30 hover:text-white" onClick={() => setActivePanel(null)}>
-                      <ChevronRight className="h-4 w-4" />
-                  </Button>
               </div>
 
               <div className="flex-1 overflow-hidden relative">
