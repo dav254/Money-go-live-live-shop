@@ -6,7 +6,7 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
-import { Loader2, MessageSquare, ShoppingBag, X, Radio } from 'lucide-react';
+import { Loader2, MessageSquare, ShoppingBag, X, Radio, VideoOff } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -49,10 +49,13 @@ export default function BuyerLiveSessionPage() {
 
   const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
 
-  // Auto-redirect if session ended
+  // FORCE DISCONNECT: Watch for 'ended' status or null meeting ID
   useEffect(() => {
-    if (!isSessionLoading && session?.status === 'ended') {
-      router.push('/buyer/live-now');
+    if (!isSessionLoading && (session?.status === 'ended' || (session?.status === 'live' && !session.videosdkMeetingId))) {
+      const timer = setTimeout(() => {
+          router.replace('/buyer/live-now');
+      }, 2000); // Give 2 seconds for a "Show Concluded" transition
+      return () => clearTimeout(timer);
     }
   }, [session, isSessionLoading, router]);
 
@@ -65,6 +68,28 @@ export default function BuyerLiveSessionPage() {
         </div>
       </BuyerLayout>
     );
+  }
+
+  // Handle "Show Ended" state gracefully
+  if (session?.status === 'ended') {
+      return (
+        <BuyerLayout fullWidth>
+            <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black text-center p-8">
+                <div className="p-8 rounded-full bg-red-600/10 border border-red-600/20 mb-8 animate-in zoom-in-95 duration-500">
+                    <VideoOff className="h-16 w-16 text-red-600" />
+                </div>
+                <h1 className="text-3xl font-black uppercase tracking-tighter text-white">Show Concluded</h1>
+                <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-4">The host has finished the broadcast. Redirecting...</p>
+                <Button 
+                    variant="outline"
+                    className="mt-12 font-black uppercase tracking-widest text-[10px] border-white/10"
+                    onClick={() => router.push('/buyer/live-now')}
+                >
+                    Return to lobby now
+                </Button>
+            </div>
+        </BuyerLayout>
+      )
   }
 
   if (!session || session.status !== 'live' || !session.videosdkMeetingId) {
@@ -169,7 +194,7 @@ export default function BuyerLiveSessionPage() {
                         <LiveProductShelf 
                             sellerId={session.sellerId} 
                             pinnedProductId={session.pinnedProductId || null}
-                            onPinProduct={() => {}} // Buyers can't pin, just view
+                            onPinProduct={() => {}} 
                             onUnpinProduct={() => {}} 
                         />
                     </div>

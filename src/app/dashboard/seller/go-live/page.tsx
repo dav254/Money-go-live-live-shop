@@ -35,7 +35,7 @@ export default function SellerGoLivePage() {
   const [prewarmedMeetingId, setPrewarmedMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = setToken] = useState<string | null>(null);
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
@@ -145,7 +145,7 @@ export default function SellerGoLivePage() {
         // UPDATE GLOBAL STATUS: Make the stream visible to all buyers instantly
         await updateDoc(doc(firestore, 'liveSessions', user.uid), {
             status: 'live',
-            videosdkMeetingId: meetingId, // Ensure meeting ID is attached to the live status
+            videosdkMeetingId: meetingId, 
             startTime: serverTimestamp(),
             lastStartedAt: serverTimestamp()
         });
@@ -155,6 +155,30 @@ export default function SellerGoLivePage() {
         toast({ variant: 'destructive', title: "Failed to go live" });
     }
   }
+
+  const handleEndBroadcast = async () => {
+    if (!user) return;
+    
+    // INSTANT FEEDBACK
+    setWantsToSetup(false);
+    setIsLive(false);
+    setMeetingId(null);
+    toast({ title: "SHOW ENDED", description: "Broadcast has been terminated." });
+
+    try {
+        // TELL FIRESTORE TO DISCONNECT BUYERS
+        await fetch('/api/live-session', {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `Bearer ${await user.getIdToken()}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ liveSessionId: user.uid })
+        });
+    } catch (err) {
+        console.error("Failed to sync session end to database", err);
+    }
+  };
 
   if (isConfigMissing) {
     return (
@@ -256,11 +280,7 @@ export default function SellerGoLivePage() {
               token={token}
               isLive={isLive}
               onBroadcast={handleStartBroadcast}
-              onEnd={() => {
-                setWantsToSetup(false);
-                setIsLive(false);
-                setMeetingId(null);
-              }}
+              onEnd={handleEndBroadcast}
             />
         )}
       </div>
