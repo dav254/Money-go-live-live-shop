@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile, useMemoFirebase, useDoc } from '@/firebase';
 import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, AlertCircle, Video, Camera, Clock, BadgeCent, ArrowRight } from 'lucide-react';
+import { Loader2, RefreshCw, AlertCircle, Video, Camera, Clock, BadgeCent, ArrowRight, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import type { LiveSession } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -187,50 +189,61 @@ export default function SellerGoLivePage() {
 
   if (!wantsToSetup || !meetingId) {
       return (
-          <SellerLayout>
-              <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] p-4">
-                  <Card className="w-full max-w-2xl bg-neutral-900/50 backdrop-blur-xl border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-                      <CardHeader className="text-center pb-0 pt-8">
-                          <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto mb-6">
-                            <Video className="h-12 w-12 text-primary" />
+          <SellerLayout fullWidth>
+              <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex flex-col">
+                  {/* Immediate Camera Preview */}
+                  <div className="absolute inset-0 z-0">
+                    <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover opacity-60 transition-transform duration-700 hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                  </div>
+
+                  {/* Top Bar Info */}
+                  <div className="absolute top-6 left-6 z-10 flex items-center gap-4">
+                     <Badge variant="outline" className="h-10 px-4 rounded-xl border-white/10 bg-black/40 backdrop-blur-md text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
+                        <BadgeCent className="h-4 w-4 text-primary" />
+                        Balance: {(userProfile?.aiPoints || 0).toLocaleString()}
+                     </Badge>
+                  </div>
+
+                  {/* Central Control Area */}
+                  <div className="flex-1 flex flex-col items-center justify-center relative z-20 p-6 text-center">
+                      <div className="max-w-md w-full animate-in fade-in zoom-in-95 duration-500">
+                          <div className="mb-8 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
+                            <Video className="h-16 w-16 text-primary" />
                           </div>
-                          <CardTitle className="text-4xl font-black uppercase tracking-tighter text-white">Live Studio</CardTitle>
-                          <CardDescription className="uppercase font-bold text-[10px] tracking-[0.2em] text-neutral-500 mt-2">Professional Broadcast Hub</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-8 p-8">
-                          <div className="relative aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-2xl group">
-                              <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                              {hasPermissions === false && (
-                                  <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-center p-8">
-                                      <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-                                      <p className="text-white font-black uppercase tracking-widest text-xs">Camera Access Denied</p>
-                                      <p className="text-neutral-500 text-[10px] mt-2 max-w-[200px]">Please enable your camera and microphone in browser settings.</p>
-                                  </div>
-                              )}
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
-                                  <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Session Limit</p>
-                                  <p className="text-2xl font-black text-white">70 MINS</p>
-                              </div>
-                              <div className="p-6 rounded-3xl bg-white/5 border border-white/5 text-center">
-                                  <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-1">Point Balance</p>
-                                  <p className="text-2xl font-black text-primary">{(userProfile?.aiPoints || 0).toLocaleString()}</p>
-                              </div>
-                          </div>
-                      </CardContent>
-                      <CardFooter className="p-8 pt-0">
+
                           <Button 
                             size="lg" 
-                            className="w-full h-16 rounded-2xl font-black text-xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20" 
+                            className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
                             onClick={() => handleSetupPreview(false)} 
                             disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
                           >
-                              {isStarting ? <Loader2 className="animate-spin" /> : <Camera className="mr-2 h-6 w-6" />} START SESSION (100 PTS)
+                              {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
+                              START LIVE SESSION
                           </Button>
-                      </CardFooter>
-                  </Card>
+                          
+                          <p className="mt-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+                             100 Points per 70-minute session
+                          </p>
+
+                          {hasPermissions === false && (
+                              <Alert variant="destructive" className="mt-8 bg-red-950/50 border-red-500/50">
+                                  <AlertCircle className="h-4 w-4" />
+                                  <AlertTitle className="font-black uppercase text-[10px] tracking-widest">Camera Denied</AlertTitle>
+                                  <AlertDescription className="text-xs font-medium">Please enable your camera and microphone in browser settings to start broadcasting.</AlertDescription>
+                              </Alert>
+                          )}
+                      </div>
+                  </div>
+
+                  {/* Corner Visual Tips */}
+                  <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end pointer-events-none opacity-40">
+                      <div className="space-y-1">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-primary">Pro Tip</p>
+                          <p className="text-[10px] font-bold text-white max-w-[200px]">Keep your products within the center frame for mobile viewers.</p>
+                      </div>
+                      <Zap className="h-8 w-8 text-primary" />
+                  </div>
               </div>
           </SellerLayout>
       );
