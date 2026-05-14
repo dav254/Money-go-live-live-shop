@@ -9,29 +9,113 @@ import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { BuyerRequest } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 
+const MOCK_REQUESTS: Partial<BuyerRequest>[] = [
+  {
+    id: 'req_1',
+    buyerId: 'user_1',
+    title: 'Need High-Performance Office Laptop',
+    description: 'Looking for a laptop with at least 16GB RAM and i7 processor for architecture work. Budget is firm for the right specs.',
+    category: 'Electronics & Gadgets',
+    minBudget: 45000,
+    maxBudget: 60000,
+    currency: 'KES',
+    country: 'Kenya',
+    county: 'Nairobi',
+    area: 'Westlands',
+    requestType: 'text',
+    contactMethod: 'chat',
+    deadline: 'urgent',
+    imageUrls: [],
+    videoUrl: null,
+    status: 'open',
+    offersCount: 5,
+    selectedSellerId: null,
+    views: 142,
+    createdAt: { toDate: () => new Date(Date.now() - 3600000) }, // 1 hour ago
+  },
+  {
+    id: 'req_2',
+    buyerId: 'user_2',
+    title: 'Custom Handmade Leather Boots',
+    description: 'I need durable, genuine leather boots size 42. Preferably dark brown with reinforced soles for hiking.',
+    category: 'Fashion & Apparel',
+    minBudget: 6500,
+    maxBudget: 12000,
+    currency: 'KES',
+    country: 'Kenya',
+    county: 'Kiambu',
+    area: 'Thika',
+    requestType: 'video',
+    contactMethod: 'whatsapp',
+    deadline: 'flexible',
+    imageUrls: [],
+    videoUrl: 'https://picsum.photos/seed/studio-video-demo/600/400', // Mock video URL
+    status: 'open',
+    offersCount: 2,
+    selectedSellerId: null,
+    views: 89,
+    createdAt: { toDate: () => new Date(Date.now() - 86400000) }, // 1 day ago
+  },
+  {
+    id: 'req_3',
+    buyerId: 'user_3',
+    title: 'Bulk Organic Honey Supply (50kg)',
+    description: 'Looking for a reliable supplier for 50kg of pure, unrefined organic honey for my bakery business.',
+    category: 'Food & Groceries',
+    minBudget: 35000,
+    maxBudget: 45000,
+    currency: 'KES',
+    country: 'Kenya',
+    county: 'Nairobi',
+    area: 'CBD',
+    requestType: 'text',
+    contactMethod: 'phone',
+    deadline: '3-days',
+    imageUrls: [],
+    videoUrl: null,
+    status: 'open',
+    offersCount: 0,
+    selectedSellerId: null,
+    views: 24,
+    createdAt: { toDate: () => new Date(Date.now() - 172800000) }, // 2 days ago
+  },
+  {
+    id: 'req_4',
+    buyerId: 'user_4',
+    title: 'Modern Living Room Sofa Set',
+    description: 'Seeking a 5-seater L-shaped sofa. Minimalist design, grey or navy blue color. Delivery to Kilimani required.',
+    category: 'Home & Living',
+    minBudget: 55000,
+    maxBudget: 85000,
+    currency: 'KES',
+    country: 'Kenya',
+    county: 'Nairobi',
+    area: 'Kilimani',
+    requestType: 'text',
+    contactMethod: 'chat',
+    deadline: 'flexible',
+    imageUrls: ['https://picsum.photos/seed/sofa-req/600/400'],
+    videoUrl: null,
+    status: 'open',
+    offersCount: 8,
+    selectedSellerId: null,
+    views: 210,
+    createdAt: { toDate: () => new Date(Date.now() - 43200000) }, // 12 hours ago
+  }
+];
+
 export default function SellerRequestsMarketplacePage() {
   const [searchTerm, setSearchQuery] = useState('');
-  const firestore = useFirestore();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const requestsQuery = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return query(
-          collection(firestore, 'requests'),
-          where('status', '==', 'open'),
-          orderBy('createdAt', 'desc')
-      );
-  }, [firestore]);
-
-  const { data: requests, isLoading } = useCollection<BuyerRequest>(requestsQuery);
-
-  const filtered = (requests || []).filter(r => 
+  // Filter local mock data instead of Firestore
+  const filtered = (MOCK_REQUESTS as BuyerRequest[]).filter(r => 
     r.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    r.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -101,7 +185,7 @@ function LeadCard({ request }: { request: BuyerRequest }) {
     const mainThumbnail = request.imageUrls?.[0];
 
     return (
-        <Card className="bg-neutral-900/50 border-white/5 hover:border-primary/30 transition-all group overflow-hidden rounded-[2rem] flex flex-col relative">
+        <Card className="bg-neutral-900/50 border-white/5 hover:border-primary/30 transition-all group overflow-hidden rounded-[2rem] flex flex-col relative h-full">
             {request.requestType === 'video' ? (
                 <div className="absolute top-4 right-4 z-10">
                     <Badge className="bg-red-600 text-white border-none text-[8px] font-black uppercase tracking-widest rounded-full px-3 py-1 shadow-xl">
@@ -118,7 +202,14 @@ function LeadCard({ request }: { request: BuyerRequest }) {
             
             <div className="relative aspect-video w-full bg-black overflow-hidden border-b border-white/5">
                 {request.videoUrl ? (
-                    <video src={request.videoUrl} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" muted loop onMouseOver={e => e.currentTarget.play()} onMouseOut={e => e.currentTarget.pause()} />
+                    <div className="relative w-full h-full">
+                        <Image src={request.videoUrl} alt={request.title} fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                         <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+                                <Video className="h-6 w-6 text-white" />
+                            </div>
+                        </div>
+                    </div>
                 ) : mainThumbnail ? (
                     <div className="relative w-full h-full">
                         <Image src={mainThumbnail} alt={request.title} fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
