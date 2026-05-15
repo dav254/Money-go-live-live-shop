@@ -169,11 +169,11 @@ export function LiveChat({ streamId }: LiveChatProps) {
                                     {msg.senderName}
                                 </button>
                                 <p className={cn(
-                                    "text-[12px] leading-tight p-2 rounded-xl border shadow-sm",
+                                    "text-[12px] leading-tight p-2 rounded-xl border shadow-sm break-words overflow-hidden",
                                     alignRight 
                                         ? "bg-primary text-primary-foreground border-primary rounded-tr-none" 
                                         : "bg-white/5 text-neutral-300 border-white/5 rounded-tl-none"
-                                )}>
+                                )} style={{ overflowWrap: 'anywhere' }}>
                                     {msg.messageText}
                                 </p>
                             </div>

@@ -26,7 +26,7 @@ import {
     TrendingUp,
     ChevronRight,
     Paperclip,
-    Image as ImageIcon,
+    ImageIcon,
     FileText
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
@@ -98,7 +98,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
 
   if (isImage) {
     return (
-      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm">
+      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm max-w-full">
         <Image 
             src={message.mediaUrl} 
             alt={name || 'Shared image'} 
@@ -110,7 +110,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
     );
   }
   if (isVideo) {
-    return <video src={message.mediaUrl} controls className="max-w-[180px] rounded-xl border shadow-sm bg-black" />;
+    return <video src={message.mediaUrl} controls className="max-w-[180px] sm:max-w-full rounded-xl border shadow-sm bg-black" />;
   }
   return (
     <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="flex max-w-[200px] items-center gap-2 rounded-xl border bg-card p-2 shadow-sm hover:bg-muted transition-colors">
@@ -431,7 +431,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                                     "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
                                     alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                                 )}>
-                                    <p className="whitespace-pre-wrap break-words">{msg.messageText}</p>
+                                    <p className="whitespace-pre-wrap break-words overflow-hidden" style={{ overflowWrap: 'anywhere' }}>{msg.messageText}</p>
                                 </div>
                             ))}
                             <div className={cn("flex items-center gap-1 px-1 opacity-40 mt-1", alignRight ? "flex-row-reverse" : "flex-row")}>
