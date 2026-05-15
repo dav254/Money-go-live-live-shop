@@ -43,7 +43,10 @@ service cloud.firestore {
 
     // Chat System Rules
     match /chats/{chatId} {
-      allow read, write: if isSignedIn();
+      // Allow reading the collection for unread counts
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow write: if isSignedIn();
       
       match /messages/{messageId} {
         allow read, write: if isSignedIn();

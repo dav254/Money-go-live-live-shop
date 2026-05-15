@@ -229,7 +229,7 @@ export default function CheckoutPage() {
                                 <div key={item.productId} className="flex items-center gap-4">
                                     <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/10 shadow-lg">
                                         <Image 
-                                            src={item.imageUrl && typeof item.imageUrl === 'string' && item.imageUrl.trim() !== "" ? item.imageUrl : getPlaceholderImage()} 
+                                            src={item.imageUrl || getPlaceholderImage()} 
                                             alt={item.name || 'Product'} 
                                             fill 
                                             className="object-cover" 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -213,7 +214,7 @@ export default function PostRequestPage() {
         country: 'Kenya'
       };
 
-      // Atomic persistence of the summary pipe
+      // Atomic persistence of the summary pipe to the requests collection
       await addDoc(collection(firestore, 'requests'), requestData);
 
       toast({ title: 'Broadcast Published!', description: 'Your requirement is now live in the marketplace.' });
