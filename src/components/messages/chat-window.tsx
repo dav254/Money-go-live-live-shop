@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -302,7 +301,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
           await updateDoc(doc(firestore, 'chats', chat.id), updateObj);
       } catch (error) {
-          setOptimisticMessages(prev => prev.push(prev.filter(m => m.id !== tempId)));
+          setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
           throw error;
       }
   };
@@ -359,7 +358,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      // OPTIMIZATION: Lower bitrate for tiny file size and ultra-fast upload
+      const mediaRecorder = new MediaRecorder(stream, { 
+          mimeType: 'audio/webm',
+          audioBitsPerSecond: 32000 // 32kbps is enough for voice and very fast to upload
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -371,12 +374,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const finalDuration = recordingTime;
         
-        if (audioBlob.size > 1000) { // Only send if it's more than 1kb
+        if (audioBlob.size > 500) { // Small threshold to ensure data exists
             const path = `chats/${chat!.id}/${Date.now()}_voice_note.webm`;
             const storageRef = ref(storage, path);
             const uploadTask = uploadBytesResumable(storageRef, audioBlob);
             
-            setUploadProgress(1); // Start indicator
+            setUploadProgress(1); // Immediate indicator
 
             uploadTask.on('state_changed', 
                 (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
@@ -393,7 +396,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             );
         }
         
-        // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -420,7 +422,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const cancelRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      audioChunksRef.current = []; // Clear chunks so it doesn't send
+      audioChunksRef.current = [];
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -454,7 +456,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                     <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName || 'User'} />
                     <AvatarFallback className="bg-neutral-800 text-[8px] font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className={cn("absolute -bottom-0.5 -right-0.5 h-2 w-2 border border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
+                <div className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 border border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
             </div>
             <div className="overflow-hidden">
                 <p className="font-black text-[11px] md:text-xs uppercase tracking-tight truncate leading-none mb-0.5">{otherParticipantProfile?.fullName}</p>
