@@ -1,15 +1,16 @@
+
 'use client';
 
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2, SignalHigh } from 'lucide-react';
+import { VideoOff, Loader2 } from 'lucide-react';
 
 /**
  * Optimized Viewer for Buyers.
  * Configured for absolute minimum latency and immediate data sync.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, micStream, webcamOn, isLocal } = useParticipant(participantId);
+  const { webcamStream, micStream, webcamOn } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -19,7 +20,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
       
-      // Force priority playback
+      // Force priority playback to eliminate start-up lag
       videoRef.current.play().catch(err => {
           if (err.name !== 'AbortError') console.warn("[Live Sync] Video boost failed:", err);
       });
@@ -71,7 +72,7 @@ const ViewerMeetingView = () => {
     }
   }, [join, isMeetingJoined]);
 
-  // PICK THE HOST (Seller) IMMEDIATELY
+  // FAST PATH: Identify the host (Seller) immediately
   const host = React.useMemo(() => {
     const participantsArray = Array.from(participants.values());
     return participantsArray.find(p => !p.local && p.webcamOn) || 
@@ -92,7 +93,7 @@ const ViewerMeetingView = () => {
           <p className="text-white font-black text-xl tracking-tight uppercase">Locking Live Signal</p>
           <div className="flex items-center gap-2 mt-6 text-[9px] text-neutral-500 uppercase font-black tracking-[0.2em] bg-neutral-900 px-6 py-2.5 rounded-full border border-white/5 shadow-2xl">
               <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span>Verifying Connection...</span>
+              <span>Verifying Stream Quality...</span>
           </div>
         </div>
       )}
@@ -134,7 +135,8 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         mode: "CONFERENCE",
         // PERFORMANCE OVERRIDES: No multistream to save bandwidth and speed up join
         multiStream: false,
-        subscribeFullStream: true, 
+        subscribeFullStream: true,
+        adaptiveStream: true, // Auto-adjust to buyer's network
       }}
       token={token}
     >

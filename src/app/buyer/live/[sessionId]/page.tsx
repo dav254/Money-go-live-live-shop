@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -21,7 +22,7 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
   loading: () => (
     <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-8">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-white font-black uppercase tracking-widest text-[10px]">Initializing Signal Sync...</p>
+      <p className="text-white font-black uppercase tracking-widest text-[10px]">Syncing 4K Data Pipe...</p>
     </div>
   ),
 });
@@ -74,12 +75,12 @@ export default function BuyerLiveSessionPage() {
 
   const { data: pinnedProduct } = useDoc<Product>(pinnedProductRef);
 
-  // FORCE DISCONNECT: Watch for 'ended' status or null meeting ID
+  // FAST DISCONNECT: Watch for 'ended' status or null meeting ID
   useEffect(() => {
     if (!isSessionLoading && (session?.status === 'ended' || (session?.status === 'live' && !session.videosdkMeetingId))) {
       const timer = setTimeout(() => {
           router.replace('/buyer/live-now');
-      }, 2000); // Give 2 seconds for a "Show Concluded" transition
+      }, 1000); // Conclude show faster
       return () => clearTimeout(timer);
     }
   }, [session, isSessionLoading, router]);
@@ -89,7 +90,7 @@ export default function BuyerLiveSessionPage() {
       <BuyerLayout fullWidth>
         <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-4">Syncing Studio Signal...</p>
+          <p className="text-neutral-500 font-black uppercase tracking-widest text-[10px] mt-4">Pinging Host Studio...</p>
         </div>
       </BuyerLayout>
     );
@@ -124,7 +125,7 @@ export default function BuyerLiveSessionPage() {
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-6">
             <Radio className="h-12 w-12 text-neutral-700" />
           </div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Waiting for Host...</h1>
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-white">Waiting for Signal...</h1>
           <button 
             className="mt-8 px-6 py-2 bg-primary text-white font-bold rounded-xl uppercase text-[10px] tracking-widest"
             onClick={() => router.push('/buyer/live-now')}
