@@ -28,27 +28,32 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
             }
 
-            // Dynamic import to bypass build-time resolution issues
-            const PaystackLib = (await import('paystack')).default;
-            // @ts-ignore - The paystack library types can be inconsistent
-            const paystack = PaystackLib(paystackSecret);
-
-            const response = await paystack.transaction.initialize({
-                email: email,
-                amount: Math.round(amount * 100), 
-                currency: 'USD',
-                reference: reference,
-                metadata: {
-                    ...metadata,
-                    orderId: orderId,
-                    transactionType: transactionType || 'product-purchase'
-                }
+            // Using direct fetch to avoid "module not found" errors with the paystack library
+            const response = await fetch('https://api.paystack.co/transaction/initialize', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${paystackSecret}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    amount: Math.round(amount * 100), 
+                    currency: 'USD',
+                    reference: reference,
+                    metadata: {
+                        ...metadata,
+                        orderId: orderId,
+                        transactionType: transactionType || 'product-purchase'
+                    }
+                })
             });
+
+            const data = await response.json();
             
-            if (!response.status || !response.data.authorization_url) {
-                throw new Error(response.message || 'Paystack initialization failed');
+            if (!data.status || !data.data?.authorization_url) {
+                throw new Error(data.message || 'Paystack initialization failed');
             }
-            checkoutUrl = response.data.authorization_url;
+            checkoutUrl = data.data.authorization_url;
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();
