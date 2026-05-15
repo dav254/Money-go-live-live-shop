@@ -6,7 +6,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Package, MoreVertical, Trash2, PlusCircle, Send, File, Download, Loader2, ArrowLeft, MessageSquare, CheckCheck } from 'lucide-react';
+import { 
+    Package, 
+    MoreVertical, 
+    Trash2, 
+    PlusCircle, 
+    Send, 
+    File, 
+    Download, 
+    Loader2, 
+    ArrowLeft, 
+    MessageSquare, 
+    CheckCheck,
+    Sparkles,
+    BrainCircuit,
+    Zap,
+    ShieldCheck,
+    X,
+    TrendingUp,
+    ChevronRight
+} from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
@@ -27,6 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '../ui/progress';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '../ui/badge';
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -121,6 +141,71 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     )
 }
 
+const AiNegotiationCopilot = ({ isOpen, onClose, onApplySuggestion }: { isOpen: boolean, onClose: () => void, onApplySuggestion: (text: string) => void }) => {
+    if (!isOpen) return null;
+
+    const suggestions = [
+        { title: "Friendly Greeting", text: "Hi! Thanks for reaching out about this item. How can I help you today?" },
+        { title: "Price Negotiation", text: "I can offer a small discount if you're ready to complete the purchase today. Would $XX work for you?" },
+        { title: "Shipping Confirmation", text: "Yes, I can ship this to your location. It usually takes 2-3 business days." },
+    ];
+
+    return (
+        <div className={cn(
+            "fixed md:static inset-y-0 right-0 z-[60] w-80 bg-neutral-950 border-l border-white/10 shadow-2xl flex flex-col transition-all duration-300 animate-in slide-in-from-right",
+            !isOpen && "hidden"
+        )}>
+            <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/50">
+                <div className="flex items-center gap-2">
+                    <BrainCircuit className="h-5 w-5 text-primary" />
+                    <span className="font-black text-xs uppercase tracking-widest text-white">Negotiation AI</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onClose}><X className="h-4 w-4" /></Button>
+            </div>
+            
+            <ScrollArea className="flex-1">
+                <div className="p-4 space-y-6">
+                    <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em]">Smart Suggestions</p>
+                        <div className="space-y-3">
+                            {suggestions.map((s, i) => (
+                                <button 
+                                    key={i} 
+                                    onClick={() => onApplySuggestion(s.text)}
+                                    className="w-full text-left p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-primary/30 hover:bg-white/10 transition-all group"
+                                >
+                                    <p className="text-[10px] font-black text-primary uppercase mb-1">{s.title}</p>
+                                    <p className="text-xs text-neutral-300 line-clamp-2 leading-relaxed italic">"{s.text}"</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <Separator className="bg-white/5" />
+
+                    <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Zap className="h-4 w-4 text-primary" />
+                            <p className="text-[10px] font-black uppercase text-primary tracking-widest">AI Strategy</p>
+                        </div>
+                        <p className="text-xs text-neutral-200 leading-relaxed">
+                            Buyer is showing high interest. Suggest a time-limited discount to create urgency and close the deal.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                         <p className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.2em]">Deal Safeguard</p>
+                         <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-500/5 border border-green-500/10">
+                            <ShieldCheck className="h-5 w-5 text-green-500 shrink-0" />
+                            <p className="text-[10px] font-bold text-neutral-400">Keep transactions in Go Earn for protection.</p>
+                         </div>
+                    </div>
+                </div>
+            </ScrollArea>
+        </div>
+    );
+};
+
 export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
@@ -131,6 +216,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [otherParticipantProfile, setOtherParticipantProfile] = useState<UserProfile | null>(null);
+  const [isAiOpen, setIsAiOpen] = useState(false);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!chat || !firestore) return null;
@@ -246,89 +332,140 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const allMessages = [...(serverMessages || []), ...optimisticMessages];
 
   return (
-    <div className="flex h-full flex-col bg-background overflow-hidden w-full relative">
-      <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl shrink-0 z-10">
-        <div className="flex items-center gap-4 overflow-hidden min-w-0">
-          <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0" onClick={onBack}><ArrowLeft className="h-5 w-5" /></Button>
-          <div className="relative shrink-0">
-            <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-xl">
-                <AvatarImage src={otherParticipantProfile?.profilePictureUrl} />
-                <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
-          </div>
-          <div className="overflow-hidden">
-            <p className="font-black text-sm uppercase tracking-tight truncate leading-none mb-1">{otherParticipantProfile?.fullName}</p>
-            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-1.5 py-0.5 rounded leading-none block w-fit truncate">
-                {isOnline ? 'Online' : otherParticipantProfile?.lastSeen ? `Seen ${formatDistanceToNow(otherParticipantProfile.lastSeen.toDate(), { addSuffix: true })}` : 'Offline'}
-            </span>
-          </div>
+    <div className="flex h-full w-full bg-background overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 h-full relative">
+        <div className="flex items-center justify-between border-b p-4 bg-card/30 backdrop-blur-xl shrink-0 z-10">
+            <div className="flex items-center gap-4 overflow-hidden min-w-0">
+            <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0" onClick={onBack}><ArrowLeft className="h-5 w-5" /></Button>
+            <div className="relative shrink-0">
+                <Avatar className="h-10 w-10 border-2 border-primary/20 shadow-xl">
+                    <AvatarImage src={otherParticipantProfile?.profilePictureUrl} />
+                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className={cn("absolute -bottom-0.5 -right-0.5 h-3 w-3 border-2 border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
+            </div>
+            <div className="overflow-hidden">
+                <p className="font-black text-sm uppercase tracking-tight truncate leading-none mb-1">{otherParticipantProfile?.fullName}</p>
+                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest bg-muted px-1.5 py-0.5 rounded leading-none block w-fit truncate">
+                    {isOnline ? 'Online' : otherParticipantProfile?.lastSeen ? `Seen ${formatDistanceToNow(otherParticipantProfile.lastSeen.toDate(), { addSuffix: true })}` : 'Offline'}
+                </span>
+            </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsAiOpen(!isAiOpen)}
+                    className={cn("rounded-full transition-colors", isAiOpen ? "bg-primary/20 text-primary" : "text-muted-foreground")}
+                >
+                    <Sparkles className="h-5 w-5" />
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full shrink-0"><MoreVertical className="h-5 w-5" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-2xl">
+                    <DropdownMenuItem className="text-destructive font-bold" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(currentUser.uid) }).then(onChatDeleted)}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete Chat
+                    </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full shrink-0"><MoreVertical className="h-5 w-5" /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-2xl">
-              <DropdownMenuItem className="text-destructive font-bold" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(currentUser.uid) }).then(onChatDeleted)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete Chat
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
 
-      <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
-        <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto">
-          {allMessages.map((msg) => {
-            const senderIsMe = msg.senderId === currentUser.uid;
-            const alignRight = senderIsMe;
-            return (
-                <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", alignRight ? "justify-end" : "justify-start")}>
-                    <div className={cn("flex flex-col gap-1.5 max-w-[85%] sm:max-w-[70%]", alignRight ? "items-end text-right" : "items-start text-left")}>
-                        {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
-                            <div className={cn(
-                                "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm break-words text-left", 
-                                alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
-                            )}>
-                                <p className="whitespace-pre-wrap">{msg.messageText}</p>
+        <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
+            <div className="p-4 sm:p-6 space-y-8 pb-12 w-full max-w-4xl mx-auto">
+            {allMessages.map((msg) => {
+                const senderIsMe = msg.senderId === currentUser.uid;
+                const alignRight = senderIsMe;
+                return (
+                    <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300", alignRight ? "justify-end" : "justify-start")}>
+                        <div className={cn("flex flex-col gap-1.5 max-w-[85%] sm:max-w-[70%]", alignRight ? "items-end text-right" : "items-start text-left")}>
+                            {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
+                                <div className={cn(
+                                    "rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed border shadow-sm break-words text-left", 
+                                    alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
+                                )}>
+                                    <p className="whitespace-pre-wrap">{msg.messageText}</p>
+                                </div>
+                            ))}
+                            <div className={cn("flex items-center gap-2 px-1", alignRight ? "flex-row-reverse" : "flex-row")}>
+                                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/40">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
+                                {senderIsMe && msg.isRead && (
+                                    <span className="text-[8px] font-bold text-primary flex items-center gap-1">
+                                        <CheckCheck className="h-2.5 w-2.5" /> Seen {msg.readAt?.toDate ? msg.readAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                    </span>
+                                )}
                             </div>
-                        ))}
-                        <div className={cn("flex items-center gap-2 px-1", alignRight ? "flex-row-reverse" : "flex-row")}>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/40">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
-                            {senderIsMe && msg.isRead && (
-                                <span className="text-[8px] font-bold text-primary flex items-center gap-1">
-                                    <CheckCheck className="h-2.5 w-2.5" /> Seen {msg.readAt?.toDate ? msg.readAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                </span>
-                            )}
                         </div>
                     </div>
-                </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+                );
+            })}
+            </div>
+        </ScrollArea>
 
-      <div className="p-4 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10">
-        {uploadProgress !== null && (
-          <div className="mb-4 px-2 max-w-4xl mx-auto">
-            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary mb-1.5 animate-pulse"><span>Sending Media...</span><span>{Math.round(uploadProgress)}%</span></div>
-            <Progress value={uploadProgress} className="h-1 bg-primary/10" />
-          </div>
-        )}
-        <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative flex items-center gap-2 max-w-4xl mx-auto w-full">
-          <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0" onClick={() => fileInputRef.current?.click()} disabled={uploadProgress !== null}><PlusCircle className="h-5 w-5" /></Button>
-          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
-          {userProfile?.userRole === 'seller' && (
-              <Dialog>
-                <DialogTrigger asChild>
-                    <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl border-white/5 shrink-0">
-                        <Package className="h-5 w-5" />
-                    </Button>
-                </DialogTrigger>
-                <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-              </Dialog>
-          )}
-          <Input placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={uploadProgress !== null} />
-          <Button type="submit" size="icon" className="h-11 w-11 rounded-2xl bg-primary shrink-0" disabled={uploadProgress !== null || !newMessage.trim()}><Send className="h-4 w-4" /></Button>
-        </form>
+        <div className="p-4 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10">
+            {uploadProgress !== null && (
+            <div className="mb-4 px-2 max-w-4xl mx-auto">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary mb-1.5 animate-pulse"><span>Sending Media...</span><span>{Math.round(uploadProgress)}%</span></div>
+                <Progress value={uploadProgress} className="h-1 bg-primary/10" />
+            </div>
+            )}
+            <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative flex items-center gap-2 max-w-4xl mx-auto w-full">
+            <div className="flex items-center gap-1 shrink-0">
+                <Avatar className="h-9 w-9 border-2 border-primary/20 shrink-0">
+                    <AvatarImage src={userProfile?.profilePictureUrl} />
+                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{userProfile?.username?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                
+                {userProfile?.userRole === 'seller' && (
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button type="button" size="icon" variant="outline" className="h-9 w-9 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                <Package className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                        <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                    </Dialog>
+                )}
+                
+                <Button 
+                    type="button" 
+                    size="icon" 
+                    variant="outline" 
+                    className={cn(
+                        "h-9 w-9 rounded-xl border-white/5 shrink-0 transition-all",
+                        isAiOpen ? "bg-primary/20 text-primary border-primary/30" : "bg-neutral-900/50"
+                    )} 
+                    onClick={() => setIsAiOpen(!isAiOpen)}
+                >
+                    <Sparkles className="h-4 w-4" />
+                </Button>
+            </div>
+
+            <Input 
+                placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} 
+                className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm px-4" 
+                value={newMessage} 
+                onChange={(e) => setNewMessage(e.target.value)} 
+                disabled={uploadProgress !== null} 
+            />
+            
+            <Button type="submit" size="icon" className="h-11 w-11 rounded-full bg-primary hover:bg-primary/90 shrink-0 shadow-lg shadow-primary/20" disabled={uploadProgress !== null || !newMessage.trim()}>
+                <Send className="h-4 w-4" />
+            </Button>
+            </form>
+        </div>
       </div>
+
+      <AiNegotiationCopilot 
+        isOpen={isAiOpen} 
+        onClose={() => setIsAiOpen(false)} 
+        onApplySuggestion={(text) => {
+            setNewMessage(text);
+            setIsAiOpen(false);
+            toast({ title: 'Suggestion Applied' });
+        }}
+      />
     </div>
   );
 }
+
