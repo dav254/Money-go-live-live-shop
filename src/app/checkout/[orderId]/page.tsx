@@ -11,7 +11,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck, Smartphone, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -52,6 +52,22 @@ function CheckoutSkeleton() {
     );
 }
 
+const PayPalIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20.071 6.842C20.071 10.34 17.587 11.905 13.923 11.905H11.531C11.084 11.905 10.713 12.247 10.648 12.69L9.431 18.91C9.408 19.027 9.498 19.133 9.617 19.133H12.355C12.802 19.133 13.173 18.791 13.238 18.348L14.159 13.62C14.224 13.177 14.595 12.835 15.042 12.835H15.938C19.011 12.835 21.096 11.365 21.096 8.356C21.096 7.643 20.978 6.993 20.761 6.425C20.375 6.681 19.824 6.842 19.141 6.842L20.071 6.842Z" fill="#003087"/>
+        <path d="M19.141 6.842C19.824 6.842 20.375 6.681 20.761 6.425C20.174 4.887 18.528 4 16.038 4H10.153C9.706 4 9.335 4.342 9.27 4.785L7.02 16.321C6.997 16.438 7.087 16.544 7.206 16.544H10.14C10.587 16.544 10.958 16.202 11.023 15.759L11.531 12.69C11.596 12.247 11.967 11.905 12.414 11.905H14.806C18.47 11.905 20.954 10.34 20.954 6.842C20.954 6.842 20.954 6.842 20.954 6.842H19.141Z" fill="#009CDE"/>
+        <path d="M11.023 15.759L11.531 12.69C11.596 12.247 11.967 11.905 12.414 11.905H14.806C18.47 11.905 20.954 10.34 20.954 6.842C20.954 6.842 20.954 6.842 20.954 6.842C20.375 6.681 19.824 6.842 19.141 6.842H20.071L19.141 6.842Z" fill="#012169"/>
+    </svg>
+);
+
+const PaystackIcon = () => (
+    <div className="flex items-center gap-1">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="#011b33"/>
+        </svg>
+        <span className="bg-green-500 text-[8px] text-white px-1 rounded font-black">M-PESA</span>
+    </div>
+);
 
 export default function CheckoutPage() {
     const params = useParams();
@@ -76,7 +92,6 @@ export default function CheckoutPage() {
         const fetchSellerShipping = async () => {
             if (order?.sellerId && firestore) {
                 setIsLoadingShipping(true);
-                // Use a single product from the items array to get the seller's info
                 const firstItemProductId = order.items?.[0]?.productId || order.productId;
                 if (!firstItemProductId) {
                     setIsLoadingShipping(false);
@@ -100,7 +115,6 @@ export default function CheckoutPage() {
     const isLoading = isLoadingOrder || isUserLoading || isLoadingShipping;
     const error = orderError;
 
-    // This ensures backward compatibility. If `items` array doesn't exist, create it from legacy fields.
     const orderItems = useMemo(() => {
         if (!order) return [];
         if (order.items && order.items.length > 0) {
@@ -112,7 +126,7 @@ export default function CheckoutPage() {
                 name: order.productName,
                 price: order.productPrice,
                 quantity: order.quantity || 1,
-                imageUrl: order.productImage || '',
+                imageUrl: order.productImage || getPlaceholderImage(),
             }];
         }
         return [];
@@ -136,7 +150,7 @@ export default function CheckoutPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderId: order.id,
-                    amount: liveTotalAmount, // Use the live total amount
+                    amount: liveTotalAmount,
                     email: user.email,
                     gateway: gateway,
                 }),
@@ -204,15 +218,15 @@ export default function CheckoutPage() {
         <BuyerLayout>
             <div className="container py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                    <Card>
+                    <Card className="border-white/5 bg-card/50">
                         <CardHeader>
-                            <CardTitle>Order Summary</CardTitle>
-                            <CardDescription>Review your order before payment.</CardDescription>
+                            <CardTitle className="font-headline text-xl uppercase tracking-tight">Order Summary</CardTitle>
+                            <CardDescription className="text-xs uppercase tracking-widest font-bold">Review your order before payment.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {orderItems.map((item) => (
                                 <div key={item.productId} className="flex items-center gap-4">
-                                    <div className="relative h-16 w-16 rounded-md overflow-hidden border">
+                                    <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/10 shadow-lg">
                                         <Image 
                                             src={item.imageUrl || getPlaceholderImage()} 
                                             alt={item.name || 'Product'} 
@@ -220,52 +234,78 @@ export default function CheckoutPage() {
                                             className="object-cover" 
                                         />
                                     </div>
-                                    <div>
-                                        <p className="font-semibold">{item.name}</p>
-                                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-sm truncate uppercase tracking-tight">{item.name}</p>
+                                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Qty: {item.quantity}</p>
                                     </div>
-                                    <p className="ml-auto font-bold">${(item.price * item.quantity).toLocaleString()}</p>
+                                    <p className="ml-auto font-black text-sm text-primary">${(item.price * item.quantity).toLocaleString()}</p>
                                 </div>
                             ))}
 
-                            <Separator />
-                            <div className="flex justify-between text-sm">
-                                <p>Subtotal</p>
-                                <p>${subtotal.toLocaleString()}</p>
-                            </div>
-                             <div className="flex justify-between text-sm">
-                                <p>Shipping</p>
-                                <p>${liveShippingCost.toLocaleString()}</p>
+                            <Separator className="bg-white/5" />
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                    <p>Subtotal</p>
+                                    <p>${subtotal.toLocaleString()}</p>
+                                </div>
+                                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                    <p>Shipping</p>
+                                    <p>${liveShippingCost.toLocaleString()}</p>
+                                </div>
                             </div>
                         </CardContent>
-                        <CardFooter>
-                            <div className="flex justify-between w-full font-bold text-lg">
-                                <p>Total</p>
-                                <p>USD ${liveTotalAmount.toLocaleString()}</p>
+                        <CardFooter className="bg-white/5 p-6 rounded-b-lg border-t border-white/5">
+                            <div className="flex justify-between w-full">
+                                <div className="space-y-0.5">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Total Amount</p>
+                                    <p className="text-2xl font-black tracking-tighter text-white">USD ${liveTotalAmount.toLocaleString()}</p>
+                                </div>
+                                <ShieldCheck className="h-8 w-8 text-primary/40" />
                             </div>
                         </CardFooter>
                     </Card>
 
                     <div className="space-y-6">
-                        <h2 className="text-xl font-bold">Choose Payment Method</h2>
-                         <Button
-                            size="lg"
-                            className="w-full justify-start gap-4 h-16 text-lg"
-                            onClick={() => handlePayment('paystack')}
-                            disabled={!!isLoadingPayment}
-                         >
-                            {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin" /> : <div className="h-6 w-6 bg-white rounded" />} 
-                            Pay with Paystack (Card, M-Pesa)
-                        </Button>
-                         <Button
-                            size="lg"
-                            className="w-full justify-start gap-4 h-16 text-lg bg-blue-600 hover:bg-blue-700"
-                            onClick={() => handlePayment('paypal')}
-                            disabled={!!isLoadingPayment}
-                         >
-                            {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin" /> : <div className="h-6 w-6 bg-white rounded" />} 
-                            Pay with PayPal
-                        </Button>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Options</h2>
+                        
+                        <div className="grid gap-3">
+                            <Button
+                                size="lg"
+                                className="w-full justify-start gap-4 h-20 rounded-2xl bg-white text-black hover:bg-neutral-200 transition-all shadow-xl group border-none"
+                                onClick={() => handlePayment('paystack')}
+                                disabled={!!isLoadingPayment}
+                            >
+                                <div className="h-12 w-12 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 transition-transform group-hover:scale-105">
+                                    {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon />}
+                                </div>
+                                <div className="text-left min-w-0">
+                                    <p className="font-black text-xs uppercase tracking-widest">Paystack</p>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">Card, M-Pesa, Bank Transfer</p>
+                                </div>
+                            </Button>
+
+                            <Button
+                                size="lg"
+                                className="w-full justify-start gap-4 h-20 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white transition-all shadow-xl group border-none"
+                                onClick={() => handlePayment('paypal')}
+                                disabled={!!isLoadingPayment}
+                            >
+                                <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center shrink-0 border border-white/20 transition-transform group-hover:scale-105">
+                                    {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin text-black" /> : <PayPalIcon />}
+                                </div>
+                                <div className="text-left min-w-0">
+                                    <p className="font-black text-xs uppercase tracking-widest">PayPal</p>
+                                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter truncate">Global Card & PayPal Credit</p>
+                                </div>
+                            </Button>
+                        </div>
+
+                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-primary/10 border border-primary/20">
+                            <ShieldCheck className="h-5 w-5 text-primary" />
+                            <p className="text-[10px] font-bold text-primary/80 uppercase tracking-widest leading-relaxed">
+                                Your payment is encrypted and handled by world-class secure gateways. Go Earn never stores your card details.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

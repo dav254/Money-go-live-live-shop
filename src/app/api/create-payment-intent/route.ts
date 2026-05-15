@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
-import PaystackLib from 'paystack';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -16,29 +15,36 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
+    let PaystackLib;
+    try {
+        // Dynamic import to handle CommonJS resolution in some Next.js environments
+        PaystackLib = (await import('paystack')).default;
+    } catch (e) {
+        console.warn("Paystack module loading warning:", e);
+    }
+
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    const paystack = paystackSecret ? PaystackLib(paystackSecret) : null;
+    const paystack = (PaystackLib && paystackSecret) ? PaystackLib(paystackSecret) : null;
 
     try {
         const body = await request.json();
         const { amount, email, gateway, metadata, transactionType, orderId } = body;
 
-        // Validation: No simulation allowed for points purchase
-        if (!paystackSecret && gateway === 'paystack') {
-            return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
+        // Validation: Ensure gateway is configured
+        if (gateway === 'paystack' && !paystack) {
+            return NextResponse.json({ error: 'Paystack is not correctly configured or installed on the server.' }, { status: 500 });
         }
 
         const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
 
         if (gateway === 'paystack') {
-            if (!paystack) throw new Error("Paystack is not configured on this server.");
+            if (!paystack) throw new Error("Paystack instance not available.");
 
-            // Paystack handles channel detection (M-Pesa vs Card) based on currency and settings
             const response = await paystack.transaction.initialize({
                 email: email,
                 amount: Math.round(amount * 100), 
-                currency: 'USD', // Paystack will handle conversion or local channels if set up
+                currency: 'USD',
                 reference: reference,
                 metadata: {
                     ...metadata,
