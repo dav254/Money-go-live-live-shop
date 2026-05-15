@@ -11,6 +11,7 @@ import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff } from 'l
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -34,7 +35,7 @@ export default function SellerGoLivePage() {
   const [prewarmedMeetingId, setPrewarmedMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = setToken] = useState<string | null>(null);
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
@@ -78,7 +79,7 @@ export default function SellerGoLivePage() {
       setWantsToSetup(true);
     } catch (err: any) { 
         toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
-        getCameraPermission();
+        setIsHardwareReleased(true);
     } finally { 
         setIsStarting(false);
     }
@@ -178,7 +179,6 @@ export default function SellerGoLivePage() {
 
   const handleReactivateCamera = () => {
       setIsHardwareReleased(false);
-      // The useEffect will catch this change and run getCameraPermission()
   };
 
   if (isConfigMissing) {
