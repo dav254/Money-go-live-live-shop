@@ -5,9 +5,11 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tag, Clock, CheckCircle, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Tag, Clock, CheckCircle, ArrowLeft, MessageSquare, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock Offers for Frontend-Only Pipeline
 const MOCK_SENT_OFFERS = [
@@ -32,6 +34,23 @@ const MOCK_SENT_OFFERS = [
 ];
 
 export default function SellerOffersPage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isConnecting, setIsConnecting] = React.useState<string | null>(null);
+
+  const handleNegotiation = (offerId: string) => {
+    setIsConnecting(offerId);
+    toast({
+        title: "Connecting with Buyer...",
+        description: "Opening a secure negotiation channel for this deal.",
+    });
+
+    // Simulate pipeline transition to the messages page
+    setTimeout(() => {
+        router.push('/messages');
+    }, 1500);
+  };
+
   return (
     <SellerLayout>
       <div className="p-6 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
@@ -78,8 +97,17 @@ export default function SellerOffersPage() {
 
                 <div className="flex flex-col gap-3 w-full md:w-auto shrink-0">
                   {offer.status === 'accepted' ? (
-                     <Button className="h-14 px-8 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 text-white border-none">
-                        <MessageSquare className="mr-2 h-4 w-4" /> Start Negotiation
+                     <Button 
+                        disabled={isConnecting === offer.id}
+                        onClick={() => handleNegotiation(offer.id)}
+                        className="h-14 px-8 rounded-2xl bg-blue-600 hover:bg-blue-700 font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-600/20 text-white border-none"
+                     >
+                        {isConnecting === offer.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                        )}
+                        {isConnecting === offer.id ? 'Connecting...' : 'Start Negotiation'}
                      </Button>
                   ) : (
                     <Button variant="outline" className="h-14 px-8 rounded-2xl border-white/10 font-black text-xs uppercase tracking-widest text-white hover:bg-white/5">
