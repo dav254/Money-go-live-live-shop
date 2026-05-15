@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { checkFirestoreHealth } from '@/lib/server-health';
 
@@ -9,26 +8,35 @@ interface ServiceStatus {
   status: Status;
 }
 
-// A simple check for external services we can't truly ping.
-// This confirms our environment variables are set up.
+/**
+ * Checks if a specific external service is configured and reachable.
+ */
 async function checkExternalService(name: string, envVars: string[]): Promise<Status> {
     const isConfigured = envVars.every(v => !!process.env[v]);
     if (isConfigured) {
         return 'operational';
     }
-    console.warn(`${name} is not configured. Missing environment variables.`);
+    console.warn(`[Health Check] ${name} is not configured. Missing environment variables.`);
     return 'degraded';
 }
 
 async function checkAiServices(): Promise<Status> {
-    return checkExternalService('Genkit (AI)', ['GEMINI_API_KEY']);
+    return checkExternalService('Genkit AI (Gemini)', ['GEMINI_API_KEY']);
 }
 
 async function checkLiveStreaming(): Promise<Status> {
-    return checkExternalService('VideoSDK', ['VIDEOSDK_API_KEY', 'VIDEOSDK_SECRET_KEY']);
+    return checkExternalService('VideoSDK Signal', ['VIDEOSDK_API_KEY', 'VIDEOSDK_SECRET_KEY']);
 }
 
-// Measures the actual API response time by performing a quick database health check.
+async function checkPaymentGateways(): Promise<Status> {
+    const paystack = !!process.env.PAYSTACK_SECRET_KEY;
+    const paypal = !!process.env.PAYPAL_CLIENT_ID;
+    return (paystack && paypal) ? 'operational' : 'degraded';
+}
+
+/**
+ * Measures real-time API response time.
+ */
 async function getRealApiResponseTime(): Promise<number> {
     const startTime = Date.now();
     await checkFirestoreHealth();
@@ -42,19 +50,22 @@ export async function GET(request: Request) {
         firestore,
         live,
         ai,
+        payments,
         apiResponseTime,
     ] = await Promise.all([
         checkFirestoreHealth(),
         checkLiveStreaming(),
         checkAiServices(),
+        checkPaymentGateways(),
         getRealApiResponseTime(),
     ]);
 
     const services: ServiceStatus[] = [
-      { name: 'API: Payments (Paystack/PayPal)', status: 'operational' },
-      { name: 'Database (Firestore)', status: firestore },
-      { name: 'Live Streaming (VideoSDK)', status: live },
-      { name: 'AI Services (Genkit)', status: ai },
+      { name: 'API Gateway (Go Earn)', status: 'operational' },
+      { name: 'Database (Firebase Firestore)', status: firestore },
+      { name: 'AI Core (Google Gemini)', status: ai },
+      { name: 'Live Stream Signals (VideoSDK)', status: live },
+      { name: 'Payment Flow (Paystack/PayPal)', status: payments },
     ];
 
     return NextResponse.json({ services, apiResponseTime });
