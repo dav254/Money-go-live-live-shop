@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -45,8 +46,9 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
 
-    // Chat System Rules (Synced with collection name 'chats')
+    // Chat System Rules
     match /chats/{chatId} {
+      // Correct list/read access for participants
       allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
@@ -61,7 +63,7 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
       match /comments/{commentId} { allow read, create: if isSignedIn(); }
       match /reviews/{reviewId} { allow read, create: if isSignedIn(); }
     }

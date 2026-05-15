@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
@@ -16,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 function CheckoutSkeleton() {
     return (
@@ -213,7 +213,12 @@ export default function CheckoutPage() {
                             {orderItems.map((item) => (
                                 <div key={item.productId} className="flex items-center gap-4">
                                     <div className="relative h-16 w-16 rounded-md overflow-hidden border">
-                                        <Image src={item.imageUrl || ''} alt={item.name || 'Product'} fill className="object-cover" />
+                                        <Image 
+                                            src={item.imageUrl || getPlaceholderImage()} 
+                                            alt={item.name || 'Product'} 
+                                            fill 
+                                            className="object-cover" 
+                                        />
                                     </div>
                                     <div>
                                         <p className="font-semibold">{item.name}</p>

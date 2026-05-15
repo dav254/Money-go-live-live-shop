@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
+import PaystackLib from 'paystack';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -15,9 +16,8 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
-    const Paystack = (await import('paystack')).default;
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    const paystack = paystackSecret ? Paystack(paystackSecret) : null;
+    const paystack = paystackSecret ? PaystackLib(paystackSecret) : null;
 
     try {
         const body = await request.json();
