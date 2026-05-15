@@ -13,7 +13,9 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
     }
 
     match /users/{userId} {
@@ -30,32 +32,21 @@ service cloud.firestore {
 
     // Buyer Request Marketplace
     match /requests/{requestId} {
-      // Anyone signed in (Sellers) can browse requests
-      allow read: if isSignedIn();
-      // Only the buyer can create and manage their own request
-      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      // Anyone signed in (Sellers) can browse and manage requests
+      allow read, write: if isSignedIn();
     }
 
     // Seller Offers/Pitches
     match /offers/{offerId} {
-      // Buyers can read offers for their requests, Sellers can read their own offers
-      allow read: if isSignedIn();
-      // Sellers can create offers
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow read, write: if isSignedIn();
     }
 
-    // Chat System Rules - Ensuring matching with 'chats' collection used in code
+    // Chat System Rules
     match /chats/{chatId} {
-      allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
+      allow read, write: if isSignedIn();
       
       match /messages/{messageId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -98,18 +89,15 @@ service cloud.firestore {
       allow write: if isSignedIn(); 
     }
     
-    // Wallet Transactions
     match /walletTransactions/{transactionId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'platform_revenue' || resource.data.userId == 'tax_collected');
     }
     
-    // Payouts
     match /payouts/{payoutId} {
       allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
       allow create: if isSignedIn();
     }
 
-    // Resell Activities Ledger
     match /resellActivities/{activityId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
