@@ -334,7 +334,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   return (
     <div className="flex h-full w-full bg-background overflow-hidden relative">
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
-        <div className="flex items-center justify-between border-b p-3 bg-card/30 backdrop-blur-xl shrink-0 z-10">
+        <div className="flex items-center justify-between border-b px-4 py-3 bg-card/30 backdrop-blur-xl shrink-0 z-10">
             <div className="flex items-center gap-3 overflow-hidden min-w-0">
             <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0 h-8 w-8" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
             <div className="relative shrink-0">
@@ -372,7 +372,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </div>
 
         <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
-            <div className="p-3 sm:p-5 space-y-6 pb-12 w-full max-w-3xl mx-auto">
+            <div className="px-4 sm:px-6 py-6 space-y-6 pb-12 w-full max-w-3xl mx-auto">
             {allMessages.map((msg) => {
                 const senderIsMe = msg.senderId === currentUser.uid;
                 const alignRight = senderIsMe;
@@ -381,10 +381,10 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                         <div className={cn("flex flex-col gap-1 max-w-[85%] sm:max-w-[70%]", alignRight ? "items-end text-right" : "items-start text-left")}>
                             {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
                                 <div className={cn(
-                                    "rounded-xl px-3 py-2 text-[13px] font-medium leading-snug border shadow-sm break-words text-left", 
+                                    "rounded-xl px-3 py-2 text-[13px] font-medium leading-snug border shadow-sm break-words overflow-hidden text-left", 
                                     alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                                 )}>
-                                    <p className="whitespace-pre-wrap">{msg.messageText}</p>
+                                    <p className="whitespace-pre-wrap break-words">{msg.messageText}</p>
                                 </div>
                             ))}
                             <div className={cn("flex items-center gap-1.5 px-1 opacity-40", alignRight ? "flex-row-reverse" : "flex-row")}>
@@ -402,7 +402,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </ScrollArea>
 
-        <div className="p-2 sm:p-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
+        <div className="px-4 py-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
             {uploadProgress !== null && (
             <div className="mb-2 px-1 max-w-3xl mx-auto">
                 <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-primary mb-1 animate-pulse"><span>SENDING...</span><span>{Math.round(uploadProgress)}%</span></div>

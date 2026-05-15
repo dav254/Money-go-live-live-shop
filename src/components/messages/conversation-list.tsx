@@ -19,7 +19,7 @@ interface ConversationListProps {
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
   return (
     <div className="flex h-full w-full flex-col bg-background overflow-hidden">
-      <div className="p-3 sm:p-4 border-b border-white/5 shrink-0 bg-card/20">
+      <div className="px-4 py-4 border-b border-white/5 shrink-0 bg-card/20">
         <div className="flex items-center justify-between mb-3 overflow-hidden">
             <h2 className="font-black text-base uppercase tracking-tighter truncate">Messages</h2>
             {chats.length > 0 && (
@@ -38,7 +38,7 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
       </div>
       
       <ScrollArea className="flex-1">
-        <div className="p-1.5 space-y-0.5">
+        <div className="px-2 py-2 space-y-0.5">
           {isLoading && chats.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-2 opacity-30">
                 <Loader2 className="h-5 w-5 animate-spin" />
