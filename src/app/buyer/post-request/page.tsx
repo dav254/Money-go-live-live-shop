@@ -52,6 +52,9 @@ import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 const MAX_VIDEO_DURATION = 30;
 
@@ -70,6 +73,9 @@ const formSchema = z.object({
 export default function PostRequestPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const storage = getStorage();
 
   const [requestMode, setRequestMode] = useState<'video' | 'text'>('text');
   const [isUploading, setIsUploading] = useState(false);
@@ -147,22 +153,76 @@ export default function PostRequestPage() {
     return () => clearInterval(interval);
   }, [isRecording]);
 
+  const uploadFile = async (file: File, path: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const storageRef = ref(storage, path);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => reject(error),
+        async () => {
+          const url = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(url);
+        }
+      );
+    });
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Login Required', description: 'You must be logged in to broadcast a need.' });
+      return;
+    }
+
     setIsUploading(true);
+    setUploadProgress(0);
     toast({ title: 'Broadcasting Live...', description: 'Syncing your need with local sellers.' });
 
-    // Simulate "UI Pipe" flow
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += 15;
-        setUploadProgress(progress);
-        if (progress >= 100) {
-            clearInterval(interval);
-            setIsUploading(false);
-            toast({ title: 'Broadcast Published!', description: 'Sellers in your area are being notified.' });
-            router.push('/buyer/requests/my-requests');
-        }
-    }, 200);
+    try {
+      let finalVideoUrl = null;
+      if (videoFile) {
+        const path = `requests/${user.uid}/${Date.now()}_video_${videoFile.name}`;
+        finalVideoUrl = await uploadFile(videoFile, path);
+      }
+
+      // Link backend specifically with the 'title' field as the Requirement Summary
+      const requestData = {
+        title: values.title, // This is the Requirement Summary
+        description: values.description,
+        category: values.category,
+        minBudget: values.minBudget,
+        maxBudget: values.maxBudget,
+        county: values.county,
+        area: values.area,
+        contactMethod: values.contactMethod,
+        deadline: values.deadline,
+        buyerId: user.uid,
+        requestType: requestMode,
+        videoUrl: finalVideoUrl,
+        status: 'open',
+        offersCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        views: 0,
+        imageUrls: [],
+        currency: 'KES',
+        country: 'Kenya'
+      };
+
+      await addDoc(collection(firestore, 'requests'), requestData);
+
+      toast({ title: 'Broadcast Published!', description: 'Sellers in your area are being notified.' });
+      router.push('/buyer/requests/my-requests');
+    } catch (error: any) {
+      console.error("Broadcast failed:", error);
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not publish your broadcast.' });
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   return (
@@ -341,7 +401,7 @@ export default function PostRequestPage() {
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                     <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
-                                        <SelectValue placeholder="Select" />
+                                        <SelectValue placeholder="Select County" />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
@@ -386,7 +446,7 @@ export default function PostRequestPage() {
                         <div className="space-y-3 px-4">
                              <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">
                                  <span>Connecting Sellers...</span>
-                                 <span>{Math.min(uploadProgress, 100)}%</span>
+                                 <span>{Math.round(uploadProgress)}%</span>
                              </div>
                              <Progress value={uploadProgress} className="h-1.5 bg-white/5" />
                         </div>
