@@ -402,24 +402,24 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </ScrollArea>
 
-        <div className="p-4 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10">
+        <div className="p-2 sm:p-4 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
             {uploadProgress !== null && (
             <div className="mb-4 px-2 max-w-4xl mx-auto">
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary mb-1.5 animate-pulse"><span>Sending Media...</span><span>{Math.round(uploadProgress)}%</span></div>
                 <Progress value={uploadProgress} className="h-1 bg-primary/10" />
             </div>
             )}
-            <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="relative flex items-center gap-2 max-w-4xl mx-auto w-full">
+            <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-1.5 sm:gap-2 w-full max-w-4xl mx-auto">
             <div className="flex items-center gap-1 shrink-0">
-                <Avatar className="h-9 w-9 border-2 border-primary/20 shrink-0">
+                <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-primary/20 shrink-0">
                     <AvatarImage src={userProfile?.profilePictureUrl} />
-                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{userProfile?.username?.charAt(0)}</AvatarFallback>
+                    <AvatarFallback className="bg-neutral-800 text-[10px] sm:text-xs font-black uppercase">{userProfile?.username?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 
                 {userProfile?.userRole === 'seller' && (
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button type="button" size="icon" variant="outline" className="h-9 w-9 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                            <Button type="button" size="icon" variant="outline" className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
                                 <Package className="h-4 w-4" />
                             </Button>
                         </DialogTrigger>
@@ -432,7 +432,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                     size="icon" 
                     variant="outline" 
                     className={cn(
-                        "h-9 w-9 rounded-xl border-white/5 shrink-0 transition-all",
+                        "h-8 w-8 sm:h-9 sm:w-9 rounded-xl border-white/5 shrink-0 transition-all",
                         isAiOpen ? "bg-primary/20 text-primary border-primary/30" : "bg-neutral-900/50"
                     )} 
                     onClick={() => setIsAiOpen(!isAiOpen)}
@@ -441,15 +441,17 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 </Button>
             </div>
 
-            <Input 
-                placeholder={uploadProgress !== null ? "Uploading..." : "Write a message..."} 
-                className="flex-1 h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm px-4" 
-                value={newMessage} 
-                onChange={(e) => setNewMessage(e.target.value)} 
-                disabled={uploadProgress !== null} 
-            />
+            <div className="flex-1 min-w-0 relative">
+                <Input 
+                    placeholder={uploadProgress !== null ? "..." : "Write..."} 
+                    className="w-full h-10 sm:h-11 border-2 border-white/5 bg-background/50 rounded-2xl focus-visible:ring-primary text-sm px-4" 
+                    value={newMessage} 
+                    onChange={(e) => setNewMessage(e.target.value)} 
+                    disabled={uploadProgress !== null} 
+                />
+            </div>
             
-            <Button type="submit" size="icon" className="h-11 w-11 rounded-full bg-primary hover:bg-primary/90 shrink-0 shadow-lg shadow-primary/20" disabled={uploadProgress !== null || !newMessage.trim()}>
+            <Button type="submit" size="icon" className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-primary hover:bg-primary/90 shrink-0 shadow-lg shadow-primary/20" disabled={uploadProgress !== null || !newMessage.trim()}>
                 <Send className="h-4 w-4" />
             </Button>
             </form>
@@ -468,4 +470,3 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     </div>
   );
 }
-
