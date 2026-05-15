@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,7 @@ export default function SellerGoLivePage() {
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
+  const [isHardwareReleased, setIsHardwareReleased] = useState(false);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -54,8 +55,9 @@ export default function SellerGoLivePage() {
   const handleSetupPreview = useCallback(async () => {
     if (!user || !token) return;
     setIsStarting(true);
+    setIsHardwareReleased(false);
     
-    // CRITICAL: Explicitly stop preview tracks to prevent contentions with VideoSDK Studio
+    // Explicitly stop preview tracks to prevent contentions with VideoSDK Studio
     if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
         videoRef.current.srcObject = null;
@@ -74,7 +76,6 @@ export default function SellerGoLivePage() {
       setWantsToSetup(true);
     } catch (err: any) { 
         toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
-        // Re-enable camera if setup fails
         getCameraPermission();
     } finally { 
         setIsStarting(false);
@@ -110,11 +111,14 @@ export default function SellerGoLivePage() {
   }, []);
 
   useEffect(() => {
-    if (!wantsToSetup) getCameraPermission();
+    if (!wantsToSetup && !isHardwareReleased) getCameraPermission();
     return () => {
-        if (videoRef.current?.srcObject) (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+        if (videoRef.current?.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+            videoRef.current.srcObject = null;
+        }
     };
-  }, [wantsToSetup, getCameraPermission]);
+  }, [wantsToSetup, getCameraPermission, isHardwareReleased]);
 
   const handleStartBroadcast = async () => {
     if (!user || !firestore || !meetingId) return;
@@ -135,10 +139,22 @@ export default function SellerGoLivePage() {
   const handleEndBroadcast = async () => {
     if (!user) return;
     
+    // HARD RELEASE: Stop all preview tracks immediately
+    if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+    }
+
     setWantsToSetup(false);
     setIsLive(false);
     setMeetingId(null);
-    toast({ title: "SHOW ENDED", description: "Broadcast has been terminated." });
+    setIsHardwareReleased(true); // Flag to prevent auto-restart in useEffect
+    
+    toast({ 
+        title: "SHOW ENDED", 
+        description: "Broadcast terminated. Camera and Mic are now OFF.",
+    });
 
     try {
         await fetch('/api/live-session', {
@@ -152,6 +168,11 @@ export default function SellerGoLivePage() {
     } catch (err) {
         console.error("Failed to sync session end to database", err);
     }
+  };
+
+  const handleReactivateCamera = () => {
+      setIsHardwareReleased(false);
+      getCameraPermission();
   };
 
   if (isConfigMissing) {
@@ -191,7 +212,7 @@ export default function SellerGoLivePage() {
           <SellerLayout fullWidth>
               <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex flex-col">
                   <div className="absolute inset-0 z-0">
-                    <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover opacity-60 transition-transform duration-700 hover:scale-105" />
+                    <video ref={videoRef} autoPlay muted playsInline className={cn("h-full w-full object-cover transition-all duration-700", isHardwareReleased ? "opacity-20 grayscale blur-xl" : "opacity-60")} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                   </div>
 
@@ -204,22 +225,39 @@ export default function SellerGoLivePage() {
 
                   <div className="flex-1 flex flex-col items-center justify-center relative z-20 p-6 text-center">
                       <div className="max-w-md w-full animate-in fade-in zoom-in-95 duration-500">
-                          <div className="mb-8 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
-                            <Video className="h-16 w-16 text-primary" />
-                          </div>
+                          {isHardwareReleased ? (
+                              <div className="mb-8 p-6 rounded-full bg-neutral-900 border border-white/10 w-fit mx-auto shadow-2xl">
+                                <PowerOff className="h-16 w-16 text-neutral-600" />
+                              </div>
+                          ) : (
+                              <div className="mb-8 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
+                                <Video className="h-16 w-16 text-primary" />
+                              </div>
+                          )}
 
-                          <Button 
-                            size="lg" 
-                            className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
-                            onClick={handleSetupPreview} 
-                            disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
-                          >
-                              {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
-                              START LIVE SESSION
-                          </Button>
+                          {isHardwareReleased ? (
+                              <Button 
+                                size="lg" 
+                                className="w-full h-20 rounded-[2rem] font-black text-xl bg-white text-black hover:bg-neutral-200 shadow-2xl transition-all" 
+                                onClick={handleReactivateCamera}
+                              >
+                                  <Camera className="mr-3 h-8 w-8" /> 
+                                  PREPARE STUDIO
+                              </Button>
+                          ) : (
+                              <Button 
+                                size="lg" 
+                                className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
+                                onClick={handleSetupPreview} 
+                                disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
+                              >
+                                  {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
+                                  START LIVE SESSION
+                              </Button>
+                          )}
                           
                           <p className="mt-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
-                             100 Points per 70-minute session
+                             {isHardwareReleased ? "Hardware Disconnected for Privacy" : "100 Points per 70-minute session"}
                           </p>
 
                           {hasPermissions === false && (
@@ -234,8 +272,8 @@ export default function SellerGoLivePage() {
 
                   <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end pointer-events-none opacity-40">
                       <div className="space-y-1">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-primary">Pro Tip</p>
-                          <p className="text-[10px] font-bold text-white max-w-[200px]">Keep your products within the center frame for mobile viewers.</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-primary">Status</p>
+                          <p className="text-[10px] font-bold text-white max-w-[200px]">{isHardwareReleased ? 'Camera/Mic: OFF' : 'Camera/Mic: Ready'}</p>
                       </div>
                       <Zap className="h-8 w-8 text-primary" />
                   </div>

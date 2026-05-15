@@ -27,6 +27,14 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           if (err.name !== 'AbortError') console.error("Studio play failed:", err);
       });
     }
+    
+    // Cleanup tracks on unmount
+    return () => {
+        if (videoRef.current?.srcObject) {
+            (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+            videoRef.current.srcObject = null;
+        }
+    };
   }, [webcamStream, webcamOn]);
 
   return (
@@ -57,6 +65,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
   const { leave } = useMeeting();
 
   const handleEndClick = () => {
+    // Force SDK to release hardware before unmounting
     leave();
     onEnd();
   };
@@ -323,7 +332,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         mode: "CONFERENCE",
         multiStream: false,
         webcamConfig: {
-            resolution: "hhd", // COMPETITION GRADE (1080p)
+            resolution: "hhd", 
             optimizationMode: "motion",
             multiStream: false,
         },
