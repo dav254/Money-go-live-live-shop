@@ -24,7 +24,10 @@ import {
     ShieldCheck,
     X,
     TrendingUp,
-    ChevronRight
+    ChevronRight,
+    Paperclip,
+    Image as ImageIcon,
+    FileText
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
@@ -69,7 +72,7 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
                 <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border">
                      <Image 
                         src={product.imageUrl || 'https://picsum.photos/seed/product/100/100'} 
-                        alt={product.name || 'Shared product'} 
+                        alt={product.name || 'product'} 
                         fill 
                         className="object-cover group-hover:scale-110 transition-transform duration-500" 
                     />
@@ -110,10 +113,10 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
     return <video src={message.mediaUrl} controls className="max-w-[180px] rounded-xl border shadow-sm bg-black" />;
   }
   return (
-    <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="flex max-w-[180px] items-center gap-2 rounded-xl border bg-card p-2 shadow-sm hover:bg-muted transition-colors">
-      <div className="p-1 bg-primary/10 rounded-lg"><File className="h-3.5 w-3.5 text-primary" /></div>
+    <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="flex max-w-[200px] items-center gap-2 rounded-xl border bg-card p-2 shadow-sm hover:bg-muted transition-colors">
+      <div className="p-1.5 bg-primary/10 rounded-lg"><FileText className="h-4 w-4 text-primary" /></div>
       <div className="overflow-hidden flex-1">
-        <p className="truncate font-bold text-[10px]">{name}</p>
+        <p className="truncate font-bold text-[10px] text-foreground">{name}</p>
         <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest">{(message.mediaMetadata.size / 1024).toFixed(1)} KB</p>
       </div>
       <Download className="h-3.5 w-3.5 text-muted-foreground" />
@@ -137,7 +140,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                             <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border bg-black">
                                 <Image 
                                     src={product.imageUrl || '/placeholder.svg'} 
-                                    alt={product.name || 'Product thumbnail'} 
+                                    alt={product.name || 'Product'} 
                                     fill 
                                     className="object-cover group-hover:scale-110 transition-transform" 
                                 />
@@ -226,6 +229,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const [newMessage, setNewMessage] = useState('');
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
   const firestore = useFirestore();
+  const storage = getStorage();
   const { userProfile } = useUserProfile(currentUser?.uid);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -316,6 +320,40 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     sendMessage({ messageText: text.trim(), messageType: 'text' }).catch(() => setNewMessage(text));
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !chat || !currentUser) return;
+
+    const path = `chats/${chat.id}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        console.error("Upload error:", error);
+        toast({ variant: 'destructive', title: 'Upload Failed' });
+        setUploadProgress(null);
+      },
+      async () => {
+        const url = await getDownloadURL(uploadTask.snapshot.ref);
+        const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+        
+        await sendMessage({
+          messageType: type,
+          mediaUrl: url,
+          mediaMetadata: { name: file.name, size: file.size, type: file.type }
+        });
+        
+        setUploadProgress(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    );
+  };
+
   const handleShareProduct = useCallback((productId: string) => {
     sendMessage({ messageType: 'product', productId }).catch(error => {
         console.error("Error sharing product:", error);
@@ -348,8 +386,8 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0 h-7 w-7" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
             <div className="relative shrink-0">
                 <Avatar className="h-8 w-8 md:h-9 md:w-9 border border-primary/10 shadow-md">
-                    <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName || 'User avatar'} />
-                    <AvatarFallback className="bg-neutral-800 text-[9px] font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName || 'User'} />
+                    <AvatarFallback className="bg-neutral-800 text-[8px] font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className={cn("absolute -bottom-0.5 -right-0.5 h-2 w-2 border border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
             </div>
@@ -412,19 +450,43 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </ScrollArea>
 
         <div className="px-4 md:px-6 py-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
+            {uploadProgress !== null && (
+                <div className="mb-3 space-y-1.5 animate-in slide-in-from-bottom-2">
+                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-primary">
+                        <span>Uploading Media...</span>
+                        <span>{Math.round(uploadProgress)}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-1 bg-white/10" />
+                </div>
+            )}
             <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-2 w-full">
             <div className="flex items-center gap-1 shrink-0">
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    onChange={handleFileSelect} 
+                />
+                <Button 
+                    type="button" 
+                    size="icon" 
+                    variant="outline" 
+                    className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadProgress !== null}
+                >
+                    <PlusCircle className="h-4 w-4" />
+                </Button>
+                
                 {userProfile?.userRole === 'seller' && (
-                    <div className="flex gap-1">
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
-                                    <Package className="h-4 w-4" />
-                                </Button>
-                            </DialogTrigger>
-                            <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                        </Dialog>
-                    </div>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                <Package className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                        <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                    </Dialog>
                 )}
                 
                 <Button 
@@ -450,7 +512,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 />
             </div>
             
-            <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim()}>
+            <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim() || uploadProgress !== null}>
                 <Send className="h-4 w-4" />
             </Button>
             </form>
