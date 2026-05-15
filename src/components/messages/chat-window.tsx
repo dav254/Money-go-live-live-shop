@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -30,7 +29,8 @@ import {
     Pause,
     Volume2,
     CreditCard,
-    ShieldCheck
+    ShieldCheck,
+    DollarSign
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile, Order } from '@/lib/types';
@@ -86,7 +86,7 @@ const OrderPaymentCard = ({ orderId }: { orderId: string }) => {
             <div className="p-4 space-y-3">
                 <div className="flex gap-3">
                     <div className="relative h-10 w-10 shrink-0 rounded-lg overflow-hidden border bg-black">
-                        <Image src={order.productImage || '/placeholder.svg'} alt="product" fill className="object-cover" />
+                        <Image src={order.productImage || '/placeholder.svg'} alt={order.productName || 'product'} fill className="object-cover" />
                     </div>
                     <div className="min-w-0">
                         <p className="font-bold text-[11px] truncate text-white leading-tight">{order.productName}</p>
@@ -213,7 +213,7 @@ const CreateInvoiceDialog = ({ sellerId, buyerId, onSend }: { sellerId: string; 
                                     )}
                                 >
                                     <div className="relative h-8 w-8 rounded-md overflow-hidden bg-black shrink-0">
-                                        <Image src={p.imageUrl || '/placeholder.svg'} alt="p" fill className="object-cover" />
+                                        <Image src={p.imageUrl || '/placeholder.svg'} alt={p.name || 'product'} fill className="object-cover" />
                                     </div>
                                     <span className="text-[11px] font-bold truncate flex-1">{p.name}</span>
                                 </button>
