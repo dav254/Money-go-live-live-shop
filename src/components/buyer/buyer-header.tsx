@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Search, Menu, X, Radio, MapPin, RefreshCw } from 'lucide-react';
+import { Search, Menu, X, Radio, MapPin, RefreshCw, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
@@ -13,10 +14,11 @@ import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useUser, useUserProfile } from '@/firebase';
+import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 import { Badge } from '../ui/badge';
 import { Logo } from '../logo';
+import { collection, query, where } from 'firebase/firestore';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -25,11 +27,21 @@ export function BuyerHeader() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
   
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
 
   const isLoading = isUserLoading || isProfileLoading;
+  
+  // Fetch unread chat count for the header icon
+  const chatsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
+  }, [user, firestore]);
+
+  const { data: allChats } = useCollection(chatsQuery);
+  const hasUnreadMessages = allChats?.some(chat => user && chat.unreadCounts?.[user.uid] > 0);
   
   useEffect(() => {
     const stored = getLocationFromStorage();
@@ -152,6 +164,14 @@ export function BuyerHeader() {
             <span className="sr-only">Search</span>
         </Button>
         <ThemeToggle />
+        <Button variant="ghost" size="icon" className="relative" asChild title="Messages">
+          <Link href="/messages">
+            <MessageSquare className="h-5 w-5" />
+            {hasUnreadMessages && (
+              <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-600 rounded-full border-2 border-background animate-pulse" />
+            )}
+          </Link>
+        </Button>
         <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild title="Live Now">
           <Link href="/buyer/live-now">
             <Radio className="h-5 w-5 text-red-600" />

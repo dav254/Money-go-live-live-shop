@@ -108,7 +108,7 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                             {chat.lastMessage || 'Start a conversation'}
                         </p>
                         {unreadCount > 0 && !isActive && (
-                            <Badge className="rounded-full h-4 min-w-[1rem] px-1 bg-primary text-white border-none text-[8px] font-black animate-in zoom-in shrink-0">
+                            <Badge className="rounded-full h-4 min-w-[1rem] px-1 bg-red-600 text-white border-none text-[8px] font-black animate-bounce shrink-0 shadow-lg shadow-red-600/20">
                                 {unreadCount}
                             </Badge>
                         )}
