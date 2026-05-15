@@ -180,7 +180,7 @@ export default function PostRequestPage() {
 
     setIsUploading(true);
     setUploadProgress(0);
-    toast({ title: 'Broadcasting Live...', description: 'Syncing your need with local sellers.' });
+    toast({ title: 'Broadcasting Live...', description: 'Linking your Requirement Summary to our local sellers.' });
 
     try {
       let finalVideoUrl = null;
@@ -189,9 +189,9 @@ export default function PostRequestPage() {
         finalVideoUrl = await uploadFile(videoFile, path);
       }
 
-      // Link backend specifically with the 'title' field as the Requirement Summary
+      // Backend mapping for Requirement Summary (title) and associated data
       const requestData = {
-        title: values.title, // This is the Requirement Summary
+        title: values.title, // This maps to Requirement Summary in the UI
         description: values.description,
         category: values.category,
         minBudget: values.minBudget,
@@ -213,9 +213,10 @@ export default function PostRequestPage() {
         country: 'Kenya'
       };
 
+      // Atomic persistence of the summary pipe
       await addDoc(collection(firestore, 'requests'), requestData);
 
-      toast({ title: 'Broadcast Published!', description: 'Sellers in your area are being notified.' });
+      toast({ title: 'Broadcast Published!', description: 'Your requirement is now live in the marketplace.' });
       router.push('/buyer/requests/my-requests');
     } catch (error: any) {
       console.error("Broadcast failed:", error);
@@ -320,7 +321,7 @@ export default function PostRequestPage() {
                   <CardContent className="p-8 pt-0 space-y-8">
                     <FormField control={form.control} name="title" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Requirement Summary</FormLabel>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Requirements Summary</FormLabel>
                         <FormControl><Input placeholder="e.g. Office Laptop for Designer" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl shadow-inner text-lg font-black uppercase tracking-tighter" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
