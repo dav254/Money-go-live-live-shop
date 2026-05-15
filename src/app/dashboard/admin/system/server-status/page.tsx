@@ -47,6 +47,7 @@ const serviceIcons: { [key: string]: React.ElementType } = {
   'AI Core (Google Gemini)': BrainCircuit,
   'Live Stream Signals (VideoSDK)': Radio,
   'Payment Flow (Paystack/PayPal)': DollarSign,
+  'Media Storage (Cloudinary)': Cloud,
   default: Server,
 }
 

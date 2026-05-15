@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { checkFirestoreHealth } from '@/lib/server-health';
+import { healthCheck as cloudinaryHealth } from '../upload/route';
 
 type Status = 'operational' | 'degraded' | 'outage';
 
@@ -28,6 +29,11 @@ async function checkLiveStreaming(): Promise<Status> {
     return checkExternalService('VideoSDK Signal', ['VIDEOSDK_API_KEY', 'VIDEOSDK_SECRET_KEY']);
 }
 
+async function checkMediaStorage(): Promise<Status> {
+    const res = await cloudinaryHealth();
+    return res.status as Status;
+}
+
 async function checkPaymentGateways(): Promise<Status> {
     const paystack = !!process.env.PAYSTACK_SECRET_KEY;
     const paypal = !!process.env.PAYPAL_CLIENT_ID;
@@ -51,12 +57,14 @@ export async function GET(request: Request) {
         live,
         ai,
         payments,
+        media,
         apiResponseTime,
     ] = await Promise.all([
         checkFirestoreHealth(),
         checkLiveStreaming(),
         checkAiServices(),
         checkPaymentGateways(),
+        checkMediaStorage(),
         getRealApiResponseTime(),
     ]);
 
@@ -66,6 +74,7 @@ export async function GET(request: Request) {
       { name: 'AI Core (Google Gemini)', status: ai },
       { name: 'Live Stream Signals (VideoSDK)', status: live },
       { name: 'Payment Flow (Paystack/PayPal)', status: payments },
+      { name: 'Media Storage (Cloudinary)', status: media },
     ];
 
     return NextResponse.json({ services, apiResponseTime });
