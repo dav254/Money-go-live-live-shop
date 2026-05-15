@@ -19,30 +19,30 @@ interface ConversationListProps {
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
   return (
     <div className="flex h-full w-full flex-col bg-background overflow-hidden">
-      <div className="p-4 sm:p-6 border-b border-white/5 shrink-0 bg-card/20">
-        <div className="flex items-center justify-between mb-4 overflow-hidden">
-            <h2 className="font-black text-lg uppercase tracking-tighter truncate">Messages</h2>
+      <div className="p-3 sm:p-4 border-b border-white/5 shrink-0 bg-card/20">
+        <div className="flex items-center justify-between mb-3 overflow-hidden">
+            <h2 className="font-black text-base uppercase tracking-tighter truncate">Messages</h2>
             {chats.length > 0 && (
-              <Badge className="rounded-full h-5 px-2 bg-primary/20 text-primary border-none shrink-0">
+              <Badge className="rounded-full h-4 px-1.5 bg-primary/20 text-primary border-none text-[9px] shrink-0 font-black">
                 {chats.length}
               </Badge>
             )}
         </div>
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50 group-focus-within:text-primary transition-colors" />
           <Input 
-            placeholder="Search people..." 
-            className="pl-10 h-10 rounded-xl bg-background/50 border-white/5 text-sm" 
+            placeholder="Search network..." 
+            className="pl-8 h-8 rounded-lg bg-background/50 border-white/5 text-[12px] placeholder:text-muted-foreground/30" 
           />
         </div>
       </div>
       
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+        <div className="p-1.5 space-y-0.5">
           {isLoading && chats.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-30">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-center">Scanning Network...</p>
+            <div className="flex flex-col items-center justify-center py-16 gap-2 opacity-30">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <p className="text-[9px] font-black uppercase tracking-widest text-center">SYNCING...</p>
             </div>
           ) : chats.length > 0 ? (
             chats.map((chat) => {
@@ -58,17 +58,17 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                   key={chat.id}
                   onClick={() => onSelectChat(chat)}
                   className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 relative group text-left min-w-0',
-                    isActive ? 'bg-primary shadow-xl shadow-primary/20 text-white' : 'hover:bg-white/5 text-neutral-400'
+                    'w-full flex items-center gap-2.5 p-2.5 rounded-xl transition-all duration-300 relative group text-left min-w-0 border border-transparent',
+                    isActive ? 'bg-primary shadow-xl shadow-primary/20 text-white border-primary/20' : 'hover:bg-white/5 text-neutral-400'
                   )}
                 >
                   <div className="relative shrink-0">
                     <Avatar className={cn(
-                      "h-10 w-10 border-2 transition-all", 
-                      isActive ? "border-white/50 scale-105" : "border-white/5 group-hover:border-primary/30"
+                      "h-9 w-9 border-2 transition-all", 
+                      isActive ? "border-white/40 scale-105" : "border-white/5 group-hover:border-primary/20"
                     )}>
                         <AvatarImage src={otherParticipant.profilePictureUrl} />
-                        <AvatarFallback className="bg-neutral-800 font-bold">{otherParticipant.fullName?.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="bg-neutral-800 font-bold text-[10px]">{otherParticipant.fullName?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className={cn(
                       "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 border-2 border-background rounded-full", 
@@ -79,23 +79,23 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                   <div className="flex-1 overflow-hidden min-w-0">
                     <div className="flex items-center justify-between mb-0.5 overflow-hidden">
                       <p className={cn(
-                        "font-bold text-sm truncate uppercase tracking-tight", 
+                        "font-black text-[12px] truncate uppercase tracking-tight leading-none", 
                         isActive ? "text-white" : "text-foreground"
                       )}>
                         {otherParticipant.fullName}
                       </p>
                       {chat.lastMessageTimestamp && (
                         <span className={cn(
-                          "text-[8px] font-bold uppercase shrink-0 ml-2", 
-                          isActive ? "text-white/60" : "text-muted-foreground/50"
+                          "text-[8px] font-black uppercase shrink-0 ml-1.5 opacity-40", 
+                          isActive ? "text-white/60" : "text-muted-foreground"
                         )}>
                           {chat.lastMessageTimestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       )}
                     </div>
                     <p className={cn(
-                      "text-xs truncate font-medium leading-none", 
-                      isActive ? "text-white/80" : "text-muted-foreground"
+                      "text-[11px] truncate font-medium leading-none mt-0.5", 
+                      isActive ? "text-white/80" : "text-muted-foreground/70"
                     )}>
                         {chat.lastMessage || 'Start a conversation'}
                     </p>
@@ -104,9 +104,9 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
               );
             })
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center px-6 opacity-30">
-                <Circle className="h-12 w-12 text-neutral-500 mb-4" />
-                <p className="text-[10px] text-muted-foreground leading-tight uppercase font-black tracking-widest">No active chats found</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4 opacity-20">
+                <Circle className="h-10 w-10 text-neutral-500 mb-3" />
+                <p className="text-[9px] text-muted-foreground leading-tight uppercase font-black tracking-[0.2em]">INBOX EMPTY</p>
             </div>
           )}
         </div>

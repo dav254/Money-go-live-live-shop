@@ -24,15 +24,13 @@ export function LiveChat({ streamId }: LiveChatProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  // 1. Subscribe to the live session to monitor status and startTime
   const sessionRef = React.useMemo(() => {
     if (!firestore || !streamId) return null;
     return doc(firestore, 'liveSessions', streamId);
   }, [firestore, streamId]);
 
-  const { data: session, isLoading: isSessionLoading } = useDoc<LiveSession>(sessionRef);
+  const { data: session } = useDoc<LiveSession>(sessionRef);
 
-  // 2. VANISH LOGIC: Clear all local state when the show ends or resets
   useEffect(() => {
       if (session?.status !== 'live') {
           setOptimisticMessages([]);
@@ -50,11 +48,8 @@ export function LiveChat({ streamId }: LiveChatProps) {
     }
   }, [user, firestore]);
 
-  // 3. FRESH START FILTER: Only show messages sent after the current show's startTime
   const messagesQuery = React.useMemo(() => {
-    // If not live, or no startTime, don't even run the query
     if (!firestore || !streamId || !session?.startTime || session.status !== 'live') return null;
-    
     return query(
         collection(firestore, `liveSessions/${streamId}/chat`), 
         where('timestamp', '>=', session.startTime),
@@ -64,7 +59,6 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   const { data: serverMessages, isLoading } = useCollection<ChatMessage>(messagesQuery);
 
-  // Clear optimistic messages once server messages catch up
   useEffect(() => {
     if (serverMessages) setOptimisticMessages([]);
   }, [serverMessages]);
@@ -115,17 +109,16 @@ export function LiveChat({ streamId }: LiveChatProps) {
     setNewMessage(prev => `@${userName} ${prev}`);
   };
 
-  // 4. THE VANISH SCREEN: If show is not active, hide all chat UI
   if (session?.status !== 'live') {
       return (
-          <div className="flex flex-col h-full items-center justify-center p-8 text-center bg-black">
-              <div className="p-4 rounded-full bg-white/5 border border-white/10 mb-4">
-                <MessageSquare className="h-10 w-10 text-neutral-700" />
+          <div className="flex flex-col h-full items-center justify-center p-6 text-center bg-black">
+              <div className="p-3 rounded-full bg-white/5 border border-white/10 mb-3">
+                <MessageSquare className="h-8 w-8 text-neutral-800" />
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">
-                  {session?.status === 'ended' ? 'Show Concluded' : 'Preview Mode'}
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-500">
+                  {session?.status === 'ended' ? 'SHOW CONCLUDED' : 'PREVIEW MODE'}
               </p>
-              <p className="text-xs text-neutral-600 font-medium mt-2">Chat will reset and activate once the show begins.</p>
+              <p className="text-[11px] text-neutral-700 font-medium mt-1">Live interaction is currently inactive.</p>
           </div>
       );
   }
@@ -134,25 +127,25 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
   return (
       <div className="flex flex-col h-full bg-black">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-neutral-950/50">
-            <div className="text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
+        <div className="p-3 border-b border-white/5 flex items-center justify-between bg-neutral-950/50">
+            <div className="text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
                 Live Chat
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20">
-                <ShieldCheck className="h-3 w-3 text-green-500" />
-                <span className="text-[8px] font-bold text-green-500 uppercase tracking-tighter">Verified</span>
+            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-green-500/5 border border-green-500/10">
+                <ShieldCheck className="h-3 w-3 text-green-500/60" />
+                <span className="text-[8px] font-black text-green-500/60 uppercase tracking-tighter">SECURED</span>
             </div>
         </div>
         
         <ScrollArea className="flex-1" ref={scrollAreaRef}>
-          <div className="space-y-4 p-4">
+          <div className="space-y-3 p-3">
               {isLoading && allMessages.length === 0 && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="flex gap-2">
                         <Skeleton className="h-6 w-6 rounded-full" />
-                        <Skeleton className="h-10 flex-1 rounded-lg" />
+                        <Skeleton className="h-8 flex-1 rounded-lg" />
                     </div>
                   ))}
                 </div>
@@ -163,25 +156,23 @@ export function LiveChat({ streamId }: LiveChatProps) {
 
                   return (
                     <div key={msg.id} className={cn("flex flex-col group", alignRight ? "items-end" : "items-start", msg.isSending && "opacity-70")}>
-                        <div className={cn("flex max-w-[85%] gap-2", alignRight ? "flex-row-reverse text-right" : "flex-row text-left")}>
-                            <Avatar className="h-7 w-7 border border-white/10 shrink-0 shadow-lg">
+                        <div className={cn("flex max-w-[90%] gap-1.5", alignRight ? "flex-row-reverse text-right" : "flex-row text-left")}>
+                            <Avatar className="h-6 w-6 border border-white/5 shrink-0 shadow-md">
                                 <AvatarImage src={msg.senderAvatar} />
-                                <AvatarFallback className="bg-neutral-800 text-[8px]"><User className="h-3 w-3" /></AvatarFallback>
+                                <AvatarFallback className="bg-neutral-800 text-[8px]"><User className="h-2.5 w-2.5" /></AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <div className={cn("flex items-center gap-2 mb-0.5", alignRight ? "flex-row-reverse" : "flex-row")}>
-                                    <button 
-                                        onClick={() => handleReply(msg.senderName)}
-                                        className="text-[10px] font-black text-neutral-500 uppercase tracking-tight hover:text-primary transition-colors truncate"
-                                    >
-                                        {msg.senderName}
-                                    </button>
-                                </div>
+                                <button 
+                                    onClick={() => handleReply(msg.senderName)}
+                                    className="text-[9px] font-black text-neutral-500 uppercase tracking-tight hover:text-primary transition-colors truncate block mb-0.5"
+                                >
+                                    {msg.senderName}
+                                </button>
                                 <p className={cn(
-                                    "text-sm leading-tight p-2.5 rounded-2xl border shadow-sm",
+                                    "text-[12px] leading-tight p-2 rounded-xl border shadow-sm",
                                     alignRight 
                                         ? "bg-primary text-primary-foreground border-primary rounded-tr-none" 
-                                        : "bg-white/5 text-neutral-200 border-white/5 rounded-tl-none"
+                                        : "bg-white/5 text-neutral-300 border-white/5 rounded-tl-none"
                                 )}>
                                     {msg.messageText}
                                 </p>
@@ -193,17 +184,17 @@ export function LiveChat({ streamId }: LiveChatProps) {
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t border-white/10 bg-neutral-950">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+        <div className="p-2 sm:p-3 border-t border-white/5 bg-neutral-950">
+            <form onSubmit={handleSendMessage} className="flex items-center gap-1.5">
                 <Input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={user ? "Say something..." : "Login to chat"}
-                    className="bg-neutral-900 border-white/10 text-white rounded-xl h-11 focus-visible:ring-primary"
+                    placeholder={user ? "Type..." : "Login to chat"}
+                    className="bg-neutral-900 border-white/5 text-white rounded-lg h-9 text-xs focus-visible:ring-primary px-3"
                     disabled={!user || session?.status !== 'live'}
                 />
-                <Button type="submit" size="icon" className="bg-primary rounded-xl h-11 w-11 shrink-0" disabled={!user || !newMessage.trim() || session?.status !== 'live'}>
-                    <Send className="h-4 w-4" />
+                <Button type="submit" size="icon" className="bg-primary rounded-lg h-9 w-9 shrink-0 border-none" disabled={!user || !newMessage.trim() || session?.status !== 'live'}>
+                    <Send className="h-3.5 w-3.5" />
                 </Button>
             </form>
         </div>
