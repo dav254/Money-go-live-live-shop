@@ -287,24 +287,32 @@ const VoiceMessage = ({ message }: { message: ChatMessage }) => {
     setProgress(0);
   };
 
+  const isUploading = !message.mediaUrl;
+
   return (
-    <div className="flex items-center gap-3 bg-card border rounded-2xl p-2 min-w-[200px] shadow-sm text-left">
+    <div className={cn(
+        "flex items-center gap-3 bg-card border rounded-2xl p-2 min-w-[220px] shadow-sm text-left relative",
+        isUploading && "animate-pulse opacity-70"
+    )}>
       <audio ref={audioRef} src={message.mediaUrl} onTimeUpdate={onTimeUpdate} onEnded={onEnded} className="hidden" />
       <Button 
         size="icon" 
         variant="ghost" 
         className="h-8 w-8 rounded-full bg-primary/10 text-primary shrink-0"
         onClick={togglePlay}
+        disabled={isUploading}
       >
-        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+        {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />)}
       </Button>
       <div className="flex-1 space-y-1">
         <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          <div className={cn("h-full bg-primary transition-all", isUploading && "w-1/3")} style={{ width: isUploading ? undefined : `${progress}%` }} />
         </div>
         <div className="flex justify-between text-[8px] font-black uppercase text-muted-foreground tracking-widest">
-            <span className="flex items-center gap-1"><Volume2 className="h-2 w-2" /> Voice Note</span>
-            <span>{message.mediaMetadata?.duration ? `${Math.floor(message.mediaMetadata.duration)}s` : 'Voice'}</span>
+            <span className="flex items-center gap-1">
+                {isUploading ? 'Sending Voice...' : <><Volume2 className="h-2 w-2" /> Voice Note</>}
+            </span>
+            <span>{message.mediaMetadata?.duration ? `${Math.floor(message.mediaMetadata.duration)}s` : isUploading ? '' : 'Voice'}</span>
         </div>
       </div>
     </div>
@@ -313,8 +321,18 @@ const VoiceMessage = ({ message }: { message: ChatMessage }) => {
 
 const MediaMessage = ({ message }: { message: ChatMessage }) => {
   if (message.messageType === 'voice') return <VoiceMessage message={message} />;
-  if (!message.mediaUrl || !message.mediaMetadata) return null;
-  const { name, type } = message.mediaMetadata;
+  if (!message.mediaUrl && !message.messageType) return null; // Safe guard for optimistic states
+  
+  if (!message.mediaUrl) {
+      return (
+          <div className="rounded-xl border bg-muted/20 p-4 flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-50 text-left">Uploading...</span>
+          </div>
+      )
+  }
+
+  const { name, type } = message.mediaMetadata || { name: 'file', type: 'application/octet-stream' };
   const isImage = type.startsWith('image/');
   const isVideo = type.startsWith('video/');
 
@@ -339,7 +357,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
       <div className="p-1.5 bg-primary/10 rounded-lg"><FileText className="h-4 w-4 text-primary" /></div>
       <div className="overflow-hidden flex-1">
         <p className="truncate font-bold text-[10px] text-foreground">{name}</p>
-        <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest">{(message.mediaMetadata.size / 1024).toFixed(1)} KB</p>
+        <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest">{(message.mediaMetadata?.size ? (message.mediaMetadata.size / 1024).toFixed(1) : 0)} KB</p>
       </div>
       <Download className="h-3.5 w-3.5 text-muted-foreground" />
     </a>
@@ -572,7 +590,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const finalDuration = recordingTime;
         
-        if (audioBlob.size > 500) {
+        if (audioBlob.size > 100) {
             const path = `chats/${chat!.id}/${Date.now()}_voice_note.webm`;
             const storageRef = ref(storage, path);
             const uploadTask = uploadBytesResumable(storageRef, audioBlob);
@@ -691,7 +709,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                                     <OrderPaymentCard orderId={msg.orderId} />
                                 ) : msg.messageType === 'product' ? (
                                     <SharedProductCard productId={msg.productId!} />
-                                ) : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
+                                ) : (msg.mediaUrl || msg.messageType === 'voice' ? <MediaMessage message={msg} /> : (
                                     <div className={cn(
                                         "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
                                         alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
