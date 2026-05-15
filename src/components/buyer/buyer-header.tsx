@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Search, Menu, X, Radio, MapPin, RefreshCw, MessageSquare } from 'lucide-react';
+import { Search, Menu, X, Radio, MessageSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/layout/user-nav';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
@@ -15,8 +15,6 @@ import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
-import { Badge } from '../ui/badge';
 import { Logo } from '../logo';
 import { collection, query, where } from 'firebase/firestore';
 
@@ -29,9 +27,6 @@ export function BuyerHeader() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const firestore = useFirestore();
   
-  const [location, setLocation] = useState<UserLocation | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-
   const isLoading = isUserLoading || isProfileLoading;
   
   // Fetch unread chat count for the header icon
@@ -43,23 +38,6 @@ export function BuyerHeader() {
   const { data: allChats } = useCollection(chatsQuery);
   const hasUnreadMessages = allChats?.some(chat => user && chat.unreadCounts?.[user.uid] > 0);
   
-  useEffect(() => {
-    const stored = getLocationFromStorage();
-    if (stored) {
-        setLocation(stored);
-    } else {
-        handleDetectLocation();
-    }
-  }, []);
-
-  const handleDetectLocation = async () => {
-      setIsDetecting(true);
-      const detected = await detectLocation();
-      setLocation(detected);
-      saveLocationToStorage(detected);
-      setIsDetecting(false);
-  };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       const newQuery = searchQuery.trim();
@@ -121,18 +99,6 @@ export function BuyerHeader() {
                 </h1>
               </Link>
             )}
-        </div>
-
-        <div className="flex items-center gap-2 ml-2">
-            <Badge variant="outline" className="h-8 rounded-full bg-muted/50 border-white/5 flex items-center gap-2 px-3 group transition-all hover:border-primary/30">
-                <MapPin className="h-3 w-3 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground">
-                    {isDetecting ? 'Detecting...' : (location ? `${location.city}, ${location.country}` : 'Kenya')}
-                </span>
-                <button onClick={handleDetectLocation} className={cn("hover:text-primary transition-colors", isDetecting && "animate-spin")}>
-                    <RefreshCw className="h-2.5 w-2.5" />
-                </button>
-            </Badge>
         </div>
       </div>
 
