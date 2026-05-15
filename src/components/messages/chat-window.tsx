@@ -140,7 +140,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                             <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border bg-black">
                                 <Image 
                                     src={product.imageUrl || '/placeholder.svg'} 
-                                    alt={product.name || 'Product'} 
+                                    alt={product.name || 'product'} 
                                     fill 
                                     className="object-cover group-hover:scale-110 transition-transform" 
                                 />
@@ -450,72 +450,74 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         </ScrollArea>
 
         <div className="px-4 md:px-6 py-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
-            {uploadProgress !== null && (
-                <div className="mb-3 space-y-1.5 animate-in slide-in-from-bottom-2">
-                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-primary">
-                        <span>Uploading Media...</span>
-                        <span>{Math.round(uploadProgress)}%</span>
+            <div className="max-w-[90%] mx-auto">
+                {uploadProgress !== null && (
+                    <div className="mb-3 space-y-1.5 animate-in slide-in-from-bottom-2">
+                        <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-primary">
+                            <span>Uploading Media...</span>
+                            <span>{Math.round(uploadProgress)}%</span>
+                        </div>
+                        <Progress value={uploadProgress} className="h-1 bg-white/10" />
                     </div>
-                    <Progress value={uploadProgress} className="h-1 bg-white/10" />
-                </div>
-            )}
-            <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-2 w-full">
-            <div className="flex items-center gap-1 shrink-0">
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    onChange={handleFileSelect} 
-                />
-                <Button 
-                    type="button" 
-                    size="icon" 
-                    variant="outline" 
-                    className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadProgress !== null}
-                >
-                    <PlusCircle className="h-4 w-4" />
-                </Button>
-                
-                {userProfile?.userRole === 'seller' && (
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
-                                <Package className="h-4 w-4" />
-                            </Button>
-                        </DialogTrigger>
-                        <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                    </Dialog>
                 )}
-                
-                <Button 
-                    type="button" 
-                    size="icon" 
-                    variant="outline" 
-                    className={cn(
-                        "h-8 w-8 rounded-xl border-white/5 shrink-0 transition-all",
-                        isAiOpen ? "bg-primary/20 text-primary border-primary/30" : "bg-neutral-900/50"
-                    )} 
-                    onClick={() => setIsAiOpen(!isAiOpen)}
-                >
-                    <Sparkles className="h-4 w-4" />
-                </Button>
-            </div>
+                <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-1.5 w-full">
+                <div className="flex items-center gap-1 shrink-0">
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        onChange={handleFileSelect} 
+                    />
+                    <Button 
+                        type="button" 
+                        size="icon" 
+                        variant="outline" 
+                        className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadProgress !== null}
+                    >
+                        <PlusCircle className="h-4 w-4" />
+                    </Button>
+                    
+                    {userProfile?.userRole === 'seller' && (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                    <Package className="h-4 w-4" />
+                                </Button>
+                            </DialogTrigger>
+                            <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                        </Dialog>
+                    )}
+                    
+                    <Button 
+                        type="button" 
+                        size="icon" 
+                        variant="outline" 
+                        className={cn(
+                            "h-8 w-8 rounded-xl border-white/5 shrink-0 transition-all",
+                            isAiOpen ? "bg-primary/20 text-primary border-primary/30" : "bg-neutral-900/50"
+                        )} 
+                        onClick={() => setIsAiOpen(!isAiOpen)}
+                    >
+                        <Sparkles className="h-4 w-4" />
+                    </Button>
+                </div>
 
-            <div className="flex-1 min-w-0 relative">
-                <Input 
-                    placeholder="Message..." 
-                    className="w-full h-9 border border-white/5 bg-background/50 rounded-xl focus-visible:ring-primary text-sm px-3" 
-                    value={newMessage} 
-                    onChange={(e) => setNewMessage(e.target.value)} 
-                />
+                <div className="flex-1 min-w-0 relative">
+                    <Input 
+                        placeholder="Message..." 
+                        className="w-full h-9 border border-white/5 bg-background/50 rounded-xl focus-visible:ring-primary text-[12px] px-3" 
+                        value={newMessage} 
+                        onChange={(e) => setNewMessage(e.target.value)} 
+                    />
+                </div>
+                
+                <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim() || uploadProgress !== null}>
+                    <Send className="h-4 w-4" />
+                </Button>
+                </form>
             </div>
-            
-            <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim() || uploadProgress !== null}>
-                <Send className="h-4 w-4" />
-            </Button>
-            </form>
         </div>
       </div>
 
