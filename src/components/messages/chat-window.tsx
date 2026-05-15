@@ -67,7 +67,12 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
         <div className="max-w-[200px] rounded-xl border bg-card p-2 shadow-md hover:border-primary transition-all group overflow-hidden text-left">
             <div className="flex gap-2">
                 <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border">
-                     <Image src={product.imageUrl || 'https://picsum.photos/seed/product/100/100'} alt={product.name || 'product'} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                     <Image 
+                        src={product.imageUrl || 'https://picsum.photos/seed/product/100/100'} 
+                        alt={product.name || 'Shared product'} 
+                        fill 
+                        className="object-cover group-hover:scale-110 transition-transform duration-500" 
+                    />
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                     <p className="font-black text-[7px] uppercase tracking-widest text-primary mb-0.5">DEAL</p>
@@ -91,7 +96,13 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
   if (isImage) {
     return (
       <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm">
-        <Image src={message.mediaUrl} alt={name} width={180} height={180} className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500" />
+        <Image 
+            src={message.mediaUrl} 
+            alt={name || 'Shared image'} 
+            width={180} 
+            height={180} 
+            className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500" 
+        />
       </a>
     );
   }
@@ -105,7 +116,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
         <p className="truncate font-bold text-[10px]">{name}</p>
         <p className="text-[8px] text-muted-foreground uppercase font-black tracking-widest">{(message.mediaMetadata.size / 1024).toFixed(1)} KB</p>
       </div>
-      <Download className="h-3 w-3 text-muted-foreground" />
+      <Download className="h-3.5 w-3.5 text-muted-foreground" />
     </a>
   );
 };
@@ -124,7 +135,12 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                     {products?.map(product => (
                         <div key={product.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30 border border-transparent hover:border-primary/30 transition-all group text-left">
                             <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border bg-black">
-                                <Image src={product.imageUrl || '/placeholder.svg'} alt={product.name} fill className="object-cover group-hover:scale-110 transition-transform" />
+                                <Image 
+                                    src={product.imageUrl || '/placeholder.svg'} 
+                                    alt={product.name || 'Product thumbnail'} 
+                                    fill 
+                                    className="object-cover group-hover:scale-110 transition-transform" 
+                                />
                             </div>
                             <div className="flex-1 min-w-0 text-left">
                                 <p className="font-bold text-[11px] truncate leading-none mb-1">{product.name}</p>
@@ -160,7 +176,7 @@ const AiNegotiationCopilot = ({ isOpen, onClose, onApplySuggestion }: { isOpen: 
                     <BrainCircuit className="h-3.5 w-3.5 text-primary" />
                     <span className="font-black text-[9px] uppercase tracking-widest text-white">AI COPILOT</span>
                 </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={onClose}><X className="h-3 w-3" /></Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={onClose}><X className="h-3.5 w-3.5" /></Button>
             </div>
             
             <ScrollArea className="flex-1">
@@ -249,7 +265,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             batch.update(doc(firestore, 'chats', chat.id, 'messages', m.id), { isRead: true, readAt: serverTimestamp() });
         });
         
-        // Reset unread count for current user
         batch.update(doc(firestore, 'chats', chat.id), {
             [`unreadCounts.${currentUser.uid}`]: 0
         });
@@ -269,7 +284,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       setOptimisticMessages(prev => [...prev, { id: tempId, senderId: currentUser.uid, timestamp: new Date(), isOptimistic: true, ...messageData }]);
 
       try {
-          // Add the message to the messages subcollection
           await addDoc(collection(firestore, 'chats', chat.id, 'messages'), { 
               senderId: currentUser.uid, 
               timestamp: serverTimestamp(), 
@@ -277,7 +291,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
               ...messageData 
           });
 
-          // Update the chat head document
           const otherId = chat.participantIds.find(id => id !== currentUser.uid);
           const updateObj: any = { 
               lastMessage: messageData.messageText || 'Sent a file', 
@@ -329,15 +342,13 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   return (
     <div className="flex h-full w-full bg-background overflow-hidden relative">
-      {/* Fluid Main Window */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
-        {/* Responsive Header */}
         <div className="flex items-center justify-between border-b px-4 md:px-6 py-2.5 bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full">
             <div className="flex items-center gap-3 overflow-hidden min-w-0">
-            <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0 h-7 w-7" onClick={onBack}><ArrowLeft className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0 h-7 w-7" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
             <div className="relative shrink-0">
                 <Avatar className="h-8 w-8 md:h-9 md:w-9 border border-primary/10 shadow-md">
-                    <AvatarImage src={otherParticipantProfile?.profilePictureUrl} />
+                    <AvatarImage src={otherParticipantProfile?.profilePictureUrl} alt={otherParticipantProfile?.fullName || 'User avatar'} />
                     <AvatarFallback className="bg-neutral-800 text-[9px] font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className={cn("absolute -bottom-0.5 -right-0.5 h-2 w-2 border border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
@@ -349,17 +360,17 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 </span>
             </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
                 <Button 
                     variant="ghost" 
                     size="icon" 
                     onClick={() => setIsAiOpen(!isAiOpen)}
                     className={cn("rounded-full h-7 w-7 transition-colors", isAiOpen ? "bg-primary/10 text-primary" : "text-muted-foreground")}
                 >
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <Sparkles className="h-4 w-4" />
                 </Button>
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full h-7 w-7 shrink-0"><MoreVertical className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full h-7 w-7 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-2xl">
                     <DropdownMenuItem className="text-destructive text-[10px] font-bold uppercase tracking-widest" onClick={() => updateDoc(doc(firestore, 'chats', chat.id), { deletedFor: arrayUnion(currentUser.uid) }).then(onChatDeleted)}>
                         <Trash2 className="mr-2 h-3 w-3" /> Delete Chat
@@ -369,7 +380,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </div>
 
-        {/* Fluid Messaging Area */}
         <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
             <div className="px-4 md:px-8 py-4 space-y-4 pb-12 w-full">
             {allMessages.map((msg) => {
@@ -401,7 +411,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </ScrollArea>
 
-        {/* Fluid Input Bar */}
         <div className="px-4 md:px-6 py-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
             <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-2 w-full">
             <div className="flex items-center gap-1 shrink-0">
