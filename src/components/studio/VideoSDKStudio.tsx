@@ -28,10 +28,14 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       });
     }
     
-    // Cleanup tracks on unmount
+    // Cleanup tracks on unmount to ensure hardware is released
     return () => {
         if (videoRef.current?.srcObject) {
-            (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(t => {
+                t.stop();
+                console.log(`[Studio] Track ${t.kind} hard-stopped on unmount.`);
+            });
             videoRef.current.srcObject = null;
         }
     };

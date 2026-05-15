@@ -38,7 +38,9 @@ export default function SellerGoLivePage() {
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
-  const [isHardwareReleased, setIsHardwareReleased] = useState(false);
+  
+  // CRITICAL: Initialize to TRUE so camera is OFF on page load
+  const [isHardwareReleased, setIsHardwareReleased] = useState(true);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -111,7 +113,11 @@ export default function SellerGoLivePage() {
   }, []);
 
   useEffect(() => {
-    if (!wantsToSetup && !isHardwareReleased) getCameraPermission();
+    // Only fetch camera stream if we aren't in setup/live AND hardware isn't intentionally released
+    if (!wantsToSetup && !isHardwareReleased) {
+        getCameraPermission();
+    }
+    
     return () => {
         if (videoRef.current?.srcObject) {
             (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
@@ -172,7 +178,7 @@ export default function SellerGoLivePage() {
 
   const handleReactivateCamera = () => {
       setIsHardwareReleased(false);
-      getCameraPermission();
+      // The useEffect will catch this change and run getCameraPermission()
   };
 
   if (isConfigMissing) {
