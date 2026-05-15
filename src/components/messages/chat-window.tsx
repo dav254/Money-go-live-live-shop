@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -278,10 +277,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
               ...messageData 
           });
 
-          // Update the chat head document:
-          // 1. Update last message info
-          // 2. CLEAR deletedFor array so the chat reappears for everyone (WhatsApp style)
-          // 3. Increment unread count for the recipient
+          // Update the chat head document
           const otherId = chat.participantIds.find(id => id !== currentUser.uid);
           const updateObj: any = { 
               lastMessage: messageData.messageText || 'Sent a file', 
@@ -321,7 +317,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             <div className="p-2.5 bg-primary/10 rounded-full w-fit mx-auto">
                 <MessageSquare className="h-7 w-7 text-primary opacity-30" />
             </div>
-            <h3 className="font-black text-base uppercase tracking-tighter">Your Inbox</h3>
+            <h3 className="font-black text-base uppercase tracking-tighter text-foreground">Your Inbox</h3>
             <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">Select a conversation to start messaging buyers or sellers.</p>
         </div>
       </div>
@@ -333,19 +329,21 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
   return (
     <div className="flex h-full w-full bg-background overflow-hidden relative">
+      {/* Fluid Main Window */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
-        <div className="flex items-center justify-between border-b px-4 py-2.5 bg-card/30 backdrop-blur-xl shrink-0 z-10">
+        {/* Responsive Header */}
+        <div className="flex items-center justify-between border-b px-4 md:px-6 py-2.5 bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full">
             <div className="flex items-center gap-3 overflow-hidden min-w-0">
             <Button variant="ghost" size="icon" className="md:hidden rounded-full shrink-0 h-7 w-7" onClick={onBack}><ArrowLeft className="h-3.5 w-3.5" /></Button>
             <div className="relative shrink-0">
-                <Avatar className="h-8 w-8 border border-primary/10 shadow-md">
+                <Avatar className="h-8 w-8 md:h-9 md:w-9 border border-primary/10 shadow-md">
                     <AvatarImage src={otherParticipantProfile?.profilePictureUrl} />
                     <AvatarFallback className="bg-neutral-800 text-[9px] font-black uppercase">{otherParticipantProfile?.fullName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className={cn("absolute -bottom-0.5 -right-0.5 h-2 w-2 border border-background rounded-full", isOnline ? "bg-green-500" : "bg-neutral-500")} />
             </div>
             <div className="overflow-hidden">
-                <p className="font-black text-[11px] uppercase tracking-tight truncate leading-none mb-0.5">{otherParticipantProfile?.fullName}</p>
+                <p className="font-black text-[11px] md:text-xs uppercase tracking-tight truncate leading-none mb-0.5">{otherParticipantProfile?.fullName}</p>
                 <span className="text-[7px] font-black text-muted-foreground/60 uppercase tracking-widest leading-none block truncate">
                     {isOnline ? 'Online' : otherParticipantProfile?.lastSeen ? `Seen ${formatDistanceToNow(otherParticipantProfile.lastSeen.toDate(), { addSuffix: true })}` : 'Offline'}
                 </span>
@@ -371,27 +369,28 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </div>
 
+        {/* Fluid Messaging Area */}
         <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
-            <div className="px-4 sm:px-6 py-4 space-y-4 pb-12 w-full max-w-2xl mx-auto">
+            <div className="px-4 md:px-8 py-4 space-y-4 pb-12 w-full">
             {allMessages.map((msg) => {
                 const senderIsMe = msg.senderId === currentUser.uid;
                 const alignRight = senderIsMe;
                 return (
                     <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-1 duration-300", alignRight ? "justify-end" : "justify-start")}>
-                        <div className={cn("flex flex-col gap-0.5 max-w-[85%] sm:max-w-[70%]", alignRight ? "items-end text-right" : "items-start text-left")}>
+                        <div className={cn("flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] lg:max-w-[60%]", alignRight ? "items-end text-right" : "items-start text-left")}>
                             {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
                                 <div className={cn(
-                                    "rounded-xl px-2.5 py-1.5 text-xs font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
+                                    "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
                                     alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                                 )}>
                                     <p className="whitespace-pre-wrap break-words">{msg.messageText}</p>
                                 </div>
                             ))}
-                            <div className={cn("flex items-center gap-1 px-0.5 opacity-40 mt-0.5", alignRight ? "flex-row-reverse" : "flex-row")}>
-                                <span className="text-[7px] font-black uppercase tracking-tighter">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
+                            <div className={cn("flex items-center gap-1 px-1 opacity-40 mt-1", alignRight ? "flex-row-reverse" : "flex-row")}>
+                                <span className="text-[8px] font-black uppercase tracking-tighter">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
                                 {senderIsMe && msg.isRead && (
-                                    <span className="text-[7px] font-black uppercase text-primary flex items-center gap-0.5">
-                                        <CheckCheck className="h-1.5 w-1.5" /> SEEN
+                                    <span className="text-[8px] font-black uppercase text-primary flex items-center gap-0.5">
+                                        <CheckCheck className="h-2 w-2" /> SEEN
                                     </span>
                                 )}
                             </div>
@@ -402,15 +401,16 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </ScrollArea>
 
-        <div className="px-4 py-2 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
-            <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-1.5 w-full max-w-2xl mx-auto">
+        {/* Fluid Input Bar */}
+        <div className="px-4 md:px-6 py-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
+            <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-2 w-full">
             <div className="flex items-center gap-1 shrink-0">
                 {userProfile?.userRole === 'seller' && (
                     <div className="flex gap-1">
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg border-white/5 shrink-0 bg-neutral-900/50">
-                                    <Package className="h-3 w-3" />
+                                <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                    <Package className="h-4 w-4" />
                                 </Button>
                             </DialogTrigger>
                             <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
@@ -423,26 +423,26 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                     size="icon" 
                     variant="outline" 
                     className={cn(
-                        "h-7 w-7 rounded-lg border-white/5 shrink-0 transition-all",
+                        "h-8 w-8 rounded-xl border-white/5 shrink-0 transition-all",
                         isAiOpen ? "bg-primary/20 text-primary border-primary/30" : "bg-neutral-900/50"
                     )} 
                     onClick={() => setIsAiOpen(!isAiOpen)}
                 >
-                    <Sparkles className="h-3 w-3" />
+                    <Sparkles className="h-4 w-4" />
                 </Button>
             </div>
 
             <div className="flex-1 min-w-0 relative">
                 <Input 
                     placeholder="Message..." 
-                    className="w-full h-8 border border-white/5 bg-background/50 rounded-lg focus-visible:ring-primary text-[12px] px-2.5" 
+                    className="w-full h-9 border border-white/5 bg-background/50 rounded-xl focus-visible:ring-primary text-sm px-3" 
                     value={newMessage} 
                     onChange={(e) => setNewMessage(e.target.value)} 
                 />
             </div>
             
-            <Button type="submit" size="icon" className="h-8 w-8 rounded-full bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim()}>
-                <Send className="h-3 w-3" />
+            <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim()}>
+                <Send className="h-4 w-4" />
             </Button>
             </form>
         </div>
