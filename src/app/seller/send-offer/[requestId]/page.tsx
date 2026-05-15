@@ -7,49 +7,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, useDoc, useMemoFirebase, useUserProfile } from '@/firebase';
-import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, ImageIcon, XCircle, CheckCircle } from 'lucide-react';
+import { useUser, useUserProfile } from '@/firebase';
+import { MapPin, Clock, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, Sparkles, BrainCircuit, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
-import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
-import { collection, doc, addDoc, serverTimestamp, increment, updateDoc } from 'firebase/firestore';
-import type { BuyerRequest, Offer } from '@/lib/types';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+
+// Mock Lead Data
+const MOCK_LEAD = {
+    id: 'req_1',
+    title: 'Need Professional Video Lighting Kit',
+    description: 'Looking for a complete ring light or softbox setup for a new studio. Budget is around 15k. Must include tripod and phone holder. Prefer local pickup in Nairobi.',
+    category: 'Electronics & Gadgets',
+    minBudget: 12000,
+    maxBudget: 18000,
+    deadline: 'Urgent',
+    area: 'Westlands',
+    county: 'Nairobi',
+    videoUrl: 'https://picsum.photos/seed/lighting/600/400'
+};
 
 export default function SendOfferPage() {
   const params = useParams();
   const requestId = params.requestId as string;
   const router = useRouter();
   const { user } = useUser();
-  const { userProfile } = useUserProfile(user?.uid);
-  const firestore = useFirestore();
-  const storage = getStorage();
   const { toast } = useToast();
 
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState('14500');
   const [message, setMessage] = useState('');
-  const [deliveryTime, setDeliveryTime] = useState('24 Hours');
+  const [deliveryTime, setDeliveryTime] = useState('Same Day Pickup');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingPitch, setIsGeneratingPitch] = useState(false);
   
-  // Media State
+  // Video State
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-
-  // Fetch real request data
-  const requestRef = useMemoFirebase(() => {
-      if (!firestore || !requestId) return null;
-      return doc(firestore, 'requests', requestId);
-  }, [firestore, requestId]);
-
-  const { data: request, isLoading } = useDoc<BuyerRequest>(requestRef);
 
   const startRecording = async () => {
     try {
@@ -66,7 +64,7 @@ export default function SendOfferPage() {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'video/mp4' });
-        setVideoFile(new File([blob], `response_${Date.now()}.mp4`, { type: 'video/mp4' }));
+        setVideoFile(new File([blob], `pitch_${Date.now()}.mp4`, { type: 'video/mp4' }));
         stream.getTracks().forEach(t => t.stop());
       };
 
@@ -84,91 +82,28 @@ export default function SendOfferPage() {
     }
   };
 
-  const handleSendOffer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !request || !firestore) return;
-
-    if (!price || !message) {
-      toast({ variant: 'destructive', title: 'Details Required' });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setUploadProgress(10);
-
-    try {
-        let offerVideoUrl = null;
-
-        // 1. Upload Video Pitch if present
-        if (videoFile) {
-            const path = `offers/${user.uid}/${Date.now()}_pitch.mp4`;
-            const storageRef = ref(storage, path);
-            const uploadTask = uploadBytesResumable(storageRef, videoFile);
-
-            offerVideoUrl = await new Promise((resolve, reject) => {
-                uploadTask.on('state_changed', 
-                    (snap) => setUploadProgress(10 + (snap.bytesTransferred / snap.totalBytes) * 80),
-                    (err) => reject(err),
-                    async () => resolve(await getDownloadURL(uploadTask.snapshot.ref))
-                );
-            });
-        }
-
-        // 2. Save Offer
-        const offerData: Omit<Offer, 'id'> = {
-            requestId: requestId,
-            sellerId: user.uid,
-            sellerName: userProfile?.shopName || userProfile?.fullName || 'Verified Seller',
-            sellerAvatar: userProfile?.profilePictureUrl || '',
-            price: Number(price),
-            message: message,
-            videoUrl: offerVideoUrl as string | undefined,
-            deliveryTime: deliveryTime,
-            status: 'pending',
-            createdAt: serverTimestamp(),
-        };
-
-        await addDoc(collection(firestore, 'offers'), offerData);
-
-        // 3. Update Request Offer Count
-        await updateDoc(doc(firestore, 'requests', requestId), {
-            offersCount: increment(1)
-        });
-
-        setUploadProgress(100);
-        toast({ title: 'Pitch Sent!', description: 'Your competitive offer has been submitted.' });
-        router.push('/seller/offers');
-
-    } catch (error: any) {
-        console.error("Submission failed:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not send offer. Please check your connection.' });
-    } finally {
-        setIsSubmitting(false);
-    }
+  const generateAIPitch = () => {
+    setIsGeneratingPitch(true);
+    toast({ title: "Go-AI Drafting...", description: "Analyzing lead requirements for maximum conversion." });
+    
+    setTimeout(() => {
+        const pitch = `Hi! I have the perfect professional lighting kit in stock at Westlands. It includes a 14" high-CRI ring light, heavy-duty 2M tripod, and 3 distinct light modes (Warm, Natural, Cold). Since you're in a hurry, you can pick it up from my shop today or I can Boda it to you in 30 mins!`;
+        setMessage(pitch);
+        setIsGeneratingPitch(false);
+        toast({ title: "AI Pitch Ready!", description: "Tailored for urgent Westlands fulfillment." });
+    }, 1500);
   };
 
-  if (isLoading) {
-    return (
-      <SellerLayout>
-        <div className="flex h-screen items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
-      </SellerLayout>
-    );
-  }
+  const handleSendOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
-  if (!request) {
-    return (
-      <SellerLayout>
-        <div className="p-8 text-center flex flex-col items-center justify-center h-[60vh]">
-            <XCircle className="h-16 w-16 text-muted-foreground mb-4 opacity-20" />
-            <h2 className="text-xl font-bold text-white">Lead Not Found</h2>
-            <p className="text-muted-foreground mt-2">This request might have been closed or removed.</p>
-            <Button variant="link" onClick={() => router.push('/requests')}>Back to Marketplace</Button>
-        </div>
-      </SellerLayout>
-    );
-  }
+    setTimeout(() => {
+        toast({ title: 'Offer Sent!', description: 'Your pitch is now visible to the buyer.' });
+        setIsSubmitting(false);
+        router.push('/seller/offers');
+    }, 2000);
+  };
 
   return (
     <SellerLayout>
@@ -183,42 +118,30 @@ export default function SendOfferPage() {
             <Card className="bg-neutral-900/50 border-white/5 overflow-hidden rounded-[2.5rem] shadow-2xl">
               <CardHeader className="p-8 pb-4">
                 <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full mb-4 w-fit px-3 py-1">
-                    {request.category}
+                    {MOCK_LEAD.category}
                 </Badge>
-                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight text-white">{request.title}</CardTitle>
-                <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed">{request.description}</CardDescription>
+                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight text-white">{MOCK_LEAD.title}</CardTitle>
+                <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed">{MOCK_LEAD.description}</CardDescription>
               </CardHeader>
               <CardContent className="p-8 space-y-8">
-                {request.videoUrl && (
-                  <div className="aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-inner group">
-                    <video src={request.videoUrl} controls className="w-full h-full object-cover" />
-                  </div>
-                )}
-
-                {request.imageUrls && request.imageUrls.length > 0 && (
-                    <div className="grid grid-cols-3 gap-3">
-                        {request.imageUrls.map((url, i) => (
-                            <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-white/10">
-                                <Image src={url} alt={`Evidence ${i}`} fill className="object-cover" />
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <div className="aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-inner group">
+                    <video src={MOCK_LEAD.videoUrl} controls className="w-full h-full object-cover" />
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Buyer Budget</p>
-                    <p className="text-lg font-black text-primary">KES {request.minBudget?.toLocaleString()} - {request.maxBudget?.toLocaleString()}</p>
+                    <p className="text-lg font-black text-primary">KES {MOCK_LEAD.minBudget.toLocaleString()} - {MOCK_LEAD.maxBudget.toLocaleString()}</p>
                   </div>
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1 shadow-lg">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Deadline</p>
-                    <p className="text-lg font-black text-white uppercase">{request.deadline}</p>
+                    <p className="text-lg font-black text-white uppercase">{MOCK_LEAD.deadline}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-xs font-black text-neutral-400 uppercase tracking-widest px-2">
                   <div className="p-2 bg-primary/10 rounded-full"><MapPin className="h-4 w-4 text-primary" /></div>
-                  {request.area}, {request.county}
+                  {MOCK_LEAD.area}, {MOCK_LEAD.county}
                 </div>
               </CardContent>
             </Card>
@@ -280,7 +203,7 @@ export default function SendOfferPage() {
                         <Input
                             id="price"
                             type="number"
-                            placeholder="e.g. 2200"
+                            placeholder="e.g. 14500"
                             className="pl-12 h-14 bg-white/5 rounded-2xl border-white/10 text-lg font-black focus-visible:ring-primary shadow-inner text-white"
                             value={price}
                             onChange={(e) => setPrice(e.target.value)}
@@ -290,38 +213,33 @@ export default function SendOfferPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="delivery" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Fulfillment Time</Label>
-                        <Input
-                        id="delivery"
-                        placeholder="e.g. Delivery within 1 Hour"
-                        className="h-14 bg-white/5 rounded-2xl border-white/10 font-bold shadow-inner text-white"
-                        value={deliveryTime}
-                        onChange={(e) => setDeliveryTime(e.target.value)}
-                        required
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Sales Pitch / Message</Label>
+                        <div className="flex justify-between items-end mb-1">
+                            <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Sales Pitch / Message</Label>
+                            <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 px-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-black text-[9px] uppercase gap-1.5"
+                                onClick={generateAIPitch}
+                                disabled={isGeneratingPitch}
+                            >
+                                {isGeneratingPitch ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                GENERATE AI PITCH
+                            </Button>
+                        </div>
                         <Textarea
-                        id="message"
-                        rows={5}
-                        placeholder="Explain why the buyer should choose you..."
-                        className="bg-white/5 rounded-2xl border-white/10 text-sm font-medium leading-relaxed shadow-inner text-white"
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        required
+                            id="message"
+                            rows={6}
+                            placeholder="Explain why the buyer should choose you..."
+                            className="bg-white/5 rounded-2xl border-white/10 text-sm font-medium leading-relaxed shadow-inner text-white"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            required
                         />
                     </div>
                   </div>
                 </CardContent>
                 <CardFooter className="p-8 pt-0 flex flex-col gap-6">
-                  {isSubmitting && (
-                      <div className="w-full space-y-2 px-2">
-                          <div className="flex justify-between text-[10px] font-black uppercase tracking-[0.2em] text-primary"><span>Transmitting Data...</span><span>{Math.round(uploadProgress)}%</span></div>
-                          <Progress value={uploadProgress} className="h-1" />
-                      </div>
-                  )}
                   <Button type="submit" className="w-full h-16 rounded-[1.5rem] font-black uppercase tracking-widest text-lg bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/30" disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin mr-2 h-6 w-6" /> : <Send className="mr-2 h-6 w-6" />}
                     SEND PITCH NOW
