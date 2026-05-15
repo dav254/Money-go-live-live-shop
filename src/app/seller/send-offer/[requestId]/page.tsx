@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { MapPin, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Trash2, Sparkles, Zap } from 'lucide-react';
+import { MapPin, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Sparkles, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -92,18 +92,17 @@ export default function SendOfferPage() {
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          {/* Buyer Lead Display */}
           <div className="space-y-6 lg:sticky lg:top-24">
             <Card className="bg-neutral-900/50 border-white/5 overflow-hidden rounded-[2.5rem] shadow-2xl">
               <CardHeader className="p-8 pb-4">
                 <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full mb-4 w-fit px-3 py-1">
-                    {lead.category}
+                  {lead.category}
                 </Badge>
                 <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight text-white">{lead.title}</CardTitle>
                 <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed italic">"{lead.description}"</CardDescription>
               </CardHeader>
               <CardContent className="p-8 space-y-8">
-                {lead.requestType === 'video' && (
+                {lead.requestType === 'video' && lead.videoUrl && (
                   <div className="aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-inner">
                     <img src={lead.videoUrl} alt="lead preview" className="w-full h-full object-cover opacity-60" />
                   </div>
@@ -128,7 +127,6 @@ export default function SendOfferPage() {
             </Card>
           </div>
 
-          {/* Offer Form */}
           <div className="space-y-6">
             <Card className="bg-neutral-950 border-primary/20 shadow-2xl rounded-[2.5rem] overflow-hidden">
               <CardHeader className="p-8 pb-4 bg-primary/5 border-b border-white/5">

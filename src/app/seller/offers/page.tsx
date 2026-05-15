@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tag, Clock, CheckCircle, ArrowRight, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Tag, Clock, CheckCircle, ArrowLeft, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 // Mock Offers for Frontend-Only Pipeline
 const MOCK_SENT_OFFERS = [
@@ -32,8 +32,6 @@ const MOCK_SENT_OFFERS = [
 ];
 
 export default function SellerOffersPage() {
-  const router = useRouter();
-
   return (
     <SellerLayout>
       <div className="p-6 space-y-8 max-w-5xl mx-auto animate-in fade-in duration-500">
@@ -43,7 +41,7 @@ export default function SellerOffersPage() {
             <p className="text-muted-foreground font-medium uppercase text-[10px] tracking-widest mt-2">Status of your marketplace inquiries</p>
           </div>
           <Button variant="ghost" className="uppercase font-black text-[10px] tracking-widest text-primary hover:text-primary/80" asChild>
-            <Link href="/requests"><ArrowLeft className="mr-2 h-3.5 w-3.5" /> Back to Lead Market</Link>
+            <Link href="/requests"><ArrowLeft className="mr-2 h-3.5 w-3.5" /> Back to Market</Link>
           </Button>
         </div>
 
@@ -94,10 +92,6 @@ export default function SellerOffersPage() {
           ))}
         </div>
       </div>
-    </SidebarInset>
+    </SellerLayout>
   );
-}
-
-function cn(...inputs: any[]) {
-    return inputs.filter(Boolean).join(' ');
 }
