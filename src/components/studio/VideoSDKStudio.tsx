@@ -181,8 +181,15 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         hasEnabledTracks.current = true;
         const activateTracks = async () => {
             try {
-                await enableWebcam();
-                await unmuteMic();
+                // COMPETITION GRADE CAPTURE SETTINGS
+                await enableWebcam({
+                    resolution: "hhd", // 1080p
+                    optimizationMode: "motion",
+                    multiStream: false
+                });
+                await unmuteMic({
+                    quality: "high_res"
+                });
             } catch (err: any) {
                 console.warn("[Studio] Track activation warning:", err.message);
                 hasEnabledTracks.current = false;
@@ -341,7 +348,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         mode: "CONFERENCE",
         multiStream: false,
         webcamConfig: {
-            resolution: "hhd",
+            resolution: "hhd", // COMPETITION GRADE
             optimizationMode: "motion",
             multiStream: false,
         },

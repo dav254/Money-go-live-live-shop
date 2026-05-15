@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useRef, useEffect } from 'react';
@@ -133,7 +132,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         webcamEnabled: false,
         name: "Buyer",
         mode: "CONFERENCE",
-        // PERFORMANCE OVERRIDES: No multistream to save bandwidth and speed up join
+        // PERFORMANCE OVERRIDES:
         multiStream: false,
         subscribeFullStream: true,
         adaptiveStream: true, // Auto-adjust to buyer's network
