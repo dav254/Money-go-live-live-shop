@@ -193,56 +193,65 @@ const CreateInvoiceDialog = ({ sellerId, buyerId, onSend }: { sellerId: string; 
     };
 
     return (
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle className="font-black text-base uppercase tracking-tighter">Send Secure Invoice</DialogTitle>
                 <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Confirm the deal with a payment link.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-6 py-4">
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Product</Label>
-                    <ScrollArea className="h-40 border rounded-xl bg-muted/20">
-                        <div className="p-2 space-y-1">
-                            {products?.map(p => (
-                                <button 
-                                    key={p.id} 
-                                    onClick={() => setSelectedProductId(p.id)}
-                                    className={cn(
-                                        "w-full flex items-center gap-3 p-2 rounded-lg border transition-all text-left",
-                                        selectedProductId === p.id ? "bg-primary/10 border-primary shadow-sm" : "bg-transparent border-transparent hover:bg-muted"
-                                    )}
-                                >
-                                    <div className="relative h-8 w-8 rounded-md overflow-hidden bg-black shrink-0">
-                                        <Image src={p.imageUrl || '/placeholder.svg'} alt={p.name || 'product'} fill className="object-cover" />
-                                    </div>
-                                    <span className="text-[11px] font-bold truncate flex-1">{p.name}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </ScrollArea>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">1. Select Product from Catalog</Label>
+                    <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
+                        <ScrollArea className="h-60">
+                            <div className="p-2 space-y-1.5">
+                                {isLoading && <div className="flex flex-col items-center justify-center py-12 gap-2 opacity-50"><Loader2 className="h-5 w-5 animate-spin text-primary" /><span className="text-[8px] font-black uppercase tracking-widest">Syncing Catalog...</span></div>}
+                                {products?.map(p => (
+                                    <button 
+                                        key={p.id} 
+                                        type="button"
+                                        onClick={() => setSelectedProductId(p.id)}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 p-2 rounded-xl border transition-all text-left",
+                                            selectedProductId === p.id ? "bg-primary/10 border-primary shadow-sm" : "bg-transparent border-transparent hover:bg-muted"
+                                        )}
+                                    >
+                                        <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10">
+                                            <Image src={p.imageUrl || '/placeholder.svg'} alt={p.name || 'product'} fill className="object-cover" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-[11px] font-black uppercase tracking-tight block truncate text-foreground">{p.name}</span>
+                                            <span className="text-[10px] font-bold text-primary">${p.price.toLocaleString()}</span>
+                                        </div>
+                                        {selectedProductId === p.id && <CheckCheck className="h-4 w-4 text-primary shrink-0 mr-1" />}
+                                    </button>
+                                ))}
+                                {products?.length === 0 && <div className="py-12 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">No products found.</div>}
+                            </div>
+                        </ScrollArea>
+                    </div>
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Agreed Price (USD)</Label>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">2. Final Agreed Price (USD)</Label>
                     <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary" />
+                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                         <Input 
                             type="number" 
                             placeholder="0.00" 
-                            className="pl-9 h-11 bg-muted/30 border-white/10 rounded-xl font-black text-base"
+                            className="pl-10 h-14 bg-muted/30 border-white/10 rounded-2xl font-black text-xl tracking-tighter"
                             value={agreedPrice}
                             onChange={e => setAgreedPrice(e.target.value)}
                         />
                     </div>
                 </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-start">
                 <Button 
-                    className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs" 
+                    className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 border-none" 
                     onClick={handleCreateOrder}
                     disabled={isCreating || !selectedProductId || !agreedPrice}
                 >
-                    {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                    SEND INVOICE
+                    {isCreating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="mr-2 h-4 w-4" />}
+                    SEND SECURE INVOICE
                 </Button>
             </DialogFooter>
         </DialogContent>
@@ -341,32 +350,35 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     const { data: products, isLoading } = useCollection<Product>(productsQuery);
 
     return (
-        <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle className="font-black text-base uppercase tracking-tighter">My Catalog</DialogTitle></DialogHeader>
-            <ScrollArea className="h-72">
-                <div className="space-y-2 p-2">
-                    {isLoading && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}
-                    {products?.map(product => (
-                        <div key={product.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30 border border-transparent hover:border-primary/30 transition-all group text-left">
-                            <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border bg-black">
-                                <Image 
-                                    src={product.imageUrl || '/placeholder.svg'} 
-                                    alt={product.name || 'product'} 
-                                    fill 
-                                    className="object-cover group-hover:scale-110 transition-transform" 
-                                />
+            <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner mt-4">
+                <ScrollArea className="h-72">
+                    <div className="space-y-2 p-3">
+                        {isLoading && <div className="flex flex-col items-center justify-center py-12 gap-2 opacity-50"><Loader2 className="h-5 w-5 animate-spin text-primary" /><span className="text-[8px] font-black uppercase tracking-widest">Syncing Catalog...</span></div>}
+                        {products?.map(product => (
+                            <div key={product.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30 border border-transparent hover:border-primary/30 transition-all group text-left">
+                                <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border bg-black border-white/5">
+                                    <Image 
+                                        src={product.imageUrl || '/placeholder.svg'} 
+                                        alt={product.name || 'product'} 
+                                        fill 
+                                        className="object-cover group-hover:scale-110 transition-transform" 
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="font-black text-[10px] uppercase tracking-tight truncate leading-none mb-1 text-foreground">{product.name}</p>
+                                    <p className="text-[10px] font-black text-primary">${product.price.toLocaleString()}</p>
+                                </div>
+                                <DialogClose asChild>
+                                    <Button size="sm" className="font-black text-[8px] uppercase tracking-widest px-3 h-8 rounded-lg" onClick={() => onShare(product.id)}>Send</Button>
+                                </DialogClose>
                             </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="font-bold text-[11px] truncate leading-none mb-1">{product.name}</p>
-                                <p className="text-[9px] font-black text-primary">${product.price.toLocaleString()}</p>
-                            </div>
-                            <DialogClose asChild>
-                                <Button size="sm" className="font-black text-[8px] uppercase tracking-widest px-2 h-6" onClick={() => onShare(product.id)}>Send</Button>
-                            </DialogClose>
-                        </div>
-                    ))}
-                </div>
-            </ScrollArea>
+                        ))}
+                        {products?.length === 0 && <div className="py-12 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">No products found.</div>}
+                    </div>
+                </ScrollArea>
+            </div>
         </DialogContent>
     )
 }
@@ -659,7 +671,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                                     "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
                                     alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
                                 )}>
-                                    <p className="whitespace-pre-wrap break-words overflow-hidden" style={{ overflowWrap: 'anywhere' }}>{msg.messageText}</p>
+                                    <p className="whitespace-pre-wrap break-words overflow-hidden" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '100%' }}>{msg.messageText}</p>
                                 </div>
                             ))}
                             <div className={cn("flex items-center gap-1 px-1 opacity-40 mt-1", alignRight ? "flex-row-reverse" : "flex-row")}>
