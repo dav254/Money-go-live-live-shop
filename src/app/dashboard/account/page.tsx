@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X } from 'lucide-react';
+import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X, MapPin, RefreshCw } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
@@ -32,6 +32,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import type { UserProfile } from '@/lib/types';
 import type { User as FirebaseUser } from 'firebase/auth';
+import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
+import { cn } from '@/lib/utils';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -167,6 +170,8 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [isUploading, setIsUploading] = useState(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    
+    const [isDetecting, setIsDetecting] = useState(false);
 
     const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
@@ -221,6 +226,21 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                 });
             }
         );
+    };
+
+    const handleDetectLocation = async () => {
+        setIsDetecting(true);
+        try {
+            const detected = await detectLocation();
+            const locationString = `${detected.city.toUpperCase()}, ${detected.country.toUpperCase()}`;
+            profileForm.setValue('location', locationString);
+            saveLocationToStorage(detected);
+            toast({ title: 'Location Detected', description: `Your current location is set to ${locationString}.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Detection Failed', description: 'Could not automatically detect your location.' });
+        } finally {
+            setIsDetecting(false);
+        }
     };
 
     const onProfileSubmit = async (values: z.infer<typeof profileFormSchema>) => {
@@ -278,8 +298,8 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="flex items-center gap-6">
-                                <Avatar className="h-20 w-20">
-                                    <AvatarImage src={avatarUrl || `https://picsum.photos/seed/${user?.uid}/100/100`} />
+                                <Avatar className="h-20 w-20 border-2 border-primary/20">
+                                    <AvatarImage src={avatarUrl || getPlaceholderImage()} />
                                     <AvatarFallback>{userProfile?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 space-y-2">
@@ -301,14 +321,37 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                                 <FormField control={profileForm.control} name="phoneNumber" render={({ field }) => (
                                     <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input {...field} placeholder="+254 712 345 678" /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={profileForm.control} name="location" render={({ field }) => (
-                                    <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} placeholder="Nairobi, Kenya" /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                
+                                <div className="space-y-2">
+                                    <Label>Presence & Presence</Label>
+                                    <button 
+                                        type="button"
+                                        onClick={handleDetectLocation}
+                                        disabled={isDetecting}
+                                        className={cn(
+                                            "flex items-center justify-between w-full h-20 px-6 rounded-full bg-neutral-950 border border-white/10 hover:border-primary/50 transition-all group shadow-2xl overflow-hidden",
+                                            isDetecting && "opacity-50"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <MapPin className="h-5 w-5 text-primary" />
+                                            <div className="text-left">
+                                                <p className={cn(
+                                                    "font-cyber text-lg font-black uppercase tracking-tighter text-neutral-200 leading-tight",
+                                                    isDetecting && "animate-pulse"
+                                                )}>
+                                                    {isDetecting ? 'DETECTING...' : (profileForm.watch('location') || 'UNSET LOCATION')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <RefreshCw className={cn("h-6 w-6 text-neutral-400 group-hover:text-primary transition-colors", isDetecting && "animate-spin")} />
+                                    </button>
+                                </div>
                             </div>
                              <FormField control={profileForm.control} name="bio" render={({ field }) => (
                                 <FormItem><FormLabel>Bio</FormLabel><FormControl><Textarea {...field} placeholder="Tell us a little about yourself or your brand." /></FormControl><FormMessage /></FormItem>
                             )} />
-                            <Button type="submit" disabled={isProfileSaving}>{isProfileSaving && <Loader2 className="animate-spin mr-2" />}Save Changes</Button>
+                            <Button type="submit" disabled={isProfileSaving || isUploading}>{isProfileSaving && <Loader2 className="animate-spin mr-2" />}Save Changes</Button>
                         </CardContent>
                     </form>
                 </Form>
