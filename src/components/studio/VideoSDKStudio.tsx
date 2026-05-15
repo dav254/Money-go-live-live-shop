@@ -129,7 +129,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
 };
 
 const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroadcast: () => void, isLive: boolean }) => {
-  const { join, isMeetingJoined, enableWebcam, unmuteMic } = useMeeting();
+  const { join, isMeetingJoined } = useMeeting();
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -139,7 +139,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   
   const hasAttemptedJoin = useRef(false);
-  const hasEnabledTracks = useRef(false);
 
   // Monitor session for startTime to filter messages
   const sessionRef = React.useMemo(() => (firestore && user) ? doc(firestore, 'liveSessions', user.uid) : null, [firestore, user]);
@@ -174,30 +173,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         join();
     }
   }, [join, isMeetingJoined]);
-
-  // ACTIVATE TRACKS ONLY WHEN BROADCAST STARTS
-  useEffect(() => {
-    if (isMeetingJoined && isLive && !hasEnabledTracks.current) {
-        hasEnabledTracks.current = true;
-        const activateTracks = async () => {
-            try {
-                // COMPETITION GRADE CAPTURE SETTINGS
-                await enableWebcam({
-                    resolution: "hhd", // 1080p
-                    optimizationMode: "motion",
-                    multiStream: false
-                });
-                await unmuteMic({
-                    quality: "high_res"
-                });
-            } catch (err: any) {
-                console.warn("[Studio] Track activation warning:", err.message);
-                hasEnabledTracks.current = false;
-            }
-        };
-        activateTracks();
-    }
-  }, [isMeetingJoined, isLive, enableWebcam, unmuteMic]);
 
   const handleTogglePanel = (panel: 'chat' | 'products' | 'promos') => {
       setActivePanel(prev => prev === panel ? null : panel);
@@ -348,7 +323,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         mode: "CONFERENCE",
         multiStream: false,
         webcamConfig: {
-            resolution: "hhd", // COMPETITION GRADE
+            resolution: "hhd", // COMPETITION GRADE (1080p)
             optimizationMode: "motion",
             multiStream: false,
         },

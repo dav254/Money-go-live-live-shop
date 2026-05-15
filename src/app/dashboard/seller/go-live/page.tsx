@@ -54,6 +54,13 @@ export default function SellerGoLivePage() {
   const handleSetupPreview = useCallback(async () => {
     if (!user || !token) return;
     setIsStarting(true);
+    
+    // CRITICAL: Explicitly stop preview tracks to prevent contentions with VideoSDK Studio
+    if (videoRef.current?.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+        videoRef.current.srcObject = null;
+    }
+
     try {
       const response = await fetch('/api/live-session', {
           method: 'POST',
@@ -67,6 +74,8 @@ export default function SellerGoLivePage() {
       setWantsToSetup(true);
     } catch (err: any) { 
         toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
+        // Re-enable camera if setup fails
+        getCameraPermission();
     } finally { 
         setIsStarting(false);
     }
