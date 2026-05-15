@@ -140,9 +140,9 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
         onClick={handleDismiss}
         variant="ghost" 
         size="icon" 
-        className="absolute top-20 right-4 z-50 h-12 w-12 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/10 shadow-2xl"
+        className="absolute top-20 right-4 z-50 h-10 w-10 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md border border-white/10 shadow-2xl"
       >
-        <X className="h-6 w-6" />
+        <X className="h-5 w-5" />
       </Button>
 
       <AnimatePresence mode="wait">
@@ -189,60 +189,38 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
             onClick={() => handleHorizontalScroll('left')} 
             size="icon" 
             variant="ghost" 
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/20 hover:bg-black/50 text-white border border-white/10 h-12 w-12"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/10 hover:bg-black/40 text-white border border-white/5 h-12 w-12"
           >
-            <ChevronLeft className="h-8 w-8" />
+            <ChevronLeft className="h-8 w-8 opacity-50" />
           </Button>
           <Button 
             onClick={() => handleHorizontalScroll('right')} 
             size="icon" 
             variant="ghost" 
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/20 hover:bg-black/50 text-white border border-white/10 h-12 w-12"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/10 hover:bg-black/40 text-white border border-white/5 h-12 w-12"
           >
-            <ChevronRight className="h-8 w-8" />
+            <ChevronRight className="h-8 w-8 opacity-50" />
           </Button>
-          
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 flex gap-1.5 p-2 rounded-full bg-black/20 backdrop-blur-md">
-            {allMedia.map((_, i) => (
-                <div 
-                    key={i} 
-                    className={cn(
-                        "h-1.5 transition-all rounded-full",
-                        i === currentMediaIndex ? "w-6 bg-primary shadow-lg shadow-primary/50" : "w-1.5 bg-white/30"
-                    )}
-                />
-            ))}
-          </div>
         </>
       )}
       
       <VideoInfo seller={item.seller} />
 
-       {allMedia.length > 1 && (
-           <div className="absolute bottom-32 left-4 right-16 z-20 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-               {allMedia.map((media, index) => (
-                   <button
-                    key={index}
-                    onClick={() => setCurrentMediaIndex(index)}
-                    className={cn(
-                        "relative h-14 w-14 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all transform hover:scale-105",
-                        index === currentMediaIndex ? "border-primary scale-110 shadow-xl" : "border-white/10 opacity-60 grayscale-[50%]"
-                    )}
-                   >
-                       {media.type === 'video' ? (
-                           <div className="relative h-full w-full bg-neutral-800">
-                               <video src={media.url} className="h-full w-full object-cover" muted />
-                               <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                   <Video className="h-4 w-4 text-white drop-shadow-md" />
-                               </div>
-                           </div>
-                       ) : (
-                           <Image src={media.url || getPlaceholderImage()} alt="Preview" fill className="object-cover" />
-                       )}
-                   </button>
-               ))}
-           </div>
-       )}
+      {/* Horizontal Navigation Line (Segmented Progress Bar) */}
+      {allMedia.length > 1 && (
+        <div className="absolute bottom-[104px] left-4 right-16 z-20 flex gap-1 px-1">
+          {allMedia.map((_, i) => (
+            <div 
+              key={i} 
+              onClick={() => setCurrentMediaIndex(i)}
+              className={cn(
+                "h-0.5 flex-1 rounded-full transition-all duration-300 cursor-pointer shadow-sm",
+                i === currentMediaIndex ? "bg-primary glow-primary" : "bg-white/30"
+              )}
+            />
+          ))}
+        </div>
+      )}
 
        <div className="absolute bottom-6 left-4 right-16 z-10 pointer-events-auto">
             {item.product && <ProductInfo product={item.product} />}
