@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Zap, Clock, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface LivePromoOverlayProps {
     offer: {
