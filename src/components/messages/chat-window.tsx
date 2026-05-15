@@ -264,8 +264,22 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
       setOptimisticMessages(prev => [...prev, { id: tempId, senderId: currentUser.uid, timestamp: new Date(), isOptimistic: true, ...messageData }]);
 
       try {
-          await addDoc(collection(firestore, 'chats', chat.id, 'messages'), { senderId: currentUser.uid, timestamp: serverTimestamp(), isRead: false, ...messageData });
-          await updateDoc(doc(firestore, 'chats', chat.id), { lastMessage: messageData.messageText || 'Sent a file', lastMessageTimestamp: serverTimestamp() });
+          // Add the message to the messages subcollection
+          await addDoc(collection(firestore, 'chats', chat.id, 'messages'), { 
+              senderId: currentUser.uid, 
+              timestamp: serverTimestamp(), 
+              isRead: false, 
+              ...messageData 
+          });
+
+          // Update the chat head document:
+          // 1. Update last message info for sorting and preview
+          // 2. CLEAR deletedFor array so the chat reappears for everyone (WhatsApp style)
+          await updateDoc(doc(firestore, 'chats', chat.id), { 
+              lastMessage: messageData.messageText || 'Sent a file', 
+              lastMessageTimestamp: serverTimestamp(),
+              deletedFor: [] 
+          });
       } catch (error) {
           setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
           throw error;
@@ -378,14 +392,16 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-1.5 w-full max-w-2xl mx-auto">
             <div className="flex items-center gap-1 shrink-0">
                 {userProfile?.userRole === 'seller' && (
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg border-white/5 shrink-0 bg-neutral-900/50">
-                                <Package className="h-3 w-3" />
-                            </Button>
-                        </DialogTrigger>
-                        <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                    </Dialog>
+                    <div className="flex gap-1">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button type="button" size="icon" variant="outline" className="h-7 w-7 rounded-lg border-white/5 shrink-0 bg-neutral-900/50">
+                                    <Package className="h-3 w-3" />
+                                </Button>
+                            </DialogTrigger>
+                            <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                        </Dialog>
+                    </div>
                 )}
                 
                 <Button 
