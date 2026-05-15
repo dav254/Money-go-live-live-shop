@@ -70,12 +70,12 @@ const OrderPaymentCard = ({ orderId }: { orderId: string }) => {
     const { data: order, isLoading } = useDoc<Order>(orderRef);
 
     if (isLoading) return <div className="w-[240px] h-32 rounded-2xl border bg-card animate-pulse" />;
-    if (!order) return <div className="p-3 text-[10px] italic text-muted-foreground">Order no longer available.</div>;
+    if (!order) return <div className="p-3 text-[10px] italic text-muted-foreground text-left">Order no longer available.</div>;
 
     const isPending = order.orderStatus === 'pending';
 
     return (
-        <div className="w-[260px] rounded-2xl border-2 border-primary/20 bg-card overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="w-[260px] rounded-2xl border-2 border-primary/20 bg-card overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 text-left">
             <div className="bg-primary/5 p-3 border-b border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                     <ShieldCheck className="h-3 w-3 text-primary" />
@@ -188,7 +188,7 @@ const CreateInvoiceDialog = ({ sellerId, buyerId, onSend }: { sellerId: string; 
             toast({ title: 'Invoice Sent!', description: 'Buyer can now pay via the Pay Now button.' });
         } catch (e) {
             console.error(e);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to create invoice.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to create invoice. Check permissions.' });
         } finally {
             setIsCreating(false);
         }
@@ -288,7 +288,7 @@ const VoiceMessage = ({ message }: { message: ChatMessage }) => {
   };
 
   return (
-    <div className="flex items-center gap-3 bg-card border rounded-2xl p-2 min-w-[200px] shadow-sm">
+    <div className="flex items-center gap-3 bg-card border rounded-2xl p-2 min-w-[200px] shadow-sm text-left">
       <audio ref={audioRef} src={message.mediaUrl} onTimeUpdate={onTimeUpdate} onEnded={onEnded} className="hidden" />
       <Button 
         size="icon" 
@@ -320,7 +320,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
 
   if (isImage) {
     return (
-      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm max-w-full">
+      <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm max-w-full text-left">
         <Image 
             src={message.mediaUrl} 
             alt={name || 'image'} 
@@ -335,7 +335,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
     return <video src={message.mediaUrl} controls className="max-w-[180px] sm:max-w-full rounded-xl border shadow-sm bg-black" />;
   }
   return (
-    <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="flex max-w-[200px] items-center gap-2 rounded-xl border bg-card p-2 shadow-sm hover:bg-muted transition-colors">
+    <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="flex max-w-[200px] items-center gap-2 rounded-xl border bg-card p-2 shadow-sm hover:bg-muted transition-colors text-left">
       <div className="p-1.5 bg-primary/10 rounded-lg"><FileText className="h-4 w-4 text-primary" /></div>
       <div className="overflow-hidden flex-1">
         <p className="truncate font-bold text-[10px] text-foreground">{name}</p>
@@ -554,7 +554,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     });
   }, [chat, currentUser, firestore, toast, sendMessage]);
 
-  // Voice Recording Logic
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

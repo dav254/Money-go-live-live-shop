@@ -11,6 +11,10 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
+    
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
 
     match /users/{userId} {
       allow read: if true;
@@ -21,7 +25,7 @@ service cloud.firestore {
     match /userProfiles/{userId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
     }
 
     // Buyer Request Marketplace
@@ -30,7 +34,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // Only the buyer can create and manage their own request
       allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
     }
 
     // Seller Offers/Pitches
@@ -39,14 +43,14 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // Sellers can create offers
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
 
-    // Chat System Rules (Renamed from conversations to chats)
+    // Chat System Rules
     match /chats/{chatId} {
-      allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
       
       match /messages/{messageId} {
         allow read: if isSignedIn();
@@ -58,29 +62,35 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
       match /comments/{commentId} { allow read, create: if isSignedIn(); }
       match /reviews/{reviewId} { allow read, create: if isSignedIn(); }
     }
     
     match /sellerShops/{shopId} {
       allow read: if true;
-      allow write: if isSignedIn() && (request.auth.uid == shopId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow write: if isSignedIn() && (request.auth.uid == shopId || isAdmin());
     }
 
     match /liveSessions/{sessionId} {
       allow read: if true;
-      allow write: if isSignedIn() && (request.auth.uid == sessionId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow write: if isSignedIn() && (request.auth.uid == sessionId || isAdmin());
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
 
     match /supportTickets/{ticketId} {
-        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
         allow create: if isSignedIn();
     }
 
     match /complaints/{complaintId} {
         allow create: if isSignedIn();
-        allow read: if isSignedIn() && (resource.data.complainantId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow read: if isSignedIn() && (resource.data.complainantId == request.auth.uid || isAdmin());
     }
     
     match /notifications/{notificationId} {
@@ -95,7 +105,7 @@ service cloud.firestore {
     
     // Payouts
     match /payouts/{payoutId} {
-      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
       allow create: if isSignedIn();
     }
 
