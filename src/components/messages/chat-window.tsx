@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -22,7 +23,12 @@ import {
     ChevronRight,
     Paperclip,
     ImageIcon,
-    FileText
+    FileText,
+    Mic,
+    Square,
+    Play,
+    Pause,
+    Volume2
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
@@ -85,7 +91,59 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
     );
 };
 
+const VoiceMessage = ({ message }: { message: ChatMessage }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const onTimeUpdate = () => {
+    if (audioRef.current) {
+      const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+      setProgress(p);
+    }
+  };
+
+  const onEnded = () => {
+    setIsPlaying(false);
+    setProgress(0);
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-card border rounded-2xl p-2 min-w-[200px] shadow-sm">
+      <audio ref={audioRef} src={message.mediaUrl} onTimeUpdate={onTimeUpdate} onEnded={onEnded} className="hidden" />
+      <Button 
+        size="icon" 
+        variant="ghost" 
+        className="h-8 w-8 rounded-full bg-primary/10 text-primary shrink-0"
+        onClick={togglePlay}
+      >
+        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+      </Button>
+      <div className="flex-1 space-y-1">
+        <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex justify-between text-[8px] font-black uppercase text-muted-foreground tracking-widest">
+            <span className="flex items-center gap-1"><Volume2 className="h-2 w-2" /> Voice Note</span>
+            <span>{message.mediaMetadata?.duration ? `${Math.floor(message.mediaMetadata.duration)}s` : 'Voice'}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MediaMessage = ({ message }: { message: ChatMessage }) => {
+  if (message.messageType === 'voice') return <VoiceMessage message={message} />;
   if (!message.mediaUrl || !message.mediaMetadata) return null;
   const { name, type } = message.mediaMetadata;
   const isImage = type.startsWith('image/');
@@ -167,6 +225,13 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [otherParticipantProfile, setOtherParticipantProfile] = useState<UserProfile | null>(null);
 
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   const messagesQuery = useMemoFirebase(() => {
     if (!chat || !firestore) return null;
     return query(collection(firestore, 'chats', chat.id, 'messages'), orderBy('timestamp', 'asc'));
@@ -226,7 +291,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
           const otherId = chat.participantIds.find(id => id !== currentUser.uid);
           const updateObj: any = { 
-              lastMessage: messageData.messageText || 'Sent a file', 
+              lastMessage: messageData.messageType === 'voice' ? 'Sent a voice note' : (messageData.messageText || 'Sent a file'), 
               lastMessageTimestamp: serverTimestamp(),
               deletedFor: [] 
           };
@@ -289,6 +354,77 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         toast({ variant: 'destructive', title: 'Share Failed' });
     });
   }, [chat, currentUser, firestore, toast]);
+
+  // Voice Recording Logic
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const finalDuration = recordingTime;
+        
+        if (audioBlob.size > 1000) { // Only send if it's more than 1kb
+            const path = `chats/${chat!.id}/${Date.now()}_voice_note.webm`;
+            const storageRef = ref(storage, path);
+            const uploadTask = uploadBytesResumable(storageRef, audioBlob);
+            
+            setUploadProgress(1); // Start indicator
+
+            uploadTask.on('state_changed', 
+                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                null,
+                async () => {
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    await sendMessage({
+                        messageType: 'voice',
+                        mediaUrl: url,
+                        mediaMetadata: { name: 'Voice Note', size: audioBlob.size, type: 'audio/webm', duration: finalDuration }
+                    });
+                    setUploadProgress(null);
+                }
+            );
+        }
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Microphone Error', description: 'Please enable microphone access.' });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      audioChunksRef.current = []; // Clear chunks so it doesn't send
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
 
   if (!chat || !currentUser) {
     return (
@@ -375,56 +511,81 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 {uploadProgress !== null && (
                     <div className="mb-3 space-y-1.5 animate-in slide-in-from-bottom-2">
                         <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-primary">
-                            <span>Uploading Media...</span>
+                            <span>{isRecording ? 'Uploading Voice Note...' : 'Uploading Media...'}</span>
                             <span>{Math.round(uploadProgress)}%</span>
                         </div>
                         <Progress value={uploadProgress} className="h-1 bg-white/10" />
                     </div>
                 )}
-                <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-1.5 w-full">
-                <div className="flex items-center gap-1 shrink-0">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        className="hidden" 
-                        onChange={handleFileSelect} 
-                    />
-                    <Button 
-                        type="button" 
-                        size="icon" 
-                        variant="outline" 
-                        className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadProgress !== null}
-                    >
-                        <PlusCircle className="h-4 w-4" />
-                    </Button>
-                    
-                    {userProfile?.userRole === 'seller' && (
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
-                                    <Package className="h-4 w-4" />
-                                </Button>
-                            </DialogTrigger>
-                            <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                        </Dialog>
-                    )}
-                </div>
-
-                <div className="flex-1 min-w-0 relative">
-                    <Input 
-                        placeholder="Message..." 
-                        className="w-full h-9 border border-white/5 bg-background/50 rounded-xl focus-visible:ring-primary text-[12px] px-3" 
-                        value={newMessage} 
-                        onChange={(e) => setNewMessage(e.target.value)} 
-                    />
-                </div>
                 
-                <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none" disabled={!newMessage.trim() || uploadProgress !== null}>
-                    <Send className="h-4 w-4" />
-                </Button>
-                </form>
+                {isRecording ? (
+                    <div className="flex items-center gap-3 bg-red-600/10 border border-red-600/30 rounded-2xl p-2 animate-in slide-in-from-bottom-4">
+                        <div className="flex items-center gap-2 px-3 animate-pulse">
+                            <div className="h-2 w-2 rounded-full bg-red-600" />
+                            <span className="text-xs font-black text-red-600 font-mono">00:{recordingTime.toString().padStart(2, '0')}</span>
+                        </div>
+                        <div className="flex-1 text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Recording audio...</div>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-neutral-500" onClick={cancelRecording}><Trash2 className="h-4 w-4" /></Button>
+                        <Button size="icon" className="h-9 w-9 bg-red-600 hover:bg-red-700 text-white rounded-xl" onClick={stopRecording}><Square className="h-4 w-4" /></Button>
+                    </div>
+                ) : (
+                    <form onSubmit={(e) => { e.preventDefault(); handleSendTextMessage(); }} className="flex items-center gap-1.5 w-full">
+                    <div className="flex items-center gap-1 shrink-0">
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            className="hidden" 
+                            onChange={handleFileSelect} 
+                        />
+                        <Button 
+                            type="button" 
+                            size="icon" 
+                            variant="outline" 
+                            className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadProgress !== null}
+                        >
+                            <PlusCircle className="h-4 w-4" />
+                        </Button>
+                        
+                        {userProfile?.userRole === 'seller' && (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                        <Package className="h-4 w-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                            </Dialog>
+                        )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 relative">
+                        <Input 
+                            placeholder="Message..." 
+                            className="w-full h-9 border border-white/5 bg-background/50 rounded-xl focus-visible:ring-primary text-[12px] px-3" 
+                            value={newMessage} 
+                            onChange={(e) => setNewMessage(e.target.value)} 
+                        />
+                    </div>
+                    
+                    {newMessage.trim() ? (
+                        <Button type="submit" size="icon" className="h-9 w-9 rounded-xl bg-primary hover:bg-primary/90 shrink-0 shadow-sm border-none">
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    ) : (
+                        <Button 
+                            type="button" 
+                            size="icon" 
+                            className="h-9 w-9 rounded-xl bg-neutral-800 hover:bg-neutral-700 shrink-0 shadow-sm border-none"
+                            onClick={startRecording}
+                            disabled={uploadProgress !== null}
+                        >
+                            <Mic className="h-4 w-4" />
+                        </Button>
+                    )}
+                    </form>
+                )}
             </div>
         </div>
       </div>

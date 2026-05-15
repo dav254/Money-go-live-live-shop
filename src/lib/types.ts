@@ -75,12 +75,13 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   timestamp: any;
-  messageType?: 'text' | 'image' | 'video' | 'file' | 'product';
+  messageType?: 'text' | 'image' | 'video' | 'file' | 'product' | 'voice';
   mediaUrl?: string;
   mediaMetadata?: {
       name: string;
       size: number;
       type: string;
+      duration?: number;
   };
   productId?: string;
   isRead?: boolean;
