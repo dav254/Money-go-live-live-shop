@@ -11,7 +11,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, Smartphone, CreditCard } from 'lucide-react';
+import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -194,7 +194,7 @@ export default function CheckoutPage() {
             <BuyerLayout>
                 <div className="container py-12 text-center">
                     <h1 className="text-2xl font-bold">Order Not Found</h1>
-                    <p className="text-muted-foreground">The order you are trying to pay for does not exist or you do not have permission to view it.</p>
+                    <p className="text-muted-foreground">The order you are trying to pay for does not exist.</p>
                 </div>
             </BuyerLayout>
         )
@@ -205,9 +205,9 @@ export default function CheckoutPage() {
             <BuyerLayout>
                 <div className="container py-12 text-center">
                     <h1 className="text-2xl font-bold">Order Not Payable</h1>
-                    <p className="text-muted-foreground">This order has already been processed or is no longer pending payment.</p>
+                    <p className="text-muted-foreground">This order has already been processed.</p>
                      <Button asChild className="mt-4">
-                        <a href="/buyer/my-orders">View My Orders</a>
+                        <Link href="/buyer/my-orders">View My Orders</Link>
                     </Button>
                 </div>
             </BuyerLayout>

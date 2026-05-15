@@ -15,31 +15,23 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
-    let PaystackLib;
-    try {
-        // Dynamic import to handle CommonJS resolution in some Next.js environments
-        PaystackLib = (await import('paystack')).default;
-    } catch (e) {
-        console.warn("Paystack module loading warning:", e);
-    }
-
-    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
-    const paystack = (PaystackLib && paystackSecret) ? PaystackLib(paystackSecret) : null;
-
     try {
         const body = await request.json();
         const { amount, email, gateway, metadata, transactionType, orderId } = body;
-
-        // Validation: Ensure gateway is configured
-        if (gateway === 'paystack' && !paystack) {
-            return NextResponse.json({ error: 'Paystack is not correctly configured or installed on the server.' }, { status: 500 });
-        }
 
         const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
 
         if (gateway === 'paystack') {
-            if (!paystack) throw new Error("Paystack instance not available.");
+            const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+            if (!paystackSecret) {
+                return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
+            }
+
+            // Dynamic import to bypass build-time resolution issues
+            const PaystackLib = (await import('paystack')).default;
+            // @ts-ignore - The paystack library types can be inconsistent
+            const paystack = PaystackLib(paystackSecret);
 
             const response = await paystack.transaction.initialize({
                 email: email,

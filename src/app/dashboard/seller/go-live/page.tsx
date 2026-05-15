@@ -40,7 +40,6 @@ export default function SellerGoLivePage() {
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
   
-  // CRITICAL: Initialize to TRUE so camera is OFF on page load
   const [isHardwareReleased, setIsHardwareReleased] = useState(true);
 
   const fetchToken = useCallback(async () => {
@@ -60,7 +59,6 @@ export default function SellerGoLivePage() {
     setIsStarting(true);
     setIsHardwareReleased(false);
     
-    // Explicitly stop preview tracks to prevent contentions with VideoSDK Studio
     if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
         videoRef.current.srcObject = null;
@@ -87,7 +85,6 @@ export default function SellerGoLivePage() {
 
   useEffect(() => { fetchToken(); }, [fetchToken]);
 
-  // Pre-warm meeting room logic
   useEffect(() => {
     const prewarmMeeting = async () => {
         if (token && !prewarmedMeetingId) {
@@ -114,7 +111,6 @@ export default function SellerGoLivePage() {
   }, []);
 
   useEffect(() => {
-    // Only fetch camera stream if we aren't in setup/live AND hardware isn't intentionally released
     if (!wantsToSetup && !isHardwareReleased) {
         getCameraPermission();
     }
@@ -146,7 +142,6 @@ export default function SellerGoLivePage() {
   const handleEndBroadcast = async () => {
     if (!user) return;
     
-    // HARD RELEASE: Stop all preview tracks immediately
     if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
@@ -156,7 +151,7 @@ export default function SellerGoLivePage() {
     setWantsToSetup(false);
     setIsLive(false);
     setMeetingId(null);
-    setIsHardwareReleased(true); // Flag to prevent auto-restart in useEffect
+    setIsHardwareReleased(true);
     
     toast({ 
         title: "SHOW ENDED", 
