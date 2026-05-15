@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
             }
 
             // Using direct fetch to avoid "module not found" errors with the paystack library
+            // This bypasses the need for the 'paystack' npm package which causes bundling issues
             const response = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
                 headers: {

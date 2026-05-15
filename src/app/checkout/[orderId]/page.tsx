@@ -66,7 +66,7 @@ const PaystackIcon = () => (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="#011b33"/>
         </svg>
-        <span className="bg-green-500 text-[8px] text-white px-1 rounded font-black">M-PESA</span>
+        <span className="bg-green-500 text-[8px] text-white px-1 rounded font-black uppercase">M-PESA</span>
     </div>
 );
 
@@ -227,7 +227,7 @@ export default function CheckoutPage() {
                         <CardContent className="space-y-4">
                             {orderItems.map((item) => (
                                 <div key={item.productId} className="flex items-center gap-4">
-                                    <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/10 shadow-lg">
+                                    <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/10 shadow-lg bg-black">
                                         <Image 
                                             src={item.imageUrl || getPlaceholderImage()} 
                                             alt={item.name || 'Product'} 

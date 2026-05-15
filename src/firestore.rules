@@ -32,8 +32,9 @@ service cloud.firestore {
 
     // Buyer Request Marketplace
     match /requests/{requestId} {
-      // Anyone signed in (Sellers) can browse and manage requests
-      allow read, write: if isSignedIn();
+      // Explicitly allow list for collection queries and get for document reads
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     // Seller Offers/Pitches
@@ -43,10 +44,7 @@ service cloud.firestore {
 
     // Chat System Rules
     match /chats/{chatId} {
-      // Allow reading the collection for unread counts
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
       
       match /messages/{messageId} {
         allow read, write: if isSignedIn();
