@@ -12,23 +12,11 @@ export type ImagePlaceholder = {
 export const PlaceHolderImages = data.placeholderImages;
 
 /**
- * Selects a random placeholder image URL from the available list.
- * This prevents errors when an item is missing an image.
- * @returns A string containing the URL of a random placeholder image.
+ * Returns a standard, non-confusing "No Image" placeholder.
+ * This ensures buyers are not misled by random stock photos.
+ * @returns A string containing the URL of a standard placeholder.
  */
 export function getPlaceholderImage(): string {
-  if (!PlaceHolderImages || PlaceHolderImages.length === 0) {
-    // Provide a generic fallback in case the JSON data is missing.
-    return 'https://placehold.co/600x400/EEE/31343C?text=No_Image_Available';
-  }
-  const randomIndex = Math.floor(Math.random() * PlaceHolderImages.length);
-  const item = PlaceHolderImages[randomIndex];
-  
-  // Handle both string array and object array formats
-  if (typeof item === 'string') {
-    return item;
-  }
-  
-  // @ts-ignore - Handle potential object structure
-  return item?.imageUrl || 'https://placehold.co/600x400/EEE/31343C?text=No_Image_Available';
+  // Use a dark-themed, neutral placeholder that clearly indicates missing media
+  return 'https://placehold.co/600x400/111111/FFFFFF?text=No+Product+Image';
 }

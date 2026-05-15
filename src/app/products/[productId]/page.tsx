@@ -56,10 +56,28 @@ export default function BuyerProductPage() {
     const allMedia = useMemo(() => {
         if (!product) return [];
         const media: { url: string, type: 'video' | 'image' }[] = [];
+        
+        // Videos first (as they act as high-conversion templates)
         if (product.videoUrl && product.videoUrl.trim() !== "") media.push({ url: product.videoUrl, type: 'video' });
-        if (product.videoUrls) product.videoUrls.forEach(url => url && media.push({ url, type: 'video' }));
+        if (product.videoUrls) {
+            product.videoUrls.forEach(url => {
+                if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
+                    media.push({ url, type: 'video' });
+                }
+            });
+        }
+
+        // Real images added by the seller
         if (product.imageUrl && product.imageUrl.trim() !== "") media.push({ url: product.imageUrl, type: 'image' });
-        if (product.imageUrls) product.imageUrls.forEach(url => url && media.push({ url, type: 'image' }));
+        if (product.imageUrls) {
+            product.imageUrls.forEach(url => {
+                if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
+                    media.push({ url, type: 'image' });
+                }
+            });
+        }
+        
+        // Only if no media exists, use the clear "No Image" standard placeholder
         return media.length > 0 ? media : [{ url: getPlaceholderImage(), type: 'image' }];
     }, [product]);
 
@@ -101,7 +119,7 @@ export default function BuyerProductPage() {
             id: newOrderRef.id,
             buyerId: user.uid,
             sellerId: product.sellerId,
-            items: [{ productId: product.id, name: product.name, price: product.price, quantity, imageUrl: product.imageUrl }],
+            items: [{ productId: product.id, name: product.name, price: product.price, quantity, imageUrl: product.imageUrl || getPlaceholderImage() }],
             totalAmount: subtotal + shippingCost,
             orderDate: serverTimestamp(),
             orderStatus: 'pending',

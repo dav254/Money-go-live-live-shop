@@ -1,14 +1,16 @@
+
 'use client';
 
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Heart, ShoppingCart, Eye, Video, Sparkles } from 'lucide-react';
+import { Heart, ShoppingCart, Eye, Video } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 
 interface ProductCardProps {
   product: Product;
@@ -34,7 +36,7 @@ export function ProductCard({ product }: ProductCardProps) {
     }
 
     if (!firestore) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Cannot connect to the database.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Database connection not available.' });
       return;
     }
     
@@ -47,11 +49,10 @@ export function ProductCard({ product }: ProductCardProps) {
       quantity: increment(1),
       price: product.price,
       name: product.name || '',
-      imageUrl: product.imageUrl || '',
+      imageUrl: product.imageUrl || getPlaceholderImage(),
       addedAt: serverTimestamp(),
     };
 
-    // Use setDoc with merge to create or update the quantity
     setDoc(cartItemRef, cartItemData, { merge: true }).catch(error => {
         errorEmitter.emit(
         'permission-error',
@@ -73,7 +74,6 @@ export function ProductCard({ product }: ProductCardProps) {
     if (!firestore) return;
     const productRef = doc(firestore, 'products', product.id);
 
-    // Non-blocking update for a simple action like a "like"
     const batch = writeBatch(firestore);
     batch.update(productRef, { likes: increment(1) });
     batch.commit().catch(console.error);
@@ -84,20 +84,19 @@ export function ProductCard({ product }: ProductCardProps) {
     });
   };
   
-  const hasVideo = product.videoUrl || (product.videoUrls && product.videoUrls.length > 0);
-  const mediaUrl = hasVideo ? (product.videoUrl || product.videoUrls![0]) : product.imageUrl;
-
+  const hasVideo = !!(product.videoUrl || (product.videoUrls && product.videoUrls.length > 0));
+  const mainImage = product.imageUrl && product.imageUrl.trim() !== "" ? product.imageUrl : getPlaceholderImage();
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col">
       <div className="relative">
         <Link href={`/products/${product.id}`} className="cursor-pointer">
-            <div className="w-full h-48 bg-black">
+            <div className="w-full h-48 bg-black relative">
                 {hasVideo ? (
                     <video
-                        src={mediaUrl}
+                        src={product.videoUrl || product.videoUrls![0]}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        poster={product.imageUrl}
+                        poster={mainImage}
                         muted
                         loop
                         playsInline
@@ -106,7 +105,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     />
                 ) : (
                      <img
-                        src={product.imageUrl || '/placeholder.svg'}
+                        src={mainImage}
                         alt={product.name || 'Product image'}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
@@ -127,7 +126,7 @@ export function ProductCard({ product }: ProductCardProps) {
         {product.condition && (
             <div className={cn(
                 "absolute bottom-2 left-2 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest shadow-lg",
-                product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-500 text-black"
+                product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-600 text-black"
             )}>
                 {product.condition === 'new' ? 'New' : 'Used'}
             </div>
