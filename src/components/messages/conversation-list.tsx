@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,6 +18,8 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ chats, selectedChat, onSelectChat, isLoading }: ConversationListProps) {
+  const { user } = useUser();
+
   return (
     <div className="flex h-full w-full flex-col bg-background overflow-hidden">
       <div className="px-4 py-4 border-b border-white/5 shrink-0 bg-card/20">
@@ -52,6 +55,9 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
               
               // Online status logic: active within last 2 minutes
               const isOnline = otherParticipant.lastSeen ? (Date.now() - otherParticipant.lastSeen.toMillis() < 120000) : false;
+
+              // Unread count for current user
+              const unreadCount = user ? (chat.unreadCounts?.[user.uid] || 0) : 0;
 
               return (
                 <button
@@ -93,12 +99,20 @@ export function ConversationList({ chats, selectedChat, onSelectChat, isLoading 
                         </span>
                       )}
                     </div>
-                    <p className={cn(
-                      "text-[11px] truncate font-medium leading-none mt-0.5", 
-                      isActive ? "text-white/80" : "text-muted-foreground/70"
-                    )}>
-                        {chat.lastMessage || 'Start a conversation'}
-                    </p>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                        <p className={cn(
+                        "text-[11px] truncate font-medium leading-none flex-1", 
+                        isActive ? "text-white/80" : "text-muted-foreground/70",
+                        unreadCount > 0 && !isActive && "text-foreground font-black"
+                        )}>
+                            {chat.lastMessage || 'Start a conversation'}
+                        </p>
+                        {unreadCount > 0 && !isActive && (
+                            <Badge className="rounded-full h-4 min-w-[1rem] px-1 bg-primary text-white border-none text-[8px] font-black animate-in zoom-in shrink-0">
+                                {unreadCount}
+                            </Badge>
+                        )}
+                    </div>
                   </div>
                 </button>
               );

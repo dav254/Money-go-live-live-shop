@@ -291,4 +291,5 @@ export interface Chat {
     lastMessageTimestamp?: any;
     deletedFor?: string[];
     otherParticipant?: UserProfile;
+    unreadCounts?: { [userId: string]: number };
 }

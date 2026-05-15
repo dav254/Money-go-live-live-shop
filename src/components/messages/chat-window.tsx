@@ -31,7 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile, useDoc } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
 import Image from 'next/image';
@@ -249,6 +249,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         unreadFromOther.forEach(m => {
             batch.update(doc(firestore, 'chats', chat.id, 'messages', m.id), { isRead: true, readAt: serverTimestamp() });
         });
+        
+        // Reset unread count for current user
+        batch.update(doc(firestore, 'chats', chat.id), {
+            [`unreadCounts.${currentUser.uid}`]: 0
+        });
+
         batch.commit().catch(console.error);
     }
   }, [serverMessages, chat, currentUser, firestore]);
@@ -273,13 +279,21 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           });
 
           // Update the chat head document:
-          // 1. Update last message info for sorting and preview
+          // 1. Update last message info
           // 2. CLEAR deletedFor array so the chat reappears for everyone (WhatsApp style)
-          await updateDoc(doc(firestore, 'chats', chat.id), { 
+          // 3. Increment unread count for the recipient
+          const otherId = chat.participantIds.find(id => id !== currentUser.uid);
+          const updateObj: any = { 
               lastMessage: messageData.messageText || 'Sent a file', 
               lastMessageTimestamp: serverTimestamp(),
               deletedFor: [] 
-          });
+          };
+          
+          if (otherId) {
+              updateObj[`unreadCounts.${otherId}`] = increment(1);
+          }
+
+          await updateDoc(doc(firestore, 'chats', chat.id), updateObj);
       } catch (error) {
           setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
           throw error;
