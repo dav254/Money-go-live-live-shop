@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -30,7 +31,8 @@ import {
     Volume2,
     CreditCard,
     ShieldCheck,
-    DollarSign
+    DollarSign,
+    ChevronDown
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Chat, ChatMessage, Product, UserProfile, Order } from '@/lib/types';
@@ -90,7 +92,7 @@ const OrderPaymentCard = ({ orderId }: { orderId: string }) => {
                     </div>
                     <div className="min-w-0">
                         <p className="font-bold text-[11px] truncate text-white leading-tight">{order.productName}</p>
-                        <p className="text-[14px] font-black text-primary mt-1">${order.totalAmount.toLocaleString()}</p>
+                        <p className="text-[14px] font-black text-primary mt-1">${order.totalAmount?.toLocaleString()}</p>
                     </div>
                 </div>
                 
@@ -127,7 +129,7 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
             <div className="flex gap-2">
                 <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border">
                      <Image 
-                        src={product.imageUrl || 'https://picsum.photos/seed/product/100/100'} 
+                        src={product.imageUrl || '/placeholder.svg'} 
                         alt={product.name || 'product'} 
                         fill 
                         className="object-cover group-hover:scale-110 transition-transform duration-500" 
@@ -136,7 +138,7 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
                 <div className="flex-1 min-w-0 text-left">
                     <p className="font-black text-[7px] uppercase tracking-widest text-primary mb-0.5">PRODUCT</p>
                     <p className="font-bold text-[10px] truncate mb-0.5 leading-none">{product.name}</p>
-                    <p className="text-[11px] font-black text-foreground">${product.price.toLocaleString()}</p>
+                    <p className="text-[11px] font-black text-foreground">${product.price?.toLocaleString()}</p>
                     <Button size="sm" className="mt-1 h-5 w-full text-[8px] font-black uppercase tracking-widest px-2" asChild>
                         <Link href={`/products/${product.id}`}>View</Link>
                     </Button>
@@ -220,7 +222,7 @@ const CreateInvoiceDialog = ({ sellerId, buyerId, onSend }: { sellerId: string; 
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <span className="text-[11px] font-black uppercase tracking-tight block truncate text-foreground">{p.name}</span>
-                                            <span className="text-[10px] font-bold text-primary">${p.price.toLocaleString()}</span>
+                                            <span className="text-[10px] font-bold text-primary">${p.price?.toLocaleString()}</span>
                                         </div>
                                         {selectedProductId === p.id && <CheckCheck className="h-4 w-4 text-primary shrink-0 mr-1" />}
                                     </button>
@@ -368,7 +370,7 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
                                 </div>
                                 <div className="flex-1 min-w-0 text-left">
                                     <p className="font-black text-[10px] uppercase tracking-tight truncate leading-none mb-1 text-foreground">{product.name}</p>
-                                    <p className="text-[10px] font-black text-primary">${product.price.toLocaleString()}</p>
+                                    <p className="text-[10px] font-black text-primary">${product.price?.toLocaleString()}</p>
                                 </div>
                                 <DialogClose asChild>
                                     <Button size="sm" className="font-black text-[8px] uppercase tracking-widest px-3 h-8 rounded-lg" onClick={() => onShare(product.id)}>Send</Button>
@@ -394,6 +396,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [otherParticipantProfile, setOtherParticipantProfile] = useState<UserProfile | null>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -441,10 +444,28 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     }
   }, [serverMessages, chat, currentUser, firestore]);
 
+  const scrollToBottom = useCallback(() => {
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+    }
+  }, []);
+
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
-    if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    if (viewport) {
+      const isAtBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 100;
+      if (isAtBottom) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    }
   }, [serverMessages, optimisticMessages]);
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const viewport = event.currentTarget;
+    const isAtBottom = viewport.scrollHeight - viewport.scrollTop <= viewport.clientHeight + 100;
+    setShowScrollBottom(!isAtBottom);
+  };
 
   const sendMessage = async (messageData: Partial<ChatMessage>) => {
       if (!chat || !currentUser || !firestore) return;
@@ -471,6 +492,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
           }
 
           await updateDoc(doc(firestore, 'chats', chat.id), updateObj);
+          scrollToBottom();
       } catch (error) {
           setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
           throw error;
@@ -523,14 +545,14 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         console.error("Error sharing product:", error);
         toast({ variant: 'destructive', title: 'Share Failed' });
     });
-  }, [chat, currentUser, firestore, toast]);
+  }, [chat, currentUser, firestore, toast, sendMessage]);
 
   const handleSendInvoice = useCallback((orderId: string) => {
     sendMessage({ messageType: 'order', orderId }).catch(error => {
         console.error("Error sending invoice:", error);
         toast({ variant: 'destructive', title: 'Invoice Failed' });
     });
-  }, [chat, currentUser, firestore, toast]);
+  }, [chat, currentUser, firestore, toast, sendMessage]);
 
   // Voice Recording Logic
   const startRecording = async () => {
@@ -654,40 +676,55 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </div>
 
-        <ScrollArea className="flex-1 w-full" ref={scrollAreaRef}>
-            <div className="px-4 md:px-8 py-4 space-y-4 pb-12 w-full">
-            {allMessages.map((msg) => {
-                const senderIsMe = msg.senderId === currentUser.uid;
-                const alignRight = senderIsMe;
-                return (
-                    <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-1 duration-300", alignRight ? "justify-end" : "justify-start")}>
-                        <div className={cn("flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] lg:max-w-[60%]", alignRight ? "items-end text-right" : "items-start text-left")}>
-                            {msg.messageType === 'order' && msg.orderId ? (
-                                <OrderPaymentCard orderId={msg.orderId} />
-                            ) : msg.messageType === 'product' ? (
-                                <SharedProductCard productId={msg.productId!} />
-                            ) : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
-                                <div className={cn(
-                                    "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
-                                    alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
-                                )}>
-                                    <p className="whitespace-pre-wrap break-words overflow-hidden" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '100%' }}>{msg.messageText}</p>
+        <div className="flex-1 relative overflow-hidden">
+            <ScrollArea className="h-full w-full" ref={scrollAreaRef}>
+                <div 
+                    className="px-4 md:px-8 py-4 space-y-4 pb-12 w-full"
+                    onScrollCapture={(e) => handleScroll(e.currentTarget)}
+                >
+                {allMessages.map((msg) => {
+                    const senderIsMe = msg.senderId === currentUser.uid;
+                    const alignRight = senderIsMe;
+                    return (
+                        <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-1 duration-300", alignRight ? "justify-end" : "justify-start")}>
+                            <div className={cn("flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] lg:max-w-[60%]", alignRight ? "items-end text-right" : "items-start text-left")}>
+                                {msg.messageType === 'order' && msg.orderId ? (
+                                    <OrderPaymentCard orderId={msg.orderId} />
+                                ) : msg.messageType === 'product' ? (
+                                    <SharedProductCard productId={msg.productId!} />
+                                ) : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
+                                    <div className={cn(
+                                        "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
+                                        alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
+                                    )} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '100%' }}>
+                                        {msg.messageText}
+                                    </div>
+                                ))}
+                                <div className={cn("flex items-center gap-1 px-1 opacity-40 mt-1", alignRight ? "flex-row-reverse" : "flex-row")}>
+                                    <span className="text-[8px] font-black uppercase tracking-tighter">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
+                                    {senderIsMe && msg.isRead && (
+                                        <span className="text-[8px] font-black uppercase text-primary flex items-center gap-0.5">
+                                            <CheckCheck className="h-2 w-2" /> SEEN
+                                        </span>
+                                    )}
                                 </div>
-                            ))}
-                            <div className={cn("flex items-center gap-1 px-1 opacity-40 mt-1", alignRight ? "flex-row-reverse" : "flex-row")}>
-                                <span className="text-[8px] font-black uppercase tracking-tighter">{msg.timestamp?.toDate ? msg.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}</span>
-                                {senderIsMe && msg.isRead && (
-                                    <span className="text-[8px] font-black uppercase text-primary flex items-center gap-0.5">
-                                        <CheckCheck className="h-2 w-2" /> SEEN
-                                    </span>
-                                )}
                             </div>
                         </div>
-                    </div>
-                );
-            })}
-            </div>
-        </ScrollArea>
+                    );
+                })}
+                </div>
+            </ScrollArea>
+            
+            {showScrollBottom && (
+                <Button 
+                    onClick={scrollToBottom}
+                    size="icon" 
+                    className="absolute bottom-4 right-6 h-9 w-9 rounded-full bg-primary shadow-2xl animate-in fade-in zoom-in duration-300"
+                >
+                    <ChevronDown className="h-5 w-5" />
+                </Button>
+            )}
+        </div>
 
         <div className="px-4 md:px-6 py-3 border-t bg-card/30 backdrop-blur-xl shrink-0 z-10 w-full overflow-hidden">
             <div className="max-w-[90%] mx-auto">

@@ -42,8 +42,17 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
     }
 
-    match /conversations/{conversationId}/{allPaths=**} {
-      allow read, write: if isSignedIn();
+    // Chat System Rules (Renamed from conversations to chats)
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+      }
     }
 
     match /products/{productId} {
@@ -81,12 +90,18 @@ service cloud.firestore {
     
     // Wallet Transactions
     match /walletTransactions/{transactionId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'platform_revenue');
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'platform_revenue' || resource.data.userId == 'tax_collected');
     }
     
     // Payouts
     match /payouts/{payoutId} {
       allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if isSignedIn();
+    }
+
+    // Resell Activities Ledger
+    match /resellActivities/{activityId} {
+      allow read: if isSignedIn();
       allow create: if isSignedIn();
     }
   }
