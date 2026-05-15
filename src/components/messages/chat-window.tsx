@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -27,15 +28,17 @@ import {
     Square,
     Play,
     Pause,
-    Volume2
+    Volume2,
+    CreditCard,
+    ShieldCheck
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import type { Chat, ChatMessage, Product, UserProfile } from '@/lib/types';
+import type { Chat, ChatMessage, Product, UserProfile, Order } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile, useDoc } from '@/firebase';
-import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch, increment } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, orderBy, query, where, doc, updateDoc, arrayUnion, getDoc, writeBatch, increment, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription, DialogFooter } from '../ui/dialog';
 import Image from 'next/image';
 import {
   DropdownMenu,
@@ -50,6 +53,7 @@ import { Progress } from '../ui/progress';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge';
+import { Label } from '@/components/ui/label';
 
 interface ChatWindowProps {
   chat: Chat | null;
@@ -57,6 +61,58 @@ interface ChatWindowProps {
   onChatDeleted: () => void;
   onBack: () => void;
 }
+
+const OrderPaymentCard = ({ orderId }: { orderId: string }) => {
+    const firestore = useFirestore();
+    const orderRef = useMemoFirebase(() => doc(firestore, 'orders', orderId), [firestore, orderId]);
+    const { data: order, isLoading } = useDoc<Order>(orderRef);
+
+    if (isLoading) return <div className="w-[240px] h-32 rounded-2xl border bg-card animate-pulse" />;
+    if (!order) return <div className="p-3 text-[10px] italic text-muted-foreground">Order no longer available.</div>;
+
+    const isPending = order.orderStatus === 'pending';
+
+    return (
+        <div className="w-[260px] rounded-2xl border-2 border-primary/20 bg-card overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="bg-primary/5 p-3 border-b border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-3 w-3 text-primary" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-primary">Secure Invoice</span>
+                </div>
+                <Badge variant="outline" className="text-[8px] font-black uppercase border-primary/20 text-primary">
+                    {order.orderStatus}
+                </Badge>
+            </div>
+            <div className="p-4 space-y-3">
+                <div className="flex gap-3">
+                    <div className="relative h-10 w-10 shrink-0 rounded-lg overflow-hidden border bg-black">
+                        <Image src={order.productImage || '/placeholder.svg'} alt="product" fill className="object-cover" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="font-bold text-[11px] truncate text-white leading-tight">{order.productName}</p>
+                        <p className="text-[14px] font-black text-primary mt-1">${order.totalAmount.toLocaleString()}</p>
+                    </div>
+                </div>
+                
+                {isPending ? (
+                    <Button asChild className="w-full h-10 font-black uppercase tracking-widest text-[10px] bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/20 border-none">
+                        <Link href={`/checkout/${order.id}`}>
+                            PAY NOW <ChevronRight className="ml-1 h-3 w-3" />
+                        </Link>
+                    </Button>
+                ) : (
+                    <div className="flex items-center justify-center gap-2 p-2 bg-green-500/10 rounded-xl border border-green-500/20">
+                        <CheckCheck className="h-3 w-3 text-green-500" />
+                        <span className="text-[10px] font-black uppercase text-green-500 tracking-widest">ORDER PAID</span>
+                    </div>
+                )}
+            </div>
+            <div className="bg-muted/30 p-2 text-center border-t border-white/5">
+                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-tighter">Powered by Go Earn Checkout</p>
+            </div>
+        </div>
+    );
+};
 
 const SharedProductCard = ({ productId }: { productId: string }) => {
     const firestore = useFirestore();
@@ -78,7 +134,7 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
                     />
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                    <p className="font-black text-[7px] uppercase tracking-widest text-primary mb-0.5">DEAL</p>
+                    <p className="font-black text-[7px] uppercase tracking-widest text-primary mb-0.5">PRODUCT</p>
                     <p className="font-bold text-[10px] truncate mb-0.5 leading-none">{product.name}</p>
                     <p className="text-[11px] font-black text-foreground">${product.price.toLocaleString()}</p>
                     <Button size="sm" className="mt-1 h-5 w-full text-[8px] font-black uppercase tracking-widest px-2" asChild>
@@ -87,6 +143,109 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
                 </div>
             </div>
         </div>
+    );
+};
+
+const CreateInvoiceDialog = ({ sellerId, buyerId, onSend }: { sellerId: string; buyerId: string; onSend: (orderId: string) => void }) => {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+    const [agreedPrice, setAgreedPrice] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+
+    const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products'), where('sellerId', '==', sellerId)), [firestore, sellerId]);
+    const { data: products, isLoading } = useCollection<Product>(productsQuery);
+
+    const handleCreateOrder = async () => {
+        if (!selectedProductId || !agreedPrice) return;
+        setIsCreating(true);
+        const product = products?.find(p => p.id === selectedProductId);
+        if (!product) return;
+
+        const newOrderRef = doc(collection(firestore, 'orders'));
+        const orderData = {
+            id: newOrderRef.id,
+            buyerId,
+            sellerId,
+            productId: product.id,
+            productName: product.name,
+            productImage: product.imageUrl,
+            productPrice: Number(agreedPrice),
+            shippingCost: product.shippingCost || 0,
+            totalAmount: Number(agreedPrice) + (product.shippingCost || 0),
+            orderDate: serverTimestamp(),
+            orderStatus: 'pending',
+            shippingAddress: 'N/A (Update at checkout)',
+            quantity: 1,
+            timeline: [{ status: 'pending', date: new Date() }]
+        };
+
+        try {
+            await setDoc(newOrderRef, orderData);
+            onSend(newOrderRef.id);
+            toast({ title: 'Invoice Sent!', description: 'Buyer can now pay via the Pay Now button.' });
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to create invoice.' });
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    return (
+        <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+                <DialogTitle className="font-black text-base uppercase tracking-tighter">Send Secure Invoice</DialogTitle>
+                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Confirm the deal with a payment link.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select Product</Label>
+                    <ScrollArea className="h-40 border rounded-xl bg-muted/20">
+                        <div className="p-2 space-y-1">
+                            {products?.map(p => (
+                                <button 
+                                    key={p.id} 
+                                    onClick={() => setSelectedProductId(p.id)}
+                                    className={cn(
+                                        "w-full flex items-center gap-3 p-2 rounded-lg border transition-all text-left",
+                                        selectedProductId === p.id ? "bg-primary/10 border-primary shadow-sm" : "bg-transparent border-transparent hover:bg-muted"
+                                    )}
+                                >
+                                    <div className="relative h-8 w-8 rounded-md overflow-hidden bg-black shrink-0">
+                                        <Image src={p.imageUrl || '/placeholder.svg'} alt="p" fill className="object-cover" />
+                                    </div>
+                                    <span className="text-[11px] font-bold truncate flex-1">{p.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Agreed Price (USD)</Label>
+                    <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary" />
+                        <Input 
+                            type="number" 
+                            placeholder="0.00" 
+                            className="pl-9 h-11 bg-muted/30 border-white/10 rounded-xl font-black text-base"
+                            value={agreedPrice}
+                            onChange={e => setAgreedPrice(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button 
+                    className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs" 
+                    onClick={handleCreateOrder}
+                    disabled={isCreating || !selectedProductId || !agreedPrice}
+                >
+                    {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    SEND INVOICE
+                </Button>
+            </DialogFooter>
+        </DialogContent>
     );
 };
 
@@ -153,7 +312,7 @@ const MediaMessage = ({ message }: { message: ChatMessage }) => {
       <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl border shadow-sm max-w-full">
         <Image 
             src={message.mediaUrl} 
-            alt={name || 'Shared image'} 
+            alt={name || 'image'} 
             width={180} 
             height={180} 
             className="max-w-full h-auto object-cover hover:scale-105 transition-transform duration-500" 
@@ -354,14 +513,20 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     });
   }, [chat, currentUser, firestore, toast]);
 
+  const handleSendInvoice = useCallback((orderId: string) => {
+    sendMessage({ messageType: 'order', orderId }).catch(error => {
+        console.error("Error sending invoice:", error);
+        toast({ variant: 'destructive', title: 'Invoice Failed' });
+    });
+  }, [chat, currentUser, firestore, toast]);
+
   // Voice Recording Logic
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // OPTIMIZATION: Lower bitrate for tiny file size and ultra-fast upload
       const mediaRecorder = new MediaRecorder(stream, { 
           mimeType: 'audio/webm',
-          audioBitsPerSecond: 32000 // 32kbps is enough for voice and very fast to upload
+          audioBitsPerSecond: 32000
       });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -374,12 +539,12 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const finalDuration = recordingTime;
         
-        if (audioBlob.size > 500) { // Small threshold to ensure data exists
+        if (audioBlob.size > 500) {
             const path = `chats/${chat!.id}/${Date.now()}_voice_note.webm`;
             const storageRef = ref(storage, path);
             const uploadTask = uploadBytesResumable(storageRef, audioBlob);
             
-            setUploadProgress(1); // Immediate indicator
+            setUploadProgress(1);
 
             uploadTask.on('state_changed', 
                 (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
@@ -485,7 +650,11 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                 return (
                     <div key={msg.id} className={cn("flex w-full animate-in fade-in slide-in-from-bottom-1 duration-300", alignRight ? "justify-end" : "justify-start")}>
                         <div className={cn("flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] lg:max-w-[60%]", alignRight ? "items-end text-right" : "items-start text-left")}>
-                            {msg.messageType === 'product' ? <SharedProductCard productId={msg.productId!} /> : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
+                            {msg.messageType === 'order' && msg.orderId ? (
+                                <OrderPaymentCard orderId={msg.orderId} />
+                            ) : msg.messageType === 'product' ? (
+                                <SharedProductCard productId={msg.productId!} />
+                            ) : (msg.mediaUrl ? <MediaMessage message={msg} /> : (
                                 <div className={cn(
                                     "rounded-xl px-3 py-2 text-sm font-medium leading-relaxed border shadow-sm break-words overflow-hidden text-left", 
                                     alignRight ? "bg-primary text-white border-primary" : "bg-card text-foreground border-border"
@@ -551,14 +720,28 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                         </Button>
                         
                         {userProfile?.userRole === 'seller' && (
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
-                                        <Package className="h-4 w-4" />
-                                    </Button>
-                                </DialogTrigger>
-                                <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                            </Dialog>
+                            <>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                            <Package className="h-4 w-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                                </Dialog>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-primary/10 text-primary">
+                                            <CreditCard className="h-4 w-4" />
+                                        </Button>
+                                    </DialogTrigger>
+                                    <CreateInvoiceDialog 
+                                        sellerId={currentUser.uid} 
+                                        buyerId={otherParticipantProfile?.id || ''} 
+                                        onSend={handleSendInvoice} 
+                                    />
+                                </Dialog>
+                            </>
                         )}
                     </div>
 

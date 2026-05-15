@@ -75,7 +75,7 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   timestamp: any;
-  messageType?: 'text' | 'image' | 'video' | 'file' | 'product' | 'voice';
+  messageType?: 'text' | 'image' | 'video' | 'file' | 'product' | 'voice' | 'order';
   mediaUrl?: string;
   mediaMetadata?: {
       name: string;
@@ -84,6 +84,7 @@ export interface ChatMessage {
       duration?: number;
   };
   productId?: string;
+  orderId?: string;
   isRead?: boolean;
   readAt?: any;
 }
@@ -293,4 +294,34 @@ export interface Chat {
     deletedFor?: string[];
     otherParticipant?: UserProfile;
     unreadCounts?: { [userId: string]: number };
+}
+
+export interface Order {
+    id: string;
+    buyerId: string;
+    sellerId: string;
+    resellerId?: string;
+    productId?: string;
+    productName?: string;
+    productImage?: string;
+    productPrice?: number;
+    shippingCost?: number;
+    totalAmount: number;
+    subtotal?: number;
+    quantity?: number;
+    orderDate: any;
+    shippingAddress: string;
+    orderStatus: 'pending' | 'processing' | 'shipped' | 'delivery' | 'delivered' | 'cancelled' | 'disputed' | 'refunded';
+    disputeReason?: string;
+    paymentMethod?: string;
+    trackingNumber?: string;
+    shippingProvider?: string;
+    courierName?: string;
+    dispatchNote?: string;
+    buyerConfirmed?: boolean;
+    deliveredAt?: any;
+    deliveryProof?: string;
+    timeline?: { status: string; date: any; updatedBy?: string }[];
+    platformFee?: number;
+    resellerCommission?: number;
 }
