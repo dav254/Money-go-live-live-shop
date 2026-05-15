@@ -18,12 +18,7 @@ import {
     ArrowLeft, 
     MessageSquare, 
     CheckCheck,
-    Sparkles,
-    BrainCircuit,
-    Zap,
-    ShieldCheck,
     X,
-    TrendingUp,
     ChevronRight,
     Paperclip,
     ImageIcon,
@@ -160,71 +155,6 @@ const ShareProductDialog = ({ sellerId, onShare }: { sellerId: string; onShare: 
     )
 }
 
-const AiNegotiationCopilot = ({ isOpen, onClose, onApplySuggestion }: { isOpen: boolean, onClose: () => void, onApplySuggestion: (text: string) => void }) => {
-    if (!isOpen) return null;
-
-    const suggestions = [
-        { title: "Friendly Greeting", text: "Hi! Thanks for reaching out. How can I help you?" },
-        { title: "Price Nudge", text: "I can offer a small discount if we close this deal today. Thoughts?" },
-        { title: "Shipping", text: "Yes, I can ship this to you. Takes 2-3 business days." },
-    ];
-
-    return (
-        <div className={cn(
-            "fixed md:static inset-y-0 right-0 z-[60] w-64 bg-neutral-950 border-l border-white/10 shadow-2xl flex flex-col transition-all duration-300 animate-in slide-in-from-right",
-            !isOpen && "hidden"
-        )}>
-            <div className="p-2.5 border-b border-white/5 flex items-center justify-between bg-neutral-900/50">
-                <div className="flex items-center gap-2">
-                    <BrainCircuit className="h-3.5 w-3.5 text-primary" />
-                    <span className="font-black text-[9px] uppercase tracking-widest text-white">AI COPILOT</span>
-                </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={onClose}><X className="h-3.5 w-3.5" /></Button>
-            </div>
-            
-            <ScrollArea className="flex-1">
-                <div className="p-2.5 space-y-4">
-                    <div className="space-y-1">
-                        <p className="text-[8px] font-black uppercase text-neutral-500 tracking-[0.2em]">SUGGESTIONS</p>
-                        <div className="space-y-1.5">
-                            {suggestions.map((s, i) => (
-                                <button 
-                                    key={i} 
-                                    onClick={() => onApplySuggestion(s.text)}
-                                    className="w-full text-left p-2 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 hover:bg-white/10 transition-all group"
-                                >
-                                    <p className="text-[8px] font-black text-primary uppercase mb-0.5">{s.title}</p>
-                                    <p className="text-[10px] text-neutral-300 line-clamp-2 leading-tight italic">"{s.text}"</p>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <Separator className="bg-white/5" />
-
-                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-2.5 space-y-1.5">
-                        <div className="flex items-center gap-1.5">
-                            <Zap className="h-3 w-3 text-primary" />
-                            <p className="text-[8px] font-black uppercase text-primary tracking-widest">STRATEGY</p>
-                        </div>
-                        <p className="text-[10px] text-neutral-200 leading-tight font-medium">
-                            High intent buyer. Suggest a quick deal to build momentum.
-                        </p>
-                    </div>
-
-                    <div className="space-y-1">
-                         <p className="text-[8px] font-black uppercase text-neutral-500 tracking-[0.2em]">SAFEGUARD</p>
-                         <div className="flex items-center gap-1.5 p-2 rounded-xl bg-green-500/5 border border-green-500/10">
-                            <ShieldCheck className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                            <p className="text-[8px] font-bold text-neutral-400 leading-none">Keep payments inside Go Earn.</p>
-                         </div>
-                    </div>
-                </div>
-            </ScrollArea>
-        </div>
-    );
-};
-
 export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState('');
   const [optimisticMessages, setOptimisticMessages] = useState<any[]>([]);
@@ -236,7 +166,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [otherParticipantProfile, setOtherParticipantProfile] = useState<UserProfile | null>(null);
-  const [isAiOpen, setIsAiOpen] = useState(false);
 
   const messagesQuery = useMemoFirebase(() => {
     if (!chat || !firestore) return null;
@@ -308,7 +237,7 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
 
           await updateDoc(doc(firestore, 'chats', chat.id), updateObj);
       } catch (error) {
-          setOptimisticMessages(prev => prev.filter(m => m.id !== tempId));
+          setOptimisticMessages(prev => prev.push(prev.filter(m => m.id !== tempId)));
           throw error;
       }
   };
@@ -399,14 +328,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setIsAiOpen(!isAiOpen)}
-                    className={cn("rounded-full h-7 w-7 transition-colors", isAiOpen ? "bg-primary/10 text-primary" : "text-muted-foreground")}
-                >
-                    <Sparkles className="h-4 w-4" />
-                </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="rounded-full h-7 w-7 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-2xl">
@@ -489,19 +410,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                             <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
                         </Dialog>
                     )}
-                    
-                    <Button 
-                        type="button" 
-                        size="icon" 
-                        variant="outline" 
-                        className={cn(
-                            "h-8 w-8 rounded-xl border-white/5 shrink-0 transition-all",
-                            isAiOpen ? "bg-primary/20 text-primary border-primary/30" : "bg-neutral-900/50"
-                        )} 
-                        onClick={() => setIsAiOpen(!isAiOpen)}
-                    >
-                        <Sparkles className="h-4 w-4" />
-                    </Button>
                 </div>
 
                 <div className="flex-1 min-w-0 relative">
@@ -520,16 +428,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
             </div>
         </div>
       </div>
-
-      <AiNegotiationCopilot 
-        isOpen={isAiOpen} 
-        onClose={() => setIsAiOpen(false)} 
-        onApplySuggestion={(text) => {
-            setNewMessage(text);
-            setIsAiOpen(false);
-            toast({ title: 'Draft applied', duration: 1500 });
-        }}
-      />
     </div>
   );
 }
