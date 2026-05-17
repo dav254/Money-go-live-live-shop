@@ -61,7 +61,6 @@ export async function POST(request: Request) {
     });
 
     // 2. Initialize new session document (Always overwrites for a fresh start)
-    // We set status to upcoming. It only becomes 'live' when the seller clicks Broadcast.
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
@@ -95,13 +94,14 @@ export async function POST(request: Request) {
 
 /**
  * PUT handler to end a live session permanently.
+ * ALLOWS MODERATION: Admins can end any stream.
  */
 export async function PUT(request: Request) {
   const verification = await verifyUser(request);
   if ('error' in verification) {
     return NextResponse.json({ error: (verification as any).error }, { status: (verification as any).status });
   }
-  const sellerId = (verification as { uid: string }).uid;
+  const userId = (verification as { uid: string }).uid;
 
   const { liveSessionId } = await request.json();
 
@@ -113,12 +113,19 @@ export async function PUT(request: Request) {
     const sessionRef = db.collection('liveSessions').doc(liveSessionId);
     const sessionDoc = await sessionRef.get();
     
-    if (!sessionDoc.exists || sessionDoc.data()?.sellerId !== sellerId) {
+    if (!sessionDoc.exists) {
+        return NextResponse.json({ error: 'Session not found.' }, { status: 404 });
+    }
+
+    const adminProfile = await db.collection('userProfiles').doc(userId).get();
+    const isAdmin = adminProfile.data()?.userRole === 'admin';
+    const isOwner = sessionDoc.data()?.sellerId === userId;
+
+    if (!isOwner && !isAdmin) {
         return NextResponse.json({ error: 'Forbidden: Access denied.' }, { status: 403 });
     }
 
     // CRITICAL: End status and clear meeting ID to kick buyers out instantly.
-    // This prevents "transport closed" errors on rejoin attempts.
     await sessionRef.update({
       status: 'ended',
       endTime: Timestamp.now(),
@@ -126,6 +133,7 @@ export async function PUT(request: Request) {
       pinnedProductId: null,
       activeOffer: null,
       timeRemainingMs: 0,
+      terminatedBy: isAdmin ? 'admin' : 'seller'
     });
 
     return NextResponse.json({ success: true, message: 'Live session ended.' });
