@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
@@ -10,18 +9,12 @@ export async function GET() {
   const API_KEY = process.env.VIDEOSDK_API_KEY;
   const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY;
 
-  // Frontend-only fallback mode to prevent hard "Authentication failure" errors
   if (!API_KEY || !SECRET_KEY) {
-    console.warn("[VideoSDK] API keys missing. Returning fallback token for development.");
+    console.warn("[VideoSDK] API keys missing in environment variables.");
     return NextResponse.json({ 
-        token: "fallback_token_development_only",
-        isFallback: true 
-    }, {
-        headers: { 
-          'X-VideoSDK-Status': 'development-fallback',
-          'Cache-Control': 'no-store' 
-        }
-    });
+        error: 'CONFIG_MISSING',
+        message: 'VideoSDK API keys are not configured on this server.' 
+    }, { status: 500 });
   }
 
   try {

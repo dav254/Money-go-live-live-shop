@@ -32,7 +32,6 @@ export default function SellerGoLivePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [meetingId, setMeetingId] = useState<string | null>(null);
-  const [prewarmedMeetingId, setPrewarmedMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [token, setToken] = useState<string | null>(null);
@@ -46,8 +45,10 @@ export default function SellerGoLivePage() {
     try {
       const res = await fetch('/api/videosdk/token');
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Authentication failure");
-      if (data.isFallback) setIsConfigMissing(true);
+      if (!res.ok) {
+          if (data.error === 'CONFIG_MISSING') setIsConfigMissing(true);
+          throw new Error(data.message || "Authentication failure");
+      }
       if (data.token) setToken(data.token);
     } catch (err: any) {
       console.error("Error fetching VideoSDK token:", err);
@@ -59,6 +60,7 @@ export default function SellerGoLivePage() {
     setIsStarting(true);
     setIsHardwareReleased(false);
     
+    // Cleanup local preview stream
     if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
         videoRef.current.srcObject = null;
@@ -68,12 +70,12 @@ export default function SellerGoLivePage() {
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prewarmedMeetingId })
+          body: JSON.stringify({ })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       
-      setMeetingId(result.videosdkMeetingId || prewarmedMeetingId);
+      setMeetingId(result.videosdkMeetingId);
       setWantsToSetup(true);
     } catch (err: any) { 
         toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
@@ -81,26 +83,9 @@ export default function SellerGoLivePage() {
     } finally { 
         setIsStarting(false);
     }
-  }, [user, token, prewarmedMeetingId, toast]);
+  }, [user, token, toast]);
 
   useEffect(() => { fetchToken(); }, [fetchToken]);
-
-  useEffect(() => {
-    const prewarmMeeting = async () => {
-        if (token && !prewarmedMeetingId) {
-            try {
-                const res = await fetch("https://api.videosdk.live/v2/rooms", {
-                    method: "POST",
-                    headers: { authorization: token, "Content-Type": "application/json" },
-                    body: JSON.stringify({}),
-                });
-                const { roomId } = await res.json();
-                if (roomId) setPrewarmedMeetingId(roomId);
-            } catch (err) { console.warn("Pre-warm failed", err); }
-        }
-    };
-    prewarmMeeting();
-  }, [token, prewarmedMeetingId]);
 
   const getCameraPermission = useCallback(async () => {
     try {
@@ -184,7 +169,7 @@ export default function SellerGoLivePage() {
             <CardHeader className="text-center">
               <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
               <CardTitle className="uppercase tracking-tighter text-white">Setup Required</CardTitle>
-              <CardDescription className="text-neutral-400">VideoSDK credentials are missing. Contact admin to enable live streaming.</CardDescription>
+              <CardDescription className="text-neutral-400">VideoSDK credentials are missing on the server. Please check your environment variables.</CardDescription>
             </CardHeader>
             <CardFooter><Button className="w-full font-black uppercase" onClick={() => router.push('/dashboard/seller')}>BACK TO DASHBOARD</Button></CardFooter>
           </Card>
@@ -250,7 +235,7 @@ export default function SellerGoLivePage() {
                                 size="lg" 
                                 className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
                                 onClick={handleSetupPreview} 
-                                disabled={isStarting || (userProfile?.aiPoints || 0) < 100}
+                                disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !token}
                               >
                                   {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
                                   START LIVE SESSION

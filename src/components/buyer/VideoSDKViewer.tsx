@@ -2,12 +2,11 @@
 
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
-import { VideoOff, Loader2 } from 'lucide-react';
+import { VideoOff, Loader2, AlertCircle } from 'lucide-react';
 import { useUser, useUserProfile } from '@/firebase';
 
 /**
  * Optimized Viewer for Buyers.
- * Configured for absolute minimum latency and immediate data sync.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream, webcamOn } = useParticipant(participantId);
@@ -19,8 +18,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       const mediaStream = new MediaStream();
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
-      
-      // Force priority playback to eliminate start-up lag
       videoRef.current.play().catch(err => {
           if (err.name !== 'AbortError') console.warn("[Live Sync] Video boost failed:", err);
       });
@@ -72,7 +69,6 @@ const ViewerMeetingView = () => {
     }
   }, [join, isMeetingJoined]);
 
-  // FAST PATH: Identify the host (Seller) immediately
   const host = React.useMemo(() => {
     const participantsArray = Array.from(participants.values());
     return participantsArray.find(p => !p.local && p.webcamOn) || 
@@ -103,10 +99,10 @@ const ViewerMeetingView = () => {
 
 export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
   const [token, setToken] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   
-  // Use identified name for the studio list
   const displayName = userProfile?.fullName || userProfile?.username || user?.displayName || "Guest Buyer";
 
   useEffect(() => {
@@ -114,13 +110,25 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
       try {
         const res = await fetch('/api/videosdk/token');
         const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Signal error');
         if (data.token) setToken(data.token);
-      } catch (err) {
+      } catch (err: any) {
         console.error("[Performance Check] Signal token failed:", err);
+        setError(err.message);
       }
     };
     fetchToken();
   }, []);
+
+  if (error) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <p className="text-white font-black uppercase tracking-widest text-xs">Signal Failed</p>
+        <p className="text-neutral-500 text-[10px] mt-2 max-w-[200px]">{error}</p>
+      </div>
+    );
+  }
 
   if (!token || !meetingId) {
     return (
@@ -138,10 +146,9 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         webcamEnabled: false,
         name: displayName,
         mode: "CONFERENCE",
-        // PERFORMANCE OVERRIDES:
         multiStream: false,
         subscribeFullStream: true,
-        adaptiveStream: true, // Auto-adjust to buyer's network
+        adaptiveStream: true,
       }}
       token={token}
     >

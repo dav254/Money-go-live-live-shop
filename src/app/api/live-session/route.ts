@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import jwt from 'jsonwebtoken';
 
 const GO_LIVE_COST = 100; // 100 points ($1.00 USD)
 const SESSION_LIMIT_MS = 70 * 60 * 1000; // 70 minutes
@@ -21,7 +22,23 @@ async function verifyUser(request: Request) {
 }
 
 /**
+ * Generates an internal token for VideoSDK API calls.
+ */
+function getInternalToken() {
+  const API_KEY = process.env.VIDEOSDK_API_KEY;
+  const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY;
+  if (!API_KEY || !SECRET_KEY) return null;
+
+  return jwt.sign(
+    { apikey: API_KEY, permissions: ['allow_join', 'allow_mod'], version: 2 },
+    SECRET_KEY,
+    { expiresIn: '10m' }
+  );
+}
+
+/**
  * POST handler to create a fresh live session.
+ * SERVER-SIDE ROOM CREATION: Bypasses CORS and ensures valid meeting IDs.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -29,7 +46,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: (verification as any).error }, { status: (verification as any).status });
   }
   const sellerId = (verification as { uid: string }).uid;
-  const { prewarmedMeetingId } = await request.json();
 
   try {
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
@@ -53,6 +69,24 @@ export async function POST(request: Request) {
         }, { status: 402 });
     }
 
+    // --- CREATE VIDEOSDK ROOM ON SERVER ---
+    const internalToken = getInternalToken();
+    let videosdkMeetingId = null;
+
+    if (internalToken) {
+        const videoSdkRes = await fetch("https://api.videosdk.live/v2/rooms", {
+            method: "POST",
+            headers: { authorization: internalToken, "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+        });
+        const videoSdkData = await videoSdkRes.json();
+        videosdkMeetingId = videoSdkData.roomId;
+    }
+
+    if (!videosdkMeetingId) {
+        return NextResponse.json({ error: 'Failed to initialize VideoSDK Room.' }, { status: 500 });
+    }
+
     const batch = db.batch();
     
     // 1. Deduct points for new session
@@ -60,7 +94,7 @@ export async function POST(request: Request) {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
 
-    // 2. Initialize new session document (Always overwrites for a fresh start)
+    // 2. Initialize new session document
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
@@ -73,7 +107,7 @@ export async function POST(request: Request) {
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
       activeOffer: null,
-      videosdkMeetingId: prewarmedMeetingId || null,
+      videosdkMeetingId: videosdkMeetingId,
       pinnedProductId: null,
     });
 
@@ -83,7 +117,7 @@ export async function POST(request: Request) {
         success: true, 
         liveSessionId: sessionRef.id,
         newBalance: currentPoints - GO_LIVE_COST,
-        videosdkMeetingId: prewarmedMeetingId
+        videosdkMeetingId: videosdkMeetingId
     });
 
   } catch (error: any) {
@@ -94,7 +128,6 @@ export async function POST(request: Request) {
 
 /**
  * PUT handler to end a live session permanently.
- * ALLOWS MODERATION: Admins can end any stream.
  */
 export async function PUT(request: Request) {
   const verification = await verifyUser(request);
@@ -125,7 +158,6 @@ export async function PUT(request: Request) {
         return NextResponse.json({ error: 'Forbidden: Access denied.' }, { status: 403 });
     }
 
-    // CRITICAL: End status and clear meeting ID to kick buyers out instantly.
     await sessionRef.update({
       status: 'ended',
       endTime: Timestamp.now(),
