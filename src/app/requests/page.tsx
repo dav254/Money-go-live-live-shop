@@ -10,78 +10,35 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { BuyerRequest } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// High-fidelity Mock Data for Frontend-Only Pipeline
-export const MOCK_REQUESTS = [
-  {
-    id: 'req_1',
-    title: 'Need Professional Video Lighting Kit',
-    description: 'Looking for a complete ring light or softbox setup for a new studio. Budget is around 15k. Must include tripod and phone holder. Prefer local pickup in Nairobi.',
-    category: 'Electronics & Gadgets',
-    minBudget: 12000,
-    maxBudget: 18000,
-    deadline: 'Urgent',
-    area: 'Westlands',
-    county: 'Nairobi',
-    requestType: 'video',
-    videoUrl: 'https://picsum.photos/seed/lighting/600/400',
-    offersCount: 4,
-    aiInsight: 'HIGH INTENT',
-    aiMatch: '98%',
-    aiReason: 'Buyer is ready to pay now. Matches your inventory.'
-  },
-  {
-    id: 'req_2',
-    title: 'Bulk Order: Cotton T-Shirts (50 pcs)',
-    description: 'Need 50 plain white heavy cotton t-shirts for a corporate event. Various sizes (M, L, XL). High quality fabric only.',
-    category: 'Fashion & Apparel',
-    minBudget: 25000,
-    maxBudget: 40000,
-    deadline: 'Within 3 Days',
-    area: 'CBD',
-    county: 'Nairobi',
-    requestType: 'text',
-    videoUrl: null,
-    offersCount: 12,
-    aiInsight: 'VOLUME ORDER',
-    aiMatch: '85%',
-    aiReason: 'Potential for recurring business.'
-  },
-  {
-    id: 'req_3',
-    title: 'Gaming Laptop for Student',
-    description: 'Looking for a reliable pre-owned gaming laptop (RTX 3060+) for architecture software. Budget is flexible if the machine is clean.',
-    category: 'Electronics & Gadgets',
-    minBudget: 60000,
-    maxBudget: 85000,
-    deadline: 'Flexible',
-    area: 'Juja',
-    county: 'Kiambu',
-    requestType: 'text',
-    videoUrl: null,
-    offersCount: 2,
-    aiInsight: 'PERFECT MATCH',
-    aiMatch: '99%',
-    aiReason: 'You have a listing that fits these specs exactly.'
-  }
-];
+function LeadCard({ request }: { request: BuyerRequest }) {
+  // AI Insight simulation based on real data
+  const isUrgent = request.deadline === 'urgent';
+  const aiInsight = isUrgent ? 'HIGH INTENT' : 'NEW LEAD';
+  const aiMatch = isUrgent ? '98%' : '85%';
+  const aiReason = isUrgent 
+    ? 'Buyer is ready to pay now. Matches local inventory.' 
+    : 'New requirement detected in your category.';
 
-function LeadCard({ request }: { request: any }) {
   return (
     <Card className="bg-neutral-900/50 border-white/5 hover:border-primary/30 transition-all group overflow-hidden rounded-[2rem] flex flex-col relative h-full shadow-2xl">
       <div className="bg-primary/10 border-b border-primary/20 px-6 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-3 w-3 text-primary animate-pulse" />
-          <span className="text-[9px] font-black text-primary uppercase tracking-widest">{request.aiInsight}</span>
+          <span className="text-[9px] font-black text-primary uppercase tracking-widest">{aiInsight}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <BrainCircuit className="h-3 w-3 text-white/40" />
-          <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">Match: {request.aiMatch}</span>
+          <span className="text-[9px] font-black text-white/60 uppercase tracking-widest">Match: {aiMatch}</span>
         </div>
       </div>
 
       <div className="relative aspect-video w-full bg-black overflow-hidden border-b border-white/5">
-        {request.requestType === 'video' ? (
+        {request.requestType === 'video' && request.videoUrl ? (
           <div className="relative w-full h-full">
             <Image src={request.videoUrl} alt="video" fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -119,14 +76,14 @@ function LeadCard({ request }: { request: any }) {
             <Zap className="h-2.5 w-2.5 fill-primary" /> Why this lead?
           </p>
           <p className="text-[11px] font-bold text-neutral-300 leading-tight">
-            {request.aiReason}
+            {aiReason}
           </p>
         </div>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-xl bg-white/5 border border-white/5 space-y-0.5 shadow-sm">
             <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Budget</p>
-            <p className="text-xs font-black text-white">KES {request.minBudget.toLocaleString()} - {request.maxBudget.toLocaleString()}</p>
+            <p className="text-xs font-black text-white">KES {request.minBudget?.toLocaleString()} - {request.maxBudget?.toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-xl bg-white/5 border border-white/5 space-y-0.5 shadow-sm">
             <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Fulfillment</p>
@@ -154,11 +111,23 @@ function LeadCard({ request }: { request: any }) {
 export default function SellerRequestsMarketplacePage() {
   const [searchTerm, setSearchQuery] = useState('');
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const filtered = MOCK_REQUESTS.filter(r => 
-    r.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const requestsQuery = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return query(
+          collection(firestore, 'requests'),
+          where('status', '==', 'open'),
+          orderBy('createdAt', 'desc')
+      );
+  }, [firestore]);
+
+  const { data: requests, isLoading } = useCollection<BuyerRequest>(requestsQuery);
+
+  const filtered = (requests || []).filter(r => 
+    r.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -174,7 +143,7 @@ export default function SellerRequestsMarketplacePage() {
             <div className="bg-primary/10 border border-primary/20 rounded-2xl px-6 py-3 flex items-center gap-4 shadow-xl">
               <div className="text-right">
                 <p className="text-[8px] font-black uppercase text-primary tracking-widest">Active Leads</p>
-                <p className="text-xl font-black text-white">{filtered.length}</p>
+                <p className="text-xl font-black text-white">{isLoading ? '...' : filtered.length}</p>
               </div>
               <div className="h-8 w-px bg-primary/20" />
               <Target className="h-6 w-6 text-primary" />
@@ -204,18 +173,28 @@ export default function SellerRequestsMarketplacePage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.length > 0 ? (
-            filtered.map((request) => (
-              <LeadCard key={request.id} request={request} />
-            ))
-          ) : (
-            <div className="col-span-full py-24 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5">
-              <Megaphone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
-              <p className="text-neutral-500 font-black uppercase tracking-widest text-xs">No matching leads found.</p>
+        {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i} className="bg-neutral-900/50 border-white/5 rounded-[2rem] h-[500px]">
+                        <Skeleton className="h-full w-full rounded-[2rem]" />
+                    </Card>
+                ))}
             </div>
-          )}
-        </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.length > 0 ? (
+                filtered.map((request) => (
+                <LeadCard key={request.id} request={request} />
+                ))
+            ) : (
+                <div className="col-span-full py-24 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5">
+                <Megaphone className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+                <p className="text-neutral-500 font-black uppercase tracking-widest text-xs">No matching leads found.</p>
+                </div>
+            )}
+            </div>
+        )}
       </div>
     </SellerLayout>
   );

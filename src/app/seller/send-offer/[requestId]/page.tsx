@@ -12,17 +12,26 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { MOCK_REQUESTS } from '@/app/requests/page';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
+import type { BuyerRequest } from '@/lib/types';
+import Image from 'next/image';
 
 export default function SendOfferPage() {
   const params = useParams();
   const requestId = params.requestId as string;
   const router = useRouter();
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const lead = useMemo(() => MOCK_REQUESTS.find(r => r.id === requestId) || MOCK_REQUESTS[0], [requestId]);
+  const requestRef = useMemoFirebase(() => {
+    if (!firestore || !requestId) return null;
+    return doc(firestore, 'requests', requestId);
+  }, [firestore, requestId]);
 
-  const [price, setPrice] = useState(String(lead.minBudget + 500));
+  const { data: lead, isLoading: isLeadLoading } = useDoc<BuyerRequest>(requestRef);
+
+  const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingPitch, setIsGeneratingPitch] = useState(false);
@@ -32,6 +41,13 @@ export default function SendOfferPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // Pre-fill price if lead loads
+  React.useEffect(() => {
+    if (lead && !price) {
+        setPrice(String(lead.minBudget || ''));
+    }
+  }, [lead, price]);
 
   const startRecording = async () => {
     try {
@@ -61,6 +77,7 @@ export default function SendOfferPage() {
   };
 
   const generateAIPitch = () => {
+    if (!lead) return;
     setIsGeneratingPitch(true);
     toast({ title: "Go-AI Drafting...", description: "Analyzing lead requirements." });
     
@@ -74,6 +91,7 @@ export default function SendOfferPage() {
 
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!lead) return;
     setIsSubmitting(true);
     
     // Simulate pipeline flow
@@ -83,6 +101,27 @@ export default function SendOfferPage() {
         router.push('/seller/offers');
     }, 2000);
   };
+
+  if (isLeadLoading) {
+      return (
+          <SellerLayout>
+              <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              </div>
+          </SellerLayout>
+      );
+  }
+
+  if (!lead) {
+      return (
+          <SellerLayout>
+              <div className="p-8 text-center">
+                  <h2 className="text-xl font-bold">Request not found</h2>
+                  <Button className="mt-4" onClick={() => router.push('/requests')}>Back to Marketplace</Button>
+              </div>
+          </SellerLayout>
+      );
+  }
 
   return (
     <SellerLayout>
@@ -111,7 +150,7 @@ export default function SendOfferPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Budget Window</p>
-                    <p className="text-lg font-black text-primary">KES {lead.minBudget.toLocaleString()} - {lead.maxBudget.toLocaleString()}</p>
+                    <p className="text-lg font-black text-primary">KES {lead.minBudget?.toLocaleString()} - {lead.maxBudget?.toLocaleString()}</p>
                   </div>
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Urgency</p>
