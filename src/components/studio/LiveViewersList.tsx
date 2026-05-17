@@ -45,7 +45,7 @@ export function LiveViewersList() {
           )}
         </div>
       </ScrollArea>
-      <div className="p-4 bg-neutral-900/50 border-t border-white/5">
+      <div className="p-4 bg-neutral-900/50 border-t border-white/5 shrink-0">
          <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest text-center">
             TOTAL VIEWERS: {viewers.length}
          </p>

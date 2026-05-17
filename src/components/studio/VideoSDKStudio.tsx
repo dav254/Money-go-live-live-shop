@@ -29,13 +29,11 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       });
     }
     
-    // Cleanup tracks on unmount to ensure hardware is released
     return () => {
         if (videoRef.current?.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(t => {
                 t.stop();
-                console.log(`[Studio] Track ${t.kind} hard-stopped on unmount.`);
             });
             videoRef.current.srcObject = null;
         }
@@ -70,7 +68,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
   const { leave } = useMeeting();
 
   const handleEndClick = () => {
-    // Force SDK to release hardware before unmounting
     leave();
     onEnd();
   };
@@ -166,11 +163,9 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   
   const hasAttemptedJoin = useRef(false);
 
-  // Monitor session for startTime to filter messages
   const sessionRef = React.useMemo(() => (firestore && user) ? doc(firestore, 'liveSessions', user.uid) : null, [firestore, user]);
   const { data: session } = useDoc<LiveSession>(sessionRef);
 
-  // Unread chat notification logic for Seller
   useEffect(() => {
     if (!firestore || !user?.uid || !isLive || activePanel === 'chat' || !session?.startTime) {
       if (activePanel === 'chat') setHasUnreadChat(false);
@@ -296,35 +291,39 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
               </div>
 
               <div className="flex-1 overflow-hidden relative">
-                  <div className={cn("absolute inset-0 transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                  <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       {user ? <LiveChat streamId={user.uid} /> : null}
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'viewers' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       <LiveViewersList />
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'products' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
-                      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20">
-                          <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
-                          <ShieldCheck className="h-4 w-4 text-green-500" />
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                          {user && (
-                              <LiveProductShelf 
-                                  sellerId={user.uid} 
-                                  onPinProduct={handlePinProduct} 
-                                  onUnpinProduct={handleUnpinProduct}
-                                  pinnedProductId={pinnedProductId}
-                              />
-                          )}
+                      <div className="flex flex-col h-full overflow-hidden">
+                          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
+                              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
+                              <ShieldCheck className="h-4 w-4 text-green-500" />
+                          </div>
+                          <div className="flex-1 overflow-hidden">
+                              {user && (
+                                  <LiveProductShelf 
+                                      sellerId={user.uid} 
+                                      onPinProduct={handlePinProduct} 
+                                      onUnpinProduct={handleUnpinProduct}
+                                      pinnedProductId={pinnedProductId}
+                                  />
+                              )}
+                          </div>
                       </div>
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'promos' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
-                      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20">
-                          <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Growth Tools</p>
-                          <Sparkles className="h-4 w-4 text-yellow-500" />
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                          {user && <LivePromoPanel streamId={user.uid} />}
+                      <div className="flex flex-col h-full overflow-hidden">
+                          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
+                              <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Growth Tools</p>
+                              <Sparkles className="h-4 w-4 text-yellow-500" />
+                          </div>
+                          <div className="flex-1 overflow-hidden">
+                              {user && <LivePromoPanel streamId={user.uid} />}
+                          </div>
                       </div>
                   </div>
               </div>
