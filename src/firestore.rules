@@ -32,22 +32,30 @@ service cloud.firestore {
 
     // Buyer Request Marketplace
     match /requests/{requestId} {
-      // Explicitly allow list for collection queries and get for document reads
+      // Sellers can browse all open requests, Buyers can see their own
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      // Only the buyer can create a request with their ID
+      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+      // Only owner or admin can update/delete
+      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
     }
 
     // Seller Offers/Pitches
     match /offers/{offerId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
     }
 
     // Chat System Rules
     match /chats/{chatId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
       
       match /messages/{messageId} {
-        allow read, write: if isSignedIn();
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
       }
     }
 
