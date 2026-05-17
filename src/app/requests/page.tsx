@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -8,7 +9,6 @@ import { MapPin, Tag, ArrowRight, Video, Target, Locate, Filter, Search, Megapho
 import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Input } from '@/components/ui/input';
-import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
@@ -16,7 +16,6 @@ import type { BuyerRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function LeadCard({ request }: { request: BuyerRequest }) {
-  // AI Insight simulation based on real data
   const isUrgent = request.deadline === 'urgent';
   const aiInsight = isUrgent ? 'HIGH INTENT' : 'NEW LEAD';
   const aiMatch = isUrgent ? '98%' : '85%';
@@ -40,8 +39,15 @@ function LeadCard({ request }: { request: BuyerRequest }) {
       <div className="relative aspect-video w-full bg-black overflow-hidden border-b border-white/5">
         {request.requestType === 'video' && request.videoUrl ? (
           <div className="relative w-full h-full">
-            <Image src={request.videoUrl} alt="video" fill className="object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-            <div className="absolute inset-0 flex items-center justify-center">
+            <video 
+              src={request.videoUrl} 
+              className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+              muted
+              loop
+              onMouseOver={(e) => e.currentTarget.play()}
+              onMouseOut={(e) => e.currentTarget.pause()}
+            />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl">
                 <Video className="h-6 w-6 text-white" />
               </div>
@@ -52,7 +58,7 @@ function LeadCard({ request }: { request: BuyerRequest }) {
             <Megaphone className="h-12 w-12 text-white/10" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent pointer-events-none" />
       </div>
 
       <CardHeader className="p-6 pb-2">

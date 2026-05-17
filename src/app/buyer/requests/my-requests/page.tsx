@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -20,45 +21,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import type { BuyerRequest } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Frontend-Only Mock Data for the Pipeline
-const MOCK_MY_REQUESTS = [
-  {
-    id: 'req_1',
-    title: 'Professional Video Lighting Kit',
-    description: 'Looking for a complete ring light or softbox setup for a new studio. Budget is around 15k.',
-    category: 'Electronics & Gadgets',
-    minBudget: 12000,
-    maxBudget: 18000,
-    deadline: 'Urgent',
-    area: 'Westlands',
-    county: 'Nairobi',
-    status: 'open',
-    offersCount: 4,
-    newOffers: 2,
-    createdAt: '2 hours ago',
-    type: 'video'
-  },
-  {
-    id: 'req_2',
-    title: 'Gaming Laptop RTX 3060+',
-    description: 'Need a reliable gaming laptop for architectural design work. Pre-owned is fine if clean.',
-    category: 'Electronics & Gadgets',
-    minBudget: 70000,
-    maxBudget: 90000,
-    deadline: 'Within 3 Days',
-    area: 'Juja',
-    county: 'Kiambu',
-    status: 'selected',
-    selectedSellerId: 'seller_123',
-    offersCount: 12,
-    newOffers: 0,
-    createdAt: '1 day ago',
-    type: 'text'
-  }
-];
-
-const RequestCard = ({ req }: { req: typeof MOCK_MY_REQUESTS[0] }) => {
+const RequestCard = ({ req }: { req: BuyerRequest }) => {
     const isSelected = req.status === 'selected';
 
     return (
@@ -74,11 +42,6 @@ const RequestCard = ({ req }: { req: typeof MOCK_MY_REQUESTS[0] }) => {
                         {req.category}
                     </Badge>
                     <div className="flex items-center gap-2">
-                        {req.newOffers > 0 && (
-                            <Badge className="bg-red-600 border-none text-[8px] font-black animate-bounce rounded-full px-2 py-0.5">
-                                {req.newOffers} NEW
-                            </Badge>
-                        )}
                         <Badge variant="outline" className={cn(
                             "uppercase text-[8px] font-black border-none px-3 py-1 rounded-full",
                             req.status === 'open' ? "bg-green-500/10 text-green-500" : "bg-blue-500/10 text-blue-500"
@@ -99,11 +62,11 @@ const RequestCard = ({ req }: { req: typeof MOCK_MY_REQUESTS[0] }) => {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1 shadow-inner">
                         <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Budget Window</p>
-                        <p className="text-xs font-black text-primary">KES {req.minBudget.toLocaleString()} - {req.maxBudget.toLocaleString()}</p>
+                        <p className="text-xs font-black text-primary">KES {req.minBudget?.toLocaleString()} - {req.maxBudget?.toLocaleString()}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1 shadow-inner">
-                        <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Broadcast Time</p>
-                        <p className="text-xs font-black text-white uppercase">{req.createdAt}</p>
+                        <p className="text-[8px] font-black uppercase text-neutral-500 tracking-widest">Broadcast Date</p>
+                        <p className="text-xs font-black text-white uppercase">{req.createdAt?.toDate ? req.createdAt.toDate().toLocaleDateString() : 'Today'}</p>
                     </div>
                 </div>
                 
@@ -120,7 +83,7 @@ const RequestCard = ({ req }: { req: typeof MOCK_MY_REQUESTS[0] }) => {
                             <Users className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-white uppercase leading-none">{req.offersCount} PITCHE{req.offersCount !== 1 ? 'S' : ''}</p>
+                            <p className="text-[10px] font-black text-white uppercase leading-none">{req.offersCount || 0} PITCHE{req.offersCount !== 1 ? 'S' : ''}</p>
                             <p className="text-[8px] font-bold text-neutral-500 uppercase tracking-widest mt-1">Sellers Competing</p>
                         </div>
                     </div>
@@ -145,6 +108,20 @@ const RequestCard = ({ req }: { req: typeof MOCK_MY_REQUESTS[0] }) => {
 }
 
 export default function MyRequestsPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const myRequestsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(
+            collection(firestore, 'requests'),
+            where('buyerId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+        );
+    }, [user, firestore]);
+
+    const { data: requests, isLoading } = useCollection<BuyerRequest>(myRequestsQuery);
+
     return (
         <BuyerLayout>
             <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 animate-in fade-in duration-500 max-w-7xl mx-auto">
@@ -160,13 +137,17 @@ export default function MyRequestsPage() {
                     </Button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {MOCK_MY_REQUESTS.map(req => (
-                        <RequestCard key={req.id} req={req} />
-                    ))}
-                </div>
-
-                {MOCK_MY_REQUESTS.length === 0 && (
+                {isLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-96 w-full rounded-[2.5rem]" />)}
+                    </div>
+                ) : requests && requests.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {requests.map(req => (
+                            <RequestCard key={req.id} req={req} />
+                        ))}
+                    </div>
+                ) : (
                     <div className="py-32 text-center bg-neutral-900/30 rounded-[3rem] border-2 border-dashed border-white/5 flex flex-col items-center">
                         <div className="h-20 w-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
                             <Megaphone className="h-10 w-10 text-neutral-700" />

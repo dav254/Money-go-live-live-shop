@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useMemo } from 'react';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { MapPin, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Sparkles, Zap } from 'lucide-react';
+import { MapPin, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,6 @@ import { Separator } from '@/components/ui/separator';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
 import type { BuyerRequest } from '@/lib/types';
-import Image from 'next/image';
 
 export default function SendOfferPage() {
   const params = useParams();
@@ -42,7 +42,6 @@ export default function SendOfferPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  // Pre-fill price if lead loads
   React.useEffect(() => {
     if (lead && !price) {
         setPrice(String(lead.minBudget || ''));
@@ -94,7 +93,6 @@ export default function SendOfferPage() {
     if (!lead) return;
     setIsSubmitting(true);
     
-    // Simulate pipeline flow
     setTimeout(() => {
         toast({ title: 'Pitch Sent Successfully!', description: 'You will be notified if the buyer accepts.' });
         setIsSubmitting(false);
@@ -143,7 +141,7 @@ export default function SendOfferPage() {
               <CardContent className="p-8 space-y-8">
                 {lead.requestType === 'video' && lead.videoUrl && (
                   <div className="aspect-video w-full bg-black rounded-3xl overflow-hidden border border-white/10 shadow-inner">
-                    <img src={lead.videoUrl} alt="lead preview" className="w-full h-full object-cover opacity-60" />
+                    <video src={lead.videoUrl} className="w-full h-full object-cover opacity-60" controls />
                   </div>
                 )}
                 
