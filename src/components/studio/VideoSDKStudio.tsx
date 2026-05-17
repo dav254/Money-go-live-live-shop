@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -12,6 +12,7 @@ import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, onS
 import { useToast } from '@/hooks/use-toast';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 import { LivePromoPanel } from './LivePromoPanel';
+import { LiveViewersList } from './LiveViewersList';
 import type { LiveSession } from '@/lib/types';
 
 const ParticipantView = ({ participantId }: { participantId: string }) => {
@@ -60,8 +61,8 @@ interface StudioControlsProps {
     onEnd: () => void;
     onBroadcast: () => void;
     isLive: boolean;
-    activePanel: 'chat' | 'products' | 'promos' | null;
-    onTogglePanel: (panel: 'chat' | 'products' | 'promos') => void;
+    activePanel: 'chat' | 'products' | 'promos' | 'viewers' | null;
+    onTogglePanel: (panel: 'chat' | 'products' | 'promos' | 'viewers') => void;
     hasUnreadChat: boolean;
 }
 
@@ -93,6 +94,18 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
             <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border border-black"></span>
           </span>
         )}
+      </Button>
+
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => onTogglePanel('viewers')}
+        className={cn(
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            activePanel === 'viewers' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
+        )}
+      >
+        <Users className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
 
       <Button
@@ -148,7 +161,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const { toast } = useToast();
   
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
-  const [activePanel, setActivePanel] = useState<'chat' | 'products' | 'promos' | null>(null);
+  const [activePanel, setActivePanel] = useState<'chat' | 'products' | 'promos' | 'viewers' | null>(null);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
   
   const hasAttemptedJoin = useRef(false);
@@ -187,7 +200,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   }, [join, isMeetingJoined]);
 
-  const handleTogglePanel = (panel: 'chat' | 'products' | 'promos') => {
+  const handleTogglePanel = (panel: 'chat' | 'products' | 'promos' | 'viewers') => {
       setActivePanel(prev => prev === panel ? null : panel);
   };
 
@@ -270,7 +283,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
           <div className="flex flex-col h-full w-full md:w-80 lg:w-96">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
-                    {activePanel === 'chat' ? 'Public Chat' : activePanel === 'products' ? 'Catalog Tools' : 'Live Promos'}
+                    {activePanel === 'chat' ? 'Public Chat' : activePanel === 'products' ? 'Catalog Tools' : activePanel === 'viewers' ? 'Active Viewers' : 'Live Promos'}
                   </p>
                   <Button 
                     variant="ghost" 
@@ -285,6 +298,9 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
               <div className="flex-1 overflow-hidden relative">
                   <div className={cn("absolute inset-0 transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       {user ? <LiveChat streamId={user.uid} /> : null}
+                  </div>
+                  <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'viewers' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
+                      <LiveViewersList />
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'products' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20">

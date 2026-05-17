@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { VideoOff, Loader2 } from 'lucide-react';
+import { useUser, useUserProfile } from '@/firebase';
 
 /**
  * Optimized Viewer for Buyers.
@@ -102,6 +103,11 @@ const ViewerMeetingView = () => {
 
 export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
   const [token, setToken] = React.useState<string | null>(null);
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
+  
+  // Use identified name for the studio list
+  const displayName = userProfile?.fullName || userProfile?.username || user?.displayName || "Guest Buyer";
 
   useEffect(() => {
     const fetchToken = async () => {
@@ -130,7 +136,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         meetingId,
         micEnabled: false,
         webcamEnabled: false,
-        name: "Buyer",
+        name: displayName,
         mode: "CONFERENCE",
         // PERFORMANCE OVERRIDES:
         multiStream: false,
