@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -57,7 +58,7 @@ export default function SignupPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
-      const role = userProfile.userRole;
+      const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
       } else if (role === 'reseller') {
@@ -95,8 +96,10 @@ export default function SignupPage() {
         email: values.email,
         joinDate: new Date().toISOString(),
         userRole: values.role,
-        aiPoints: 0,
+        role: values.role,
+        aiPoints: values.role === 'seller' ? 1000 : 0, // AWARD 1000 BONUS POINTS TO SELLERS
         status: 'active',
+        ...(values.role === 'seller' && { freePointsAwardedAt: new Date().toISOString() })
       };
 
       const resellerRefId = localStorage.getItem('resellerRefId');
@@ -105,7 +108,10 @@ export default function SignupPage() {
       }
 
       await setDoc(userDocRef, profile);
-      toast({ title: 'Account Created!', description: "You've successfully signed up." });
+      toast({ 
+        title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!', 
+        description: values.role === 'seller' ? "You've received 1000 free AI points to start your journey." : "You've successfully signed up." 
+      });
       
       if (resellerRefId) localStorage.removeItem('resellerRefId');
 

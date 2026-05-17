@@ -26,6 +26,8 @@ export interface UserProfile {
     referredBy?: string;
     referralBonusAwarded?: boolean;
     lastSeen?: any;
+    freePointsAwardedAt?: string;
+    userRole?: string; // Standardizing role field name across uses
 }
 
 export interface BuyerRequest {

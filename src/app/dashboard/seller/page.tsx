@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -5,9 +6,9 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, useUserProfile } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet, Clock, Package, Truck, MoreHorizontal, X, Radio, ArrowRight } from 'lucide-react';
+import { Users, Heart, Eye, Wallet, Clock, Package, Truck, MoreHorizontal, X, Radio, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import type { SellerShop, Product, Order, Payout, LiveSession } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +33,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { formatDistanceToNow, addDays } from 'date-fns';
 
 const ProductRowSkeleton = () => (
   <div className="bg-card p-4 rounded-xl shadow-md flex gap-4 items-center">
@@ -53,6 +56,8 @@ export default function SellerDashboardPage() {
 
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<Product | undefined>(undefined);
+
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
   const sellerShopRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -79,15 +84,15 @@ export default function SellerDashboardPage() {
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
 
-  const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading;
+  const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading || isProfileLoading;
 
-  const { totalLikes, totalViews, availableBalance, orderStats } = React.useMemo(() => {
+  const { totalLikes, totalViews, availableBalance } = React.useMemo(() => {
     const likes = products?.reduce((sum, product) => sum + (product.likes || 0), 0) || 0;
     const views = products?.reduce((sum, product) => sum + (product.viewCount || 0), 0) || 0;
     const completedOrders = orders?.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped') || [];
     const totalRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
     const balance = totalRevenue * 0.90 - (payouts?.reduce((sum, p) => sum + p.amount, 0) || 0);
-    return { totalLikes: likes, totalViews: views, availableBalance: balance, orderStats: { pending: orders?.filter(o => o.orderStatus === 'pending').length || 0, processing: orders?.filter(o => o.orderStatus === 'processing').length || 0, shipped: orders?.filter(o => o.orderStatus === 'shipped').length || 0 } };
+    return { totalLikes: likes, totalViews: views, availableBalance: balance };
   }, [products, orders, payouts]);
   
   const handleDelete = async (productId: string) => {
@@ -95,18 +100,38 @@ export default function SellerDashboardPage() {
     try { await deleteDoc(doc(firestore, 'products', productId)); toast({ title: "Product Deleted" }); } catch (e) { toast({ variant: 'destructive', title: "Error" }); }
   };
 
+  const welcomeBonusDaysLeft = React.useMemo(() => {
+      if (!userProfile?.freePointsAwardedAt) return null;
+      const awardedAt = new Date(userProfile.freePointsAwardedAt);
+      const expiry = addDays(awardedAt, 30);
+      const now = new Date();
+      if (now > expiry) return 0;
+      return Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 3600 * 24));
+  }, [userProfile]);
+
   return (
     <SellerLayout>
       <div className="p-4 sm:p-6 lg:p-8 bg-background min-h-full space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Image src={shopData?.logoUrl || "https://picsum.photos/seed/avatar/50/50"} width={56} height={56} alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-primary/20 shadow-lg" />
+            <Image src={shopData?.logoUrl || "https://placehold.co/100x100/111111/FFFFFF?text=Store"} width={56} height={56} alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-primary/20 shadow-lg" />
             <div>
               <h2 className="text-xl font-black font-headline tracking-tight uppercase">{shopData?.shopName || 'Seller Store'}</h2>
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Store Dashboard</p>
             </div>
           </div>
         </div>
+
+        {welcomeBonusDaysLeft !== null && welcomeBonusDaysLeft > 0 && (
+             <Alert className="bg-primary/10 border-primary/20 rounded-2xl animate-in slide-in-from-top-4 duration-500">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <AlertTitle className="font-black uppercase tracking-tighter text-primary">Founding Seller Welcome Bonus</AlertTitle>
+                <AlertDescription className="text-xs font-bold text-white/70 uppercase tracking-widest mt-1">
+                    You have <span className="text-white">{(userProfile?.aiPoints || 0).toLocaleString()} points</span> remaining. 
+                    Your bonus expires in <span className="text-primary font-black">{welcomeBonusDaysLeft} days</span>. Use them to generate viral content!
+                </AlertDescription>
+            </Alert>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Followers</CardTitle><Users className="h-4 w-4 text-primary" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{shopData?.followers || 0}</div>}</CardContent></Card>
@@ -126,7 +151,7 @@ export default function SellerDashboardPage() {
           {isLoading ? <><ProductRowSkeleton /><ProductRowSkeleton /></> : products?.map((p) => (
               <AlertDialog key={p.id}>
                   <div className="bg-card/50 p-4 rounded-2xl border border-white/5 flex gap-4 items-center group hover:bg-card hover:border-primary/20 transition-all shadow-sm">
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/10"><Image src={p.imageUrl || "https://picsum.photos/seed/product/80/80"} fill alt="product" className="object-cover" /></div>
+                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/10"><Image src={p.imageUrl || "https://placehold.co/80x80/111111/FFFFFF?text=Product"} fill alt="product" className="object-cover" /></div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-black text-sm sm:text-base uppercase tracking-tight truncate">{p.name}</h3>
                       <p className="font-black text-primary text-sm">${p.price?.toLocaleString()}</p>
