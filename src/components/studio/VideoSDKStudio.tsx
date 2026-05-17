@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -160,6 +160,8 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const [pinnedProductId, setPinnedProductId] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<'chat' | 'products' | 'promos' | 'viewers' | null>(null);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<string>('70:00');
+  const [isLowTime, setIsLowTime] = useState(false);
   
   const hasAttemptedJoin = useRef(false);
 
@@ -187,6 +189,34 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
     return () => unsubscribe();
   }, [firestore, user?.uid, isLive, activePanel, session?.startTime]);
+
+  // Session Countdown Logic
+  useEffect(() => {
+    if (!isLive || !session?.startTime) return;
+
+    const timer = setInterval(() => {
+        const now = Date.now();
+        const start = session.startTime.toMillis();
+        const elapsed = now - start;
+        const limitMs = 70 * 60 * 1000; // 70 minutes
+        const remaining = Math.max(0, limitMs - elapsed);
+
+        if (remaining <= 0) {
+            clearInterval(timer);
+            onEnd();
+            return;
+        }
+
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        
+        if (mins < 5) setIsLowTime(true);
+        
+        setTimeRemaining(`${mins}:${secs.toString().padStart(2, '0')}`);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isLive, session?.startTime, onEnd]);
 
   useEffect(() => {
     if (!isMeetingJoined && !hasAttemptedJoin.current) {
@@ -225,7 +255,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
       <div className="flex-1 relative flex flex-col p-4 md:p-6 transition-all duration-500 ease-in-out">
           <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
-              <div className="pointer-events-auto">
+              <div className="pointer-events-auto flex items-center gap-3">
                   <div className={cn(
                       "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
                       isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
@@ -233,6 +263,16 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                       <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
                       {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
                   </div>
+
+                  {isLive && (
+                    <div className={cn(
+                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-2 backdrop-blur-xl border border-white/10",
+                        isLowTime ? "bg-orange-600/20 border-orange-500/50 text-orange-500" : "bg-black/40 text-white/70"
+                    )}>
+                        <Clock className={cn("h-3 w-3", isLowTime && "animate-spin-slow")} />
+                        <span className="font-mono">{timeRemaining}</span>
+                    </div>
+                  )}
               </div>
           </div>
 
