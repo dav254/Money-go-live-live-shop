@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -41,7 +40,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
-import { kenyaLocations } from '@/lib/location-data';
 import { cn } from '@/lib/utils';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -52,7 +50,7 @@ const formSchema = z.object({
   category: z.string().min(1, "Please select a category."),
   minBudget: z.coerce.number().min(0),
   maxBudget: z.coerce.number().min(0),
-  county: z.string().min(1, "Please select your county."),
+  county: z.string().min(1, "Please enter your county."),
   area: z.string().min(2, "Please enter your area."),
 });
 
@@ -200,16 +198,9 @@ export default function PostRequestPage() {
                         <FormField control={form.control} name="county" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">County</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
-                                            <SelectValue placeholder="Select" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <Input placeholder="e.g. Nairobi" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} />
+                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
