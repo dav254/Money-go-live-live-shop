@@ -25,40 +25,42 @@ interface VideoCardProps {
 
 export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   const allMedia = useMemo(() => {
-    if (!item.product) return [{ url: getPlaceholderImage(), type: 'image' as const }];
-    
     const media: {url: string, type: 'video' | 'image'}[] = [];
     
-    if (item.product.videoUrl && item.product.videoUrl.trim() !== "") {
-      media.push({ url: item.product.videoUrl, type: 'video' });
-    }
-    if (item.product.videoUrls && Array.isArray(item.product.videoUrls)) {
-      item.product.videoUrls.forEach(url => {
-        if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
-          media.push({ url, type: 'video' });
+    if (item.product) {
+        if (item.product.videoUrl && item.product.videoUrl.trim() !== "") {
+          media.push({ url: item.product.videoUrl, type: 'video' });
         }
-      });
+        if (item.product.videoUrls && Array.isArray(item.product.videoUrls)) {
+          item.product.videoUrls.forEach(url => {
+            if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
+              media.push({ url, type: 'video' });
+            }
+          });
+        }
+        
+        if (item.product.imageUrl && item.product.imageUrl.trim() !== "") {
+          if (!media.some(m => m.url === item.product.imageUrl)) {
+            media.push({ url: item.product.imageUrl, type: 'image' });
+          }
+        }
+        if (item.product.imageUrls && Array.isArray(item.product.imageUrls)) {
+          item.product.imageUrls.forEach(url => {
+            if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
+              media.push({ url, type: 'image' });
+            }
+          });
+        }
     }
     
-    if (item.product.imageUrl && item.product.imageUrl.trim() !== "") {
-      if (!media.some(m => m.url === item.product.imageUrl)) {
-        media.push({ url: item.product.imageUrl, type: 'image' });
-      }
-    }
-    if (item.product.imageUrls && Array.isArray(item.product.imageUrls)) {
-      item.product.imageUrls.forEach(url => {
-        if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
-          media.push({ url, type: 'image' });
-        }
-      });
-    }
-    
+    // FALLBACK: If no product media found, show seller's profile image instead of a placeholder text
     if (media.length === 0) {
-        media.push({ url: getPlaceholderImage(), type: 'image' });
+        const fallbackUrl = item.seller?.avatar?.imageUrl || item.seller?.banner?.imageUrl || getPlaceholderImage();
+        media.push({ url: fallbackUrl, type: 'image' });
     }
 
     return media;
-  }, [item.product]);
+  }, [item.product, item.seller]);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
