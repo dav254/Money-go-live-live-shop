@@ -72,17 +72,17 @@ export function ProductInfo({ product }: ProductInfoProps) {
                 <div className="space-y-0.5">
                     {/* MAIN PRICE (Local Currency specified by Seller) */}
                     <div className="flex items-center gap-1.5">
-                        <Tag className="h-2.5 w-2.5 text-primary" />
-                        <p className="text-[13px] font-black text-primary tracking-tighter leading-none">
-                            {product.localCurrency || 'USD'} {product.localPrice?.toLocaleString() || product.price?.toLocaleString()}
+                        <Tag className="h-3 w-3 text-primary" />
+                        <p className="text-[14px] font-black text-primary tracking-tighter leading-none">
+                            {product.localCurrency || 'USD'} {(product.localPrice || product.price)?.toLocaleString()}
                         </p>
                     </div>
 
                     {/* MARKET PRICE (Strike-through / Comparative Price) */}
                     {product.wasPrice && (
-                        <div className="flex items-center gap-1.5 opacity-50">
-                            <span className="text-[8px] font-black text-white uppercase tracking-widest leading-none">Market:</span>
-                            <span className="text-[10px] font-bold text-white line-through tracking-tighter leading-none">
+                        <div className="flex items-center gap-1.5 opacity-60">
+                            <span className="text-[9px] font-black text-white uppercase tracking-widest leading-none">Market:</span>
+                            <span className="text-[11px] font-bold text-white line-through tracking-tighter leading-none">
                                 ${product.wasPrice.toLocaleString()}
                             </span>
                         </div>

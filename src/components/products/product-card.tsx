@@ -151,15 +151,15 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="flex items-center gap-1">
              <Tag className="h-3 w-3 text-primary" />
              <span className="text-lg font-black text-primary tracking-tighter">
-                {product.localCurrency || 'USD'} {product.localPrice?.toLocaleString() || product.price?.toLocaleString()}
+                {product.localCurrency || 'USD'} {(product.localPrice || product.price)?.toLocaleString()}
              </span>
           </div>
 
           {/* MARKET PRICE */}
           {product.wasPrice && (
-            <div className="flex items-center gap-2 opacity-50">
-                <span className="text-[10px] font-black text-neutral-500 uppercase tracking-tighter line-through">
-                    MKT: ${product.wasPrice.toLocaleString()}
+            <div className="flex items-center gap-2 opacity-60">
+                <span className="text-[11px] font-black text-neutral-500 uppercase tracking-tighter line-through">
+                    MARKET: ${product.wasPrice.toLocaleString()}
                 </span>
             </div>
           )}
