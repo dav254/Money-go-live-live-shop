@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Chat } from '@/lib/types';
+import type { Chat, LiveSession } from '@/lib/types';
 import { useMemo } from 'react';
 
 export function BuyerSidebar() {
@@ -32,6 +32,7 @@ export function BuyerSidebar() {
   const { user } = useUser();
   const firestore = useFirestore();
 
+  // Query for unread messages
   const chatsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
@@ -43,6 +44,15 @@ export function BuyerSidebar() {
     if (!chats || !user) return 0;
     return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
   }, [chats, user]);
+
+  // Query for any active live sessions globally to show the "Live Now" indicator
+  const activeSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+  }, [firestore]);
+
+  const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
+  const isAnySellerLive = useMemo(() => activeSessions && activeSessions.length > 0, [activeSessions]);
 
   return (
     <>
@@ -67,9 +77,15 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-now')} tooltip="Live Shows">
-            <Link href="/buyer/live-now">
-              <Radio className="text-red-600" />
+            <Link href="/buyer/live-now" className="relative">
+              <Radio className={isAnySellerLive ? "text-red-600" : ""} />
               <span>Live Now</span>
+              {isAnySellerLive && (
+                <span className="absolute right-2 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                </span>
+              )}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
