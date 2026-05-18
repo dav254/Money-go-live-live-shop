@@ -1,4 +1,3 @@
-
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -55,8 +54,8 @@ export default function SellerShopPage() {
         banner: { id: 'banner', imageUrl: shopData.bannerUrl || getPlaceholderImage(), description: 'Shop Banner', imageHint: 'store banner' },
         location: displayLocation,
         isVerified: profileData.verificationStatus === 'verified',
-        rating: 4.8, 
-        reviewsCount: shopData.reviewsCount || 0,
+        rating: 0, 
+        reviewsCount: 0,
         followers: shopData.followers || 0,
         joinedDate: profileData.joinDate,
         bio: profileData.bio || 'Welcome!',

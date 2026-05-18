@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -10,22 +9,18 @@ interface SellerBadgesProps {
 }
 
 // These thresholds would ideally come from a config or be more dynamic
-const TOP_SELLER_THRESHOLD = 4.8;
 const POPULAR_SHOP_FOLLOWERS = 10000;
 const NEW_SELLER_DAYS = 30;
 
 export function SellerBadges({ seller }: SellerBadgesProps) {
-  const isTopSeller = seller.rating >= TOP_SELLER_THRESHOLD;
   const isPopular = seller.followers >= POPULAR_SHOP_FOLLOWERS;
   const joinedDate = seller.joinedDate ? new Date(seller.joinedDate) : new Date();
   const isNew = (new Date().getTime() - joinedDate.getTime()) / (1000 * 3600 * 24) < NEW_SELLER_DAYS;
 
   const badges = [
     { show: seller.isVerified, label: 'Verified', icon: ShieldCheck, color: 'bg-blue-500' },
-    { show: isTopSeller, label: 'Top Seller', icon: Award, color: 'bg-amber-500' },
     { show: isPopular, label: 'Popular', icon: Star, color: 'bg-purple-500' },
     { show: isNew, label: 'New Seller', icon: Rocket, color: 'bg-green-500' },
-    // Example for a static badge - this would need a data point
     { show: seller.deliversFast, label: 'Fast Delivery', icon: Zap, color: 'bg-teal-500' },
   ].filter(badge => badge.show);
 

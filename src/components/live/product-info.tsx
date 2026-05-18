@@ -1,16 +1,14 @@
-
 'use client';
 
-import type { Product, Review, SellerShop } from '@/lib/types';
+import type { Product, SellerShop } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Star, Store, Tag } from 'lucide-react';
+import { Store, Tag } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, doc } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import React from 'react';
-import { cn } from '@/lib/utils';
 
 interface ProductInfoProps {
   product: Product;
@@ -26,22 +24,11 @@ export function ProductInfo({ product }: ProductInfoProps) {
   }
 
   const firestore = useFirestore();
-  const reviewsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, 'products', product.id, 'reviews'));
-  }, [firestore, product.id]);
-
   const sellerShopRef = useMemoFirebase(() => {
     return doc(firestore, 'sellerShops', product.sellerId);
   }, [firestore, product.sellerId]);
 
-  const { data: reviews } = useCollection<Review>(reviewsQuery);
   const { data: shop } = useDoc<SellerShop>(sellerShopRef);
-
-  const averageRating = React.useMemo(() => {
-    if (!reviews || reviews.length === 0) return 0;
-    const total = reviews.reduce((acc, r) => acc + r.rating, 0);
-    return total / reviews.length;
-  }, [reviews]);
 
   // Fallback image if primary is missing
   const imageUrl = (product.imageUrl && product.imageUrl !== "") 
@@ -91,12 +78,6 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
                 {/* Metadata Footer */}
                 <div className="flex items-center gap-2 text-[8px] font-black text-neutral-500 uppercase tracking-widest mt-2">
-                    {reviews && reviews.length > 0 && (
-                      <>
-                        <span className="flex items-center gap-0.5 text-white">{averageRating.toFixed(1)} <Star className="h-2 w-2 text-yellow-500 fill-current"/></span>
-                        <span className='opacity-20'>|</span>
-                      </>
-                    )}
                     <span className="text-green-500/80">Net: ${product.price?.toFixed(2)}</span>
                 </div>
             </div>

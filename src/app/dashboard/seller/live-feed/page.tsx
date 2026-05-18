@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCallback, useRef, useState, useEffect } from 'react';
@@ -63,7 +62,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
             imageHint: 'store banner'
         },
         bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
-        rating: 4.8, 
+        rating: 0, 
         followers: sellerFollowers,
         reviewsCount: sellerReviews,
         isVerified: userProfileData?.verificationStatus === 'verified',

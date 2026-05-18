@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -11,11 +10,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Star, Truck, MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, ShieldCheck } from 'lucide-react';
+import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Product, SellerShop, UserProfile, Review } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, useCollection } from '@/firebase';
-import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
+import type { Product, SellerShop, UserProfile } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
+import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
@@ -46,12 +45,6 @@ export default function BuyerProductPage() {
 
     const { data: sellerShop, isLoading: isSellerShopLoading } = useDoc<SellerShop>(sellerShopRef);
     const { data: sellerProfile, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
-
-    const reviewsQuery = useMemoFirebase(() => {
-        if (!productId) return null;
-        return query(collection(firestore, 'products', productId, 'reviews'), orderBy('createdAt', 'desc'));
-    }, [firestore, productId]);
-    const { data: reviews } = useCollection<Review>(reviewsQuery);
 
     const allMedia = useMemo(() => {
         if (!product) return [];

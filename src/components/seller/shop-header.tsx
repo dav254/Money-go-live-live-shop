@@ -1,11 +1,10 @@
-
 'use client';
 
 import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Plus, Share2, Facebook, Instagram, Twitter, MessageCircle } from 'lucide-react';
+import { Plus, Share2, Facebook, Instagram, Twitter, MessageCircle, MessageSquare } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
@@ -177,11 +176,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           <div className="mt-4 md:mt-0 md:pb-4">
             <h1 className="font-headline text-3xl md:text-4xl font-bold text-white">{seller.name}</h1>
             <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-neutral-400 mt-1">
-              <span>{seller.rating.toFixed(1)} Rating</span>
-              <span className="font-bold">&middot;</span>
-              <span>{seller.followers.toLocaleString()} Followers</span>
-              <span className="font-bold">&middot;</span>
-              <span>{seller.reviewsCount.toLocaleString()} Reviews</span>
+              <span>{(seller.followers || 0).toLocaleString()} Followers</span>
             </div>
             <SellerBadges seller={seller} />
             

@@ -1,9 +1,8 @@
-
 'use client';
 
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, doc, query, orderBy, limit } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -58,7 +57,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
             imageHint: 'store banner'
         },
         bio: sellerData?.description || userProfileData?.bio || 'Welcome!',
-        rating: 4.8, // Placeholder
+        rating: 0, 
         followers: sellerFollowers,
         reviewsCount: sellerReviews,
         isVerified: true, // Placeholder
@@ -189,5 +188,3 @@ export default function BuyerLiveStreamPage() {
         </div>
     );
 }
-
-    
