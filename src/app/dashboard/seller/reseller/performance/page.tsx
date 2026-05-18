@@ -2,54 +2,24 @@
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ResellerAnalyticsTable } from '@/components/seller/reseller-analytics-table';
-import { SellerTopSharedProductsTable } from '@/components/seller/seller-top-shared-products-table';
-import { Users, TrendingUp, Award } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users } from 'lucide-react';
 
 export default function ResellerPerformancePage() {
     return (
         <SellerLayout>
-            <div className="flex-1 space-y-8 p-8 pt-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="font-headline text-3xl font-bold tracking-tight uppercase">Reseller Performance</h1>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <Card className="bg-neutral-900 border-white/5">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Award className="text-primary h-5 w-5" />
-                                Top Earning Resellers
-                            </CardTitle>
-                            <CardDescription>Resellers driving the most verified sales for your shop.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ResellerAnalyticsTable />
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-neutral-900 border-white/5">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <TrendingUp className="text-primary h-5 w-5" />
-                                Viral Visibility
-                            </CardTitle>
-                            <CardDescription>Products being shared most frequently across the network.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <SellerTopSharedProductsTable />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <Card className="bg-primary/5 border-primary/20">
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] p-8 text-center">
+                <Card className="max-w-md border-white/5 bg-neutral-900/50">
                     <CardHeader>
-                        <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Reseller Strategy Tip</CardTitle>
+                        <div className="p-4 bg-primary/10 rounded-full w-fit mx-auto mb-4">
+                            <Users className="h-10 w-10 text-primary" />
+                        </div>
+                        <CardTitle className="text-2xl font-black uppercase tracking-tighter text-white">Reseller Performance</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-white/70 leading-relaxed">
-                            Resellers with high share counts but low sales might need better product videos. Use the <strong className="text-white uppercase tracking-tight">AI Content Generator</strong> to create viral captions for them to use!
+                        <p className="text-sm text-neutral-500">
+                            We are building a powerful dashboard to help you track your top-performing resellers. 
+                            Soon you'll be able to see who is driving the most traffic and sales to your shop.
                         </p>
                     </CardContent>
                 </Card>

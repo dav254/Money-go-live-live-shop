@@ -17,14 +17,11 @@ import {
   Home,
   MessageSquare,
   Radio,
-  Video,
   Sparkles,
   AreaChart,
   TestTube,
   Users,
-  Megaphone,
-  History,
-  TrendingUp,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -36,48 +33,6 @@ import React from 'react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const NavCollapsible = ({
-  title,
-  icon: Icon,
-  items,
-  active,
-}: {
-  title: string;
-  icon: React.ElementType;
-  items: { href: string; label: string }[];
-  active: boolean;
-}) => {
-  return (
-    <Collapsible defaultOpen={active}>
-      <CollapsibleTrigger
-        className={cn(
-          'group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
-          active && 'bg-accent/50 text-accent-foreground'
-        )}
-      >
-        <div className="flex items-center gap-2">
-          <Icon className="h-4 w-4" />
-          <span>{title}</span>
-        </div>
-        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="flex flex-col gap-1 py-1 pl-8">
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
 
 export function SellerSidebar() {
   const pathname = usePathname();
@@ -121,15 +76,14 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
 
-          <NavCollapsible 
-            title="Analytics"
-            icon={AreaChart}
-            active={isActive('/dashboard/seller/analytics')}
-            items={[
-                { href: '/dashboard/seller/analytics', label: 'Store Stats' },
-                { href: '/dashboard/seller/analytics/live', label: 'Live History' },
-            ]}
-          />
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/analytics')}>
+              <Link href="/dashboard/seller/analytics">
+                <AreaChart />
+                <span>Analytics</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')}>
@@ -154,21 +108,11 @@ export function SellerSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
 
-          <NavCollapsible 
-            title="Reseller Center"
-            icon={Users}
-            active={isActive('/dashboard/seller/reseller')}
-            items={[
-                { href: '/dashboard/seller/reseller', label: 'Commission Rules' },
-                { href: '/dashboard/seller/reseller/performance', label: 'Top Performers' },
-            ]}
-          />
-
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/marketing')}>
-              <Link href="/dashboard/seller/marketing">
-                <Megaphone />
-                <span>Marketing Center</span>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
+              <Link href="/dashboard/seller/reseller">
+                <Users />
+                <span>Reseller Center</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
