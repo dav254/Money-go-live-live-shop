@@ -12,31 +12,36 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    match /users/{userId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isOwner(userId);
-    }
-
+    // User Profiles
     match /userProfiles/{userId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update: if isOwner(userId);
     }
 
-    // SIMPLIFIED MARKETPLACE RULES (Development Mode)
+    // BUYER REQUESTS
     match /requests/{requestId} {
+      // Any logged-in user can read requests
       allow read: if isSignedIn();
+      // Any logged-in user can create a request broadcast
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid);
+      // Only the buyer who created the request can update or delete it
+      allow update, delete: if isSignedIn() && resource.data.buyerId == request.auth.uid;
     }
 
+    // SELLER OFFERS (Pitches)
     match /offers/{offerId} {
+      // Relevant parties can read offers
       allow read: if isSignedIn();
+      // Any logged-in user can create an offer (Seller pitching)
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn();
+      // Seller can edit own offer, Buyer can update status (accept/reject)
+      allow update: if isSignedIn() && (resource.data.sellerId == request.auth.uid || request.resource.data.buyerId == request.auth.uid);
+      // Only the seller who created the offer can delete it
+      allow delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
     }
 
+    // CHATS & MESSAGES
     match /chats/{chatId} {
       allow read, write: if isSignedIn();
       match /messages/{messageId} {
@@ -44,6 +49,7 @@ service cloud.firestore {
       }
     }
 
+    // PRODUCTS & REVIEWS
     match /products/{productId} {
       allow read: if true;
       allow create: if isSignedIn();
@@ -52,22 +58,25 @@ service cloud.firestore {
       match /reviews/{reviewId} { allow read, create: if isSignedIn(); }
     }
     
+    // SHOPS & SESSIONS
     match /sellerShops/{shopId} {
       allow read: if true;
-      allow write: if isSignedIn() && (request.auth.uid == shopId);
+      allow write: if isOwner(shopId);
     }
 
     match /liveSessions/{sessionId} {
       allow read: if true;
-      allow write: if isSignedIn() && (request.auth.uid == sessionId);
+      allow write: if isOwner(sessionId);
     }
 
+    // ORDERS
     match /orders/{orderId} {
       allow read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
       allow create: if isSignedIn();
       allow update: if isSignedIn();
     }
 
+    // SUPPORT & COMPLAINTS
     match /supportTickets/{ticketId} {
         allow read: if isSignedIn() && (resource.data.userId == request.auth.uid);
         allow create: if isSignedIn();
@@ -78,6 +87,7 @@ service cloud.firestore {
         allow read: if isSignedIn() && (resource.data.complainantId == request.auth.uid);
     }
     
+    // NOTIFICATIONS & TRANSACTIONS
     match /notifications/{notificationId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow write: if isSignedIn(); 
