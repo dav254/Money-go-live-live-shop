@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -15,45 +14,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Aligned to "One by One" build: Currently only validating Title and Metadata
-    // Removed validation for Description, Category, etc. as we build field-by-field
-    function requestFieldsValid() {
-      return
-        request.resource.data.buyerId == request.auth.uid &&
-        request.resource.data.title is string &&
-        request.resource.data.status == "open" &&
-        request.resource.data.offersCount == 0;
-    }
-
     // =========================
     // USER PROFILES
     // =========================
     match /userProfiles/{userId} {
       allow read: if true;
       allow create, update, delete: if isOwner(userId);
-    }
-
-    // =========================
-    // MARKETPLACE LEADS (REQUESTS)
-    // =========================
-    match /requests/{requestId} {
-      // Anyone signed in (Sellers/Buyers) can read broadcasts
-      allow read: if isSignedIn();
-      
-      // Buyer can create request with validated fields (Title-only mode)
-      allow create: if isSignedIn() && requestFieldsValid();
-
-      // Buyer can manage their own request
-      allow update, delete: if isOwner(resource.data.buyerId);
-      
-      // =========================
-      // OFFERS SUBCOLLECTION
-      // =========================
-      match /offers/{offerId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
-      }
     }
 
     // =========================
