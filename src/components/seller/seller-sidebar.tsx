@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -111,7 +112,8 @@ export function SellerSidebar() {
                 <Video />
                 <span>Live Feed</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
       

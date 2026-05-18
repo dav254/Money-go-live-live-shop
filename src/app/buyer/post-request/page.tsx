@@ -6,8 +6,8 @@ export default function RemovedPage() {
   return (
     <BuyerLayout>
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <h1 className="text-2xl font-bold">Section Removed</h1>
-        <p className="text-muted-foreground mt-2">This feature is no longer active.</p>
+        <h1 className="text-2xl font-bold uppercase tracking-tighter">Feature Removed</h1>
+        <p className="text-muted-foreground mt-2 font-medium">Broadcast requests are no longer available in this version.</p>
       </div>
     </BuyerLayout>
   );
