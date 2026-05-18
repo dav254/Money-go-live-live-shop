@@ -3,7 +3,7 @@
 
 import type { Product, Review, SellerShop } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Star, Store, Banknote } from 'lucide-react';
+import { Star, Store, Tag } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -16,6 +16,10 @@ interface ProductInfoProps {
   product: Product;
 }
 
+/**
+ * Enhanced ProductInfo component for immersive views.
+ * Displays local price, market price (wasPrice), and global USD equivalent.
+ */
 export function ProductInfo({ product }: ProductInfoProps) {
   if (!product) {
     return null;
@@ -39,15 +43,16 @@ export function ProductInfo({ product }: ProductInfoProps) {
     return total / reviews.length;
   }, [reviews]);
 
-  // Ensure imageUrl is never an empty string
+  // Fallback image if primary is missing
   const imageUrl = (product.imageUrl && product.imageUrl !== "") 
     ? product.imageUrl 
     : getPlaceholderImage();
 
   return (
-    <div className="bg-black/50 p-3 rounded-lg shadow-lg backdrop-blur-md max-w-sm w-full mx-auto relative overflow-hidden group">
+    <div className="bg-black/60 p-3 rounded-2xl shadow-2xl backdrop-blur-2xl max-w-sm w-full mx-auto relative overflow-hidden group border border-white/10 ring-1 ring-white/5">
         <div className="flex items-center gap-3">
-            <div className="relative h-16 w-16 rounded-md overflow-hidden border border-neutral-700">
+            {/* Thumbnail */}
+            <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/5 shrink-0 bg-neutral-900 shadow-inner">
                 {imageUrl && (
                   <Image 
                       src={imageUrl}
@@ -55,48 +60,52 @@ export function ProductInfo({ product }: ProductInfoProps) {
                       fill
                       sizes="100vw"
                       priority
-                      className="object-cover"
+                      className="object-cover transition-transform group-hover:scale-110 duration-700"
                   />
                 )}
-                {product.condition && (
-                    <div className={cn(
-                        "absolute top-0 left-0 w-full text-[8px] font-black uppercase text-center py-0.5 tracking-tighter",
-                        product.condition === 'new' ? "bg-green-600 text-white" : "bg-yellow-600 text-black"
-                    )}>
-                        {product.condition}
-                    </div>
-                )}
             </div>
+
+            {/* Info Section */}
             <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-white truncate uppercase">{product.name}</h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                    {/* Display Currency, Local Sale Price, and Market Price (wasPrice) */}
-                    <div className="flex items-center gap-1.5 text-[10px] text-primary font-black uppercase tracking-widest truncate">
-                        <Banknote className="h-3 w-3 shrink-0" /> 
-                        <span className="truncate">
+                <h3 className="text-[11px] font-black text-white truncate uppercase tracking-tight mb-1">{product.name}</h3>
+                
+                <div className="space-y-0.5">
+                    {/* MAIN PRICE (Local Currency specified by Seller) */}
+                    <div className="flex items-center gap-1.5">
+                        <Tag className="h-2.5 w-2.5 text-primary" />
+                        <p className="text-[13px] font-black text-primary tracking-tighter leading-none">
                             {product.localCurrency || 'USD'} {product.localPrice?.toLocaleString() || product.price?.toLocaleString()}
-                        </span>
-                        {product.wasPrice && (
-                             <span className="text-white/40 font-bold line-through ml-1 shrink-0">
-                                MKT: ${product.wasPrice.toLocaleString()}
-                             </span>
-                        )}
+                        </p>
                     </div>
+
+                    {/* MARKET PRICE (Strike-through / Comparative Price) */}
+                    {product.wasPrice && (
+                        <div className="flex items-center gap-1.5 opacity-50">
+                            <span className="text-[8px] font-black text-white uppercase tracking-widest leading-none">Market:</span>
+                            <span className="text-[10px] font-bold text-white line-through tracking-tighter leading-none">
+                                ${product.wasPrice.toLocaleString()}
+                            </span>
+                        </div>
+                    )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-300 mt-1">
+
+                {/* Metadata Footer */}
+                <div className="flex items-center gap-2 text-[8px] font-black text-neutral-500 uppercase tracking-widest mt-2">
                     {reviews && reviews.length > 0 && (
                       <>
-                        <span className="flex items-center gap-0.5">{averageRating.toFixed(1)} <Star className="h-3 w-3 text-yellow-400 fill-current"/></span>
-                        <span className='text-neutral-500'>|</span>
+                        <span className="flex items-center gap-0.5 text-white">{averageRating.toFixed(1)} <Star className="h-2 w-2 text-yellow-500 fill-current"/></span>
+                        <span className='opacity-20'>|</span>
                       </>
                     )}
-                    <span className="font-semibold text-green-400">USD ${product.price?.toFixed(2)}</span>
+                    <span className="text-green-500/80">Net: ${product.price?.toFixed(2)}</span>
                 </div>
             </div>
-            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase text-[10px] tracking-widest h-10 shrink-0 px-4 rounded-xl shadow-lg shadow-primary/20">
+
+            {/* Action Button */}
+            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase text-[9px] tracking-widest h-10 shrink-0 px-4 rounded-xl shadow-xl shadow-primary/20 border-none transition-all active:scale-95">
                 <Link href={`/sellers/${product.sellerId}`}>
-                    <Store className="h-4 w-4 mr-2"/>
-                    Shop
+                    <Store className="h-3.5 w-3.5 mr-1.5"/>
+                    SHOP
                 </Link>
             </Button>
         </div>

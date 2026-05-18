@@ -3,7 +3,7 @@
 
 import type { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Heart, ShoppingCart, Eye, Video } from 'lucide-react';
+import { Heart, ShoppingCart, Eye, Video, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
@@ -88,7 +88,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const mainImage = product.imageUrl && product.imageUrl.trim() !== "" ? product.imageUrl : getPlaceholderImage();
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col">
+    <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col shadow-lg transition-all hover:border-primary/50">
       <div className="relative">
         <Link href={`/products/${product.id}`} className="cursor-pointer">
             <div className="w-full h-48 bg-black relative">
@@ -145,12 +145,26 @@ export function ProductCard({ product }: ProductCardProps) {
         <h3 className="text-sm font-semibold truncate group-hover:text-primary">
             <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-lg font-black text-primary">${product.price?.toLocaleString()}</span>
+        
+        <div className="mt-1 space-y-1">
+          {/* LOCAL SALE PRICE */}
+          <div className="flex items-center gap-1">
+             <Tag className="h-3 w-3 text-primary" />
+             <span className="text-lg font-black text-primary tracking-tighter">
+                {product.localCurrency || 'USD'} {product.localPrice?.toLocaleString() || product.price?.toLocaleString()}
+             </span>
+          </div>
+
+          {/* MARKET PRICE */}
           {product.wasPrice && (
-            <span className="text-xs text-neutral-500 line-through font-bold">${product.wasPrice.toLocaleString()}</span>
+            <div className="flex items-center gap-2 opacity-50">
+                <span className="text-[10px] font-black text-neutral-500 uppercase tracking-tighter line-through">
+                    MKT: ${product.wasPrice.toLocaleString()}
+                </span>
+            </div>
           )}
         </div>
+
         <div className="mt-auto pt-3 flex gap-2">
             <Button onClick={handleAddToCart} disabled={isOutOfStock} size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-white font-black text-[10px] uppercase">
                 <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> ADD
