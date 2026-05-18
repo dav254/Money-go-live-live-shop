@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,16 +38,13 @@ import {
   Megaphone, 
   Keyboard, 
   Video, 
-  Camera, 
-  StopCircle, 
-  RefreshCw,
   Loader2,
-  Sparkles,
-  MapPin
 } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { kenyaLocations } from '@/lib/location-data';
 import { cn } from '@/lib/utils';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
@@ -62,9 +59,10 @@ const formSchema = z.object({
 export default function PostRequestPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
+  const firestore = useFirestore();
   const [requestMode, setRequestMode] = useState<'text' | 'video'>('text');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,17 +78,56 @@ export default function PostRequestPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Required',
+        description: 'Please log in to broadcast a need.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate real backend processing delay
-    setTimeout(() => {
-      toast({
-        title: "Broadcast Live! 🚀",
-        description: "Your requirement has been sent to all local sellers in " + values.county,
+    const requestData = {
+        buyerId: user.uid,
+        title: values.title,
+        description: values.description,
+        category: values.category,
+        minBudget: values.minBudget,
+        maxBudget: values.maxBudget,
+        county: values.county,
+        area: values.area,
+        status: 'open',
+        requestType: requestMode,
+        offersCount: 0,
+        createdAt: serverTimestamp(),
+    };
+
+    const requestsRef = collection(firestore, 'requests');
+    
+    // Non-blocking Firestore write
+    addDoc(requestsRef, requestData)
+      .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+              path: 'requests',
+              operation: 'create',
+              requestResourceData: requestData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
       });
-      setIsSubmitting(false);
-      router.push('/buyer/requests/my-requests');
-    }, 1500);
+
+    // Proceed with UI logic immediately (Optimistic UI)
+    toast({
+      title: "Broadcast Live! 🚀",
+      description: "Your requirement has been sent to all local sellers in " + values.county,
+    });
+    
+    // Small delay for UX before redirection
+    setTimeout(() => {
+        setIsSubmitting(false);
+        router.push('/buyer/requests/my-requests');
+    }, 1000);
   }
 
   return (
