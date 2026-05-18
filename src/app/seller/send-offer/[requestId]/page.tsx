@@ -1,14 +1,13 @@
-
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { MapPin, Tag, Loader2, ArrowLeft, Send, Video, Camera, StopCircle, Sparkles } from 'lucide-react';
+import { MapPin, Tag, Loader2, ArrowLeft, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -20,14 +19,12 @@ export default function SendOfferPage() {
   const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate real backend processing
+    // Simulate real backend processing for offer submission
     setTimeout(() => {
         toast({ title: 'Pitch Sent Successfully! 🚀', description: 'The buyer has been notified of your offer.' });
         setIsSubmitting(false);
@@ -47,26 +44,26 @@ export default function SendOfferPage() {
             <Card className="bg-neutral-900/50 border-white/5 overflow-hidden rounded-[2.5rem] shadow-2xl">
               <CardHeader className="p-8 pb-4">
                 <Badge className="bg-primary/20 text-primary border-none text-[8px] font-black uppercase tracking-widest rounded-full mb-4 w-fit px-3 py-1">
-                  Electronics
+                  Lead Requirement
                 </Badge>
-                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight text-white">Video Studio Lighting Kit</CardTitle>
-                <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed italic">"Looking for a ring light and softbox set for a home studio setup."</CardDescription>
+                <CardTitle className="text-3xl font-black uppercase tracking-tighter leading-tight text-white">Requirement Overview</CardTitle>
+                <CardDescription className="text-neutral-400 font-medium text-base mt-2 leading-relaxed italic">"Review the customer's needs carefully before pitching your price."</CardDescription>
               </CardHeader>
               <CardContent className="p-8 space-y-8">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1">
                     <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Budget Window</p>
-                    <p className="text-lg font-black text-primary">KES 8,000 - 15,000</p>
+                    <p className="text-lg font-black text-primary">Competitive</p>
                   </div>
                   <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-1">
-                    <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Urgency</p>
-                    <p className="text-lg font-black text-white uppercase">Urgent</p>
+                    <p className="text-[9px] font-black uppercase text-neutral-500 tracking-widest">Delivery</p>
+                    <p className="text-lg font-black text-white uppercase">Fast Track</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-xs font-black text-neutral-400 uppercase tracking-widest px-2">
                   <MapPin className="h-4 w-4 text-primary" />
-                  Westlands, Nairobi
+                  Verified Buyer Request
                 </div>
               </CardContent>
             </Card>
@@ -80,29 +77,9 @@ export default function SendOfferPage() {
               </CardHeader>
               <form onSubmit={handleSendOffer}>
                 <CardContent className="p-8 space-y-8">
-                  <div className="space-y-4">
-                    <Label className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Attach Video (Optional)</Label>
-                    <div className="relative aspect-video rounded-3xl bg-neutral-900 border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden">
-                        <div className="flex flex-col items-center gap-3 opacity-20">
-                            <Video className="h-10 w-10" />
-                            <p className="text-[10px] font-black uppercase text-center px-4">Show the buyer exactly what you have</p>
-                        </div>
-                    </div>
-                    <Button 
-                        type="button" 
-                        variant="secondary"
-                        className="w-full h-12 rounded-xl font-black uppercase text-[10px] tracking-widest"
-                        onClick={() => toast({ title: "Feature Simulation", description: "Camera access is ready for integration." })}
-                    >
-                        <Camera className="mr-2 h-4 w-4" /> START RECORDING
-                    </Button>
-                  </div>
-
-                  <Separator className="bg-white/5" />
-
                   <div className="space-y-6">
                     <div className="space-y-2">
-                        <Label htmlFor="price" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Your Price (KES)</Label>
+                        <Label htmlFor="price" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Your Price Pitch</Label>
                         <div className="relative">
                         <Tag className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/40" />
                         <Input
@@ -118,11 +95,11 @@ export default function SendOfferPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Your Message</Label>
+                        <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest text-neutral-500 ml-1">Message to Buyer</Label>
                         <Textarea
                             id="message"
                             rows={5}
-                            placeholder="Tell the buyer about the quality and delivery time..."
+                            placeholder="Tell the buyer why they should choose you..."
                             className="bg-white/5 rounded-2xl border-white/10 text-sm font-medium leading-relaxed text-white shadow-inner"
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}

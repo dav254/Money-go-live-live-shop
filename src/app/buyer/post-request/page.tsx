@@ -35,12 +35,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { 
   Megaphone, 
-  Keyboard, 
   Loader2,
   MapPin,
+  ClipboardList,
 } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -96,7 +95,7 @@ export default function PostRequestPage() {
         county: values.county,
         area: values.area,
         status: 'open',
-        requestType: 'text',
+        requestType: 'text', // Strictly plain text
         offersCount: 0,
         createdAt: serverTimestamp(),
     };
@@ -134,7 +133,7 @@ export default function PostRequestPage() {
                 </div>
                 <div>
                     <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">Broadcast a Need</h1>
-                    <p className="text-muted-foreground font-medium text-xs uppercase tracking-widest mt-1">Sellers will compete to give you the best deal</p>
+                    <p className="text-muted-foreground font-medium text-xs uppercase tracking-widest mt-1">Plain-text broadcasts for maximum reach</p>
                 </div>
             </div>
         </div>
@@ -145,13 +144,16 @@ export default function PostRequestPage() {
               <div className="lg:col-span-2 space-y-8">
                 <Card className="bg-neutral-900/50 border-white/5 shadow-2xl rounded-[2.5rem]">
                   <CardHeader className="p-8">
-                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Need Details</CardTitle>
-                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Provide context for the sellers</CardDescription>
+                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5" />
+                        Requirement Summary
+                    </CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Provide context for the sellers</CardDescription>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 space-y-8">
                     <FormField control={form.control} name="title" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Requirement Summary</FormLabel>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Title</FormLabel>
                         <FormControl><Input placeholder="e.g. Office Laptop for Designer" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -160,7 +162,7 @@ export default function PostRequestPage() {
                     <div className="grid grid-cols-2 gap-6">
                         <FormField control={form.control} name="category" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Category</FormLabel>
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Category</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
@@ -176,7 +178,7 @@ export default function PostRequestPage() {
                         )} />
                          <FormField control={form.control} name="county" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">County</FormLabel>
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">County</FormLabel>
                                 <FormControl>
                                   <Input placeholder="e.g. Nairobi" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} />
                                 </FormControl>
@@ -187,7 +189,7 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="area" render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Specific Area / Town</FormLabel>
+                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Specific Area / Town</FormLabel>
                             <FormControl>
                                 <Input placeholder="e.g. Westlands, CBD, Ruiru" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} />
                             </FormControl>
@@ -197,7 +199,7 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="description" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Details & Service</FormLabel>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Details & Service</FormLabel>
                         <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 text-white rounded-2xl" placeholder="Tell sellers exactly what you want..." {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -209,21 +211,21 @@ export default function PostRequestPage() {
               <div className="space-y-8">
                 <Card className="bg-neutral-950 border-white/5 shadow-2xl rounded-[2.5rem]">
                   <CardHeader className="p-8">
-                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget Range</CardTitle>
+                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget Window</CardTitle>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 space-y-6">
                     <div className="space-y-4">
                         <FormField control={form.control} name="minBudget" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Min Budget</FormLabel>
-                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10" {...field} /></FormControl>
+                                <FormLabel className="text-[10px] font-black uppercase text-neutral-500 ml-1">Min Budget</FormLabel>
+                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="maxBudget" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Max Budget</FormLabel>
-                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10" {...field} /></FormControl>
+                                <FormLabel className="text-[10px] font-black uppercase text-neutral-500 ml-1">Max Budget</FormLabel>
+                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
