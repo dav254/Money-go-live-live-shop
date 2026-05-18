@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Share2 } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Share2, Rocket } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,7 @@ export default function SellerGoLivePage() {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = setToken = useState<string | null>(null);
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
@@ -58,7 +58,7 @@ export default function SellerGoLivePage() {
     }
   }, []);
 
-  const handleSetupPreview = useCallback(async () => {
+  const handleStartBroadcastDirect = useCallback(async () => {
     if (!user || !token) return;
     setIsStarting(true);
     setIsHardwareReleased(false);
@@ -70,16 +70,19 @@ export default function SellerGoLivePage() {
     }
 
     try {
+      // Start as 'live' immediately
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: streamTitle })
+          body: JSON.stringify({ title: streamTitle, status: 'live' })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       
       setMeetingId(result.videosdkMeetingId);
+      setIsLive(true);
       setWantsToSetup(true);
+      toast({ title: "BROADCAST STARTING", description: "Your studio is initializing and you are going live!" });
     } catch (err: any) { 
         toast({ variant: 'destructive', title: 'Setup Failed', description: err.message });
         setIsHardwareReleased(true);
@@ -110,22 +113,6 @@ export default function SellerGoLivePage() {
         }
     };
   }, [wantsToSetup, getCameraPermission, isHardwareReleased]);
-
-  const handleStartBroadcast = async () => {
-    if (!user || !firestore || !meetingId) return;
-    try {
-        await updateDoc(doc(firestore, 'liveSessions', user.uid), {
-            status: 'live',
-            videosdkMeetingId: meetingId, 
-            startTime: serverTimestamp(),
-            lastStartedAt: serverTimestamp()
-        });
-        setIsLive(true);
-        toast({ title: "BROADCAST STARTED", description: "You are now live to all buyers!" });
-    } catch (e) {
-        toast({ variant: 'destructive', title: "Failed to go live" });
-    }
-  }
 
   const handleEndBroadcast = async () => {
     if (!user) return;
@@ -197,8 +184,8 @@ export default function SellerGoLivePage() {
                     <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                     <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
                 </div>
-                <h2 className="font-cyber text-xl font-black uppercase tracking-tighter">Syncing Studio...</h2>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2">Initializing signal</p>
+                <h2 className="font-cyber text-xl font-black uppercase tracking-tighter">Initializing Broadcast...</h2>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2">Connecting to global discovery pipe</p>
               </div>
           </SellerLayout>
       )
@@ -216,22 +203,12 @@ export default function SellerGoLivePage() {
                   <div className="absolute top-6 left-6 z-10 flex items-center gap-4 pointer-events-auto">
                      <div className={cn(
                         "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
-                        isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
+                        "bg-neutral-800 text-neutral-400"
                      )}>
-                        <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
-                        {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
+                        <div className={cn("h-2 w-2 rounded-full bg-neutral-600")} />
+                        PREVIEW MODE
                      </div>
                      
-                     <Button 
-                        onClick={handleShare}
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-9 w-9 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl hover:bg-black/60 active:scale-95 transition-all"
-                        title="Share Stream"
-                     >
-                        <Share2 className="h-4 w-4" />
-                     </Button>
-
                      <Badge variant="outline" className="h-10 px-4 rounded-xl border-white/10 bg-black/40 backdrop-blur-md text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
                         <BadgeCent className="h-4 w-4 text-primary" />
                         Balance: {(userProfile?.aiPoints || 0).toLocaleString()}
@@ -253,13 +230,13 @@ export default function SellerGoLivePage() {
                           {!isHardwareReleased && (
                               <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
                                   <div className="text-left space-y-2">
-                                      <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Stream Title</Label>
+                                      <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Show Title (What viewers see)</Label>
                                       <div className="relative">
                                           <Type className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                                           <Input 
                                               value={streamTitle}
                                               onChange={(e) => setStreamTitle(e.target.value)}
-                                              placeholder="E.g. NEW ARRIVALS & FLASH DEALS!"
+                                              placeholder="E.g. FLASH DEALS & NEW STOCK!"
                                               className="h-14 bg-black/40 border-white/10 rounded-2xl pl-12 font-bold text-white uppercase tracking-tight"
                                           />
                                       </div>
@@ -267,12 +244,12 @@ export default function SellerGoLivePage() {
                                   
                                   <Button 
                                     size="lg" 
-                                    className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
-                                    onClick={handleSetupPreview} 
+                                    className="w-full h-20 rounded-[2rem] font-black text-2xl bg-red-600 hover:bg-red-700 text-white shadow-2xl shadow-red-600/40 group transition-all" 
+                                    onClick={handleStartBroadcastDirect} 
                                     disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !token}
                                   >
-                                      {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
-                                      START LIVE SESSION
+                                      {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Rocket className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
+                                      START BROADCAST
                                   </Button>
                               </div>
                           )}
@@ -304,8 +281,8 @@ export default function SellerGoLivePage() {
 
                   <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end pointer-events-none opacity-40">
                       <div className="space-y-1">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-primary">Status</p>
-                          <p className="text-[10px] font-bold text-white max-w-[200px]">{isHardwareReleased ? 'Camera/Mic: OFF' : 'Camera/Mic: Ready'}</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-primary">System</p>
+                          <p className="text-[10px] font-bold text-white max-w-[200px]">{isHardwareReleased ? 'Cam/Mic: Offline' : 'Cam/Mic: Active'}</p>
                       </div>
                       <Zap className="h-8 w-8 text-primary" />
                   </div>
@@ -323,7 +300,7 @@ export default function SellerGoLivePage() {
               participantName={userProfile?.shopName || "Seller"} 
               token={token}
               isLive={isLive}
-              onBroadcast={handleStartBroadcast}
+              onBroadcast={() => setIsLive(true)}
               onEnd={handleEndBroadcast}
             />
         )}

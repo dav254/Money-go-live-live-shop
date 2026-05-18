@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2 } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -46,10 +46,13 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       {!webcamOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 backdrop-blur-sm p-6 text-center">
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
-            <VideoOff className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
+            <Radio className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">
-            Please wait for the preview to start or start the broadcast
+            Connecting Signal...
+          </p>
+          <p className="text-neutral-500 mt-2 text-[10px] font-black uppercase tracking-widest">
+            Please wait for the preview to sync or start your broadcast manually.
           </p>
         </div>
       )}
@@ -261,6 +264,20 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     });
   };
 
+  const handleBroadcastWithUpdate = async () => {
+    if (!user || !firestore) return;
+    try {
+        await updateDoc(doc(firestore, 'liveSessions', user.uid), {
+            status: 'live',
+            startTime: serverTimestamp(),
+            lastStartedAt: serverTimestamp()
+        });
+        onBroadcast();
+    } catch (e) {
+        toast({ variant: 'destructive', title: "Signal Failed" });
+    }
+  };
+
   return (
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
       <div className="flex-1 relative flex flex-col p-4 md:p-6 transition-all duration-500 ease-in-out">
@@ -331,7 +348,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
           <StudioControls 
             onEnd={onEnd} 
-            onBroadcast={onBroadcast} 
+            onBroadcast={handleBroadcastWithUpdate} 
             isLive={isLive} 
             activePanel={activePanel}
             onTogglePanel={handleTogglePanel}

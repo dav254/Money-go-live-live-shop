@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const sellerId = (verification as { uid: string }).uid;
 
   try {
-    const { title } = await request.json();
+    const { title, status = 'upcoming' } = await request.json();
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
     const sessionRef = db.collection('liveSessions').doc(sellerId);
     
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       id: sellerId,
       sellerId: sellerId,
       title: title || `${sellerName}'s Live Show`,
-      status: 'upcoming', 
+      status: status, 
       productIds: [],
       viewerCount: 0,
       initialStartTime: Timestamp.now(),
