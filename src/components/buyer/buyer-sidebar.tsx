@@ -22,7 +22,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Chat, LiveSession } from '@/lib/types';
+import type { Chat, LiveSession, Order } from '@/lib/types';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 
@@ -63,6 +63,19 @@ export function BuyerSidebar() {
 
   const { data: cartItems } = useCollection(cartQuery);
   const cartCount = cartItems?.length || 0;
+
+  // Query for active orders (pending, processing, shipped, delivery)
+  const activeOrdersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('buyerId', '==', user.uid),
+      where('orderStatus', 'in', ['pending', 'processing', 'shipped', 'delivery'])
+    );
+  }, [user, firestore]);
+
+  const { data: activeOrders } = useCollection<Order>(activeOrdersQuery);
+  const activeOrdersCount = activeOrders?.length || 0;
 
   return (
     <>
@@ -113,7 +126,7 @@ export function BuyerSidebar() {
               <ShoppingCart />
               <span>My Cart</span>
               {cartCount > 0 && (
-                <Badge className="absolute right-2 h-4 min-w-[1rem] px-1 bg-primary text-white border-none text-[8px] font-black shrink-0 flex items-center justify-center">
+                <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
                   {cartCount}
                 </Badge>
               )}
@@ -142,9 +155,14 @@ export function BuyerSidebar() {
         <SidebarMenu>
              <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
-                <Link href="/buyer/my-orders">
+                <Link href="/buyer/my-orders" className="relative">
                   <Package />
                   <span>My Orders</span>
+                  {activeOrdersCount > 0 && (
+                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-blue-600 text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                      {activeOrdersCount}
+                    </Badge>
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
