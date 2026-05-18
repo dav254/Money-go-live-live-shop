@@ -16,6 +16,7 @@ service cloud.firestore {
     }
 
     // Aligned to "One by One" build: Currently only validating Title and Metadata
+    // Removed validation for Description, Category, etc. as we build field-by-field
     function requestFieldsValid() {
       return
         request.resource.data.buyerId == request.auth.uid &&
@@ -39,11 +40,20 @@ service cloud.firestore {
       // Anyone signed in (Sellers/Buyers) can read broadcasts
       allow read: if isSignedIn();
       
-      // Buyer can create request with validated fields
+      // Buyer can create request with validated fields (Title-only mode)
       allow create: if isSignedIn() && requestFieldsValid();
 
       // Buyer can manage their own request
       allow update, delete: if isOwner(resource.data.buyerId);
+      
+      // =========================
+      // OFFERS SUBCOLLECTION
+      // =========================
+      match /offers/{offerId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
+      }
     }
 
     // =========================
