@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, increment, arrayUnion, arrayRemove, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 
 interface VideoActionsProps {
