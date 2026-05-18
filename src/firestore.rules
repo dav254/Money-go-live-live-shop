@@ -15,18 +15,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Simplified validation for "one-by-one" build process
     function requestFieldsValid() {
       return
         request.resource.data.buyerId == request.auth.uid &&
         request.resource.data.title is string &&
-        request.resource.data.description is string &&
-        request.resource.data.category is string &&
-        request.resource.data.minBudget is number &&
-        request.resource.data.maxBudget is number &&
-        request.resource.data.county is string &&
-        request.resource.data.area is string &&
         request.resource.data.status == "open" &&
-        request.resource.data.requestType is string &&
         request.resource.data.offersCount == 0;
     }
 
@@ -46,7 +40,7 @@ service cloud.firestore {
       // Anyone can read requests
       allow read: if true;
 
-      // Buyer can create request
+      // Buyer can create request (Only title is currently required by UI)
       allow create: if isSignedIn() && requestFieldsValid();
 
       // Buyer can update own request
@@ -59,60 +53,14 @@ service cloud.firestore {
       // OFFERS SUBCOLLECTION
       // =========================
       match /offers/{offerId} {
-
-        // Buyer and seller can read offers
         allow read: if isSignedIn();
-
-        // Any signed-in seller can submit offer
-        allow create: if isSignedIn() &&
-          request.resource.data.sellerId == request.auth.uid;
-
-        // Seller can edit own offer
-        allow update, delete: if
-          isSignedIn() &&
-          resource.data.sellerId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
       }
     }
 
     // =========================
-    // CHATS COLLECTION
-    // =========================
-    match /chats/{chatId} {
-      allow read, write: if isSignedIn();
-      
-      // Messages subcollection
-      match /messages/{messageId} {
-        allow read, create: if isSignedIn();
-      }
-    }
-
-    // =========================
-    // NOTIFICATIONS
-    // =========================
-    match /notifications/{notificationId} {
-      allow read, create, update: if isSignedIn();
-    }
-
-    // =========================
-    // PAYMENTS
-    // =========================
-    match /payments/{paymentId} {
-      allow read, create: if isSignedIn();
-    }
-
-    // =========================
-    // REVIEWS
-    // =========================
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if
-        isSignedIn() &&
-        resource.data.userId == request.auth.uid;
-    }
-
-    // =========================
-    // PRODUCTS & SESSIONS
+    // PRODUCT & SHOP ACCESS
     // =========================
     match /products/{productId} {
       allow read: if true;
@@ -120,14 +68,35 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
     }
 
+    match /sellerShops/{shopId} {
+      allow read: if true;
+      allow write: if isOwner(shopId);
+    }
+
     match /liveSessions/{sessionId} {
       allow read: if true;
       allow write: if isOwner(sessionId);
     }
 
-    match /sellerShops/{shopId} {
-      allow read: if true;
-      allow write: if isOwner(shopId);
+    // =========================
+    // CHATS & MESSAGES
+    // =========================
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn();
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn();
+      }
+    }
+
+    // =========================
+    // NOTIFICATIONS & PAYMENTS
+    // =========================
+    match /notifications/{notificationId} {
+      allow read, create, update: if isSignedIn();
+    }
+
+    match /payments/{paymentId} {
+      allow read, create: if isSignedIn();
     }
 
     // =========================
