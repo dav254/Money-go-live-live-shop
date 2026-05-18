@@ -48,10 +48,10 @@ const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
   description: z.string().min(10, "Please provide more details about what you need."),
   category: z.string().min(1, "Please select a category."),
-  minBudget: z.coerce.number().min(0),
-  maxBudget: z.coerce.number().min(0),
+  minBudget: z.coerce.number().min(0, "Budget must be a positive number"),
+  maxBudget: z.coerce.number().min(0, "Budget must be a positive number"),
   county: z.string().min(1, "Please enter your county."),
-  area: z.string().min(2, "Please enter your area."),
+  area: z.string().optional().default(''),
 });
 
 export default function PostRequestPage() {
@@ -68,8 +68,8 @@ export default function PostRequestPage() {
       title: '',
       description: '',
       category: '',
-      minBudget: 1000,
-      maxBudget: 5000,
+      minBudget: 0,
+      maxBudget: 0,
       county: '',
       area: '',
     },
@@ -220,7 +220,7 @@ export default function PostRequestPage() {
               <div className="space-y-8">
                 <Card className="bg-neutral-950 border-white/5 shadow-2xl rounded-[2.5rem]">
                   <CardHeader className="p-8">
-                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget (KES)</CardTitle>
+                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget</CardTitle>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 space-y-6">
                     <div className="space-y-4">
@@ -228,12 +228,14 @@ export default function PostRequestPage() {
                             <FormItem>
                                 <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Min Budget</FormLabel>
                                 <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10" {...field} /></FormControl>
+                                <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="maxBudget" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Max Budget</FormLabel>
                                 <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10" {...field} /></FormControl>
+                                <FormMessage />
                             </FormItem>
                         )} />
                     </div>
