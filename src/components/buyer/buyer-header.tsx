@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Search, Menu, X, Radio, MessageSquare } from 'lucide-react';
@@ -14,7 +13,9 @@ import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useUser, useUserProfile, useFirestore } from '@/firebase';
+import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Chat } from '@/lib/types';
 import { Logo } from '../logo';
 
 export function BuyerHeader() {
@@ -28,6 +29,18 @@ export function BuyerHeader() {
   
   const isLoading = isUserLoading || isProfileLoading;
   
+  const chatsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
+  }, [user, firestore]);
+
+  const { data: chats } = useCollection<Chat>(chatsQuery);
+
+  const unreadCount = useMemo(() => {
+    if (!chats || !user) return 0;
+    return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
+  }, [chats, user]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       const newQuery = searchQuery.trim();
@@ -120,9 +133,15 @@ export function BuyerHeader() {
             <span className="sr-only">Search</span>
         </Button>
         <ThemeToggle />
-        <Button variant="ghost" size="icon" asChild title="Messages">
+        <Button variant="ghost" size="icon" asChild title="Messages" className="relative">
           <Link href="/messages">
             <MessageSquare className="h-5 w-5" />
+            {unreadCount > 0 && (
+                <span className="absolute top-2 right-2 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                </span>
+            )}
           </Link>
         </Button>
         <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild title="Live Now">

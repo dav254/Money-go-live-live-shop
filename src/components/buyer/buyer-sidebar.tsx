@@ -20,11 +20,30 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Chat } from '@/lib/types';
+import { useMemo } from 'react';
 
 export function BuyerSidebar() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
   
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const chatsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
+  }, [user, firestore]);
+
+  const { data: chats } = useCollection<Chat>(chatsQuery);
+
+  const unreadCount = useMemo(() => {
+    if (!chats || !user) return 0;
+    return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
+  }, [chats, user]);
+
   return (
     <>
     <SidebarGroup>
@@ -72,9 +91,15 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/messages')} tooltip="Messages">
-            <Link href="/messages">
+            <Link href="/messages" className="relative">
               <MessageSquare />
               <span>Messages</span>
+              {unreadCount > 0 && (
+                <span className="absolute right-2 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                </span>
+              )}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
