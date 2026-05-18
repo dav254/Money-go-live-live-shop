@@ -91,7 +91,7 @@ export default function PostRequestPage() {
         buyerId: user.uid,
         title: values.title,
         description: values.description,
-        category: values.category, // Category is now officially linked to backend
+        category: values.category,
         minBudget: values.minBudget,
         maxBudget: values.maxBudget,
         county: values.county,
@@ -208,7 +208,7 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="description" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Details & Specs</FormLabel>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Details & Service</FormLabel>
                         <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 text-white rounded-2xl" placeholder="Tell sellers exactly what you want..." {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
