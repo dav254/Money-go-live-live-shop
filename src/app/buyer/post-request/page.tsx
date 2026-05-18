@@ -91,7 +91,7 @@ export default function PostRequestPage() {
         buyerId: user.uid,
         title: values.title,
         description: values.description,
-        category: values.category,
+        category: values.category, // Category is now officially linked to backend
         minBudget: values.minBudget,
         maxBudget: values.maxBudget,
         county: values.county,
