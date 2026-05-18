@@ -1,17 +1,47 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { 
   Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
   Radio, Users, MessageSquare, Share2, CheckCircle, Heart, ShoppingBag, 
   Shield, Lock, CreditCard, User, Handshake, Globe, Cpu, Layers, MapPin,
-  RadioTower, Bot, Tag, Eye
+  RadioTower, Bot, Tag, Eye, Loader2
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { LandingLayout } from '@/components/layout/landing-layout';
+import { useUser, useUserProfile } from '@/firebase';
+import { useRouter } from "next/navigation";
 
 const HomePageContent = () => {
+  const { user, isLoading: isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const router = useRouter();
+
+  // Automatic redirect if already logged in
+  useEffect(() => {
+    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      const role = userProfile.userRole || userProfile.role;
+      if (role === 'seller') {
+        router.replace('/dashboard/seller');
+      } else if (role === 'reseller') {
+        router.replace('/dashboard/reseller');
+      } else if (role === 'admin') {
+        router.replace('/dashboard/admin');
+      } else {
+        router.replace('/buyer/dashboard');
+      }
+    }
+  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+
+  // Show a clean loader while checking auth status to prevent flicker
+  if (isUserLoading || (user && isProfileLoading)) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-black">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const BackgroundEffects = () => (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: -1 }}>
