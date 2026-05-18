@@ -15,8 +15,7 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Simplified validation to support the "one by one" build process.
-    // Currently only validates the Title and basic metadata.
+    // Aligned to "One by One" build: Currently only validating Title and Metadata
     function requestFieldsValid() {
       return
         request.resource.data.buyerId == request.auth.uid &&
@@ -26,7 +25,7 @@ service cloud.firestore {
     }
 
     // =========================
-    // USER PROFILES COLLECTION
+    // USER PROFILES
     // =========================
     match /userProfiles/{userId} {
       allow read: if true;
@@ -34,34 +33,21 @@ service cloud.firestore {
     }
 
     // =========================
-    // REQUESTS COLLECTION
+    // MARKETPLACE LEADS (REQUESTS)
     // =========================
     match /requests/{requestId} {
-
-      // Anyone can read requests
-      allow read: if true;
-
-      // Buyer can create request (Currently only Title is required)
+      // Anyone signed in (Sellers/Buyers) can read broadcasts
+      allow read: if isSignedIn();
+      
+      // Buyer can create request with validated fields
       allow create: if isSignedIn() && requestFieldsValid();
 
-      // Buyer can update own request
-      allow update: if isOwner(resource.data.buyerId);
-
-      // Buyer can delete own request
-      allow delete: if isOwner(resource.data.buyerId);
-
-      // =========================
-      // OFFERS SUBCOLLECTION
-      // =========================
-      match /offers/{offerId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
-      }
+      // Buyer can manage their own request
+      allow update, delete: if isOwner(resource.data.buyerId);
     }
 
     // =========================
-    // PRODUCT & SHOP ACCESS
+    // PRODUCT & LIVE ACCESS
     // =========================
     match /products/{productId} {
       allow read: if true;
@@ -89,11 +75,8 @@ service cloud.firestore {
       }
     }
 
-    // =========================
-    // NOTIFICATIONS & PAYMENTS
-    // =========================
     match /notifications/{notificationId} {
-      allow read, create, update: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     match /payments/{paymentId} {

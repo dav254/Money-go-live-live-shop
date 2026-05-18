@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -13,7 +13,6 @@ import {
     Clock
 } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { BuyerRequest } from '@/lib/types';

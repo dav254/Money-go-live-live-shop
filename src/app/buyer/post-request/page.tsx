@@ -63,6 +63,7 @@ export default function PostRequestPage() {
 
     setIsSubmitting(true);
     
+    // Aligned to "One by One" build: Currently only Title and Metadata
     const requestData = {
         buyerId: user.uid,
         title: values.title,

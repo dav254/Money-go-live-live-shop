@@ -2,8 +2,7 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Target, Search, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -28,6 +27,7 @@ function LeadCard({ request }: { request: BuyerRequest }) {
       </div>
 
       <CardHeader className="p-6">
+        {/* Aligned to "One by One" build: Displaying only Title */}
         <CardTitle className="text-xl font-black uppercase tracking-tight group-hover:text-primary transition-colors leading-tight text-white">
           {request.title}
         </CardTitle>
