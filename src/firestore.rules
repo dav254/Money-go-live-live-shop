@@ -1,67 +1,123 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // =========================
+    // HELPER FUNCTIONS
+    // =========================
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profiles
+    function requestFieldsValid() {
+      return
+        request.resource.data.buyerId == request.auth.uid &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.category is string &&
+        request.resource.data.minBudget is number &&
+        request.resource.data.maxBudget is number &&
+        request.resource.data.county is string &&
+        request.resource.data.area is string &&
+        request.resource.data.status == "open" &&
+        request.resource.data.requestType is string &&
+        request.resource.data.offersCount == 0;
+    }
+
+    // =========================
+    // USER PROFILES COLLECTION
+    // =========================
     match /userProfiles/{userId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      allow update: if isOwner(userId);
+      allow create, update, delete: if isOwner(userId);
     }
 
-    // BUYER REQUESTS
+    // =========================
+    // REQUESTS COLLECTION
+    // =========================
     match /requests/{requestId} {
-      // Any logged-in user can read requests
-      allow read: if isSignedIn();
-      // Any logged-in user can create a request broadcast
-      allow create: if isSignedIn();
-      // Only the buyer who created the request can update or delete it
-      allow update, delete: if isSignedIn() && resource.data.buyerId == request.auth.uid;
-    }
 
-    // SELLER OFFERS (Pitches)
-    match /offers/{offerId} {
-      // Relevant parties can read offers
-      allow read: if isSignedIn();
-      // Any logged-in user can create an offer (Seller pitching)
-      allow create: if isSignedIn();
-      // Seller can edit own offer, Buyer can update status (accept/reject)
-      allow update: if isSignedIn() && (resource.data.sellerId == request.auth.uid || request.resource.data.buyerId == request.auth.uid);
-      // Only the seller who created the offer can delete it
-      allow delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
-    }
+      // Anyone can read requests
+      allow read: if true;
 
-    // CHATS & MESSAGES
-    match /chats/{chatId} {
-      allow read, write: if isSignedIn();
-      match /messages/{messageId} {
-        allow read, write: if isSignedIn();
+      // Buyer can create request
+      allow create: if isSignedIn() && requestFieldsValid();
+
+      // Buyer can update own request
+      allow update: if isOwner(resource.data.buyerId);
+
+      // Buyer can delete own request
+      allow delete: if isOwner(resource.data.buyerId);
+
+      // =========================
+      // OFFERS SUBCOLLECTION
+      // =========================
+      match /offers/{offerId} {
+
+        // Buyer and seller can read offers
+        allow read: if isSignedIn();
+
+        // Any signed-in seller can submit offer
+        allow create: if isSignedIn() &&
+          request.resource.data.sellerId == request.auth.uid;
+
+        // Seller can edit own offer
+        allow update, delete: if
+          isSignedIn() &&
+          resource.data.sellerId == request.auth.uid;
       }
     }
 
-    // PRODUCTS & REVIEWS
+    // =========================
+    // CHATS COLLECTION
+    // =========================
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn();
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn();
+      }
+    }
+
+    // =========================
+    // NOTIFICATIONS
+    // =========================
+    match /notifications/{notificationId} {
+      allow read, create, update: if isSignedIn();
+    }
+
+    // =========================
+    // PAYMENTS
+    // =========================
+    match /payments/{paymentId} {
+      allow read, create: if isSignedIn();
+    }
+
+    // =========================
+    // REVIEWS
+    // =========================
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if
+        isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // =========================
+    // PRODUCTS & SESSIONS
+    // =========================
     match /products/{productId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
-      match /comments/{commentId} { allow read, create: if isSignedIn(); }
-      match /reviews/{reviewId} { allow read, create: if isSignedIn(); }
-    }
-    
-    // SHOPS & SESSIONS
-    match /sellerShops/{shopId} {
-      allow read: if true;
-      allow write: if isOwner(shopId);
     }
 
     match /liveSessions/{sessionId} {
@@ -69,37 +125,16 @@ service cloud.firestore {
       allow write: if isOwner(sessionId);
     }
 
-    // ORDERS
-    match /orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
+    match /sellerShops/{shopId} {
+      allow read: if true;
+      allow write: if isOwner(shopId);
     }
 
-    // SUPPORT & COMPLAINTS
-    match /supportTickets/{ticketId} {
-        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid);
-        allow create: if isSignedIn();
-    }
-
-    match /complaints/{complaintId} {
-        allow create: if isSignedIn();
-        allow read: if isSignedIn() && (resource.data.complainantId == request.auth.uid);
-    }
-    
-    // NOTIFICATIONS & TRANSACTIONS
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if isSignedIn(); 
-    }
-    
-    match /walletTransactions/{transactionId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid);
-    }
-    
-    match /payouts/{payoutId} {
-      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid);
-      allow create: if isSignedIn();
+    // =========================
+    // DEFAULT DENY
+    // =========================
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
