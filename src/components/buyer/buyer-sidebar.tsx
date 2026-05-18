@@ -16,6 +16,8 @@ import {
   CreditCard,
   Radio,
   Video,
+  Heart,
+  Bell,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -53,11 +55,27 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wishlist')} tooltip="Wishlist">
+            <Link href="/buyer/wishlist">
+              <Heart className="text-pink-500" />
+              <span>Saved Items</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/cart')} tooltip="My Cart">
             <Link href="/cart">
               <ShoppingCart />
               <span>My Cart</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/notifications')} tooltip="Notifications">
+            <Link href="/buyer/notifications">
+              <Bell />
+              <span>Notifications</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
