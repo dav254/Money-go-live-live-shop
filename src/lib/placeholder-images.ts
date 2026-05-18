@@ -12,11 +12,11 @@ export type ImagePlaceholder = {
 export const PlaceHolderImages = data.placeholderImages;
 
 /**
- * Returns a standard, non-confusing "No Image" placeholder.
- * This ensures buyers are not misled by random stock photos.
- * @returns A string containing the URL of a standard placeholder.
+ * Returns a standard, clean placeholder without misleading text.
+ * This ensures the UI remains professional when media is missing.
+ * @returns A string containing the URL of a neutral placeholder.
  */
 export function getPlaceholderImage(): string {
-  // Use a dark-themed, neutral placeholder that clearly indicates missing media
-  return 'https://placehold.co/600x400/111111/FFFFFF?text=No+Product+Image';
+  // Use a dark-themed, neutral placeholder without any "No Image" text overlay
+  return 'https://placehold.co/600x400/111111/111111';
 }

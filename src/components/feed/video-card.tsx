@@ -55,8 +55,17 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
     
     // FALLBACK: If no product media found, show seller's profile image instead of a placeholder text
     if (media.length === 0) {
-        const fallbackUrl = item.seller?.avatar?.imageUrl || item.seller?.banner?.imageUrl || getPlaceholderImage();
-        media.push({ url: fallbackUrl, type: 'image' });
+        const sellerAvatar = item.seller?.avatar?.imageUrl;
+        const sellerBanner = item.seller?.banner?.imageUrl;
+        
+        // Prioritize actual user/seller images as backgrounds for "empty" products
+        if (sellerAvatar && sellerAvatar.trim() !== "" && !sellerAvatar.includes('text=')) {
+            media.push({ url: sellerAvatar, type: 'image' });
+        } else if (sellerBanner && sellerBanner.trim() !== "" && !sellerBanner.includes('text=')) {
+            media.push({ url: sellerBanner, type: 'image' });
+        } else {
+            media.push({ url: getPlaceholderImage(), type: 'image' });
+        }
     }
 
     return media;
