@@ -24,6 +24,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where } from 'firebase/firestore';
 import type { Chat, LiveSession } from '@/lib/types';
 import { useMemo } from 'react';
+import { Badge } from '@/components/ui/badge';
 
 export function BuyerSidebar() {
   const pathname = usePathname();
@@ -53,6 +54,15 @@ export function BuyerSidebar() {
 
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
   const isAnySellerLive = useMemo(() => activeSessions && activeSessions.length > 0, [activeSessions]);
+
+  // Query for cart items to display count
+  const cartQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return collection(firestore, 'userProfiles', user.uid, 'cart');
+  }, [user, firestore]);
+
+  const { data: cartItems } = useCollection(cartQuery);
+  const cartCount = cartItems?.length || 0;
 
   return (
     <>
@@ -99,9 +109,14 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/cart')} tooltip="My Cart">
-            <Link href="/cart">
+            <Link href="/cart" className="relative">
               <ShoppingCart />
               <span>My Cart</span>
+              {cartCount > 0 && (
+                <Badge className="absolute right-2 h-4 min-w-[1rem] px-1 bg-primary text-white border-none text-[8px] font-black shrink-0 flex items-center justify-center">
+                  {cartCount}
+                </Badge>
+              )}
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
