@@ -98,12 +98,12 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.error('Login Error:', error);
-      let description = 'Invalid email or password.';
+      let description = 'Incorrect email or password. Please check your details and try again.';
       
       if (error.code === 'auth/network-request-failed') {
-        description = 'Network error. Please check your internet connection and try again.';
+        description = 'Network connection failed. This might be due to a poor connection or an ad-blocker. Please check your internet and try again.';
       } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        description = 'Incorrect email or password. Please check your details and try again.';
+        description = 'The email or password you entered is incorrect.';
       }
       
       toast({
@@ -125,10 +125,10 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <div className="flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
-            <CardTitle className="font-headline text-2xl">Welcome Back</CardTitle>
-            <CardDescription>Enter your email below to login to your account</CardDescription>
+            <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your Go Earn account</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -169,8 +169,8 @@ export default function LoginPage() {
                 />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Logging in...' : 'Login'}
+                <Button type="submit" className="w-full h-12 font-black uppercase tracking-widest shadow-xl shadow-primary/20" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Authenticating...' : 'Login'}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
                   Don&apos;t have an account?{' '}

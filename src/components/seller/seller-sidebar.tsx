@@ -19,6 +19,7 @@ import {
   Video,
   Sparkles,
   AreaChart,
+  TestTube,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -116,6 +117,20 @@ export function SellerSidebar() {
         </SidebarMenu>
       </SidebarGroup>
       
+      <SidebarGroup>
+        <SidebarGroupLabel>System Test</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/media-pipe')}>
+              <Link href="/dashboard/seller/media-pipe">
+                <TestTube className="text-yellow-500" />
+                <span>Media Pipe Test</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+
       <SidebarGroup>
         <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
          <SidebarMenu>

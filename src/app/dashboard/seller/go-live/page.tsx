@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Share2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -164,6 +164,14 @@ export default function SellerGoLivePage() {
       setIsHardwareReleased(false);
   };
 
+  const handleShare = () => {
+      if (!user) return;
+      const url = `${window.location.origin}/buyer/live/${user.uid}`;
+      navigator.clipboard.writeText(url).then(() => {
+          toast({ title: 'Link Copied!', description: 'Invite people to your stream.' });
+      });
+  };
+
   if (isConfigMissing) {
     return (
       <SellerLayout>
@@ -205,7 +213,25 @@ export default function SellerGoLivePage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                   </div>
 
-                  <div className="absolute top-6 left-6 z-10 flex items-center gap-4">
+                  <div className="absolute top-6 left-6 z-10 flex items-center gap-4 pointer-events-auto">
+                     <div className={cn(
+                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
+                        isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
+                     )}>
+                        <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
+                        {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
+                     </div>
+                     
+                     <Button 
+                        onClick={handleShare}
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-9 w-9 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl hover:bg-black/60 active:scale-95 transition-all"
+                        title="Share Stream"
+                     >
+                        <Share2 className="h-4 w-4" />
+                     </Button>
+
                      <Badge variant="outline" className="h-10 px-4 rounded-xl border-white/10 bg-black/40 backdrop-blur-md text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
                         <BadgeCent className="h-4 w-4 text-primary" />
                         Balance: {(userProfile?.aiPoints || 0).toLocaleString()}
