@@ -1,11 +1,12 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown, Heart } from 'lucide-react';
+import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown, Heart, Bookmark } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { doc, writeBatch, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, increment, arrayUnion, arrayRemove, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
 
@@ -33,16 +34,18 @@ export function VideoActions({
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
-  const router = useRouter(); // For redirecting non-logged-in users
+  const router = useRouter();
+  
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(product.likes || 0);
+  const [isSaved, setIsSaved] = useState(false);
 
-  // Set the initial liked state based on the user's profile
+  // Set initial states from profile
   useEffect(() => {
     if (userProfile?.wishlist?.includes(product.id)) {
-      setIsLiked(true);
+      setIsSaved(true);
     } else {
-      setIsLiked(false);
+      setIsSaved(false);
     }
   }, [userProfile, product.id]);
 
@@ -56,42 +59,62 @@ export function VideoActions({
     }
     
     const newIsLiked = !isLiked;
-
-    // Optimistic UI updates
     setIsLiked(newIsLiked);
     setLikeCount(prev => newIsLiked ? prev + 1 : prev - 1);
 
     const productRef = doc(firestore, 'products', product.id);
-    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
 
     try {
-        const batch = writeBatch(firestore);
-        
-        if (newIsLiked) {
-            batch.update(productRef, { likes: increment(1) });
-            batch.update(userProfileRef, { wishlist: arrayUnion(product.id) });
-        } else {
-            batch.update(productRef, { likes: increment(-1) });
-            batch.update(userProfileRef, { wishlist: arrayRemove(product.id) });
-        }
-
-        await batch.commit();
-
+        await updateDoc(productRef, {
+            likes: increment(newIsLiked ? 1 : -1)
+        });
     } catch (error) {
         console.error("Error updating like: ", error);
-        // Revert optimistic updates on failure
         setIsLiked(!newIsLiked);
         setLikeCount(prev => newIsLiked ? prev - 1 : prev + 1);
         toast({
             variant: "destructive",
             title: "Something went wrong",
-            description: "Your like could not be saved. Please try again.",
+            description: "Your like could not be saved.",
+        });
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user || !firestore) {
+        toast({
+            title: "Please log in to save items.",
+            action: <Button onClick={() => router.push('/login')}>Login</Button>
+        });
+        return;
+    }
+
+    const newIsSaved = !isSaved;
+    setIsSaved(newIsSaved);
+
+    const userProfileRef = doc(firestore, 'userProfiles', user.uid);
+
+    try {
+        await updateDoc(userProfileRef, {
+            wishlist: newIsSaved ? arrayUnion(product.id) : arrayRemove(product.id)
+        });
+        toast({
+            title: newIsSaved ? "Saved to Wishlist!" : "Removed from Wishlist",
+            description: newIsSaved ? "You can view this in your Saved Items." : "Item has been removed.",
+        });
+    } catch (error) {
+        console.error("Error updating wishlist: ", error);
+        setIsSaved(!newIsSaved);
+        toast({
+            variant: "destructive",
+            title: "Action Failed",
+            description: "Could not update your wishlist.",
         });
     }
   };
 
   const handleShare = () => {
-    const url = `https://goearnvid.shop/products/${product.id}`;
+    const url = `${window.location.origin}/products/${product.id}`;
     navigator.clipboard.writeText(url).then(() => {
         toast({
             title: "Link Copied!",
@@ -99,19 +122,12 @@ export function VideoActions({
         });
     }).catch(err => {
         console.error('Failed to copy: ', err);
-        toast({
-            variant: "destructive",
-            title: "Failed to Copy",
-            description: "Could not copy the link to your clipboard.",
-        });
     });
   };
 
   const handleScrollClick = (direction: 'up' | 'down') => {
     if (typeof onScroll === 'function') {
       onScroll(direction);
-    } else {
-      console.error('[Studio Debug] onScroll prop is not a function in VideoActions');
     }
   };
 
@@ -122,33 +138,46 @@ export function VideoActions({
           <ChevronUp className="h-6 w-6 text-white" />
         </Button>
       </div>
+      
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLike}>
-          <Heart className={`h-6 w-6 text-white transition-colors ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+          <Heart className={cn("h-6 w-6 text-white transition-colors", isLiked && "fill-red-500 text-red-500")} />
         </Button>
-        <span className="text-sm font-semibold text-white drop-shadow-md">{likeCount.toLocaleString()}</span>
+        <span className="text-[10px] font-black text-white uppercase drop-shadow-md mt-1">{likeCount.toLocaleString()}</span>
       </div>
+
+      <div className="flex flex-col items-center">
+        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleSave}>
+          <Bookmark className={cn("h-6 w-6 text-white transition-colors", isSaved && "fill-primary text-primary")} />
+        </Button>
+        <span className="text-[10px] font-black text-white uppercase drop-shadow-md mt-1">{isSaved ? 'SAVED' : 'SAVE'}</span>
+      </div>
+
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onCommentClick}>
           <MessageCircle className="h-6 w-6 text-white" />
         </Button>
-        <span className="text-sm font-semibold text-white drop-shadow-md">{commentCount}</span>
+        <span className="text-[10px] font-black text-white uppercase drop-shadow-md mt-1">{commentCount}</span>
       </div>
+
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleShare}>
           <Share2 className="h-6 w-6 text-white" />
         </Button>
       </div>
+
        <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-primary h-12 w-12 hover:bg-primary/80" onClick={onProductClick}>
+        <Button size="icon" variant="ghost" className="rounded-full bg-primary h-12 w-12 hover:bg-primary/80 shadow-xl shadow-primary/20" onClick={onProductClick}>
           <ShoppingBag className="h-6 w-6 text-primary-foreground" />
         </Button>
       </div>
+
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onMuteToggle}>
           {isMuted ? <VolumeX className="h-6 w-6 text-white" /> : <Volume2 className="h-6 w-6 text-white" />}
         </Button>
       </div>
+
        <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('down')}>
           <ChevronDown className="h-6 w-6 text-white" />
