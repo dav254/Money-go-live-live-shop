@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function SellerLiveHistoryPage() {
   const { user } = useUser();
@@ -144,7 +146,6 @@ export default function SellerLiveHistoryPage() {
                         {isLoading ? <Skeleton className="h-8 w-20 bg-white/5"/> : `$${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </div>
                 </CardContent>
-            </Card>
 
              <Card className="bg-neutral-900 border-white/5 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
