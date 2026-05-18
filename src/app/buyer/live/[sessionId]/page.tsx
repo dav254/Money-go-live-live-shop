@@ -162,27 +162,31 @@ export default function BuyerLiveSessionPage() {
           )}
 
           {/* Top Status & Title */}
-          <div className="absolute top-6 left-6 right-6 z-10 flex items-center justify-between pointer-events-none">
+          <div className="absolute top-6 left-6 right-6 z-10 flex items-start justify-between pointer-events-none">
             <div className="flex flex-col gap-2 pointer-events-auto">
-                <div className="flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl animate-pulse w-fit">
-                    <div className="h-2 w-2 rounded-full bg-white" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Now</span>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl animate-pulse">
+                        <div className="h-2 w-2 rounded-full bg-white" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Now</span>
+                    </div>
+                    
+                    <Button 
+                        onClick={handleShare}
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-9 w-9 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl hover:bg-black/60 active:scale-95 transition-all pointer-events-auto"
+                        title="Share Stream"
+                    >
+                        <Share2 className="h-4 w-4" />
+                    </Button>
                 </div>
+
                 {session.title && (
                     <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl shadow-2xl max-w-xs md:max-w-md">
                         <h1 className="text-white font-black uppercase tracking-tight text-xs md:text-sm leading-tight drop-shadow-md">{session.title}</h1>
                     </div>
                 )}
             </div>
-            
-            <Button 
-                onClick={handleShare}
-                size="icon" 
-                variant="ghost" 
-                className="h-10 w-10 md:h-12 md:w-12 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl pointer-events-auto hover:bg-black/60 active:scale-95 transition-all"
-            >
-                <Share2 className="h-5 w-5" />
-            </Button>
           </div>
 
           {/* Floating Chat Overlay (Always visible over video) */}

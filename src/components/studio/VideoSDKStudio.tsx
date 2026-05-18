@@ -62,23 +62,14 @@ interface StudioControlsProps {
     activePanel: 'chat' | 'products' | 'promos' | 'viewers' | null;
     onTogglePanel: (panel: 'chat' | 'products' | 'promos' | 'viewers') => void;
     hasUnreadChat: boolean;
-    streamId: string;
 }
 
-const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel, hasUnreadChat, streamId }: StudioControlsProps) => {
+const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel, hasUnreadChat }: StudioControlsProps) => {
   const { leave } = useMeeting();
-  const { toast } = useToast();
 
   const handleEndClick = () => {
     leave();
     onEnd();
-  };
-
-  const handleShare = () => {
-      const url = `${window.location.origin}/buyer/live/${streamId}`;
-      navigator.clipboard.writeText(url).then(() => {
-          toast({ title: 'Link Copied!', description: 'Invite people to your stream.' });
-      });
   };
 
   return (
@@ -136,15 +127,6 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         )}
       >
         <Zap className="h-4 w-4 md:h-5 md:w-5" />
-      </Button>
-
-      <Button
-        size="icon"
-        variant="ghost"
-        onClick={handleShare}
-        className="rounded-xl h-10 w-10 md:h-12 md:w-12 text-white/70 hover:bg-white/10"
-      >
-        <Share2 className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
 
       <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
@@ -269,17 +251,37 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   };
 
+  const handleShare = () => {
+    if (!user) return;
+    const url = `${window.location.origin}/buyer/live/${user.uid}`;
+    navigator.clipboard.writeText(url).then(() => {
+        toast({ title: 'Link Copied!', description: 'Invite people to your stream.' });
+    });
+  };
+
   return (
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
       <div className="flex-1 relative flex flex-col p-4 md:p-6 transition-all duration-500 ease-in-out">
           <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
               <div className="pointer-events-auto flex items-center gap-3">
-                  <div className={cn(
-                      "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
-                      isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
-                  )}>
-                      <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
-                      {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
+                        isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
+                    )}>
+                        <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
+                        {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
+                    </div>
+
+                    <Button 
+                        onClick={handleShare}
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-9 w-9 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl hover:bg-black/60 active:scale-95 transition-all pointer-events-auto"
+                        title="Share Stream"
+                    >
+                        <Share2 className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {isLive && (
@@ -332,7 +334,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
             activePanel={activePanel}
             onTogglePanel={handleTogglePanel}
             hasUnreadChat={hasUnreadChat}
-            streamId={user?.uid || ''}
           />
       </div>
 
