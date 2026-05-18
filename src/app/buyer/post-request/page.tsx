@@ -38,6 +38,7 @@ import {
   Keyboard, 
   Video, 
   Loader2,
+  MapPin,
 } from 'lucide-react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -51,7 +52,7 @@ const formSchema = z.object({
   minBudget: z.coerce.number().min(0, "Budget must be a positive number"),
   maxBudget: z.coerce.number().min(0, "Budget must be a positive number"),
   county: z.string().min(1, "Please enter your county."),
-  area: z.string().optional().default(''),
+  area: z.string().min(1, "Please enter your specific area."),
 });
 
 export default function PostRequestPage() {
@@ -115,13 +116,11 @@ export default function PostRequestPage() {
           errorEmitter.emit('permission-error', permissionError);
       });
 
-    // Proceed with UI logic immediately (Optimistic UI)
     toast({
       title: "Broadcast Live! 🚀",
-      description: "Your requirement has been sent to all local sellers in " + values.county,
+      description: "Your requirement has been sent to all local sellers in " + values.area,
     });
     
-    // Small delay for UX before redirection
     setTimeout(() => {
         setIsSubmitting(false);
         router.push('/buyer/requests/my-requests');
@@ -195,7 +194,7 @@ export default function PostRequestPage() {
                                 <FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="county" render={({ field }) => (
+                         <FormField control={form.control} name="county" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">County</FormLabel>
                                 <FormControl>
@@ -205,6 +204,16 @@ export default function PostRequestPage() {
                             </FormItem>
                         )} />
                     </div>
+
+                    <FormField control={form.control} name="area" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Specific Area / Town</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Westlands, CBD, Ruiru" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
 
                     <FormField control={form.control} name="description" render={({ field }) => (
                       <FormItem>
@@ -220,7 +229,7 @@ export default function PostRequestPage() {
               <div className="space-y-8">
                 <Card className="bg-neutral-950 border-white/5 shadow-2xl rounded-[2.5rem]">
                   <CardHeader className="p-8">
-                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget</CardTitle>
+                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget Range</CardTitle>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 space-y-6">
                     <div className="space-y-4">
