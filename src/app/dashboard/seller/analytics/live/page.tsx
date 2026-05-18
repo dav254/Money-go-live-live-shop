@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -43,7 +42,7 @@ export default function SellerLiveHistoryPage() {
         if (!s.startTime || !s.endTime) return acc;
         return acc + (s.endTime.toMillis() - s.startTime.toMillis());
     }, 0);
-    const avgDuration = Math.floor(totalDuration / sessions.length / 60000); // in minutes
+    const avgDuration = sessions.length > 0 ? Math.floor(totalDuration / sessions.length / 60000) : 0; // in minutes
     
     const avgConversion = totalViewers > 0 ? (sessions.reduce((acc, s) => acc + (s.sales ? 1 : 0), 0) / sessions.length) * 100 : 0;
 
@@ -146,6 +145,7 @@ export default function SellerLiveHistoryPage() {
                         {isLoading ? <Skeleton className="h-8 w-20 bg-white/5"/> : `$${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </div>
                 </CardContent>
+            </Card>
 
              <Card className="bg-neutral-900 border-white/5 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-1 h-full bg-orange-500" />
