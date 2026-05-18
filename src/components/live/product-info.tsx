@@ -3,14 +3,13 @@
 
 import type { Product, Review, SellerShop } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, Star, Store, Tag, Sparkles, MapPin } from 'lucide-react';
+import { Star, Store, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import React from 'react';
-import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
 interface ProductInfoProps {
@@ -69,33 +68,32 @@ export function ProductInfo({ product }: ProductInfoProps) {
                 )}
             </div>
             <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-bold text-white truncate">{product.name}</h3>
+                <h3 className="text-sm font-bold text-white truncate uppercase">{product.name}</h3>
                 <div className="flex items-center gap-2 mt-0.5">
-                    {product.coupon && (
-                        <div className="flex items-center gap-1 text-[10px] text-yellow-400 font-bold uppercase tracking-widest">
-                            <Tag className="h-2.5 w-2.5" /> {product.coupon.discount}% OFF
-                        </div>
-                    )}
-                    {shop?.location && (
-                        <div className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase tracking-widest truncate">
-                            <MapPin className="h-2.5 w-2.5" /> {shop.location}
-                        </div>
-                    )}
+                    {/* Display Currency, Local Sale Price, and Market Price (wasPrice) */}
+                    <div className="flex items-center gap-1.5 text-[10px] text-primary font-black uppercase tracking-widest truncate">
+                        <Banknote className="h-3 w-3 shrink-0" /> 
+                        <span className="truncate">
+                            {product.localCurrency || 'USD'} {product.localPrice?.toLocaleString() || product.price?.toLocaleString()}
+                        </span>
+                        {product.wasPrice && (
+                             <span className="text-white/40 font-bold line-through ml-1 shrink-0">
+                                MKT: ${product.wasPrice.toLocaleString()}
+                             </span>
+                        )}
+                    </div>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-neutral-300 mt-1">
                     {reviews && reviews.length > 0 && (
                       <>
-                        <span>{averageRating.toFixed(1)} <Star className="h-3 w-3 inline-block -mt-1 text-yellow-400 fill-current"/></span>
+                        <span className="flex items-center gap-0.5">{averageRating.toFixed(1)} <Star className="h-3 w-3 text-yellow-400 fill-current"/></span>
                         <span className='text-neutral-500'>|</span>
                       </>
                     )}
-                    <span className="font-semibold text-green-400">${product.price?.toFixed(2)}</span>
-                    {product.wasPrice && (
-                        <span className="text-neutral-400 line-through">${product.wasPrice.toFixed(2)}</span>
-                    )}
+                    <span className="font-semibold text-green-400">USD ${product.price?.toFixed(2)}</span>
                 </div>
             </div>
-            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shrink-0">
+            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase text-[10px] tracking-widest h-10 shrink-0 px-4 rounded-xl shadow-lg shadow-primary/20">
                 <Link href={`/sellers/${product.sellerId}`}>
                     <Store className="h-4 w-4 mr-2"/>
                     Shop
