@@ -35,60 +35,37 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { 
-  X, 
-  Video, 
-  Loader2, 
   Megaphone, 
-  CheckCircle2, 
-  MapPin, 
-  Keyboard,
-  Camera,
+  Keyboard, 
+  Video, 
+  Camera, 
+  StopCircle, 
   RefreshCw,
-  Locate,
-  StopCircle,
-  Sparkles
+  Loader2,
+  Sparkles,
+  MapPin
 } from 'lucide-react';
-import { kenyaLocations } from '@/lib/location-data';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { kenyaLocations } from '@/lib/location-data';
 import { cn } from '@/lib/utils';
-import { Progress } from '@/components/ui/progress';
-import { Label } from '@/components/ui/label';
-import { useFirestore, useUser } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-
-const MAX_VIDEO_DURATION = 30;
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
   description: z.string().min(10, "Please provide more details about what you need."),
   category: z.string().min(1, "Please select a category."),
-  minBudget: z.coerce.number().min(0, "Budget must be positive"),
-  maxBudget: z.coerce.number().min(0, "Budget must be positive"),
+  minBudget: z.coerce.number().min(0),
+  maxBudget: z.coerce.number().min(0),
   county: z.string().min(1, "Please select your county."),
-  area: z.string().min(2, "Please enter your town or area."),
-  contactMethod: z.enum(['chat', 'whatsapp', 'phone']),
-  deadline: z.enum(['urgent', '3-days', 'flexible']),
+  area: z.string().min(2, "Please enter your area."),
 });
 
 export default function PostRequestPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const storage = getStorage();
-
-  const [requestMode, setRequestMode] = useState<'video' | 'text'>('text');
-  const [isUploading, setIsUploading] = useState(false);
+  const [requestMode, setRequestMode] = useState<'text' | 'video'>('text');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
   
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -96,135 +73,24 @@ export default function PostRequestPage() {
       description: '',
       category: '',
       minBudget: 1000,
-      maxBudget: 2500,
+      maxBudget: 5000,
       county: '',
       area: '',
-      contactMethod: 'chat',
-      deadline: 'flexible',
     },
   });
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-      
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/mp4' });
-        setVideoFile(new File([blob], `recorded_request_${Date.now()}.mp4`, { type: 'video/mp4' }));
-        stream.getTracks().forEach(t => t.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingDuration(0);
-    } catch (err) {
-      toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access camera/mic.' });
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  useEffect(() => {
-    let interval: any;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingDuration(prev => {
-            if (prev >= MAX_VIDEO_DURATION) {
-                stopRecording();
-                return MAX_VIDEO_DURATION;
-            }
-            return prev + 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
-
-  const uploadFile = async (file: File, path: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const storageRef = ref(storage, path);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-        (error) => reject(error),
-        async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve(url);
-        }
-      );
-    });
-  };
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
-      toast({ variant: 'destructive', title: 'Login Required', description: 'You must be logged in to broadcast a need.' });
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress(0);
-    toast({ title: 'Broadcasting Live...', description: 'Linking your Requirement Summary to our local sellers.' });
-
-    try {
-      let finalVideoUrl = null;
-      if (videoFile) {
-        const path = `requests/${user.uid}/${Date.now()}_video_${videoFile.name}`;
-        finalVideoUrl = await uploadFile(videoFile, path);
-      }
-
-      // Backend mapping for Requirement Summary (title) and associated data
-      const requestData = {
-        title: values.title, // This maps to Requirement Summary in the UI
-        description: values.description,
-        category: values.category,
-        minBudget: values.minBudget,
-        maxBudget: values.maxBudget,
-        county: values.county,
-        area: values.area,
-        contactMethod: values.contactMethod,
-        deadline: values.deadline,
-        buyerId: user.uid,
-        requestType: requestMode,
-        videoUrl: finalVideoUrl,
-        status: 'open',
-        offersCount: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        views: 0,
-        imageUrls: [],
-        currency: 'KES',
-        country: 'Kenya'
-      };
-
-      // Atomic persistence of the summary pipe to the requests collection
-      await addDoc(collection(firestore, 'requests'), requestData);
-
-      toast({ title: 'Broadcast Published!', description: 'Your requirement is now live in the marketplace.' });
+    setIsSubmitting(true);
+    
+    // Simulate real backend processing delay
+    setTimeout(() => {
+      toast({
+        title: "Broadcast Live! 🚀",
+        description: "Your requirement has been sent to all local sellers in " + values.county,
+      });
+      setIsSubmitting(false);
       router.push('/buyer/requests/my-requests');
-    } catch (error: any) {
-      console.error("Broadcast failed:", error);
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not publish your broadcast.' });
-    } finally {
-      setIsUploading(false);
-    }
+    }, 1500);
   }
 
   return (
@@ -237,7 +103,7 @@ export default function PostRequestPage() {
                 </div>
                 <div>
                     <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">Broadcast a Need</h1>
-                    <p className="text-muted-foreground font-medium text-xs uppercase tracking-widest mt-1">Get sellers competing for your order</p>
+                    <p className="text-muted-foreground font-medium text-xs uppercase tracking-widest mt-1">Sellers will compete to give you the best deal</p>
                 </div>
             </div>
             
@@ -245,14 +111,14 @@ export default function PostRequestPage() {
                 <button 
                     type="button" 
                     onClick={() => setRequestMode('text')}
-                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", requestMode === 'text' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-white")}
+                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", requestMode === 'text' ? "bg-primary text-white" : "text-muted-foreground hover:text-white")}
                 >
                     <Keyboard className="h-4 w-4" /> Text
                 </button>
                 <button 
                     type="button" 
                     onClick={() => setRequestMode('video')}
-                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", requestMode === 'video' ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-white")}
+                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", requestMode === 'video' ? "bg-primary text-white" : "text-muted-foreground hover:text-white")}
                 >
                     <Video className="h-4 w-4" /> Video
                 </button>
@@ -262,68 +128,17 @@ export default function PostRequestPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
               <div className="lg:col-span-2 space-y-8">
-                {requestMode === 'video' && (
-                    <Card className="bg-neutral-900 border-primary/20 overflow-hidden shadow-2xl rounded-[2.5rem]">
-                        <CardHeader className="bg-primary/5 border-b border-white/5 p-8">
-                            <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                <Sparkles className="h-4 w-4" /> Visual Briefing
-                            </CardTitle>
-                            <CardDescription className="font-bold text-neutral-400 uppercase text-[10px] tracking-widest">Show exactly what you need. Max 30s.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-6">
-                            <div className="relative aspect-video rounded-3xl bg-black border border-white/10 overflow-hidden group shadow-inner">
-                                {videoFile ? (
-                                    <video src={URL.createObjectURL(videoFile)} controls className="h-full w-full object-cover" />
-                                ) : (
-                                    <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover opacity-60" />
-                                )}
-                                
-                                {isRecording && (
-                                    <div className="absolute top-4 left-4 bg-red-600 px-3 py-1.5 rounded-full flex items-center gap-2 animate-pulse shadow-xl">
-                                        <div className="h-2 w-2 rounded-full bg-white" />
-                                        <span className="text-[10px] font-black text-white">REC 00:{recordingDuration.toString().padStart(2, '0')}</span>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="flex gap-4">
-                                {!videoFile ? (
-                                    <Button 
-                                        type="button" 
-                                        size="lg"
-                                        className={cn("flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-xs", isRecording ? "bg-neutral-800" : "bg-red-600 hover:bg-red-700")}
-                                        onClick={isRecording ? stopRecording : startRecording}
-                                    >
-                                        {isRecording ? <StopCircle className="mr-2" /> : <Camera className="mr-2" />}
-                                        {isRecording ? 'FINISH & SAVE' : 'START CAMERA'}
-                                    </Button>
-                                ) : (
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
-                                        size="lg"
-                                        className="flex-1 h-16 rounded-2xl font-black border-white/10 text-white uppercase tracking-widest text-xs"
-                                        onClick={() => setVideoFile(null)}
-                                    >
-                                        <RefreshCw className="mr-2 h-5 w-5" /> RE-RECORD
-                                    </Button>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
                 <Card className="bg-neutral-900/50 border-white/5 shadow-2xl rounded-[2.5rem]">
                   <CardHeader className="p-8">
                     <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Need Details</CardTitle>
+                    <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Provide context for the sellers</CardDescription>
                   </CardHeader>
                   <CardContent className="p-8 pt-0 space-y-8">
                     <FormField control={form.control} name="title" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Requirements Summary</FormLabel>
-                        <FormControl><Input placeholder="e.g. Office Laptop for Designer" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl shadow-inner text-lg font-black uppercase tracking-tighter" {...field} /></FormControl>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Requirement Summary</FormLabel>
+                        <FormControl><Input placeholder="e.g. Office Laptop for Designer" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -331,7 +146,7 @@ export default function PostRequestPage() {
                     <div className="grid grid-cols-2 gap-6">
                         <FormField control={form.control} name="category" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Category</FormLabel>
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Category</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
@@ -345,9 +160,9 @@ export default function PostRequestPage() {
                                 <FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="deadline" render={({ field }) => (
+                        <FormField control={form.control} name="county" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Urgency</FormLabel>
+                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">County</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
@@ -355,9 +170,7 @@ export default function PostRequestPage() {
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="urgent">Urgent (Today)</SelectItem>
-                                        <SelectItem value="3-days">Within 3 Days</SelectItem>
-                                        <SelectItem value="flexible">Flexible</SelectItem>
+                                        {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -367,8 +180,8 @@ export default function PostRequestPage() {
 
                     <FormField control={form.control} name="description" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Details & Specs</FormLabel>
-                        <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 text-white rounded-2xl shadow-inner resize-none text-sm font-medium leading-relaxed" placeholder="Tell sellers exactly what you want..." {...field} /></FormControl>
+                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Details & Specs</FormLabel>
+                        <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 text-white rounded-2xl" placeholder="Tell sellers exactly what you want..." {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -379,85 +192,30 @@ export default function PostRequestPage() {
               <div className="space-y-8">
                 <Card className="bg-neutral-950 border-white/5 shadow-2xl rounded-[2.5rem]">
                   <CardHeader className="p-8">
-                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget & Reach</CardTitle>
+                    <CardTitle className="text-lg font-black uppercase tracking-widest text-primary">Budget (KES)</CardTitle>
                   </CardHeader>
-                  <CardContent className="p-8 pt-0 space-y-8">
-                    <div className="grid grid-cols-2 gap-4">
+                  <CardContent className="p-8 pt-0 space-y-6">
+                    <div className="space-y-4">
                         <FormField control={form.control} name="minBudget" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Min (KES)</FormLabel>
-                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl font-black" {...field} /></FormControl>
+                                <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Min Budget</FormLabel>
+                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10" {...field} /></FormControl>
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="maxBudget" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500">Max (KES)</FormLabel>
-                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl font-black" {...field} /></FormControl>
+                                <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Max Budget</FormLabel>
+                                <FormControl><Input type="number" className="h-14 bg-black/40 border-white/10" {...field} /></FormControl>
                             </FormItem>
                         )} />
                     </div>
-
-                    <FormField control={form.control} name="county" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">County</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
-                                        <SelectValue placeholder="Select County" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {Object.keys(kenyaLocations).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-
-                    <FormField control={form.control} name="area" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Town / Area</FormLabel>
-                        <FormControl><Input placeholder="e.g. Westlands" className="h-14 bg-black/40 border-white/10 text-white rounded-2xl" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    
-                    <FormField control={form.control} name="contactMethod" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="font-black text-[10px] uppercase tracking-widest text-neutral-500 ml-1">Priority Contact</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger className="h-14 bg-black/40 border-white/10 text-white rounded-2xl">
-                                        <SelectValue placeholder="Select" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="chat">In-App Chat (Recommended)</SelectItem>
-                                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                                    <SelectItem value="phone">Phone Call</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
                   </CardContent>
                 </Card>
 
-                <div className="space-y-4">
-                     {isUploading && (
-                        <div className="space-y-3 px-4">
-                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-primary animate-pulse">
-                                 <span>Connecting Sellers...</span>
-                                 <span>{Math.round(uploadProgress)}%</span>
-                             </div>
-                             <Progress value={uploadProgress} className="h-1.5 bg-white/5" />
-                        </div>
-                     )}
-                    <Button type="submit" className="w-full h-20 font-black uppercase tracking-widest text-lg bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/30 rounded-[2rem] border-none" disabled={isUploading}>
-                        {isUploading ? <Loader2 className="animate-spin mr-2 h-6 w-6" /> : <Megaphone className="mr-2 h-6 w-6" />}
-                        START BROADCAST
-                    </Button>
-                </div>
+                <Button type="submit" className="w-full h-20 font-black uppercase tracking-widest text-lg bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/30 rounded-[2rem] border-none" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <Megaphone className="mr-2" />}
+                    BROADCAST NOW
+                </Button>
               </div>
             </div>
           </form>

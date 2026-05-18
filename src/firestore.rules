@@ -11,12 +11,6 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function isAdmin() {
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
-    }
 
     match /users/{userId} {
       allow read: if true;
@@ -27,41 +21,26 @@ service cloud.firestore {
     match /userProfiles/{userId} {
       allow read: if true;
       allow create: if isSignedIn();
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId);
     }
 
-    // Buyer Request Marketplace
+    // SIMPLIFIED MARKETPLACE RULES (Development Mode)
     match /requests/{requestId} {
-      // Sellers can browse all open requests, Buyers can see their own
       allow read: if isSignedIn();
-      // Only the buyer can create a request with their ID
-      allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-      // Allow sellers to increment the offersCount
-      allow update: if isSignedIn() && (
-        resource.data.buyerId == request.auth.uid || 
-        isAdmin() || 
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['offersCount', 'updatedAt']))
-      );
-      allow delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid);
     }
 
-    // Seller Offers/Pitches
     match /offers/{offerId} {
-      // Access granted to the involved parties and admins
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn();
     }
 
-    // Chat System Rules
     match /chats/{chatId} {
-      allow read: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
-      
+      allow read, write: if isSignedIn();
       match /messages/{messageId} {
-        allow read: if isSignedIn();
-        allow create: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -75,28 +54,28 @@ service cloud.firestore {
     
     match /sellerShops/{shopId} {
       allow read: if true;
-      allow write: if isSignedIn() && (request.auth.uid == shopId || isAdmin());
+      allow write: if isSignedIn() && (request.auth.uid == shopId);
     }
 
     match /liveSessions/{sessionId} {
       allow read: if true;
-      allow write: if isSignedIn() && (request.auth.uid == sessionId || isAdmin());
+      allow write: if isSignedIn() && (request.auth.uid == sessionId);
     }
 
     match /orders/{orderId} {
-      allow read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn();
     }
 
     match /supportTickets/{ticketId} {
-        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow read: if isSignedIn() && (resource.data.userId == request.auth.uid);
         allow create: if isSignedIn();
     }
 
     match /complaints/{complaintId} {
         allow create: if isSignedIn();
-        allow read: if isSignedIn() && (resource.data.complainantId == request.auth.uid || isAdmin());
+        allow read: if isSignedIn() && (resource.data.complainantId == request.auth.uid);
     }
     
     match /notifications/{notificationId} {
@@ -105,16 +84,11 @@ service cloud.firestore {
     }
     
     match /walletTransactions/{transactionId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == 'platform_revenue' || resource.data.userId == 'tax_collected');
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid);
     }
     
     match /payouts/{payoutId} {
-      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn();
-    }
-
-    match /resellActivities/{activityId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (resource.data.sellerId == request.auth.uid);
       allow create: if isSignedIn();
     }
   }
