@@ -36,7 +36,6 @@ import { useRouter } from 'next/navigation';
 import { 
   Megaphone, 
   Keyboard, 
-  Video, 
   Loader2,
   MapPin,
 } from 'lucide-react';
@@ -60,7 +59,6 @@ export default function PostRequestPage() {
   const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
-  const [requestMode, setRequestMode] = useState<'text' | 'video'>('text');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
@@ -98,33 +96,32 @@ export default function PostRequestPage() {
         county: values.county,
         area: values.area,
         status: 'open',
-        requestType: requestMode,
+        requestType: 'text',
         offersCount: 0,
         createdAt: serverTimestamp(),
     };
 
     const requestsRef = collection(firestore, 'requests');
     
-    // Non-blocking Firestore write
     addDoc(requestsRef, requestData)
+      .then(() => {
+          toast({
+            title: "Broadcast Live! 🚀",
+            description: "Your requirement has been sent to all local sellers in " + values.area,
+          });
+          setIsSubmitting(false);
+          router.push('/buyer/requests/my-requests');
+      })
       .catch(async (error) => {
+          console.error("Submission error:", error);
           const permissionError = new FirestorePermissionError({
               path: 'requests',
               operation: 'create',
               requestResourceData: requestData,
           });
           errorEmitter.emit('permission-error', permissionError);
+          setIsSubmitting(false);
       });
-
-    toast({
-      title: "Broadcast Live! 🚀",
-      description: "Your requirement has been sent to all local sellers in " + values.area,
-    });
-    
-    setTimeout(() => {
-        setIsSubmitting(false);
-        router.push('/buyer/requests/my-requests');
-    }, 1000);
   }
 
   return (
@@ -139,23 +136,6 @@ export default function PostRequestPage() {
                     <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">Broadcast a Need</h1>
                     <p className="text-muted-foreground font-medium text-xs uppercase tracking-widest mt-1">Sellers will compete to give you the best deal</p>
                 </div>
-            </div>
-            
-            <div className="flex bg-neutral-900 p-1 rounded-xl border border-white/5 shadow-2xl">
-                <button 
-                    type="button" 
-                    onClick={() => setRequestMode('text')}
-                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", requestMode === 'text' ? "bg-primary text-white" : "text-muted-foreground hover:text-white")}
-                >
-                    <Keyboard className="h-4 w-4" /> Text
-                </button>
-                <button 
-                    type="button" 
-                    onClick={() => setRequestMode('video')}
-                    className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all", requestMode === 'video' ? "bg-primary text-white" : "text-muted-foreground hover:text-white")}
-                >
-                    <Video className="h-4 w-4" /> Video
-                </button>
             </div>
         </div>
 
