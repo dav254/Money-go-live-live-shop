@@ -15,7 +15,8 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Simplified validation for "one-by-one" build process
+    // Simplified validation to support the "one by one" build process.
+    // Currently only validates the Title and basic metadata.
     function requestFieldsValid() {
       return
         request.resource.data.buyerId == request.auth.uid &&
@@ -40,7 +41,7 @@ service cloud.firestore {
       // Anyone can read requests
       allow read: if true;
 
-      // Buyer can create request (Only title is currently required by UI)
+      // Buyer can create request (Currently only Title is required)
       allow create: if isSignedIn() && requestFieldsValid();
 
       // Buyer can update own request
