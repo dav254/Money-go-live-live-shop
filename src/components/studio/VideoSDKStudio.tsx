@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock } from 'lucide-react';
+import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -62,14 +62,23 @@ interface StudioControlsProps {
     activePanel: 'chat' | 'products' | 'promos' | 'viewers' | null;
     onTogglePanel: (panel: 'chat' | 'products' | 'promos' | 'viewers') => void;
     hasUnreadChat: boolean;
+    streamId: string;
 }
 
-const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel, hasUnreadChat }: StudioControlsProps) => {
+const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel, hasUnreadChat, streamId }: StudioControlsProps) => {
   const { leave } = useMeeting();
+  const { toast } = useToast();
 
   const handleEndClick = () => {
     leave();
     onEnd();
+  };
+
+  const handleShare = () => {
+      const url = `${window.location.origin}/buyer/live/${streamId}`;
+      navigator.clipboard.writeText(url).then(() => {
+          toast({ title: 'Link Copied!', description: 'Invite people to your stream.' });
+      });
   };
 
   return (
@@ -127,6 +136,15 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         )}
       >
         <Zap className="h-4 w-4 md:h-5 md:w-5" />
+      </Button>
+
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={handleShare}
+        className="rounded-xl h-10 w-10 md:h-12 md:w-12 text-white/70 hover:bg-white/10"
+      >
+        <Share2 className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
 
       <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
@@ -273,6 +291,12 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                         <span className="font-mono">{timeRemaining}</span>
                     </div>
                   )}
+                  
+                  {session?.title && (
+                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl hidden md:block">
+                        <p className="text-white font-black uppercase text-[10px] tracking-tight">{session.title}</p>
+                    </div>
+                  )}
               </div>
           </div>
 
@@ -308,6 +332,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
             activePanel={activePanel}
             onTogglePanel={handleTogglePanel}
             hasUnreadChat={hasUnreadChat}
+            streamId={user?.uid || ''}
           />
       </div>
 

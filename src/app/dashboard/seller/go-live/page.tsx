@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const VideoSDKStudio = dynamic(() => import('@/components/studio/VideoSDKStudio'), {
   ssr: false,
@@ -38,6 +40,7 @@ export default function SellerGoLivePage() {
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
+  const [streamTitle, setStreamTitle] = useState('');
   
   const [isHardwareReleased, setIsHardwareReleased] = useState(true);
 
@@ -70,7 +73,7 @@ export default function SellerGoLivePage() {
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ })
+          body: JSON.stringify({ title: streamTitle })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
@@ -83,7 +86,7 @@ export default function SellerGoLivePage() {
     } finally { 
         setIsStarting(false);
     }
-  }, [user, token, toast]);
+  }, [user, token, toast, streamTitle]);
 
   useEffect(() => { fetchToken(); }, [fetchToken]);
 
@@ -210,18 +213,45 @@ export default function SellerGoLivePage() {
                   </div>
 
                   <div className="flex-1 flex flex-col items-center justify-center relative z-20 p-6 text-center">
-                      <div className="max-w-md w-full animate-in fade-in zoom-in-95 duration-500">
+                      <div className="max-w-md w-full animate-in fade-in zoom-in-95 duration-500 space-y-6">
                           {isHardwareReleased ? (
-                              <div className="mb-8 p-6 rounded-full bg-neutral-900 border border-white/10 w-fit mx-auto shadow-2xl">
+                              <div className="mb-4 p-6 rounded-full bg-neutral-900 border border-white/10 w-fit mx-auto shadow-2xl">
                                 <PowerOff className="h-16 w-16 text-neutral-600" />
                               </div>
                           ) : (
-                              <div className="mb-8 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
+                              <div className="mb-4 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
                                 <Video className="h-16 w-16 text-primary" />
                               </div>
                           )}
 
-                          {isHardwareReleased ? (
+                          {!isHardwareReleased && (
+                              <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
+                                  <div className="text-left space-y-2">
+                                      <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Stream Title</Label>
+                                      <div className="relative">
+                                          <Type className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                                          <Input 
+                                              value={streamTitle}
+                                              onChange={(e) => setStreamTitle(e.target.value)}
+                                              placeholder="E.g. NEW ARRIVALS & FLASH DEALS!"
+                                              className="h-14 bg-black/40 border-white/10 rounded-2xl pl-12 font-bold text-white uppercase tracking-tight"
+                                          />
+                                      </div>
+                                  </div>
+                                  
+                                  <Button 
+                                    size="lg" 
+                                    className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
+                                    onClick={handleSetupPreview} 
+                                    disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !token}
+                                  >
+                                      {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
+                                      START LIVE SESSION
+                                  </Button>
+                              </div>
+                          )}
+
+                          {isHardwareReleased && (
                               <Button 
                                 size="lg" 
                                 className="w-full h-20 rounded-[2rem] font-black text-xl bg-white text-black hover:bg-neutral-200 shadow-2xl transition-all" 
@@ -230,19 +260,9 @@ export default function SellerGoLivePage() {
                                   <Camera className="mr-3 h-8 w-8" /> 
                                   PREPARE STUDIO
                               </Button>
-                          ) : (
-                              <Button 
-                                size="lg" 
-                                className="w-full h-20 rounded-[2rem] font-black text-2xl bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group transition-all" 
-                                onClick={handleSetupPreview} 
-                                disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !token}
-                              >
-                                  {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Camera className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
-                                  START LIVE SESSION
-                              </Button>
                           )}
                           
-                          <p className="mt-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+                          <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
                              {isHardwareReleased ? "Hardware Disconnected for Privacy" : "100 Points per 70-minute session"}
                           </p>
 

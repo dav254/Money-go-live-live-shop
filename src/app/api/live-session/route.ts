@@ -38,7 +38,6 @@ function getInternalToken() {
 
 /**
  * POST handler to create a fresh live session.
- * SERVER-SIDE ROOM CREATION: Bypasses CORS and ensures valid meeting IDs.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -48,6 +47,7 @@ export async function POST(request: Request) {
   const sellerId = (verification as { uid: string }).uid;
 
   try {
+    const { title } = await request.json();
     const userProfileRef = db.collection('userProfiles').doc(sellerId);
     const sessionRef = db.collection('liveSessions').doc(sellerId);
     
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
-      title: `${sellerName}'s Live Show`,
+      title: title || `${sellerName}'s Live Show`,
       status: 'upcoming', 
       productIds: [],
       viewerCount: 0,

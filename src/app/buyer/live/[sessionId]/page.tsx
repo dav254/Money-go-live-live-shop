@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
-import { Loader2, MessageSquare, ShoppingBag, X, Radio, VideoOff } from 'lucide-react';
+import { Loader2, MessageSquare, ShoppingBag, X, Radio, VideoOff, Share2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -16,6 +15,7 @@ import { PinnedProduct } from '@/components/live/PinnedProduct';
 import { Button } from '@/components/ui/button';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 import { LivePromoOverlay } from '@/components/live/LivePromoOverlay';
+import { useToast } from '@/hooks/use-toast';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -30,6 +30,7 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
 export default function BuyerLiveSessionPage() {
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const sessionId = params.sessionId as string;
   const firestore = useFirestore();
 
@@ -84,6 +85,13 @@ export default function BuyerLiveSessionPage() {
       return () => clearTimeout(timer);
     }
   }, [session, isSessionLoading, router]);
+
+  const handleShare = () => {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(() => {
+          toast({ title: 'Link Copied!', description: 'Invite friends to shop live together.' });
+      });
+  };
 
   if (isSessionLoading) {
     return (
@@ -153,10 +161,28 @@ export default function BuyerLiveSessionPage() {
               </div>
           )}
 
-          {/* Top Status */}
-          <div className="absolute top-6 left-6 z-10 flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl animate-pulse">
-            <div className="h-2 w-2 rounded-full bg-white" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Now</span>
+          {/* Top Status & Title */}
+          <div className="absolute top-6 left-6 right-6 z-10 flex items-center justify-between pointer-events-none">
+            <div className="flex flex-col gap-2 pointer-events-auto">
+                <div className="flex items-center gap-3 bg-red-600 px-4 py-1.5 rounded-full shadow-2xl animate-pulse w-fit">
+                    <div className="h-2 w-2 rounded-full bg-white" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Live Now</span>
+                </div>
+                {session.title && (
+                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl shadow-2xl max-w-xs md:max-w-md">
+                        <h1 className="text-white font-black uppercase tracking-tight text-xs md:text-sm leading-tight drop-shadow-md">{session.title}</h1>
+                    </div>
+                )}
+            </div>
+            
+            <Button 
+                onClick={handleShare}
+                size="icon" 
+                variant="ghost" 
+                className="h-10 w-10 md:h-12 md:w-12 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl pointer-events-auto hover:bg-black/60 active:scale-95 transition-all"
+            >
+                <Share2 className="h-5 w-5" />
+            </Button>
           </div>
 
           {/* Floating Chat Overlay (Always visible over video) */}
