@@ -4,7 +4,7 @@ import { SellerLayout } from '@/components/layout/seller-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { Video, Users, ShoppingBag, Clock, BarChart2, DollarSign, TrendingUp, BrainCircuit, Sparkles, Zap, ArrowUpRight } from 'lucide-react';
+import { Video, Users, ShoppingBag, Clock, BarChart2, DollarSign, TrendingUp, BrainCircuit, Sparkles, Zap, ArrowRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect } from 'react';
