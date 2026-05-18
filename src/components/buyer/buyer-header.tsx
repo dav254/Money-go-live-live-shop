@@ -14,9 +14,8 @@ import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useUserProfile, useFirestore } from '@/firebase';
 import { Logo } from '../logo';
-import { collection, query, where } from 'firebase/firestore';
 
 export function BuyerHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -28,15 +27,6 @@ export function BuyerHeader() {
   const firestore = useFirestore();
   
   const isLoading = isUserLoading || isProfileLoading;
-  
-  // Fetch unread chat count for the header icon
-  const chatsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
-  }, [user, firestore]);
-
-  const { data: allChats } = useCollection(chatsQuery);
-  const hasUnreadMessages = allChats?.some(chat => user && chat.unreadCounts?.[user.uid] > 0);
   
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -130,12 +120,9 @@ export function BuyerHeader() {
             <span className="sr-only">Search</span>
         </Button>
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="relative" asChild title="Messages">
+        <Button variant="ghost" size="icon" asChild title="Messages">
           <Link href="/messages">
             <MessageSquare className="h-5 w-5" />
-            {hasUnreadMessages && (
-              <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-600 rounded-full border-2 border-background animate-pulse" />
-            )}
           </Link>
         </Button>
         <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild title="Live Now">

@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { BuyerRequest, Offer } from '@/lib/types';
 import { format } from 'date-fns';
 
@@ -31,7 +31,6 @@ export default function RequestOffersPage() {
 
   const { data: lead, isLoading: isLeadLoading } = useDoc<BuyerRequest>(requestRef);
 
-  // Offers query (Placeholder for real offers backend logic)
   const offersQuery = useMemoFirebase(() => {
       if (!firestore || !requestId) return null;
       return query(collection(firestore, 'offers'), where('requestId', '==', requestId), orderBy('createdAt', 'desc'));
@@ -39,11 +38,27 @@ export default function RequestOffersPage() {
 
   const { data: offers, isLoading: areOffersLoading } = useCollection<Offer>(offersQuery);
 
-  const handleAcceptOffer = (offer: any) => {
-    toast({ title: "Connecting with Seller...", description: `Opening secure chat with the seller.` });
-    setTimeout(() => {
-        router.push(`/messages`);
-    }, 1500);
+  const handleAcceptOffer = async (offer: Offer) => {
+    if (!firestore || !requestId) return;
+    
+    toast({ title: "Confirming Deal...", description: "Connecting your account to the verified seller." });
+    
+    try {
+        await updateDoc(doc(firestore, 'requests', requestId), {
+            status: 'selected',
+            selectedSellerId: offer.sellerId,
+            updatedAt: serverTimestamp()
+        });
+        
+        toast({ title: "Deal Locked!", description: "Opening secure chat channel." });
+        
+        setTimeout(() => {
+            router.push(`/messages?chatWith=${offer.sellerId}`);
+        }, 1000);
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Action Failed' });
+    }
   };
 
   if (isLeadLoading) {
@@ -148,7 +163,7 @@ export default function RequestOffersPage() {
                       <div className="flex-1 space-y-6">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h4 className="font-black text-xl uppercase tracking-tight leading-none mb-1 text-white">Verified Seller</h4>
+                            <h4 className="font-black text-xl uppercase tracking-tight leading-none mb-1 text-white">{offer.sellerName || 'Verified Seller'}</h4>
                             <p className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.2em]">Responded {offer.createdAt?.toDate ? format(offer.createdAt.toDate(), 'PPP') : 'Recently'}</p>
                           </div>
                           <div className="text-right">
@@ -156,6 +171,12 @@ export default function RequestOffersPage() {
                              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest mt-1">Delivery: {offer.deliveryTime}</p>
                           </div>
                         </div>
+
+                        {offer.videoUrl && (
+                            <div className="aspect-video w-full max-w-sm bg-black rounded-2xl overflow-hidden border border-white/5 shadow-inner">
+                                <video src={offer.videoUrl} className="h-full w-full object-cover" controls />
+                            </div>
+                        )}
 
                         <p className="text-base text-neutral-300 font-medium leading-relaxed bg-white/5 p-6 rounded-3xl italic border border-white/5 shadow-inner">
                           "{offer.message}"

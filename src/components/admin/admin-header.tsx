@@ -7,12 +7,11 @@ import Link from 'next/link';
 import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
 import { SidebarTrigger } from '../ui/sidebar';
-import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useUserProfile, useFirestore } from '@/firebase';
 import { ThemeToggle } from '../theme-toggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { Logo } from '../logo';
 import { AdminSidebar } from './admin-sidebar';
-import { collection, query, where } from 'firebase/firestore';
 
 
 export function AdminHeader() {
@@ -21,15 +20,6 @@ export function AdminHeader() {
   const firestore = useFirestore();
  
   const isLoading = isUserLoading || isProfileLoading;
-
-  // Fetch unread chat count for the header icon
-  const chatsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
-  }, [user, firestore]);
-
-  const { data: allChats } = useCollection(chatsQuery);
-  const hasUnreadMessages = allChats?.some(chat => user && chat.unreadCounts?.[user.uid] > 0);
 
   const adminName = userProfile?.fullName || 'Admin';
 
@@ -83,12 +73,9 @@ export function AdminHeader() {
             <span className="sr-only">Notifications</span>
           </Link>
         </Button>
-        <Button variant="ghost" size="icon" asChild className="relative">
+        <Button variant="ghost" size="icon" asChild>
            <Link href="/messages">
             <MessageSquare />
-            {hasUnreadMessages && (
-              <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-600 rounded-full border-2 border-background animate-pulse" />
-            )}
             <span className="sr-only">Messages</span>
           </Link>
         </Button>

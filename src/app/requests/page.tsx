@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { BuyerRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -118,15 +118,16 @@ export default function SellerRequestsMarketplacePage() {
   const [searchTerm, setSearchQuery] = useState('');
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const requestsQuery = useMemoFirebase(() => {
-      if (!firestore) return null;
+      if (!firestore || !user) return null;
       return query(
           collection(firestore, 'requests'),
           where('status', '==', 'open'),
           orderBy('createdAt', 'desc')
       );
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: requests, isLoading } = useCollection<BuyerRequest>(requestsQuery);
 

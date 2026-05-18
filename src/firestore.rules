@@ -36,12 +36,18 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // Only the buyer can create a request with their ID
       allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
-      // Only owner or admin can update/delete
-      allow update, delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
+      // Allow sellers to increment the offersCount
+      allow update: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        isAdmin() || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['offersCount', 'updatedAt']))
+      );
+      allow delete: if isSignedIn() && (resource.data.buyerId == request.auth.uid || isAdmin());
     }
 
     // Seller Offers/Pitches
     match /offers/{offerId} {
+      // Access granted to the involved parties and admins
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && (resource.data.sellerId == request.auth.uid || isAdmin());

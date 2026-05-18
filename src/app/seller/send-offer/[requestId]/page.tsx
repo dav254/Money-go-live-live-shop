@@ -13,8 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, serverTimestamp, setDoc, collection } from 'firebase/firestore';
+import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
+import { doc, serverTimestamp, setDoc, collection, updateDoc, increment } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import type { BuyerRequest } from '@/lib/types';
 
 export default function SendOfferPage() {
@@ -23,6 +24,9 @@ export default function SendOfferPage() {
   const router = useRouter();
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
+  const storage = getStorage();
 
   const requestRef = useMemoFirebase(() => {
     if (!firestore || !requestId) return null;
@@ -90,14 +94,49 @@ export default function SendOfferPage() {
 
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lead) return;
+    if (!lead || !user || !userProfile) return;
     setIsSubmitting(true);
     
-    setTimeout(() => {
+    try {
+        let finalVideoUrl = null;
+        if (videoFile) {
+            const path = `offers/${user.uid}/${Date.now()}_pitch.mp4`;
+            const storageRef = ref(storage, path);
+            const uploadTask = await uploadBytesResumable(storageRef, videoFile);
+            finalVideoUrl = await getDownloadURL(uploadTask.ref);
+        }
+
+        const offerRef = doc(collection(firestore, 'offers'));
+        const offerData = {
+            id: offerRef.id,
+            requestId: requestId,
+            sellerId: user.uid,
+            sellerName: userProfile.shopName || userProfile.fullName,
+            sellerAvatar: userProfile.profilePictureUrl || '',
+            price: Number(price),
+            message: message,
+            videoUrl: finalVideoUrl,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            deliveryTime: lead.deadline === 'urgent' ? 'Immediate' : '1-3 Days'
+        };
+
+        await setDoc(offerRef, offerData);
+        
+        // Atomically increment offer count for the lead
+        await updateDoc(doc(firestore, 'requests', requestId), {
+            offersCount: increment(1),
+            updatedAt: serverTimestamp()
+        });
+
         toast({ title: 'Pitch Sent Successfully!', description: 'You will be notified if the buyer accepts.' });
-        setIsSubmitting(false);
         router.push('/seller/offers');
-    }, 2000);
+    } catch (error: any) {
+        console.error("Offer failed:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to send pitch. Check your connection.' });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (isLeadLoading) {

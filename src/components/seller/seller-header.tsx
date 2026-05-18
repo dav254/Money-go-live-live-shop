@@ -12,9 +12,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../u
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
 import { ThemeToggle } from '../theme-toggle';
-import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useUserProfile, useFirestore } from '@/firebase';
 import { usePathname } from 'next/navigation';
-import { collection, query, where } from 'firebase/firestore';
 
 export function SellerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -27,15 +26,6 @@ export function SellerHeader() {
   
   // Custom behavior: Hide specific UI elements in the immersive live view
   const isLiveFeed = pathname === '/dashboard/seller/live-feed';
-
-  // Fetch unread chat count for the header icon
-  const chatsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
-  }, [user, firestore]);
-
-  const { data: allChats } = useCollection(chatsQuery);
-  const hasUnreadMessages = allChats?.some(chat => user && chat.unreadCounts?.[user.uid] > 0);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
@@ -88,12 +78,9 @@ export function SellerHeader() {
                     <span className="sr-only">Notifications</span>
                 </Link>
                 </Button>
-                <Button variant="ghost" size="icon" asChild className="relative">
+                <Button variant="ghost" size="icon" asChild>
                 <Link href="/messages">
                     <MessageSquare />
-                    {hasUnreadMessages && (
-                      <span className="absolute top-2 right-2 h-2.5 w-2.5 bg-red-600 rounded-full border-2 border-background animate-pulse" />
-                    )}
                     <span className="sr-only">Messages</span>
                 </Link>
                 </Button>
