@@ -18,7 +18,6 @@ import {
   Radio,
   Sparkles,
   AreaChart,
-  Users,
   Info,
 } from 'lucide-react';
 import Link from 'next/link';

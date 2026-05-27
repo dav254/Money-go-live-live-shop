@@ -12,6 +12,7 @@ import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 interface SellerHeaderProps {
   seller: Seller;
@@ -183,7 +184,6 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             </div>
             <SellerBadges seller={seller} />
             
-            {/* Social Media Row */}
             <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
                 {seller.facebookUrl && (
                     <a href={seller.facebookUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-blue-600 rounded-lg text-white transition-all">
@@ -213,11 +213,6 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
           <Button onClick={handleFollow} className={cn("h-11 px-8 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all", isFollowing ? "bg-neutral-800 text-white hover:bg-neutral-700" : "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20")}>
             {isFollowing ? 'FOLLOWING' : 'FOLLOW STORE'}
           </Button>
-          {userProfile?.userRole === 'reseller' && (
-            <Button onClick={handleApplyToResell} disabled={isApplying} variant="outline" className="h-11 px-6 font-black uppercase tracking-widest text-[10px] rounded-xl border-white/10 hover:bg-white/5">
-              {isApplying ? 'APPLYING...' : 'APPLY TO RESELL'}
-            </Button>
-          )}
           <Button onClick={handleMessageSeller} variant="secondary" className="h-11 px-6 font-black uppercase tracking-widest text-[10px] rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10">
             <MessageSquare className="mr-2 h-3.5 w-3.5" />
             MESSAGE
