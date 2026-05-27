@@ -42,7 +42,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             videoRef.current.srcObject = null;
         }
     };
-  }, [webcamStream]); // Re-attach whenever stream updates
+  }, [webcamStream]);
 
   return (
     <div className="relative h-full w-full bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5">
@@ -54,7 +54,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         className="h-full w-full object-contain md:object-cover" 
       />
       
-      {/* Overlay shows ONLY if there is absolutely no stream data yet */}
       {!webcamStream && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 backdrop-blur-sm z-40">
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
@@ -151,7 +150,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
       {!isLive ? (
         <Button
           onClick={onBroadcast}
-          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none"
+          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none"
         >
           START BROADCAST
         </Button>
@@ -159,7 +158,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         <Button
           variant="destructive"
           onClick={handleEndClick}
-          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:text-sm text-white"
+          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:sm text-white"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
         </Button>
@@ -207,7 +206,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     return () => unsubscribe();
   }, [firestore, user?.uid, isLive, activePanel, session?.startTime]);
 
-  // Session Countdown Logic
   useEffect(() => {
     if (!isLive || !session?.startTime) return;
 
@@ -215,7 +213,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         const now = Date.now();
         const start = session.startTime.toMillis();
         const elapsed = now - start;
-        const limitMs = 70 * 60 * 1000; // 70 minutes
+        const limitMs = 70 * 60 * 1000;
         const remaining = Math.max(0, limitMs - elapsed);
 
         if (remaining <= 0) {

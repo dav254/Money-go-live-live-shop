@@ -144,12 +144,34 @@ export function SellerSidebar() {
         </SidebarMenu>
       </SidebarGroup>
       
+      <SidebarGroup>
+        <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
+         <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/about')}>
+                <Link href="/dashboard/seller/about">
+                  <Info />
+                  <span>About Us</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
+                  <Link href="/dashboard/seller/help">
+                    <HelpCircle />
+                    <span>Support</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+          </SidebarMenu>
+      </SidebarGroup>
+
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/settings')}>
               <Link href="/dashboard/seller/settings">
                 <Settings />
-                <span>Store Settings</span>
+                <span>Shop Settings</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

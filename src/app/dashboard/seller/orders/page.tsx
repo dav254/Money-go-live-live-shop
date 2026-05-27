@@ -164,11 +164,11 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                 <Table>
                     <TableHeader className="bg-neutral-900/50">
                         <TableRow className="border-white/5 hover:bg-transparent">
-                            <TableHead className="text-[10px] font-black uppercase text-neutral-500">Product</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase text-neutral-500">Amount</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase text-neutral-500">Date</TableHead>
-                            <TableHead className="text-[10px] font-black uppercase text-neutral-500">Status</TableHead>
-                            <TableHead className="text-right text-[10px] font-black uppercase text-neutral-500">Actions</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-neutral-500 px-6 h-14">Product</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-neutral-500 h-14">Amount</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-neutral-500 h-14">Date</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase text-neutral-500 h-14">Status</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase text-neutral-500 px-6 h-14">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -305,7 +305,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                            )
+                            );
                         })}
                     </TableBody>
                 </Table>
