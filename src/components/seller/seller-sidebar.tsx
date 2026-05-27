@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -24,17 +23,32 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { useUserProfile } from '@/firebase';
-import React from 'react';
+import React, { useMemo } from 'react';
+import { collection, query, where } from 'firebase/firestore';
+import type { Order } from '@/lib/types';
 
 export function SellerSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
+  const firestore = useFirestore();
   const isActive = (path: string) => pathname === path || pathname.startsWith(path);
+
+  // Query for active orders to show notification dot
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+        collection(firestore, 'orders'),
+        where('sellerId', '==', user.uid),
+        where('orderStatus', 'in', ['pending', 'processing'])
+    );
+  }, [firestore, user]);
+
+  const { data: activeOrders } = useCollection<Order>(ordersQuery);
+  const hasActiveOrders = useMemo(() => activeOrders && activeOrders.length > 0, [activeOrders]);
 
   return (
     <>
@@ -65,9 +79,15 @@ export function SellerSidebar() {
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/orders')}>
-              <Link href="/dashboard/seller/orders">
+              <Link href="/dashboard/seller/orders" className="relative">
                 <Package />
                 <span>Orders</span>
+                {hasActiveOrders && (
+                    <span className="absolute right-2 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                    </span>
+                )}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -101,8 +121,7 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+            </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>

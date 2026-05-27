@@ -1,9 +1,23 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users, Trash2, Loader2, DollarSign, AlertCircle } from 'lucide-react';
+import { 
+  Package, 
+  ShoppingCart, 
+  CheckCircle, 
+  Truck, 
+  XCircle, 
+  ListOrdered, 
+  MessageSquare, 
+  Users, 
+  Trash2, 
+  Loader2, 
+  DollarSign, 
+  AlertCircle,
+  MoreVertical
+} from 'lucide-react';
+import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -24,6 +38,7 @@ import React, { useMemo, useCallback, useState } from 'react';
 import { format } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
