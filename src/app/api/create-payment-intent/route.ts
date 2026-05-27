@@ -21,6 +21,10 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { amount, email, gateway, metadata, transactionType, orderId } = body;
 
+        if (!amount || !email || !gateway) {
+            return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
+        }
+
         const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
 
@@ -52,12 +56,11 @@ export async function POST(request: Request) {
             const data = await response.json();
             
             if (!data.status || !data.data?.authorization_url) {
-                throw new Error(data.message || 'Paystack initialization failed');
+                return NextResponse.json({ error: data.message || 'Paystack initialization failed' }, { status: 400 });
             }
             checkoutUrl = data.data.authorization_url;
 
         } else if (gateway === 'pesapal') {
-            // PesaPal Integration
             try {
                 const res = await submitPesapalOrder({
                     orderId: orderId || reference,
@@ -75,7 +78,9 @@ export async function POST(request: Request) {
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();
-            if (!paypalClient) throw new Error("PayPal is not configured on this server.");
+            if (!paypalClient) {
+                return NextResponse.json({ error: "PayPal is not configured on this server." }, { status: 500 });
+            }
 
             const paypalRequest = new paypal.orders.OrdersCreateRequest();
             paypalRequest.prefer("return=representation");
@@ -99,10 +104,14 @@ export async function POST(request: Request) {
                 },
             });
             
-            const response = await paypalClient.execute(paypalRequest);
-            const approveLink = response.result.links.find((link: any) => link.rel === 'approve');
-            if (!approveLink) throw new Error('Could not find PayPal approval link');
-            checkoutUrl = approveLink.href;
+            try {
+                const response = await paypalClient.execute(paypalRequest);
+                const approveLink = response.result.links.find((link: any) => link.rel === 'approve');
+                if (!approveLink) throw new Error('Could not find PayPal approval link');
+                checkoutUrl = approveLink.href;
+            } catch (ppError: any) {
+                return NextResponse.json({ error: 'PayPal execution failed.', details: ppError.message }, { status: 500 });
+            }
 
         } else {
             return NextResponse.json({ error: 'Invalid payment gateway' }, { status: 400 });

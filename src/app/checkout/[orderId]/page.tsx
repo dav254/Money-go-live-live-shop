@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 
 function CheckoutSkeleton() {
     return (
@@ -67,17 +68,16 @@ const PaystackIcon = () => (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="#011b33"/>
         </svg>
-        <span className="bg-green-500 text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA</span>
+        <span className="bg-[#011b33] text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA</span>
     </div>
 );
 
 const PesapalIcon = () => (
-    <div className="flex items-center gap-1">
-        <div className="h-6 w-6 rounded bg-primary flex items-center justify-center">
-            <span className="text-white font-black text-[10px]">P</span>
-        </div>
-        <span className="bg-green-600 text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA / VISA</span>
-    </div>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="12" fill="#F05A28"/>
+        <path d="M11 7H14C15.6569 7 17 8.34315 17 10C17 11.6569 15.6569 13 14 13H11V17H9V7H11ZM11 11H14C14.5523 11 15 10.5523 15 10C15 9.44772 14.5523 9 14 9H11V11Z" fill="white"/>
+        <path d="M6 12C6 8.68629 8.68629 6 12 6M18 12C18 15.3137 15.3137 18 12 18" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
 );
 
 export default function CheckoutPage() {
@@ -179,12 +179,11 @@ export default function CheckoutPage() {
                 }),
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || 'Failed to create payment intent.');
-            }
-
             const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.details || data.error || 'Failed to create payment intent.');
+            }
             
             if (data.checkoutUrl) {
                 window.location.href = data.checkoutUrl;
@@ -292,7 +291,6 @@ export default function CheckoutPage() {
                         <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Options</h2>
                         
                         <div className="grid gap-3">
-                            {/* PesaPal Button */}
                             <Button
                                 size="lg"
                                 className="w-full justify-start gap-4 h-20 rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 transition-all shadow-xl group border border-white/5"
@@ -303,8 +301,11 @@ export default function CheckoutPage() {
                                     {isLoadingPayment === 'pesapal' ? <Loader2 className="animate-spin text-primary" /> : <PesapalIcon />}
                                 </div>
                                 <div className="text-left min-w-0">
-                                    <p className="font-black text-xs uppercase tracking-widest">PesaPal</p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">M-Pesa, Card, Airtel Money</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-black text-xs uppercase tracking-widest">PesaPal</p>
+                                        <Badge className="bg-[#F05A28] text-[8px] h-4 px-1 font-black border-none text-white">M-PESA / VISA</Badge>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">Kenya & Global Payments</p>
                                 </div>
                             </Button>
 
@@ -319,7 +320,7 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="text-left min-w-0">
                                     <p className="font-black text-xs uppercase tracking-widest">Paystack</p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">Global Card Payments</p>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">Card & Bank Transfers</p>
                                 </div>
                             </Button>
 
