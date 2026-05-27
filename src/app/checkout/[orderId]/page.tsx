@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
@@ -154,32 +153,13 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal' | 'simulate') => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal') => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
                 title: 'Cannot initiate payment',
                 description: 'Order details or user email is missing.',
             });
-            return;
-        }
-
-        if (gateway === 'simulate') {
-            setIsLoadingPayment('simulate');
-            try {
-                const response = await fetch('/api/checkout/simulate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ orderId: order.id }),
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message);
-                toast({ title: 'Payment Simulated!', description: 'Your order is now processing.' });
-            } catch (err: any) {
-                toast({ variant: 'destructive', title: 'Simulation Error', description: err.message });
-            } finally {
-                setIsLoadingPayment(null);
-            }
             return;
         }
 
@@ -325,13 +305,6 @@ export default function CheckoutPage() {
                                     <p className="font-black text-sm uppercase tracking-widest">PayPal</p>
                                     <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">Global Credit & Wallet</p>
                                 </div>
-                            </Button>
-                            
-                            <Separator className="my-2 bg-white/5" />
-                            
-                            <Button size="lg" variant="outline" className="w-full h-12 rounded-xl border-dashed border-primary/40 text-primary hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest" onClick={() => handlePayment('simulate')} disabled={!!isLoadingPayment}>
-                                {isLoadingPayment === 'simulate' ? <Loader2 className="animate-spin mr-2" /> : <PackageCheck className="mr-2 h-4 w-4" />}
-                                DEMO: SIMULATE INSTANT SUCCESS
                             </Button>
                         </div>
                     </div>
