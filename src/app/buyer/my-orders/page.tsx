@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -456,7 +457,7 @@ const MyOrdersContent = () => {
              {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">You have no order history yet.</div>}
           </TabsContent>
           <TabsContent value="cancelled" className="space-y-4">
-             {filteredOrders(['cancelled', 'disputed']).length > 0 ? filteredOrders(['cancelled', 'disputed']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">Everything looks clear.</div>}
+             {filteredOrders(['cancelled', 'disputed']).length > 0 ? filteredOrders(['cancelled', 'disputed']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 uppercase font-black tracking-widest text-xs">Everything looks clear.</div>}
           </TabsContent>
         </Tabs>
     );

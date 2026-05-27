@@ -15,56 +15,66 @@ export async function getPesapalAuthToken(): Promise<string> {
     const consumerSecret = process.env.PESAPAL_CONSUMER_SECRET;
 
     if (!consumerKey || !consumerSecret) {
-        throw new Error('PesaPal credentials are missing.');
+        throw new Error('PesaPal credentials (KEY/SECRET) are missing in server environment.');
     }
 
-    const response = await fetch(`${PESAPAL_URL}/api/Auth/RequestToken`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-            consumer_key: consumerKey,
-            consumer_secret: consumerSecret,
-        }),
-    });
+    try {
+        const response = await fetch(`${PESAPAL_URL}/api/Auth/RequestToken`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                consumer_key: consumerKey,
+                consumer_secret: consumerSecret,
+            }),
+        });
 
-    const data = await response.json();
-    if (!data.token) {
-        throw new Error(`PesaPal Auth Failed: ${data.message || 'Unknown error'}`);
+        const data = await response.json();
+        
+        if (!response.ok || !data.token) {
+            throw new Error(`PesaPal Auth Failed: ${data.message || response.statusText}`);
+        }
+
+        return data.token;
+    } catch (err: any) {
+        throw new Error(`PesaPal Network Error (Auth): ${err.message}`);
     }
-
-    return data.token;
 }
 
 /**
  * Registers an IPN (Instant Payment Notification) URL with PesaPal.
- * This is required to receive status updates.
  */
 export async function registerPesapalIPN(token: string): Promise<string> {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) throw new Error('NEXT_PUBLIC_BASE_URL is missing.');
+
     const ipnUrl = `${baseUrl}/api/webhooks/pesapal`;
 
-    const response = await fetch(`${PESAPAL_URL}/api/Services/RegisterIPN`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-            url: ipnUrl,
-            ipn_notification_type: 'GET',
-        }),
-    });
+    try {
+        const response = await fetch(`${PESAPAL_URL}/api/Services/RegisterIPN`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                url: ipnUrl,
+                ipn_notification_type: 'GET',
+            }),
+        });
 
-    const data = await response.json();
-    if (!data.ipn_id) {
-        throw new Error(`IPN Registration Failed: ${data.message || 'Unknown error'}`);
+        const data = await response.json();
+        if (!response.ok || !data.ipn_id) {
+            throw new Error(`IPN Registration Failed: ${data.message || response.statusText}`);
+        }
+
+        return data.ipn_id;
+    } catch (err: any) {
+        throw new Error(`PesaPal Network Error (IPN): ${err.message}`);
     }
-
-    return data.ipn_id;
 }
 
 /**
@@ -79,9 +89,6 @@ export async function submitPesapalOrder(payload: {
     description: string;
 }) {
     const token = await getPesapalAuthToken();
-    
-    // In a real production environment, you should fetch a persisted ipn_id.
-    // For this implementation, we register one on-the-fly or use a fallback.
     const ipnId = await registerPesapalIPN(token);
 
     const requestBody = {
@@ -98,24 +105,28 @@ export async function submitPesapalOrder(payload: {
         },
     };
 
-    const response = await fetch(`${PESAPAL_URL}/api/Transactions/SubmitOrderRequest`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-    });
+    try {
+        const response = await fetch(`${PESAPAL_URL}/api/Transactions/SubmitOrderRequest`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
 
-    const data = await response.json();
-    
-    if (data.status !== '200') {
-        throw new Error(`PesaPal Order Submission Failed: ${data.message || 'Invalid response'}`);
+        const data = await response.json();
+        
+        if (!response.ok || data.status !== '200') {
+            throw new Error(`PesaPal Order Error: ${data.message || response.statusText}`);
+        }
+
+        return {
+            redirectUrl: data.redirect_url,
+            orderTrackingId: data.order_tracking_id
+        };
+    } catch (err: any) {
+        throw new Error(`PesaPal Network Error (Order): ${err.message}`);
     }
-
-    return {
-        redirectUrl: data.redirect_url,
-        orderTrackingId: data.order_tracking_id
-    };
 }

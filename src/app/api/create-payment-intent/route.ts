@@ -66,14 +66,14 @@ export async function POST(request: Request) {
                     orderId: orderId || reference,
                     amount: amount,
                     email: email,
-                    firstName: email.split('@')[0],
+                    firstName: email.split('@')[0] || 'Guest',
                     lastName: 'User',
-                    description: transactionType === 'points-purchase' ? 'AI Points Top-up' : 'Marketplace Order',
+                    description: transactionType === 'points-purchase' ? 'AI Points Top-up' : `Order for ${email}`,
                 });
                 checkoutUrl = res.redirectUrl;
             } catch (pesapalError: any) {
                 console.error("PesaPal API Error:", pesapalError);
-                return NextResponse.json({ error: 'PesaPal initialization failed.', details: pesapalError.message }, { status: 500 });
+                return NextResponse.json({ error: 'PesaPal Initialization Failed', details: pesapalError.message }, { status: 500 });
             }
 
         } else if (gateway === 'paypal') {
@@ -121,6 +121,9 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error('Payment intent error:', error);
-        return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+        return NextResponse.json({ 
+            error: 'Server Error during payment setup', 
+            details: error instanceof Error ? error.message : 'Unknown error' 
+        }, { status: 500 });
     }
 }
