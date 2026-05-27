@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, orderBy, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -31,6 +31,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -63,6 +64,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import React, { useMemo, useCallback, useState } from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
@@ -146,7 +148,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
         if (!firestore || !user) return;
         try {
             const token = await user.getIdToken();
-            const response = await fetch(`/api/admin/orders/${orderId}/status`, { // Standardizing status update for generic cancel/delete
+            const response = await fetch(`/api/admin/orders/${orderId}/status`, { 
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'cancelled' })
