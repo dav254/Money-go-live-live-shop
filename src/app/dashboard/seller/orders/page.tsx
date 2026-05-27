@@ -24,7 +24,6 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, where, doc, updateDoc, orderBy, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,7 +51,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -376,8 +374,8 @@ export default function SellerOrdersPage() {
             {readyToShipCount > 0 && (
                 <Alert className="max-w-sm bg-primary/10 border-primary/20 text-primary rounded-2xl animate-in slide-in-from-top-4 duration-500">
                     <AlertCircle className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Action Required</AlertTitle>
-                    <AlertDescription className="text-[11px] font-bold uppercase tracking-tight">You have {readyToShipCount} paid order(s) awaiting dispatch!</AlertDescription>
+                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Fulfillment Alert</AlertTitle>
+                    <AlertDescription className="text-xs font-bold uppercase tracking-tight">You have {readyToShipCount} paid order(s) waiting to be shipped!</AlertDescription>
                 </Alert>
             )}
         </div>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -44,7 +43,7 @@ const formSchema = z.object({
   username: z.string().min(2, { message: 'Username must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['buyer', 'seller', 'reseller'], { required_error: 'You must select a role.' }),
+  role: z.enum(['buyer', 'seller'], { required_error: 'You must select a role.' }),
 });
 
 export default function SignupPage() {
@@ -61,8 +60,6 @@ export default function SignupPage() {
       const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
-      } else if (role === 'reseller') {
-        router.replace('/dashboard/reseller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
@@ -78,6 +75,7 @@ export default function SignupPage() {
       username: '',
       email: '',
       password: '',
+      role: 'buyer',
     },
   });
 
@@ -102,18 +100,11 @@ export default function SignupPage() {
         ...(values.role === 'seller' && { freePointsAwardedAt: new Date().toISOString() })
       };
 
-      const resellerRefId = localStorage.getItem('resellerRefId');
-      if (resellerRefId) {
-          (profile as any).referredBy = resellerRefId;
-      }
-
       await setDoc(userDocRef, profile);
       toast({ 
         title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!', 
         description: values.role === 'seller' ? "You've received 1000 free AI points to start your journey." : "You've successfully signed up." 
       });
-      
-      if (resellerRefId) localStorage.removeItem('resellerRefId');
 
     } catch (error: any) {
       console.error('Signup Error:', error);
@@ -136,10 +127,10 @@ export default function SignupPage() {
   return (
     <AuthLayout>
       <div className="flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
-            <CardTitle className="font-headline text-2xl">Create an Account</CardTitle>
-            <CardDescription>Join Go Earn today. Choose your role to get started.</CardDescription>
+            <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Create Account</CardTitle>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Join the future of social commerce</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -211,7 +202,6 @@ export default function SignupPage() {
                         <SelectContent>
                           <SelectItem value="buyer">Buyer</SelectItem>
                           <SelectItem value="seller">Seller</SelectItem>
-                          <SelectItem value="reseller">Reseller</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -220,7 +210,7 @@ export default function SignupPage() {
                 />
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                <Button type="submit" className="w-full h-12 font-black uppercase tracking-widest shadow-xl shadow-primary/20" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
