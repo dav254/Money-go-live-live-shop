@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -10,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle } from 'lucide-react';
+import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
@@ -18,6 +19,7 @@ import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/fi
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function BuyerProductPage() {
     const params = useParams();
@@ -177,8 +179,8 @@ export default function BuyerProductPage() {
                             <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price.toLocaleString()}</p>
                         </div>
                         
-                        {/* Seller Socials Sidebar within Product Info */}
-                        <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-64 shrink-0 shadow-2xl">
+                        {/* Seller Contact & Socials Sidebar */}
+                        <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-72 shrink-0 shadow-2xl">
                             <Link href={`/sellers/${sellerId}`} className="flex items-center gap-3 group mb-4">
                                 <Avatar className="h-10 w-10 border border-white/10 group-hover:border-primary transition-all">
                                     <AvatarImage src={sellerShop?.logoUrl} />
@@ -192,13 +194,35 @@ export default function BuyerProductPage() {
                             
                             <Separator className="bg-white/5 mb-4" />
                             
+                            <div className="space-y-4 mb-6">
+                                {sellerShop?.contactEmail && (
+                                    <div className="flex items-center gap-3">
+                                        <Mail className="h-3.5 w-3.5 text-primary" />
+                                        <span className="text-[11px] font-medium text-neutral-300 truncate">{sellerShop.contactEmail}</span>
+                                    </div>
+                                )}
+                                {sellerShop?.contactPhone && (
+                                    <div className="flex items-center gap-3">
+                                        <Phone className="h-3.5 w-3.5 text-primary" />
+                                        <span className="text-[11px] font-medium text-neutral-300">{sellerShop.contactPhone}</span>
+                                    </div>
+                                )}
+                            </div>
+
                             <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-3">Connect With Shop</p>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 mb-4">
                                 {sellerShop?.facebookUrl && <a href={sellerShop.facebookUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-blue-600 rounded-xl flex items-center justify-center text-white transition-all"><Facebook className="h-4 w-4" /></a>}
                                 {sellerShop?.instagramUrl && <a href={sellerShop.instagramUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-pink-600 rounded-xl flex items-center justify-center text-white transition-all"><Instagram className="h-4 w-4" /></a>}
                                 {sellerShop?.twitterUrl && <a href={sellerShop.twitterUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-sky-500 rounded-xl flex items-center justify-center text-white transition-all"><Twitter className="h-4 w-4" /></a>}
-                                {sellerShop?.contactWhatsapp && <a href={`https://wa.me/${sellerShop.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-green-600 rounded-xl flex items-center justify-center text-white transition-all"><MessageCircle className="h-4 w-4" /></a>}
                             </div>
+
+                            {sellerShop?.contactWhatsapp && (
+                                <Button asChild variant="outline" className="w-full h-11 rounded-xl border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-600 hover:text-white font-black uppercase tracking-widest text-[9px] transition-all">
+                                    <a href={`https://wa.me/${sellerShop.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                                        <MessageCircle className="h-3.5 w-3.5 mr-2" /> CHAT ON WHATSAPP
+                                    </a>
+                                </Button>
+                            )}
                         </div>
                     </div>
 
