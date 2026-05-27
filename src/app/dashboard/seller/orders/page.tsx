@@ -95,7 +95,7 @@ const DispatchDialogContent = ({ order, onDispatch, onCancel }: { order: Order, 
     return (
         <>
             <DialogHeader>
-                <DialogTitle className="font-black uppercase tracking-tighter">Dispatch Order #{order.id.substring(0,6)}</DialogTitle>
+                <DialogTitle className="font-black uppercase tracking-tighter text-white">Dispatch Order #{order.id.substring(0,6)}</DialogTitle>
                 <DialogDescription className="text-xs font-bold uppercase tracking-widest text-neutral-500">Provide shipping details to notify the buyer.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -110,7 +110,7 @@ const DispatchDialogContent = ({ order, onDispatch, onCancel }: { order: Order, 
             </div>
             <DialogFooter className="gap-2">
                 <Button variant="ghost" onClick={onCancel} className="font-bold uppercase text-[10px]">Cancel</Button>
-                <Button onClick={handleDispatch} disabled={isSaving || !courierName} className="font-black uppercase text-[10px] tracking-widest h-12 px-8">
+                <Button onClick={handleDispatch} disabled={isSaving || !courierName} className="font-black uppercase text-[10px] tracking-widest h-12 px-8 bg-primary hover:bg-primary/90 text-white border-none">
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
                     CONFIRM DISPATCH
                 </Button>
@@ -176,11 +176,11 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                     <TableBody>
                         {[...Array(3)].map((_, i) => (
                             <TableRow key={i} className="border-white/5 h-20">
-                                <TableCell><Skeleton className="h-10 w-48 rounded-xl" /></TableCell>
+                                <TableCell className="px-6"><Skeleton className="h-10 w-48 rounded-xl" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-16 rounded-xl" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-24 rounded-xl" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-20 rounded-xl" /></TableCell>
-                                <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto rounded-xl" /></TableCell>
+                                <TableCell className="text-right px-6"><Skeleton className="h-8 w-24 ml-auto rounded-xl" /></TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -287,16 +287,16 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                                 CANCEL ORDER
                                                             </DropdownMenuItem>
                                                         </AlertDialogTrigger>
-                                                        <AlertDialogContent className="rounded-3xl border-white/10 bg-neutral-950">
+                                                        <AlertDialogContent className="rounded-3xl border-white/10 bg-neutral-950 border-2">
                                                             <AlertDialogHeader>
                                                                 <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Cancel Order?</AlertDialogTitle>
                                                                 <AlertDialogDescription className="text-xs font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">
-                                                                    This will mark order #{order.id.substring(0, 8)}... as cancelled.
+                                                                    This will mark order #{order.id.substring(0, 8)}... as cancelled. This action is usually reserved for disputes or out-of-stock scenarios.
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Back</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px]">
+                                                                <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px] border-none">
                                                                     CONFIRM CANCEL
                                                                 </AlertDialogAction>
                                                             </AlertDialogFooter>
@@ -347,7 +347,7 @@ export default function SellerOrdersPage() {
     const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 
     const sortedData = useMemo(() => {
-        return data ? [...data].sort((a, b) => b.orderDate.toDate().getTime() - a.orderDate.toDate().getTime()) : [];
+        return data ? [...data].sort((a, b) => (b.orderDate?.toDate?.()?.getTime() || 0) - (a.orderDate?.toDate?.()?.getTime() || 0)) : [];
     }, [data]);
 
     const isLoading = isUserLoading || areOrdersLoading;
@@ -369,14 +369,14 @@ export default function SellerOrdersPage() {
                 </h1>
                 <p className="text-muted-foreground font-medium text-[10px] uppercase tracking-widest mt-2 flex items-center gap-2">
                     <CheckCircle className="h-3 w-3 text-primary" /> 
-                    Securely managing fulfillment stages
+                    Fulfillment and verification dashboard
                 </p>
             </div>
             
             {readyToShipCount > 0 && (
                 <Alert className="max-w-sm bg-primary/10 border-primary/20 text-primary rounded-2xl animate-in slide-in-from-top-4 duration-500">
                     <AlertCircle className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Urgent Action</AlertTitle>
+                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Action Required</AlertTitle>
                     <AlertDescription className="text-[11px] font-bold uppercase tracking-tight">You have {readyToShipCount} paid order(s) awaiting dispatch!</AlertDescription>
                 </Alert>
             )}
@@ -388,13 +388,13 @@ export default function SellerOrdersPage() {
                     Step 1: Paid ({readyToShipCount})
                 </TabsTrigger>
                 <TabsTrigger value="pending" className="rounded-xl px-6 h-full data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest transition-all">
-                    Awaiting Payment
+                    Unpaid
                 </TabsTrigger>
                 <TabsTrigger value="shipped" className="rounded-xl px-6 h-full data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest transition-all">
                     Step 2: Transit
                 </TabsTrigger>
                 <TabsTrigger value="all" className="rounded-xl px-6 h-full data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest transition-all">
-                    Completed
+                    History
                 </TabsTrigger>
             </TabsList>
 
