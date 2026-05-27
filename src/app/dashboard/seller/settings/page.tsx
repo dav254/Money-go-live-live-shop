@@ -28,10 +28,11 @@ import {
   Info,
   Target,
   Plus,
+  BadgeCent,
 } from 'lucide-react';
 import { useUser, useFirestore, useMemoFirebase, useUserProfile } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { doc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, writeBatch, increment } from 'firebase/firestore';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import type { SellerShop } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +42,8 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
+const POINT_COST_PER_TARGET = 10;
+
 export default function SellerSettingsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -48,7 +51,7 @@ export default function SellerSettingsPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   
-  const { userProfile } = useUserProfile(user?.uid);
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const sellerShopRef = useMemoFirebase(() => user ? doc(firestore, 'sellerShops', user.uid) : null, [firestore, user]);
   const { data: shopData } = useDoc<SellerShop>(sellerShopRef);
 
@@ -105,8 +108,9 @@ export default function SellerSettingsPage() {
   }, [shopData]);
 
   const addTarget = () => {
-      if (newTarget && !targetLocations.includes(newTarget)) {
-          setTargetLocations([...targetLocations, newTarget]);
+      const sanitizedTarget = newTarget.trim().toUpperCase();
+      if (sanitizedTarget && !targetLocations.includes(sanitizedTarget)) {
+          setTargetLocations([...targetLocations, sanitizedTarget]);
           setNewTarget('');
       }
   };
@@ -152,8 +156,24 @@ export default function SellerSettingsPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!sellerShopRef || !user) return;
+    if (!sellerShopRef || !user || !userProfile) return;
     setIsSaving(true);
+
+    // Calculate how many points to deduct for new locations
+    const existingLocations = shopData?.targetLocations || [];
+    const newLocations = targetLocations.filter(loc => !existingLocations.includes(loc));
+    const pointsToDeduct = newLocations.length * POINT_COST_PER_TARGET;
+
+    if (pointsToDeduct > (userProfile.aiPoints || 0)) {
+        toast({ 
+            variant: 'destructive', 
+            title: 'Insufficient Points', 
+            description: `Adding ${newLocations.length} new target locations costs ${pointsToDeduct} points. You only have ${userProfile.aiPoints}.` 
+        });
+        setIsSaving(false);
+        return;
+    }
+
     try {
         const batch = writeBatch(firestore);
         
@@ -182,16 +202,30 @@ export default function SellerSettingsPage() {
             returnPolicy,
             deliveryPolicy
         };
+
         batch.set(sellerShopRef, shopUpdate, { merge: true });
+        
+        // Deduct points if any new locations were added
+        if (pointsToDeduct > 0) {
+            batch.update(doc(firestore, 'userProfiles', user.uid), { 
+                aiPoints: increment(-pointsToDeduct)
+            });
+        }
+
         batch.update(doc(firestore, 'userProfiles', user.uid), { 
             shopName, 
             username: shopName || userProfile?.username, 
             profilePictureUrl: logoUrl || '',
             location: locationString
         });
+
         await batch.commit();
-        toast({ title: 'Settings Saved!' });
+        toast({ 
+            title: 'Settings Saved!', 
+            description: pointsToDeduct > 0 ? `Deducted ${pointsToDeduct} points for new target markets.` : 'Changes applied successfully.' 
+        });
     } catch (error) {
+        console.error(error);
         toast({ variant: 'destructive', title: 'Error saving settings' });
     } finally {
         setIsSaving(false);
@@ -201,12 +235,30 @@ export default function SellerSettingsPage() {
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between">
-            <h1 className="font-headline text-3xl font-bold tracking-tight uppercase">Shop Config</h1>
-            <Button onClick={handleSaveChanges} disabled={isSaving || !!isUploading} className="font-black uppercase tracking-widest px-8 h-12 shadow-xl shadow-primary/20">
-                {isSaving ? <Loader2 className="animate-spin" /> : 'Apply Changes'}
-            </Button>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 className="font-headline text-3xl font-bold tracking-tight uppercase">Shop Config</h1>
+                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Manage global presence and logistics</p>
+            </div>
+            
+            <div className="flex items-center gap-4">
+                 <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="p-3 flex items-center gap-4">
+                        <div className="p-3 bg-primary/10 rounded-md">
+                            <BadgeCent className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase text-muted-foreground">My Points</p>
+                            <p className="text-lg font-black text-primary">{(userProfile?.aiPoints || 0).toLocaleString()}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Button onClick={handleSaveChanges} disabled={isSaving || !!isUploading} className="font-black uppercase tracking-widest px-8 h-12 shadow-xl shadow-primary/20">
+                    {isSaving ? <Loader2 className="animate-spin" /> : 'Apply Changes'}
+                </Button>
+            </div>
         </div>
+
         <Tabs defaultValue="profile">
           <TabsList className="bg-muted/50 p-1 mb-4">
             <TabsTrigger value="profile"><Store className="mr-2 h-4 w-4" /> Branding & Contact</TabsTrigger>
@@ -273,10 +325,10 @@ export default function SellerSettingsPage() {
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <Label>Store Description / Bio</Label>
-                        <Textarea 
+                        <OpenTextarea 
                             rows={5} 
                             value={shopDescription} 
-                            onChange={(e) => setShopDescription(e.target.value)} 
+                            onChange={(e: any) => setShopDescription(e.target.value)} 
                             placeholder="Introduce your store. What makes you unique?"
                         />
                     </div>
@@ -309,7 +361,7 @@ export default function SellerSettingsPage() {
 
                     <div className="space-y-4">
                         <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2"><Target className="h-4 w-4" /> Target Markets</h3>
-                        <p className="text-xs text-muted-foreground">Select the cities or countries where you want your products to be shown first. Use 10 AI points to add a new target location.</p>
+                        <p className="text-xs text-muted-foreground">Select the cities or countries where you want your products to be shown first. Use <span className="text-primary font-bold">10 AI points</span> to add a new target location.</p>
                         <div className="flex gap-2">
                             <Input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Add a city or country..." className="max-w-xs" />
                             <Button variant="secondary" onClick={addTarget}><Plus className="h-4 w-4 mr-2" /> Add Target</Button>
@@ -340,3 +392,6 @@ export default function SellerSettingsPage() {
     </SellerLayout>
   );
 }
+
+// Internal temporary helper for typing compatibility
+const OpenTextarea = Textarea as any;

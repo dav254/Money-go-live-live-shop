@@ -1,4 +1,3 @@
-
 'use client';
 
 import { BuyerLayout } from '@/components/layout/buyer-layout';
@@ -16,8 +15,8 @@ import { Package, Radio, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Du
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { collection, query, limit, orderBy, where, doc } from 'firebase/firestore';
-import type { Product, HomepageSlide, LiveSession, UserProfile, Order } from '@/lib/types';
+import { collection, query, limit, orderBy, where, doc, getDocs } from 'firebase/firestore';
+import type { Product, HomepageSlide, LiveSession, UserProfile, Order, SellerShop } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState, useMemo } from 'react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
@@ -173,12 +172,53 @@ export default function BuyerDashboardPage() {
   const firestore = useFirestore();
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+  const [isLoadingLocal, setIsLoadingLocal] = useState(true);
 
   useEffect(() => {
     const randomCategory = PRODUCT_CATEGORIES[Math.floor(Math.random() * PRODUCT_CATEGORIES.length)];
     setLastViewedCategory(randomCategory);
     setUserLocation(getLocationFromStorage());
   }, []);
+
+  // AI LOCAL ENGINE: Match detected city to seller target markets
+  useEffect(() => {
+      const fetchLocalProducts = async () => {
+          if (!firestore || !userLocation) {
+              setIsLoadingLocal(false);
+              return;
+          }
+          
+          setIsLoadingLocal(true);
+          const city = userLocation.city.toUpperCase();
+          
+          try {
+              // 1. Query shops targeting this city
+              const shopsQuery = query(collection(firestore, 'sellerShops'), where('targetLocations', 'array-contains', city));
+              const shopsSnap = await getDocs(shopsQuery);
+              const targetSellerIds = shopsSnap.docs.map(doc => doc.id);
+
+              // 2. Query products. Since we can't do complex filters, we do a best-effort combine
+              const productsQuery = query(collection(firestore, 'products'), limit(30));
+              const productsSnap = await getDocs(productsQuery);
+              const allFetched = productsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+              // Filter locally: match by TargetMarket ID OR by hard location string
+              const matched = allFetched.filter(p => 
+                  targetSellerIds.includes(p.sellerId) || 
+                  (p.location && p.location.toUpperCase().includes(city))
+              );
+
+              setLocalProducts(matched.slice(0, 10));
+          } catch (err) {
+              console.error("Local engine failed:", err);
+          } finally {
+              setIsLoadingLocal(false);
+          }
+      };
+      
+      fetchLocalProducts();
+  }, [firestore, userLocation]);
 
   const liveSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -190,18 +230,11 @@ export default function BuyerDashboardPage() {
     return query(collection(firestore, 'products'), where('wasPrice', '>', 0), limit(10));
   }, [firestore]);
 
-  // LOCAL ENGINE: Priority Products based on targetLocations matching user's city
-  const localProductsQuery = useMemoFirebase(() => {
-      if (!firestore || !userLocation) return null;
-      return query(collection(firestore, 'products'), where('location', '>=', userLocation.city), limit(10));
-  }, [firestore, userLocation]);
-
   const recommendedQuery = useMemoFirebase(() => {
     if (!firestore || !lastViewedCategory) return null;
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
   }, [firestore, lastViewedCategory]);
 
-  // PENDING PAYMENTS ALERT: Look for any orders with status 'pending'
   const pendingOrdersQuery = useMemoFirebase(() => {
       if (!firestore || !user) return null;
       return query(collection(firestore, 'orders'), where('buyerId', '==', user.uid), where('orderStatus', '==', 'pending'), limit(1));
@@ -209,7 +242,6 @@ export default function BuyerDashboardPage() {
 
   const { data: liveSessions } = useCollection<LiveSession>(liveSessionsQuery);
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
-  const { data: localProducts, isLoading: isLoadingLocal } = useCollection<Product>(localProductsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
   const { data: pendingOrders } = useCollection<Order>(pendingOrdersQuery);
   
