@@ -3,7 +3,7 @@
 
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users, Trash2, Loader2 } from 'lucide-react';
+import { Package, ShoppingCart, CheckCircle, Truck, XCircle, ListOrdered, MessageSquare, Users, Trash2, Loader2, DollarSign, AlertCircle } from 'lucide-react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, doc, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
@@ -27,20 +27,21 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
-    pending: { label: 'Pending', className: 'bg-yellow-500/80 hover:bg-yellow-500/70' },
-    processing: { label: 'Processing', className: 'bg-blue-500/80 hover:bg-blue-500/70' },
-    shipped: { label: 'Shipped', className: 'bg-indigo-500/80 hover:bg-indigo-500/70' },
+    pending: { label: 'Awaiting Payment', className: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30' },
+    processing: { label: 'Paid - Ready to Ship', className: 'bg-green-600 text-white border-none animate-pulse' },
+    shipped: { label: 'In Transit', className: 'bg-indigo-500/80 hover:bg-indigo-500/70' },
     delivery: { label: 'In Delivery', className: 'bg-cyan-500/80 hover:bg-cyan-500/70' },
     delivered: { label: 'Delivered', className: 'bg-green-600/80 hover:bg-green-600/70' },
     cancelled: { label: 'Cancelled', className: 'bg-red-500/80 hover:bg-red-500/70' },
     disputed: { label: 'Disputed', className: 'bg-orange-500/80 hover:bg-orange-500/70' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || { label: 'Unknown', className: 'bg-gray-400' };
-  return <Badge className={`capitalize ${config.className}`}>{config.label}</Badge>;
+  return <Badge className={cn("capitalize px-3 py-1 font-black text-[10px] tracking-widest", config.className)}>{config.label}</Badge>;
 };
 
 
@@ -182,21 +183,21 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
     if (orders.length === 0) {
        return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
             <h2 className="text-xl font-semibold">No Orders in this Category</h2>
-            <p className="text-muted-foreground">This section is empty. New orders will appear here as their status changes.</p>
+            <p className="text-muted-foreground text-sm font-medium">This section is empty. New orders will appear here as their status changes.</p>
         </div>
     }
 
     return (
         <Dialog open={isDispatching} onOpenChange={setIsDispatching}>
-            <div className="rounded-md border">
+            <div className="rounded-md border border-white/5 overflow-hidden shadow-2xl">
                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Total Amount</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                    <TableHeader className="bg-neutral-900/50">
+                        <TableRow className="border-white/5 hover:bg-transparent">
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Product</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Total Amount</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Date</TableHead>
+                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Status</TableHead>
+                            <TableHead className="text-right text-[10px] font-black uppercase tracking-widest text-neutral-500">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -206,18 +207,18 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                             
                             return (
                                 <AlertDialog key={order.id}>
-                                    <TableRow>
+                                    <TableRow className="border-white/5 hover:bg-white/5 group h-16">
                                         <TableCell>
                                             <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10 rounded-md">
+                                                <Avatar className="h-10 w-10 rounded-xl overflow-hidden border border-white/10 shrink-0">
                                                     <AvatarImage src={productImage} />
                                                     <AvatarFallback>{productName?.charAt(0)}</AvatarFallback>
                                                 </Avatar>
-                                                <span className="font-medium">{productName}</span>
+                                                <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">{productName}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="font-bold text-primary">${order.totalAmount.toLocaleString()}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="font-black text-primary text-sm">${order.totalAmount.toLocaleString()}</TableCell>
+                                        <TableCell className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">
                                             {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
                                         </TableCell>
                                         <TableCell>
@@ -226,23 +227,25 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="outline" size="sm">Manage</Button>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10">
+                                                        <MoreVertical className="h-4 w-4 text-neutral-400" />
+                                                    </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    {order.orderStatus === 'pending' && <DropdownMenuItem onClick={() => handleStatusUpdate(order.id, 'processing')}><Package className="mr-2 h-4 w-4" />Mark as Processing</DropdownMenuItem>}
+                                                <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-2xl border-white/10">
+                                                    <DropdownMenuItem asChild><Link href={`/messages?chatWith=${order.buyerId}`} className="cursor-pointer font-bold text-xs uppercase"><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</Link></DropdownMenuItem>
+                                                    <DropdownMenuSeparator className="bg-white/5" />
+                                                    {order.orderStatus === 'pending' && <DropdownMenuItem disabled className="text-muted-foreground italic text-xs">Waiting for buyer payment...</DropdownMenuItem>}
                                                     {order.orderStatus === 'processing' && 
                                                         <DialogTrigger asChild>
-                                                            <DropdownMenuItem onSelect={() => setSelectedOrder(order)}><Truck className="mr-2 h-4 w-4" />Mark as Shipped</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => setSelectedOrder(order)} className="font-black text-xs uppercase text-primary"><Truck className="mr-2 h-4 w-4" />MARK AS SHIPPED</DropdownMenuItem>
                                                         </DialogTrigger>
                                                     }
-                                                    {order.orderStatus === 'shipped' && <DropdownMenuItem disabled>Awaiting Buyer Confirmation</DropdownMenuItem>}
+                                                    {order.orderStatus === 'shipped' && <DropdownMenuItem disabled className="text-green-500/70 text-xs font-bold uppercase tracking-widest">Awaiting Confirmation</DropdownMenuItem>}
                                                      {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && (
                                                         <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem className="text-destructive">
+                                                            <DropdownMenuItem className="text-destructive font-bold text-xs uppercase tracking-widest">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete Order
+                                                                DELETE ORDER
                                                             </DropdownMenuItem>
                                                         </AlertDialogTrigger>
                                                     )}
@@ -250,17 +253,17 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                             </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="rounded-3xl border-white/10 bg-neutral-950">
                                         <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This action will permanently delete this order and cannot be undone.
+                                            <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Permanent Deletion?</AlertDialogTitle>
+                                            <AlertDialogDescription className="text-xs font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">
+                                                This will remove the record of order #{order.id.substring(0, 8)}... permanently from your dashboard.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)}>
-                                                Delete
+                                            <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px]">
+                                                CONFIRM DELETE
                                             </AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -306,35 +309,55 @@ export default function SellerOrdersPage() {
         return sortedData.filter(o => statuses.includes(o.orderStatus));
     }, [sortedData]);
 
+    const readyToShipCount = filterOrders('processing').length;
 
   return (
     <SellerLayout>
-       <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          My Orders
-        </h1>
-         <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-                <TabsTrigger value="all"><ListOrdered className="mr-2 h-4 w-4"/>All</TabsTrigger>
-                <TabsTrigger value="pending"><ShoppingCart className="mr-2 h-4 w-4" />New</TabsTrigger>
-                <TabsTrigger value="processing"><Package className="mr-2 h-4 w-4"/>Processing</TabsTrigger>
-                <TabsTrigger value="shipped"><Truck className="mr-2 h-4 w-4"/>Shipped</TabsTrigger>
-                <TabsTrigger value="delivered"><CheckCircle className="mr-2 h-4 w-4"/>Delivered</TabsTrigger>
+       <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">
+                    Merchant Orders
+                </h1>
+                <p className="text-muted-foreground font-medium text-[10px] uppercase tracking-widest mt-1">Manage fulfillment and track your sales history</p>
+            </div>
+            
+            {readyToShipCount > 0 && (
+                <Alert className="max-w-sm bg-primary/10 border-primary/20 text-primary rounded-2xl">
+                    <AlertCircle className="h-4 w-4 text-primary" />
+                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Fulfillment Alert</AlertTitle>
+                    <AlertDescription className="text-xs font-bold uppercase tracking-tight">You have {readyToShipCount} paid order(s) waiting to be shipped!</AlertDescription>
+                </Alert>
+            )}
+        </div>
+
+         <Tabs defaultValue="processing" className="space-y-6">
+            <TabsList className="bg-neutral-900/50 p-1 border border-white/5 rounded-2xl">
+                <TabsTrigger value="processing" className="rounded-xl px-6 data-[state=active]:bg-primary data-[state=active]:text-white font-black uppercase text-[10px] tracking-widest">
+                    Ready to Ship ({readyToShipCount})
+                </TabsTrigger>
+                <TabsTrigger value="pending" className="rounded-xl px-6 data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">
+                    Awaiting Payment
+                </TabsTrigger>
+                <TabsTrigger value="shipped" className="rounded-xl px-6 data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">
+                    In Transit
+                </TabsTrigger>
+                <TabsTrigger value="all" className="rounded-xl px-6 data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">
+                    All History
+                </TabsTrigger>
             </TabsList>
-            <TabsContent value="all">
-                <AllOrdersTable orders={sortedData} isLoading={isLoading} />
-            </TabsContent>
-             <TabsContent value="pending">
-                <AllOrdersTable orders={filterOrders('pending')} isLoading={isLoading} />
-            </TabsContent>
+
             <TabsContent value="processing">
                 <AllOrdersTable orders={filterOrders('processing')} isLoading={isLoading} />
             </TabsContent>
-            <TabsContent value="shipped">
-                <AllOrdersTable orders={filterOrders(['shipped', 'delivery'])} isLoading={isLoading} />
+            <TabsContent value="pending">
+                <AllOrdersTable orders={filterOrders('pending')} isLoading={isLoading} />
             </TabsContent>
-            <TabsContent value="delivered">
-                 <AllOrdersTable orders={filterOrders('delivered')} isLoading={isLoading} />
+            <TabsContent value="shipped">
+                <AllOrdersTable orders={filterOrders(['shipped', 'delivery', 'delivered'])} isLoading={isLoading} />
+            </TabsContent>
+            <TabsContent value="all">
+                <AllOrdersTable orders={sortedData} isLoading={isLoading} />
             </TabsContent>
         </Tabs>
       </div>

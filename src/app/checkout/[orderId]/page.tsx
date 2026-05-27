@@ -12,7 +12,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle, SmartphoneNfc } from 'lucide-react';
+import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle, SmartphoneNfc, ArrowRight, PackageCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -156,7 +156,7 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal') => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal' | 'simulate') => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
@@ -165,6 +165,27 @@ export default function CheckoutPage() {
             });
             return;
         }
+
+        if (gateway === 'simulate') {
+            setIsLoadingPayment('simulate');
+            try {
+                const response = await fetch('/api/checkout/simulate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: order.id }),
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message);
+                toast({ title: 'Payment Simulated!', description: 'Your order is now processing.' });
+                // The onSnapshot in useDoc will handle the UI update automatically
+            } catch (err: any) {
+                toast({ variant: 'destructive', title: 'Simulation Error', description: err.message });
+            } finally {
+                setIsLoadingPayment(null);
+            }
+            return;
+        }
+
         setIsLoadingPayment(gateway);
 
         try {
@@ -222,15 +243,38 @@ export default function CheckoutPage() {
         )
     }
     
+    // IF ALREADY PAID
     if (order.orderStatus !== 'pending') {
          return (
             <BuyerLayout>
-                <div className="container py-12 text-center">
-                    <h1 className="text-2xl font-bold">Order Not Payable</h1>
-                    <p className="text-muted-foreground">This order has already been processed.</p>
-                     <Button asChild className="mt-4">
-                        <Link href="/buyer/my-orders">View My Orders</Link>
-                    </Button>
+                <div className="container py-12 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+                    <div className="p-6 rounded-full bg-green-500/10 border border-green-500/20 shadow-2xl shadow-green-500/10 animate-in zoom-in duration-500">
+                        <PackageCheck className="h-20 w-20 text-green-500" />
+                    </div>
+                    <div>
+                        <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Payment Received!</h1>
+                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2">Order #{order.id.substring(0, 8)} is now being prepared.</p>
+                    </div>
+                    
+                    <Card className="max-w-md w-full border-white/5 bg-neutral-900/50">
+                        <CardContent className="p-6 space-y-4">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">Current Status</span>
+                                <Badge className="bg-green-600 font-black uppercase text-[10px]">{order.orderStatus}</Badge>
+                            </div>
+                            <Separator className="bg-white/5" />
+                            <p className="text-xs text-neutral-400 leading-relaxed">The seller has been notified and will start processing your delivery shortly. You can track this order in your dashboard.</p>
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                        <Button asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs">
+                            <Link href="/buyer/my-orders">VIEW MY ORDERS</Link>
+                        </Button>
+                        <Button variant="outline" asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-white/10">
+                            <Link href="/buyer/dashboard">CONTINUE SHOPPING</Link>
+                        </Button>
+                    </div>
                 </div>
             </BuyerLayout>
         )
@@ -337,6 +381,19 @@ export default function CheckoutPage() {
                                     <p className="font-black text-xs uppercase tracking-widest">PayPal</p>
                                     <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter truncate">Global Card & PayPal Credit</p>
                                 </div>
+                            </Button>
+                            
+                            <Separator className="my-2 bg-white/5" />
+                            
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="w-full h-12 rounded-xl border-dashed border-primary/40 text-primary hover:bg-primary/5 font-black uppercase text-[10px] tracking-widest"
+                                onClick={() => handlePayment('simulate')}
+                                disabled={!!isLoadingPayment}
+                            >
+                                {isLoadingPayment === 'simulate' ? <Loader2 className="animate-spin mr-2" /> : <PackageCheck className="mr-2 h-4 w-4" />}
+                                TEST PAYMENT (DEMO ONLY)
                             </Button>
                         </div>
 
