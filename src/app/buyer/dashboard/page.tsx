@@ -12,12 +12,12 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Package, Radio, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, LayoutGrid, Users, Zap, Sparkles, MapPin } from 'lucide-react';
+import { Package, Radio, ShoppingBag, Laptop, Home as HomeIcon, Heart, Apple, Dumbbell, Palette, Book, LayoutGrid, Users, Zap, Sparkles, MapPin, AlertCircle, CreditCard, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, query, limit, orderBy, where, doc } from 'firebase/firestore';
-import type { Product, HomepageSlide, LiveSession, UserProfile } from '@/lib/types';
+import type { Product, HomepageSlide, LiveSession, UserProfile, Order } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState, useMemo } from 'react';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const categoryIcons: Record<string, React.ElementType> = {
     "Fashion & Apparel": ShoppingBag,
@@ -168,6 +169,7 @@ const HomepageCarousel = () => {
 };
 
 export default function BuyerDashboardPage() {
+  const { user } = useUser();
   const firestore = useFirestore();
   const [lastViewedCategory, setLastViewedCategory] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -199,14 +201,44 @@ export default function BuyerDashboardPage() {
     return query(collection(firestore, 'products'), where('category', '==', lastViewedCategory), limit(10));
   }, [firestore, lastViewedCategory]);
 
+  // PENDING PAYMENTS ALERT: Look for any orders with status 'pending'
+  const pendingOrdersQuery = useMemoFirebase(() => {
+      if (!firestore || !user) return null;
+      return query(collection(firestore, 'orders'), where('buyerId', '==', user.uid), where('orderStatus', '==', 'pending'), limit(1));
+  }, [firestore, user]);
+
   const { data: liveSessions } = useCollection<LiveSession>(liveSessionsQuery);
   const { data: dealsProducts, isLoading: isLoadingDeals } = useCollection<Product>(dealsQuery);
   const { data: localProducts, isLoading: isLoadingLocal } = useCollection<Product>(localProductsQuery);
   const { data: recommendedProducts, isLoading: isLoadingRecs } = useCollection<Product>(recommendedQuery);
+  const { data: pendingOrders } = useCollection<Order>(pendingOrdersQuery);
   
+  const hasPendingPayment = pendingOrders && pendingOrders.length > 0;
+
   return (
     <BuyerLayout>
         <div className="flex-1 space-y-8 sm:space-y-12">
+            {hasPendingPayment && (
+                <Alert className="bg-primary/10 border-primary/20 rounded-2xl animate-in slide-in-from-top-4 duration-500 flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 rounded-full bg-primary/20 shrink-0">
+                            <CreditCard className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <AlertTitle className="font-black uppercase tracking-tighter text-white">Payment Awaiting</AlertTitle>
+                            <AlertDescription className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1">
+                                You have a pending order for <span className="text-white">"{pendingOrders[0].productName}"</span>. Complete payment to start delivery.
+                            </AlertDescription>
+                        </div>
+                    </div>
+                    <Button asChild size="sm" className="h-10 px-6 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20">
+                        <Link href={`/checkout/${pendingOrders[0].id}`}>
+                            Complete Payment <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                        </Link>
+                    </Button>
+                </Alert>
+            )}
+
             <HomepageCarousel />
 
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
@@ -254,7 +286,6 @@ export default function BuyerDashboardPage() {
                 </div>
             )}
 
-            {/* LOCAL ENGINE SECTION */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between px-2">
                     <div className="flex items-center gap-3">

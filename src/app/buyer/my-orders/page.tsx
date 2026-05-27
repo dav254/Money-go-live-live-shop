@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, CheckCircle, Star, ShieldAlert } from 'lucide-react';
+import { MessageSquare, CheckCircle, Star, ShieldAlert, CreditCard, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, query, where, getDocs, setDoc, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
@@ -267,8 +267,8 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
 
     return (
         <Dialog>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between p-4">
+            <Card className="overflow-hidden border-white/5 bg-neutral-900/50">
+                <CardHeader className="flex flex-row items-center justify-between p-4 bg-white/5">
                     <div className="flex items-center gap-3">
                         {isLoading ? (
                             <>
@@ -277,81 +277,97 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
                             </>
                         ) : (
                             <Link href={`/sellers/${order.sellerId}`} className="flex items-center gap-3 hover:underline">
-                                <Avatar className="h-6 w-6">
+                                <Avatar className="h-6 w-6 border border-white/10">
                                     <AvatarImage src={seller?.logoUrl} />
                                     <AvatarFallback>{seller?.shopName?.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                <span className="font-semibold">{seller?.shopName}</span>
+                                <span className="font-bold text-xs uppercase tracking-tighter">{seller?.shopName}</span>
                             </Link>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : ''}</span>
-                        <Badge variant="default" className={getStatusClass(order.orderStatus)}>
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : ''}</span>
+                        <Badge variant="default" className={cn("text-[8px] font-black uppercase tracking-[0.2em] border-none", getStatusClass(order.orderStatus))}>
                             {order.orderStatus}
                         </Badge>
                     </div>
                 </CardHeader>
-                <Separator />
+                <Separator className="bg-white/5" />
                 <CardContent className="p-4">
                     <div className="flex gap-4">
-                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
+                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-white/10 shadow-lg">
                             <Image src={order.productImage || 'https://picsum.photos/seed/product/200'} alt={order.productName || 'product image'} fill className="object-cover" />
                         </div>
-                        <div className="flex-1">
-                            <p className="font-semibold">{order.productName}</p>
-                            <p className="text-sm text-muted-foreground">Qty: {order.quantity}</p>
-                            <p className="text-lg font-bold text-primary">${order.totalAmount.toLocaleString()}</p>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-black text-sm uppercase tracking-tight text-white truncate">{order.productName}</p>
+                            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mt-1">Qty: {order.quantity}</p>
+                            <p className="text-lg font-black text-primary tracking-tighter mt-2">${order.totalAmount.toLocaleString()}</p>
                         </div>
                     </div>
                     {order.orderStatus === 'shipped' && (
-                        <div className="mt-4 space-y-2">
-                            <label className="text-sm font-medium">Upload Delivery Proof (Optional)</label>
-                            <Input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} className="text-xs" />
+                        <div className="mt-4 space-y-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Upload Delivery Proof (Optional)</label>
+                            <Input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} className="h-10 bg-black/40 border-white/10 text-xs" />
                         </div>
                     )}
                     {order.orderStatus === 'delivered' && order.deliveryProof && (
                         <div className="mt-4 space-y-2">
-                            <p className="text-sm font-medium">Your Delivery Proof</p>
-                            <a href={order.deliveryProof} target="_blank" rel="noopener noreferrer">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Delivery Confirmation</p>
+                            <a href={order.deliveryProof} target="_blank" rel="noopener noreferrer" className="block w-fit">
                                 <Image
                                 src={order.deliveryProof}
                                 alt="Your delivery proof"
-                                width={150}
-                                height={100}
-                                className="rounded-md border object-cover hover:opacity-90 transition-opacity"
+                                width={120}
+                                height={80}
+                                className="rounded-xl border border-white/10 object-cover hover:opacity-90 transition-opacity"
                                 />
                             </a>
                         </div>
                     )}
                 </CardContent>
-                <Separator />
-                <div className="flex flex-wrap items-center justify-end p-3 gap-2">
-                    <Button variant="ghost" onClick={handleMessageSeller}><MessageSquare className="mr-2 h-4 w-4" /> Chat with Seller</Button>
+                <Separator className="bg-white/5" />
+                <div className="flex flex-wrap items-center justify-end p-3 gap-2 bg-black/20">
+                    <Button variant="ghost" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/5" onClick={handleMessageSeller}>
+                        <MessageSquare className="mr-2 h-3.5 w-3.5" /> Message Seller
+                    </Button>
                     
+                    {order.orderStatus === 'pending' && (
+                        <>
+                            <Button variant="ghost" size="sm" className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest text-neutral-500" disabled>
+                                Cancel Order
+                            </Button>
+                            <Button asChild className="h-9 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 border-none">
+                                <Link href={`/checkout/${order.id}`}>
+                                    <CreditCard className="mr-2 h-3.5 w-3.5" /> PAY NOW <ArrowRight className="ml-1 h-3 w-3" />
+                                </Link>
+                            </Button>
+                        </>
+                    )}
+
                     {order.orderStatus === 'delivered' && 
                         <DialogTrigger asChild>
-                            <Button variant="secondary">Leave a Review</Button>
+                            <Button variant="secondary" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest">Rate Product</Button>
                         </DialogTrigger>
                     }
                     {order.orderStatus === 'shipped' && 
                         <>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <ShieldAlert className="mr-2 h-4 w-4" /> Report Problem
+                                <Button variant="outline" size="sm" className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest border-white/10">
+                                    <ShieldAlert className="mr-2 h-3.5 w-3.5" /> Report Issue
                                 </Button>
                             </DialogTrigger>
-                            <Button onClick={handleConfirmDelivery}><CheckCircle className="mr-2 h-4 w-4" /> I Have Received My Item</Button>
+                            <Button className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest" onClick={handleConfirmDelivery}>
+                                <CheckCircle className="mr-2 h-3.5 w-3.5" /> Item Received
+                            </Button>
                         </>
                     }
                     {order.orderStatus === 'processing' && 
                         <DialogTrigger asChild>
-                             <Button variant="destructive" size="sm">
-                                <ShieldAlert className="mr-2 h-4 w-4" /> Report Problem
+                             <Button variant="outline" size="sm" className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest border-white/10">
+                                <ShieldAlert className="mr-2 h-3.5 w-3.5" /> Dispute Order
                             </Button>
                         </DialogTrigger>
                     }
-                    {order.orderStatus === 'pending' && <Button variant="destructive" disabled>Cancel Order</Button>}
                 </div>
             </Card>
             {order.orderStatus === 'delivered' ? <ReviewDialog order={order} /> : <DisputeDialog order={order} />}
@@ -418,29 +434,29 @@ const MyOrdersContent = () => {
     }
 
     return (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 grid w-full grid-cols-5">
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="shipped">Shipped</TabsTrigger>
-            <TabsTrigger value="delivered">Delivered</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-in fade-in duration-500">
+          <TabsList className="mb-8 grid w-full grid-cols-5 h-14 bg-neutral-900/50 p-1 border border-white/5 rounded-2xl">
+            <TabsTrigger value="active" className="rounded-xl data-[state=active]:bg-primary font-black uppercase text-[10px] tracking-widest">Active</TabsTrigger>
+            <TabsTrigger value="pending" className="rounded-xl data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">Unpaid</TabsTrigger>
+            <TabsTrigger value="shipped" className="rounded-xl data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">Transit</TabsTrigger>
+            <TabsTrigger value="delivered" className="rounded-xl data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">History</TabsTrigger>
+            <TabsTrigger value="cancelled" className="rounded-xl data-[state=active]:bg-neutral-800 font-black uppercase text-[10px] tracking-widest">Issues</TabsTrigger>
           </TabsList>
           
           <TabsContent value="active" className="space-y-4">
-             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No active orders.</p>}
+             {filteredOrders(['pending', 'processing', 'shipped']).length > 0 ? filteredOrders(['pending', 'processing', 'shipped']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">No active orders.</div>}
           </TabsContent>
           <TabsContent value="pending" className="space-y-4">
-             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No pending orders. If you just paid, check the "Active" tab.</p>}
+             {filteredOrders('pending').length > 0 ? filteredOrders('pending').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">No unpaid orders found.</div>}
           </TabsContent>
            <TabsContent value="shipped" className="space-y-4">
-             {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">No orders have been shipped yet.</p>}
+             {filteredOrders('shipped').length > 0 ? filteredOrders('shipped').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">No orders currently in transit.</div>}
           </TabsContent>
            <TabsContent value="delivered" className="space-y-4">
-             {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no delivered orders.</p>}
+             {filteredOrders('delivered').length > 0 ? filteredOrders('delivered').map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">You have no order history yet.</div>}
           </TabsContent>
           <TabsContent value="cancelled" className="space-y-4">
-             {filteredOrders(['cancelled', 'disputed']).length > 0 ? filteredOrders(['cancelled', 'disputed']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <p className="text-muted-foreground text-center py-12">You have no cancelled or disputed orders.</p>}
+             {filteredOrders(['cancelled', 'disputed']).length > 0 ? filteredOrders(['cancelled', 'disputed']).map(order => <OrderCard key={order.id} order={order} setOptimisticOrders={setOptimisticOrders} />) : <div className="text-center py-20 opacity-30 uppercase font-black tracking-widest text-xs">Everything looks clear.</div>}
           </TabsContent>
         </Tabs>
     );
@@ -451,8 +467,11 @@ export default function MyOrdersPage() {
 
     return (
         <BuyerLayout>
-            <div className="container mx-auto max-w-7xl py-8">
-                <h1 className="font-headline text-3xl font-bold mb-8">My Orders</h1>
+            <div className="container mx-auto max-w-4xl py-8">
+                <div className="mb-10">
+                    <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Purchase History</h1>
+                    <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2">Manage your active orders and track fulfillment progress.</p>
+                </div>
                 {isUserLoading ? <OrdersSkeleton /> : <MyOrdersContent />}
             </div>
         </BuyerLayout>
