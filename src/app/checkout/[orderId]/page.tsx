@@ -3,7 +3,7 @@
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { getDoc, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,11 +12,12 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle } from 'lucide-react';
+import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle, SmartphoneNfc } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import Link from 'next/link';
 
 function CheckoutSkeleton() {
     return (
@@ -66,12 +67,22 @@ const PaystackIcon = () => (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="#011b33"/>
         </svg>
-        <span className="bg-green-500 text-[8px] text-white px-1 rounded font-black uppercase">M-PESA</span>
+        <span className="bg-green-500 text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA</span>
+    </div>
+);
+
+const PesapalIcon = () => (
+    <div className="flex items-center gap-1">
+        <div className="h-6 w-6 rounded bg-primary flex items-center justify-center">
+            <span className="text-white font-black text-[10px]">P</span>
+        </div>
+        <span className="bg-green-600 text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA / VISA</span>
     </div>
 );
 
 export default function CheckoutPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const orderId = params.orderId as string;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
@@ -88,6 +99,17 @@ export default function CheckoutPage() {
     
     const [liveShippingCost, setLiveShippingCost] = useState<number>(0);
     const [isLoadingShipping, setIsLoadingShipping] = useState(true);
+
+    // If returning from a gateway, show success message
+    useEffect(() => {
+        if (searchParams.get('gateway') === 'pesapal' && searchParams.get('OrderTrackingId')) {
+            toast({
+                title: 'Transaction Initialized',
+                description: 'We are verifying your PesaPal payment. Please check your orders in a few minutes.',
+            });
+            router.push('/buyer/my-orders');
+        }
+    }, [searchParams, toast, router]);
 
     useEffect(() => {
         const fetchSellerShipping = async () => {
@@ -134,7 +156,7 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal') => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal') => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
@@ -165,7 +187,7 @@ export default function CheckoutPage() {
             const data = await response.json();
             
             if (data.checkoutUrl) {
-                router.push(data.checkoutUrl);
+                window.location.href = data.checkoutUrl;
             } else {
                 throw new Error('No checkout URL received.');
             }
@@ -270,6 +292,22 @@ export default function CheckoutPage() {
                         <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Options</h2>
                         
                         <div className="grid gap-3">
+                            {/* PesaPal Button */}
+                            <Button
+                                size="lg"
+                                className="w-full justify-start gap-4 h-20 rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 transition-all shadow-xl group border border-white/5"
+                                onClick={() => handlePayment('pesapal')}
+                                disabled={!!isLoadingPayment}
+                            >
+                                <div className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/10 transition-transform group-hover:scale-105">
+                                    {isLoadingPayment === 'pesapal' ? <Loader2 className="animate-spin text-primary" /> : <PesapalIcon />}
+                                </div>
+                                <div className="text-left min-w-0">
+                                    <p className="font-black text-xs uppercase tracking-widest">PesaPal</p>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">M-Pesa, Card, Airtel Money</p>
+                                </div>
+                            </Button>
+
                             <Button
                                 size="lg"
                                 className="w-full justify-start gap-4 h-20 rounded-2xl bg-white text-black hover:bg-neutral-200 transition-all shadow-xl group border-none"
@@ -281,7 +319,7 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="text-left min-w-0">
                                     <p className="font-black text-xs uppercase tracking-widest">Paystack</p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">Card, M-Pesa, Bank Transfer</p>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter truncate">Global Card Payments</p>
                                 </div>
                             </Button>
 

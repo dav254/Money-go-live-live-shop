@@ -1,6 +1,8 @@
+
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
+import { submitPesapalOrder } from '@/lib/pesapal';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -28,8 +30,6 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
             }
 
-            // Using direct fetch to avoid "module not found" errors with the paystack library
-            // This bypasses the need for the 'paystack' npm package which causes bundling issues
             const response = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
                 headers: {
@@ -55,6 +55,23 @@ export async function POST(request: Request) {
                 throw new Error(data.message || 'Paystack initialization failed');
             }
             checkoutUrl = data.data.authorization_url;
+
+        } else if (gateway === 'pesapal') {
+            // PesaPal Integration
+            try {
+                const res = await submitPesapalOrder({
+                    orderId: orderId || reference,
+                    amount: amount,
+                    email: email,
+                    firstName: email.split('@')[0],
+                    lastName: 'User',
+                    description: transactionType === 'points-purchase' ? 'AI Points Top-up' : 'Marketplace Order',
+                });
+                checkoutUrl = res.redirectUrl;
+            } catch (pesapalError: any) {
+                console.error("PesaPal API Error:", pesapalError);
+                return NextResponse.json({ error: 'PesaPal initialization failed.', details: pesapalError.message }, { status: 500 });
+            }
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();
