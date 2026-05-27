@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone } from 'lucide-react';
+import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
@@ -179,7 +179,6 @@ export default function BuyerProductPage() {
                             <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price.toLocaleString()}</p>
                         </div>
                         
-                        {/* Seller Contact & Socials Sidebar */}
                         <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-72 shrink-0 shadow-2xl">
                             <Link href={`/sellers/${sellerId}`} className="flex items-center gap-3 group mb-4">
                                 <Avatar className="h-10 w-10 border border-white/10 group-hover:border-primary transition-all">
@@ -288,6 +287,45 @@ export default function BuyerProductPage() {
                                         ))}
                                     </div>
                                 )}
+                            </AccordionContent>
+                        </AccordionItem>
+
+                        <AccordionItem value="policies" className="border-white/10 bg-neutral-900/30 rounded-3xl px-8 border shadow-xl">
+                            <AccordionTrigger className="font-black uppercase tracking-[0.2em] text-[11px] py-6 hover:no-underline">SHIPPING & RETURNS</AccordionTrigger>
+                            <AccordionContent className="pb-10 text-neutral-300 text-sm leading-relaxed space-y-8 font-medium">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 text-white">
+                                            <Truck className="h-4 w-4 text-primary" />
+                                            <h4 className="font-black uppercase text-[10px] tracking-widest">Delivery Policy</h4>
+                                        </div>
+                                        <p className="bg-white/5 p-4 rounded-2xl border border-white/5 leading-relaxed">
+                                            {sellerShop?.deliveryPolicy || 'Standard marketplace shipping terms apply. Shipping estimated at 2-5 business days.'}
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 text-white">
+                                            <ShieldCheck className="h-4 w-4 text-primary" />
+                                            <h4 className="font-black uppercase text-[10px] tracking-widest">Return Policy</h4>
+                                        </div>
+                                        <p className="bg-white/5 p-4 rounded-2xl border border-white/5 leading-relaxed">
+                                            {sellerShop?.returnPolicy || 'Eligible for return within 30 days if item is unused and in original packaging.'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <Separator className="bg-white/5" />
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-white">
+                                        <Clock className="h-4 w-4 text-primary" />
+                                        <h4 className="font-black uppercase text-[10px] tracking-widest">Seller Availability</h4>
+                                    </div>
+                                    <p className="text-xs font-bold uppercase tracking-tight text-neutral-400">
+                                        Store Hours: <span className="text-white ml-1">{sellerShop?.storeHours || 'Open 24/7'}</span>
+                                    </p>
+                                </div>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
