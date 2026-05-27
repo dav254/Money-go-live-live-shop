@@ -125,15 +125,6 @@ export function SellerSidebar() {
           </SidebarMenuItem>
 
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
-              <Link href="/dashboard/seller/reseller">
-                <Users />
-                <span>Reseller Center</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-          <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-tools')}>
               <Link href="/dashboard/seller/ai-tools">
                 <Sparkles className="text-primary" />

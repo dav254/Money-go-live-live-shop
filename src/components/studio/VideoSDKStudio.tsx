@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';
@@ -17,12 +17,13 @@ import type { LiveSession } from '@/lib/types';
 
 /**
  * Optimized ParticipantView for the Seller Studio.
- * Uses HHD quality and ensures instant attachment.
+ * Locked to HHD quality for a professional broadcast feel.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Stable effect for video attachment
   useEffect(() => {
     if (videoRef.current && webcamStream) {
       const mediaStream = new MediaStream();
@@ -36,9 +37,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
     return () => {
         if (videoRef.current?.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(t => {
-                t.stop();
-            });
+            stream.getTracks().forEach(t => t.stop());
             videoRef.current.srcObject = null;
         }
     };
@@ -60,10 +59,10 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             <Radio className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">
-            Syncing Signal...
+            Connecting Studio...
           </p>
           <p className="text-neutral-500 mt-2 text-[10px] font-black uppercase tracking-widest">
-            Establishing 4K data connection.
+            Locking HD Data Signal
           </p>
         </div>
       )}
@@ -181,7 +180,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   
   const hasAttemptedJoin = useRef(false);
 
-  const sessionRef = React.useMemo(() => (firestore && user) ? doc(firestore, 'liveSessions', user.uid) : null, [firestore, user]);
+  const sessionRef = useMemo(() => (firestore && user) ? doc(firestore, 'liveSessions', user.uid) : null, [firestore, user]);
   const { data: session } = useDoc<LiveSession>(sessionRef);
 
   useEffect(() => {

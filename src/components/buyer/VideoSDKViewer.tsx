@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { VideoOff, Loader2, AlertCircle } from 'lucide-react';
 import { useUser, useUserProfile } from '@/firebase';
 
 /**
- * Optimized Viewer for Buyers with instant attachment logic.
- * Ensures the broadcast syncs the moment the meeting is joined.
+ * Optimized Viewer for Buyers.
+ * Streams start playing the second the first packet is received.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, micStream, webcamOn } = useParticipant(participantId);
+  const { webcamStream, micStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -45,7 +45,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       />
       <audio ref={audioRef} autoPlay playsInline />
       
-      {/* Show technical sync overlay ONLY if no video stream exists at all */}
       {!webcamStream && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950/80 backdrop-blur-sm z-50">
           <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
@@ -67,10 +66,9 @@ const ViewerMeetingView = () => {
     }
   }, [join, isMeetingJoined]);
 
-  // Priority search for the host participant
-  const host = React.useMemo(() => {
+  // Find host participant (usually the only non-local participant in a show)
+  const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
-    // In a broadcast, the first non-local participant is almost always the host
     return participantsArray.find(p => !p.local) || null;
   }, [participants]);
 
@@ -84,7 +82,7 @@ const ViewerMeetingView = () => {
                 <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                 <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
            </div>
-           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em]">Negotiating Handshake...</p>
+           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em]">Negotiating Signal...</p>
         </div>
       )}
     </div>
