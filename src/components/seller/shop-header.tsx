@@ -4,7 +4,7 @@ import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Plus, Share2, Facebook, Instagram, Twitter, MessageCircle, MessageSquare } from 'lucide-react';
+import { Plus, Share2, Facebook, Instagram, Twitter, MessageCircle, MessageSquare, Verified } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
@@ -136,7 +136,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     };
   
   const handleShare = () => {
-    const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
+    const shopUrl = window.location.href;
     navigator.clipboard.writeText(shopUrl).then(() => {
       toast({
         title: "Link Copied!",
@@ -169,60 +169,62 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
 
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-20 relative z-10">
         <div className="flex flex-col items-center text-center md:flex-row md:items-end md:gap-6">
-          <Avatar className="h-32 w-32 border-4 border-neutral-950">
+          <Avatar className="h-32 w-32 border-4 border-neutral-950 shadow-2xl">
             <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} />
-            <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback className="bg-neutral-800 text-2xl font-black">{seller.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="mt-4 md:mt-0 md:pb-4">
-            <h1 className="font-headline text-3xl md:text-4xl font-bold text-white">{seller.name}</h1>
+            <div className="flex items-center justify-center md:justify-start gap-2">
+                <h1 className="font-headline text-3xl md:text-4xl font-black text-white uppercase tracking-tighter">{seller.name}</h1>
+                {seller.isVerified && <Verified className="h-6 w-6 text-blue-400 fill-current" />}
+            </div>
             <div className="flex items-center justify-center md:justify-start gap-4 text-sm text-neutral-400 mt-1">
-              <span>{(seller.followers || 0).toLocaleString()} Followers</span>
+              <span className="font-bold uppercase tracking-widest text-[10px]">{(seller.followers || 0).toLocaleString()} Followers</span>
             </div>
             <SellerBadges seller={seller} />
             
             {/* Social Media Row */}
-            <div className="flex items-center justify-center md:justify-start gap-4 mt-4">
+            <div className="flex items-center justify-center md:justify-start gap-3 mt-4">
                 {seller.facebookUrl && (
-                    <a href={seller.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-blue-500 transition-colors">
-                        <Facebook className="h-5 w-5" />
+                    <a href={seller.facebookUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-blue-600 rounded-lg text-white transition-all">
+                        <Facebook className="h-4 w-4" />
                     </a>
                 )}
                 {seller.instagramUrl && (
-                    <a href={seller.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-pink-500 transition-colors">
-                        <Instagram className="h-5 w-5" />
+                    <a href={seller.instagramUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-pink-600 rounded-lg text-white transition-all">
+                        <Instagram className="h-4 w-4" />
                     </a>
                 )}
                 {seller.twitterUrl && (
-                    <a href={seller.twitterUrl} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-sky-400 transition-colors">
-                        <Twitter className="h-5 w-5" />
+                    <a href={seller.twitterUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-sky-500 rounded-lg text-white transition-all">
+                        <Twitter className="h-4 w-4" />
                     </a>
                 )}
                 {seller.contactWhatsapp && (
-                    <a href={`https://wa.me/${seller.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-green-500 transition-colors">
-                        <MessageCircle className="h-5 w-5" />
+                    <a href={`https://wa.me/${seller.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-white/5 hover:bg-green-600 rounded-lg text-white transition-all">
+                        <MessageCircle className="h-4 w-4" />
                     </a>
                 )}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center md:justify-start gap-2">
-          <Button onClick={handleFollow} className="font-bold bg-primary hover:bg-primary/90">
-            <Plus className="mr-2 h-4 w-4" />
-            {isFollowing ? 'Following' : 'Follow'}
+        <div className="mt-8 flex flex-wrap items-center justify-center md:justify-start gap-3">
+          <Button onClick={handleFollow} className={cn("h-11 px-8 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all", isFollowing ? "bg-neutral-800 text-white hover:bg-neutral-700" : "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20")}>
+            {isFollowing ? 'FOLLOWING' : 'FOLLOW STORE'}
           </Button>
           {userProfile?.userRole === 'reseller' && (
-            <Button onClick={handleApplyToResell} disabled={isApplying} variant="outline" className="font-bold">
-              {isApplying ? 'Submitting...' : 'Apply to Resell'}
+            <Button onClick={handleApplyToResell} disabled={isApplying} variant="outline" className="h-11 px-6 font-black uppercase tracking-widest text-[10px] rounded-xl border-white/10 hover:bg-white/5">
+              {isApplying ? 'APPLYING...' : 'APPLY TO RESELL'}
             </Button>
           )}
-          <Button onClick={handleMessageSeller} variant="secondary" className="font-bold">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Chat
+          <Button onClick={handleMessageSeller} variant="secondary" className="h-11 px-6 font-black uppercase tracking-widest text-[10px] rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10">
+            <MessageSquare className="mr-2 h-3.5 w-3.5" />
+            MESSAGE
           </Button>
-          <Button onClick={handleShare} variant="secondary" className="font-bold">
-            <Share2 className="mr-2 h-4 w-4" />
-            Share
+          <Button onClick={handleShare} variant="secondary" className="h-11 px-6 font-black uppercase tracking-widest text-[10px] rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10">
+            <Share2 className="mr-2 h-3.5 w-3.5" />
+            SHARE SHOP
           </Button>
         </div>
 

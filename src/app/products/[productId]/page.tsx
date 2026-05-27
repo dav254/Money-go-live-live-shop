@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag } from 'lucide-react';
+import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
@@ -50,7 +50,6 @@ export default function BuyerProductPage() {
         if (!product) return [];
         const media: { url: string, type: 'video' | 'image' }[] = [];
         
-        // Videos first (as they act as high-conversion templates)
         if (product.videoUrl && product.videoUrl.trim() !== "") media.push({ url: product.videoUrl, type: 'video' });
         if (product.videoUrls) {
             product.videoUrls.forEach(url => {
@@ -60,7 +59,6 @@ export default function BuyerProductPage() {
             });
         }
 
-        // Real images added by the seller
         if (product.imageUrl && product.imageUrl.trim() !== "") media.push({ url: product.imageUrl, type: 'image' });
         if (product.imageUrls) {
             product.imageUrls.forEach(url => {
@@ -70,7 +68,6 @@ export default function BuyerProductPage() {
             });
         }
         
-        // Only if no media exists, use the clear "No Image" standard placeholder
         return media.length > 0 ? media : [{ url: getPlaceholderImage(), type: 'image' }];
     }, [product]);
 
@@ -128,7 +125,7 @@ export default function BuyerProductPage() {
     
     return (
         <MainLayout>
-            <div className="bg-black text-white pb-24 min-h-screen">
+            <div className="bg-black text-white pb-32 min-h-screen">
                 <div className="relative w-full">
                     <div className="relative aspect-square md:aspect-[16/10] w-full bg-black group">
                         {selectedMedia?.type === 'image' ? (
@@ -173,40 +170,115 @@ export default function BuyerProductPage() {
                 )}
 
                 <div className="container mx-auto max-w-4xl py-8 px-4 space-y-8">
-                    <div>
-                        <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category}</Badge>
-                        <h1 className="font-headline text-3xl md:text-4xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
-                        <p className="text-4xl font-black text-primary tracking-tighter mt-4">USD ${product.price.toLocaleString()}</p>
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div className="flex-1 min-w-0">
+                            <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category}</Badge>
+                            <h1 className="font-headline text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
+                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price.toLocaleString()}</p>
+                        </div>
+                        
+                        {/* Seller Socials Sidebar within Product Info */}
+                        <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-64 shrink-0 shadow-2xl">
+                            <Link href={`/sellers/${sellerId}`} className="flex items-center gap-3 group mb-4">
+                                <Avatar className="h-10 w-10 border border-white/10 group-hover:border-primary transition-all">
+                                    <AvatarImage src={sellerShop?.logoUrl} />
+                                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{sellerShop?.shopName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest leading-none mb-1">Seller</p>
+                                    <p className="font-bold text-sm truncate uppercase tracking-tight group-hover:text-primary transition-colors">{sellerShop?.shopName}</p>
+                                </div>
+                            </Link>
+                            
+                            <Separator className="bg-white/5 mb-4" />
+                            
+                            <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-3">Connect With Shop</p>
+                            <div className="flex items-center gap-2">
+                                {sellerShop?.facebookUrl && <a href={sellerShop.facebookUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-blue-600 rounded-xl flex items-center justify-center text-white transition-all"><Facebook className="h-4 w-4" /></a>}
+                                {sellerShop?.instagramUrl && <a href={sellerShop.instagramUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-pink-600 rounded-xl flex items-center justify-center text-white transition-all"><Instagram className="h-4 w-4" /></a>}
+                                {sellerShop?.twitterUrl && <a href={sellerShop.twitterUrl} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-sky-500 rounded-xl flex items-center justify-center text-white transition-all"><Twitter className="h-4 w-4" /></a>}
+                                {sellerShop?.contactWhatsapp && <a href={`https://wa.me/${sellerShop.contactWhatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="h-9 w-9 bg-white/5 hover:bg-green-600 rounded-xl flex items-center justify-center text-white transition-all"><MessageCircle className="h-4 w-4" /></a>}
+                            </div>
+                        </div>
                     </div>
 
-                    <Card className="bg-neutral-900 border-white/5 rounded-3xl">
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex items-center gap-3 text-neutral-300"><MapPin className="h-5 w-5 text-primary" /> <span>Pickup: <strong className="text-white">{sellerShop?.location || 'Store Location'}</strong></span></div>
-                            <div className="flex items-center gap-3 text-neutral-300"><Truck className="h-5 w-5 text-primary" /> <span>Shipping: <strong className="text-white">{product.deliveryOptions || 'Standard'}</strong> — <strong className="text-green-400">${product.shippingCost || '0.00'}</strong></span></div>
+                    <Card className="bg-neutral-900 border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+                        <CardContent className="p-0">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/5">
+                                <div className="p-6 flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                                        <MapPin className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-0.5">Pickup Location</p>
+                                        <p className="font-bold text-sm text-white uppercase tracking-tight">{sellerShop?.location || 'Store Location'}</p>
+                                    </div>
+                                </div>
+                                <div className="p-6 flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                                        <Truck className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-0.5">Shipping Method</p>
+                                        <p className="font-bold text-sm text-white uppercase tracking-tight">
+                                            {product.deliveryOptions || 'Standard Delivery'} — <span className="text-green-400">${product.shippingCost?.toFixed(2) || '0.00'}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
-                    <div className="flex items-center justify-between bg-neutral-900/50 p-4 rounded-3xl border border-white/5">
-                        <p className="font-black uppercase tracking-widest text-xs text-neutral-500">Quantity</p>
-                        <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-white/5" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus className="h-4 w-4" /></Button>
-                            <span className="w-8 text-center font-black text-xl">{quantity}</span>
-                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-white/5" onClick={() => setQuantity(q => q + 1)}><Plus className="h-4 w-4" /></Button>
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="w-full sm:w-auto flex items-center justify-between bg-neutral-900/50 p-3 rounded-2xl border border-white/5 min-w-[160px]">
+                            <p className="font-black uppercase tracking-widest text-[9px] text-neutral-500 ml-2">Qty</p>
+                            <div className="flex items-center gap-4">
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus className="h-3.5 w-3.5" /></Button>
+                                <span className="w-8 text-center font-black text-xl tabular-nums">{quantity}</span>
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-white/5 hover:bg-white/10" onClick={() => setQuantity(q => q + 1)}><Plus className="h-3.5 w-3.5" /></Button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 w-full grid grid-cols-2 gap-3">
+                            <Button variant="secondary" className="bg-white/5 hover:bg-white/10 text-white border-white/10 rounded-2xl h-16 font-black uppercase text-xs tracking-widest" onClick={handleAddToCart}>
+                                <ShoppingCart className="mr-2 h-4 w-4" /> ADD TO CART
+                            </Button>
+                            <Button className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-16 font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/20" onClick={handleBuyNow}>
+                                BUY NOW <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
 
                     <Accordion type="single" collapsible className="w-full space-y-4" defaultValue="description">
-                        <AccordionItem value="description" className="border-white/10 bg-neutral-900/30 rounded-3xl px-6 border">
-                            <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6">The Full Story</AccordionTrigger>
-                            <AccordionContent className="pb-8 text-neutral-300 whitespace-pre-wrap">{product.description}</AccordionContent>
+                        <AccordionItem value="description" className="border-white/10 bg-neutral-900/30 rounded-3xl px-8 border shadow-xl">
+                            <AccordionTrigger className="font-black uppercase tracking-[0.2em] text-[11px] py-6 hover:no-underline">PRODUCT SPECIFICATIONS</AccordionTrigger>
+                            <AccordionContent className="pb-10 text-neutral-300 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                {product.description}
+                                
+                                {product.tags && (
+                                    <div className="flex flex-wrap gap-2 mt-8">
+                                        {product.tags.split(',').map(tag => (
+                                            <Badge key={tag} variant="outline" className="bg-white/5 border-white/5 text-[9px] font-black uppercase py-1 px-3">
+                                                #{tag.trim()}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+                            </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                 </div>
 
-                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-xl border-t border-white/5 p-3 flex items-center gap-3">
-                    <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-3 py-1 group"><Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/><span className="text-[9px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span></Link>
-                    <Button variant="secondary" className="flex-1 bg-white/5 text-white rounded-2xl h-14 font-black uppercase text-xs" onClick={handleAddToCart}>Add to Cart</Button>
-                    <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase text-xs" onClick={handleBuyNow}>Buy Now</Button>
+                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-2xl border-t border-white/10 p-4 md:hidden">
+                    <div className="flex items-center gap-3">
+                        <Link href={`/sellers/${sellerId}`} className="flex flex-col items-center px-4 py-2 bg-white/5 rounded-2xl shrink-0 group border border-white/5">
+                            <Store className="h-5 w-5 text-neutral-400 group-hover:text-primary transition-colors"/>
+                            <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
+                        </Link>
+                        <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase text-xs tracking-widest" onClick={handleBuyNow}>
+                            BUY FOR ${ (product.price * quantity).toLocaleString() }
+                        </Button>
+                    </div>
                 </div>
             </div>
         </MainLayout>
