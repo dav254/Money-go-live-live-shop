@@ -19,7 +19,6 @@ import {
   Radio,
   Sparkles,
   AreaChart,
-  TestTube,
   Users,
   Info,
 } from 'lucide-react';
@@ -30,9 +29,6 @@ import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUserProfile } from '@/firebase';
 import React from 'react';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export function SellerSidebar() {
   const pathname = usePathname();
@@ -128,20 +124,6 @@ export function SellerSidebar() {
         </SidebarMenu>
       </SidebarGroup>
       
-      <SidebarGroup>
-        <SidebarGroupLabel>Experimental</SidebarGroupLabel>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/media-pipe')}>
-              <Link href="/dashboard/seller/media-pipe">
-                <TestTube className="text-yellow-500" />
-                <span>Media Transfer Test</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroup>
-
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/settings')}>
