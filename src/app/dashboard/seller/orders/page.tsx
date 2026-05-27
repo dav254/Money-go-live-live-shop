@@ -32,18 +32,35 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { useToast } from '@/hooks/use-toast';
-import { Skeleton } from '@/components/ui/skeleton';
-import React, { useMemo, useCallback, useState } from 'react';
-import { format } from 'date-fns';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import React, { useMemo, useCallback, useState } from 'react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
 
 const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   const statusConfig = {
@@ -59,8 +76,7 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
   return <Badge className={cn("capitalize px-3 py-1 font-black text-[10px] tracking-widest", config.className)}>{config.label}</Badge>;
 };
 
-
-const DispatchDialog = ({ order, onDispatch }: { order: Order, onDispatch: (shippingProvider: string, dispatchNote: string) => Promise<void> }) => {
+const DispatchDialogContent = ({ order, onDispatch, onCancel }: { order: Order, onDispatch: (shippingProvider: string, dispatchNote: string) => Promise<void>, onCancel: () => void }) => {
     const [courierName, setCourierName] = useState('');
     const [dispatchNote, setDispatchNote] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -72,7 +88,7 @@ const DispatchDialog = ({ order, onDispatch }: { order: Order, onDispatch: (ship
     };
     
     return (
-        <DialogContent>
+        <>
             <DialogHeader>
                 <DialogTitle>Dispatch Order #{order.id.substring(0,6)}</DialogTitle>
                 <DialogDescription>Enter the shipping details for this order.</DialogDescription>
@@ -88,13 +104,13 @@ const DispatchDialog = ({ order, onDispatch }: { order: Order, onDispatch: (ship
                 </div>
             </div>
             <DialogFooter>
-                <Button variant="ghost" onClick={() => {}}>Cancel</Button>
+                <Button variant="ghost" onClick={onCancel}>Cancel</Button>
                 <Button onClick={handleDispatch} disabled={isSaving || !courierName}>
                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Mark as Shipped
                 </Button>
             </DialogFooter>
-        </DialogContent>
+        </>
     )
 }
 
@@ -146,16 +162,8 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                 }
             });
 
-             const contentType = response.headers.get("content-type");
             if (!response.ok) {
-                let errorData;
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    errorData = await response.json();
-                } else {
-                    const errorText = await response.text();
-                    console.error("Non-JSON error response:", errorText);
-                    throw new Error(response.statusText || 'An unexpected server error occurred.');
-                }
+                const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to delete the order.');
             }
 
@@ -168,10 +176,10 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
 
     if (isLoading && orders.length === 0) {
        return (
-            <div className="rounded-md border">
+            <div className="rounded-md border border-white/5">
                 <Table>
-                    <TableHeader>
-                        <TableRow>
+                    <TableHeader className="bg-neutral-900/50">
+                        <TableRow className="border-white/5">
                             <TableHead>Product</TableHead>
                             <TableHead>Total Amount</TableHead>
                             <TableHead>Date</TableHead>
@@ -181,7 +189,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                     </TableHeader>
                     <TableBody>
                         {[...Array(3)].map((_, i) => (
-                            <TableRow key={i}>
+                            <TableRow key={i} className="border-white/5">
                                 <TableCell><Skeleton className="h-10 w-48" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-16" /></TableCell>
                                 <TableCell><Skeleton className="h-6 w-24" /></TableCell>
@@ -196,14 +204,17 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
     }
 
     if (orders.length === 0) {
-       return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-lg border border-dashed">
-            <h2 className="text-xl font-semibold">No Orders in this Category</h2>
-            <p className="text-muted-foreground text-sm font-medium">This section is empty. New orders will appear here as their status changes.</p>
+       return <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-3xl border border-dashed border-white/10 bg-neutral-900/20">
+            <ListOrdered className="h-12 w-12 text-neutral-700" />
+            <div className="space-y-1">
+                <h2 className="text-lg font-black uppercase tracking-tighter text-white/50">No Orders Found</h2>
+                <p className="text-neutral-500 text-xs font-medium max-w-xs mx-auto">This category is currently empty. New orders will appear here as buyers shop.</p>
+            </div>
         </div>
     }
 
     return (
-        <Dialog open={isDispatching} onOpenChange={setIsDispatching}>
+        <>
             <div className="rounded-md border border-white/5 overflow-hidden shadow-2xl">
                 <Table>
                     <TableHeader className="bg-neutral-900/50">
@@ -221,80 +232,107 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                             const productImage = order.items?.[0]?.imageUrl || order.productImage;
                             
                             return (
-                                <AlertDialog key={order.id}>
-                                    <TableRow className="border-white/5 hover:bg-white/5 group h-16">
-                                        <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10 rounded-xl overflow-hidden border border-white/10 shrink-0">
-                                                    <AvatarImage src={productImage} />
-                                                    <AvatarFallback>{productName?.charAt(0)}</AvatarFallback>
-                                                </Avatar>
-                                                <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">{productName}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-black text-primary text-sm">${order.totalAmount.toLocaleString()}</TableCell>
-                                        <TableCell className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">
-                                            {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <OrderStatusBadge status={order.orderStatus} />
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10">
-                                                        <MoreVertical className="h-4 w-4 text-neutral-400" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-2xl border-white/10">
-                                                    <DropdownMenuItem asChild><Link href={`/messages?chatWith=${order.buyerId}`} className="cursor-pointer font-bold text-xs uppercase"><MessageSquare className="mr-2 h-4 w-4" />Contact Buyer</Link></DropdownMenuItem>
-                                                    <DropdownMenuSeparator className="bg-white/5" />
-                                                    {order.orderStatus === 'pending' && <DropdownMenuItem disabled className="text-muted-foreground italic text-xs">Waiting for buyer payment...</DropdownMenuItem>}
-                                                    {order.orderStatus === 'processing' && 
-                                                        <DialogTrigger asChild>
-                                                            <DropdownMenuItem onSelect={() => setSelectedOrder(order)} className="font-black text-xs uppercase text-primary"><Truck className="mr-2 h-4 w-4" />MARK AS SHIPPED</DropdownMenuItem>
-                                                        </DialogTrigger>
-                                                    }
-                                                    {order.orderStatus === 'shipped' && <DropdownMenuItem disabled className="text-green-500/70 text-xs font-bold uppercase tracking-widest">Awaiting Confirmation</DropdownMenuItem>}
-                                                     {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && (
+                                <TableRow key={order.id} className="border-white/5 hover:bg-white/5 group h-16">
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-10 w-10 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                                                <AvatarImage src={productImage} />
+                                                <AvatarFallback>{productName?.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px]">{productName}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="font-black text-primary text-sm">${order.totalAmount.toLocaleString()}</TableCell>
+                                    <TableCell className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">
+                                        {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
+                                    </TableCell>
+                                    <TableCell>
+                                        <OrderStatusBadge status={order.orderStatus} />
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white/10">
+                                                    <MoreVertical className="h-4 w-4 text-neutral-400" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-56 rounded-xl shadow-2xl border-white/10">
+                                                <DropdownMenuItem asChild>
+                                                    <Link href={`/messages?chatWith=${order.buyerId}`} className="cursor-pointer font-bold text-xs uppercase">
+                                                        <MessageSquare className="mr-2 h-4 w-4" />Contact Buyer
+                                                    </Link>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator className="bg-white/5" />
+                                                
+                                                {order.orderStatus === 'pending' && (
+                                                    <DropdownMenuItem disabled className="text-muted-foreground italic text-xs">Waiting for buyer payment...</DropdownMenuItem>
+                                                )}
+
+                                                {order.orderStatus === 'processing' && (
+                                                    <DropdownMenuItem 
+                                                        onSelect={() => {
+                                                            setSelectedOrder(order);
+                                                            setIsDispatching(true);
+                                                        }} 
+                                                        className="font-black text-xs uppercase text-primary"
+                                                    >
+                                                        <Truck className="mr-2 h-4 w-4" />MARK AS SHIPPED
+                                                    </DropdownMenuItem>
+                                                )}
+
+                                                {order.orderStatus === 'shipped' && (
+                                                    <DropdownMenuItem disabled className="text-green-500/70 text-xs font-bold uppercase tracking-widest">Awaiting Confirmation</DropdownMenuItem>
+                                                )}
+
+                                                {(order.orderStatus === 'delivered' || order.orderStatus === 'cancelled' || order.orderStatus === 'disputed') && (
+                                                    <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem className="text-destructive font-bold text-xs uppercase tracking-widest">
+                                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive font-bold text-xs uppercase tracking-widest">
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 DELETE ORDER
                                                             </DropdownMenuItem>
                                                         </AlertDialogTrigger>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                    <AlertDialogContent className="rounded-3xl border-white/10 bg-neutral-950">
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Permanent Deletion?</AlertDialogTitle>
-                                            <AlertDialogDescription className="text-xs font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">
-                                                This will remove the record of order #{order.id.substring(0, 8)}... permanently from your dashboard.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px]">
-                                                CONFIRM DELETE
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
+                                                        <AlertDialogContent className="rounded-3xl border-white/10 bg-neutral-950">
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Permanent Deletion?</AlertDialogTitle>
+                                                                <AlertDialogDescription className="text-xs font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">
+                                                                    This will remove the record of order #{order.id.substring(0, 8)}... permanently from your dashboard.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px]">
+                                                                    CONFIRM DELETE
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
                             )
                         })}
                     </TableBody>
                 </Table>
             </div>
-             {selectedOrder && (
-                <DispatchDialog order={selectedOrder} onDispatch={async (provider, note) => {
-                    await handleDispatch(selectedOrder.id, provider, note);
-                    setIsDispatching(false);
-                }}/>
-            )}
-        </Dialog>
+
+            <Dialog open={isDispatching} onOpenChange={setIsDispatching}>
+                {selectedOrder && (
+                    <DialogContent className="rounded-3xl border-white/10 bg-neutral-950">
+                        <DispatchDialogContent 
+                            order={selectedOrder} 
+                            onDispatch={async (provider, note) => {
+                                await handleDispatch(selectedOrder.id, provider, note);
+                                setIsDispatching(false);
+                            }}
+                            onCancel={() => setIsDispatching(false)}
+                        />
+                    </DialogContent>
+                )}
+            </Dialog>
+        </>
     );
 };
 

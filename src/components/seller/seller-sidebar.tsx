@@ -121,7 +121,8 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/reseller')}>
