@@ -7,6 +7,7 @@ import { useUser, useUserProfile } from '@/firebase';
 
 /**
  * Optimized Viewer for Buyers with instant attachment logic.
+ * Ensures the broadcast syncs the moment the meeting is joined.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream, webcamOn } = useParticipant(participantId);
@@ -19,7 +20,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
       videoRef.current.play().catch(err => {
-          if (err.name !== 'AbortError') console.warn("[Live Sync] Video boost failed:", err);
+          if (err.name !== 'AbortError') console.warn("[Live Sync] Video attachment failed:", err);
       });
     }
   }, [webcamStream]);
@@ -39,15 +40,16 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         ref={videoRef} 
         autoPlay 
         playsInline 
-        muted={true} 
+        muted={false} 
         className="h-full w-full object-contain md:object-cover"
       />
       <audio ref={audioRef} autoPlay playsInline />
       
-      {!webcamOn && (
+      {/* Show technical sync overlay ONLY if no video stream exists at all */}
+      {!webcamStream && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-950/80 backdrop-blur-sm z-50">
           <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
-          <p className="text-neutral-500 mt-4 text-[10px] font-black uppercase tracking-widest">Host adjusting signal...</p>
+          <p className="text-neutral-500 mt-4 text-[10px] font-black uppercase tracking-widest">Optimizing Data Stream...</p>
         </div>
       )}
     </div>
@@ -65,9 +67,10 @@ const ViewerMeetingView = () => {
     }
   }, [join, isMeetingJoined]);
 
-  // Find host or any active participant immediately
+  // Priority search for the host participant
   const host = React.useMemo(() => {
     const participantsArray = Array.from(participants.values());
+    // In a broadcast, the first non-local participant is almost always the host
     return participantsArray.find(p => !p.local) || null;
   }, [participants]);
 
@@ -76,8 +79,12 @@ const ViewerMeetingView = () => {
       {host ? (
         <ParticipantView participantId={host.id} />
       ) : (
-        <div className="h-full w-full flex items-center justify-center bg-black">
-           <Loader2 className="h-6 w-6 animate-spin text-primary opacity-20" />
+        <div className="h-full w-full flex flex-col items-center justify-center bg-black">
+           <div className="relative mb-6">
+                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+                <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+           </div>
+           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em]">Negotiating Handshake...</p>
         </div>
       )}
     </div>
@@ -90,14 +97,14 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   
-  const displayName = userProfile?.fullName || userProfile?.username || user?.displayName || "Guest Buyer";
+  const displayName = userProfile?.fullName || userProfile?.username || user?.displayName || "Global Buyer";
 
   useEffect(() => {
     const fetchToken = async () => {
       try {
         const res = await fetch('/api/videosdk/token');
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Signal error');
+        if (!res.ok) throw new Error(data.message || 'Handshake failed');
         if (data.token) setToken(data.token);
       } catch (err: any) {
         console.error("[Signal Token] fetch failed:", err);
@@ -111,7 +118,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-black text-center p-12">
         <AlertCircle className="h-8 w-8 text-red-500/50 mb-4" />
-        <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest">Signal Unavailable</p>
+        <p className="text-neutral-500 text-[10px] font-black uppercase tracking-widest">Signal Handshake Failed</p>
       </div>
     );
   }

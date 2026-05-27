@@ -15,6 +15,10 @@ import { LivePromoPanel } from './LivePromoPanel';
 import { LiveViewersList } from './LiveViewersList';
 import type { LiveSession } from '@/lib/types';
 
+/**
+ * Optimized ParticipantView for the Seller Studio.
+ * Uses HHD quality and ensures instant attachment.
+ */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, webcamOn, local } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -38,21 +42,29 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
             videoRef.current.srcObject = null;
         }
     };
-  }, [webcamStream, webcamOn]);
+  }, [webcamStream]); // Re-attach whenever stream updates
 
   return (
     <div className="relative h-full w-full bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5">
-      <video ref={videoRef} autoPlay playsInline muted={local} className="h-full w-full object-contain md:object-cover" />
-      {!webcamOn && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 backdrop-blur-sm p-6 text-center">
+      <video 
+        ref={videoRef} 
+        autoPlay 
+        playsInline 
+        muted={local} 
+        className="h-full w-full object-contain md:object-cover" 
+      />
+      
+      {/* Overlay shows ONLY if there is absolutely no stream data yet */}
+      {!webcamStream && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900/95 backdrop-blur-sm z-40">
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
             <Radio className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
           <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">
-            Connecting Signal...
+            Syncing Signal...
           </p>
           <p className="text-neutral-500 mt-2 text-[10px] font-black uppercase tracking-widest">
-            Please wait for the preview to sync or start your broadcast manually.
+            Establishing 4K data connection.
           </p>
         </div>
       )}

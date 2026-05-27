@@ -95,7 +95,7 @@ export default function SignupPage() {
         joinDate: new Date().toISOString(),
         userRole: values.role,
         role: values.role,
-        aiPoints: values.role === 'seller' ? 1000 : 0, // AWARD 1000 BONUS POINTS TO SELLERS
+        aiPoints: values.role === 'seller' ? 1000 : 0, 
         status: 'active',
         ...(values.role === 'seller' && { freePointsAwardedAt: new Date().toISOString() })
       };
