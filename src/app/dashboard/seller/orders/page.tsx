@@ -1,3 +1,4 @@
+
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -71,7 +72,7 @@ const OrderStatusBadge = ({ status }: { status: Order['orderStatus'] }) => {
     delivery: { label: 'In Delivery', className: 'bg-cyan-500/80 hover:bg-cyan-500/70' },
     delivered: { label: 'Delivered', className: 'bg-green-600/80 hover:bg-green-600/70' },
     cancelled: { label: 'Cancelled', className: 'bg-red-500/80 hover:bg-red-500/70' },
-    disputed: { label: 'Disputed', className: 'bg-orange-500/80 hover:bg-orange-500/70' },
+    disputed: { label: 'Disputed', className: 'bg-orange-600/80 hover:bg-orange-600/70' },
     refunded: { label: 'Refunded', className: 'bg-gray-500/80 hover:bg-gray-500/70' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || { label: 'Unknown', className: 'bg-gray-400' };
@@ -339,7 +340,7 @@ export default function SellerOrdersPage() {
             collection(firestore, 'orders'),
             where('sellerId', '==', user.uid)
         );
-    }, [firestore, user]);
+  }, [firestore, user]);
 
     const { data, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
 

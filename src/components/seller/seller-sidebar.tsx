@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -13,6 +14,7 @@ import {
   Package,
   Store,
   HelpCircle,
+  Users,
   Home,
   MessageSquare,
   Radio,
@@ -27,7 +29,7 @@ import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import React, { useMemo } from 'react';
 import { collection, query, where } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
+import type { Order, Chat } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 export function SellerSidebar() {
@@ -49,6 +51,22 @@ export function SellerSidebar() {
 
   const { data: activeOrders } = useCollection<Order>(ordersQuery);
   const activeOrdersCount = activeOrders?.length || 0;
+
+  // Query for unread messages count
+  const chatsQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+        collection(firestore, 'chats'),
+        where('participantIds', 'array-contains', user.uid)
+    );
+  }, [firestore, user]);
+
+  const { data: chats } = useCollection<Chat>(chatsQuery);
+
+  const unreadMessagesCount = useMemo(() => {
+    if (!chats || !user) return 0;
+    return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
+  }, [chats, user]);
 
   return (
     <>
@@ -83,7 +101,7 @@ export function SellerSidebar() {
                 <Package />
                 <span>Orders</span>
                 {activeOrdersCount > 0 && (
-                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[8px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
+                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
                         {activeOrdersCount}
                     </Badge>
                 )}
@@ -102,9 +120,14 @@ export function SellerSidebar() {
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')}>
-              <Link href="/messages">
+              <Link href="/messages" className="relative">
                 <MessageSquare />
                 <span>Inbox</span>
+                {unreadMessagesCount > 0 && (
+                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
+                        {unreadMessagesCount}
+                    </Badge>
+                )}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
