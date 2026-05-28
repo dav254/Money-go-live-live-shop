@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import React, { useMemo } from 'react';
 import { collection, query, where } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 export function SellerSidebar() {
   const pathname = usePathname();
@@ -36,7 +37,7 @@ export function SellerSidebar() {
   const firestore = useFirestore();
   const isActive = (path: string) => pathname === path || pathname.startsWith(path);
 
-  // Query for active orders to show notification dot
+  // Query for active orders to show notification count
   const ordersQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -47,7 +48,7 @@ export function SellerSidebar() {
   }, [firestore, user]);
 
   const { data: activeOrders } = useCollection<Order>(ordersQuery);
-  const hasActiveOrders = useMemo(() => activeOrders && activeOrders.length > 0, [activeOrders]);
+  const activeOrdersCount = activeOrders?.length || 0;
 
   return (
     <>
@@ -81,11 +82,10 @@ export function SellerSidebar() {
               <Link href="/dashboard/seller/orders" className="relative">
                 <Package />
                 <span>Orders</span>
-                {hasActiveOrders && (
-                    <span className="absolute right-2 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
-                    </span>
+                {activeOrdersCount > 0 && (
+                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[8px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
+                        {activeOrdersCount}
+                    </Badge>
                 )}
               </Link>
             </SidebarMenuButton>

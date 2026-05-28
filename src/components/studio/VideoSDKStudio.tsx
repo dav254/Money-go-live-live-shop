@@ -20,7 +20,7 @@ import type { LiveSession } from '@/lib/types';
  * Locked to HHD quality for a professional broadcast feel.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
-  const { webcamStream, webcamOn, local } = useParticipant(participantId);
+  const { webcamStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Stable effect for video attachment
@@ -49,7 +49,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         ref={videoRef} 
         autoPlay 
         playsInline 
-        muted={local} 
+        muted={true} 
         className="h-full w-full object-contain md:object-cover" 
       />
       
@@ -437,6 +437,7 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
 }) {
   return (
     <MeetingProvider
+      token={token}
       config={{
         meetingId,
         micEnabled: true,
@@ -447,13 +448,11 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         webcamConfig: {
             resolution: "hhd", 
             optimizationMode: "motion",
-            multiStream: false,
         },
         micConfig: {
             quality: "high_res",
         }
       }}
-      token={token}
     >
       <MeetingConsumer>
         {() => <MeetingView onEnd={onEnd} onBroadcast={onBroadcast} isLive={isLive} />}

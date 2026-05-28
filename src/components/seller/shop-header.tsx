@@ -25,37 +25,12 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     if (userProfile && userProfile.following && seller.id) {
       setIsFollowing(userProfile.following.includes(seller.id));
     }
   }, [userProfile, seller.id]);
-
-  const handleApplyToResell = async () => {
-    if (!user || !firestore) {
-      toast({ variant: 'destructive', title: 'Please log in to apply.' });
-      return;
-    }
-    setIsApplying(true);
-    const applicationRef = doc(collection(firestore, 'resellerApplications'));
-    try {
-      await setDoc(applicationRef, {
-        id: applicationRef.id,
-        resellerId: user.uid,
-        sellerId: seller.id,
-        status: 'pending',
-        applicationDate: serverTimestamp(),
-      });
-      toast({ title: 'Application Sent!', description: `Your request to resell for ${seller.name} has been sent.` });
-    } catch (error) {
-      console.error('Error creating reseller application:', error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your application.' });
-    } finally {
-      setIsApplying(false);
-    }
-  };
 
   const handleFollow = async () => {
     if (!user || !firestore) {
