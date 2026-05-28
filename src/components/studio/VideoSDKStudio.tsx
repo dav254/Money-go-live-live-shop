@@ -18,7 +18,6 @@ import type { LiveSession } from '@/lib/types';
 
 /**
  * Optimized ParticipantView for the Seller Studio.
- * Locked to HHD quality for a professional broadcast feel.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream } = useParticipant(participantId);
@@ -33,14 +32,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           if (err.name !== 'AbortError') console.error("Studio play failed:", err);
       });
     }
-    
-    return () => {
-        if (videoRef.current?.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(t => t.stop());
-            videoRef.current.srcObject = null;
-        }
-    };
   }, [webcamStream]);
 
   return (
@@ -103,7 +94,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         {hasUnreadChat && activePanel !== 'chat' && (
           <span className="absolute -top-1 -right-1 flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-full rounded-full h-3 w-3 bg-red-500 border border-black"></span>
+            <span className="relative inline-block rounded-full h-3 w-3 bg-red-500 border border-black"></span>
           </span>
         )}
       </Button>

@@ -147,7 +147,7 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -156,7 +156,7 @@ export function SellerSidebar() {
                 <Sparkles className="text-primary" />
                 <span>AI Seller Toolkit</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
@@ -170,7 +170,7 @@ export function SellerSidebar() {
                   <Info />
                   <span>About Us</span>
                 </Link>
-              </SidebarMenuItem>
+              </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
                 <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
@@ -178,10 +178,11 @@ export function SellerSidebar() {
                     <HelpCircle />
                     <span>Support</span>
                   </Link>
-                </SidebarMenuItem>
+                </SidebarMenuButton>
               </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
+
 
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
@@ -190,7 +191,7 @@ export function SellerSidebar() {
                 <Settings />
                 <span>Shop Settings</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         <Separator className="my-2" />
         <SidebarMenuItem>
@@ -204,7 +205,7 @@ export function SellerSidebar() {
                     <Store />
                     <span>View Public Shop</span>
                 </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
            <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
@@ -215,7 +216,7 @@ export function SellerSidebar() {
               </Avatar>
               <span className="truncate">{userProfile?.fullName || "My Account"}</span>
             </Link>
-          </SidebarMenuItem>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </>
