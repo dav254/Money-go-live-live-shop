@@ -1,9 +1,10 @@
+
 'use client';
 
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, VideoOff, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';
+import { StopCircle, Loader2, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -23,7 +24,6 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Stable effect for video attachment
   useEffect(() => {
     if (videoRef.current && webcamStream) {
       const mediaStream = new MediaStream();
@@ -225,6 +225,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         const secs = Math.floor((remaining % 60000) / 1000);
         
         if (mins < 5) setIsLowTime(true);
+        else setIsLowTime(false);
         
         setTimeRemaining(`${mins}:${secs.toString().padStart(2, '0')}`);
     }, 1000);
@@ -265,14 +266,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
     }
   };
 
-  const handleShare = () => {
-    if (!user) return;
-    const url = `${window.location.origin}/buyer/live/${user.uid}`;
-    navigator.clipboard.writeText(url).then(() => {
-        toast({ title: 'Link Copied!', description: 'Invite people to your stream.' });
-    });
-  };
-
   const handleBroadcastWithUpdate = async () => {
     if (!user || !firestore) return;
     try {
@@ -300,16 +293,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                         <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
                         {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
                     </div>
-
-                    <Button 
-                        onClick={handleShare}
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-9 w-9 rounded-full backdrop-blur-xl border border-white/10 bg-black/40 text-white shadow-2xl hover:bg-black/60 active:scale-95 transition-all pointer-events-auto"
-                        title="Share Stream"
-                    >
-                        <Share2 className="h-4 w-4" />
-                    </Button>
                   </div>
 
                   {isLive && (
@@ -319,12 +302,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                     )}>
                         <Clock className={cn("h-3 w-3", isLowTime && "animate-spin-slow")} />
                         <span className="font-mono">{timeRemaining}</span>
-                    </div>
-                  )}
-                  
-                  {session?.title && (
-                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl hidden md:block">
-                        <p className="text-white font-black uppercase text-[10px] tracking-tight">{session.title}</p>
                     </div>
                   )}
               </div>
@@ -344,11 +321,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                   </div>
                 ) : (
                   <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-3xl">
-                    <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                        <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
-                    </div>
-                    <p className="text-white/50 text-sm font-medium uppercase tracking-widest font-headline text-center">Synchronizing Studio Hub...</p>
+                    <Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" />
                   </div>
                 );
               }}

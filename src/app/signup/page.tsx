@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -200,8 +201,8 @@ export default function SignupPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="buyer">Buyer</SelectItem>
-                          <SelectItem value="seller">Seller</SelectItem>
+                          <SelectItem value="buyer">Buyer (I want to shop)</SelectItem>
+                          <SelectItem value="seller">Seller (I want to sell)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

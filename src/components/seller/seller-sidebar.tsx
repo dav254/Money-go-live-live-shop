@@ -39,7 +39,7 @@ export function SellerSidebar() {
   const firestore = useFirestore();
   const isActive = (path: string) => pathname === path || pathname.startsWith(path);
 
-  // Query for active orders to show notification count
+  // Query for active orders (pending or processing) to show in the sidebar badge
   const ordersQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -52,7 +52,7 @@ export function SellerSidebar() {
   const { data: activeOrders } = useCollection<Order>(ordersQuery);
   const activeOrdersCount = activeOrders?.length || 0;
 
-  // Query for unread messages count
+  // Query for chats to find total unread count
   const chatsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -97,11 +97,13 @@ export function SellerSidebar() {
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/orders')}>
-              <Link href="/dashboard/seller/orders" className="relative">
-                <Package />
-                <span>Orders</span>
+              <Link href="/dashboard/seller/orders" className="relative flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <Package />
+                  <span>Orders</span>
+                </div>
                 {activeOrdersCount > 0 && (
-                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
+                    <Badge className="h-5 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
                         {activeOrdersCount}
                     </Badge>
                 )}
@@ -120,11 +122,13 @@ export function SellerSidebar() {
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')}>
-              <Link href="/messages" className="relative">
-                <MessageSquare />
-                <span>Inbox</span>
+              <Link href="/messages" className="relative flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <MessageSquare />
+                  <span>Inbox</span>
+                </div>
                 {unreadMessagesCount > 0 && (
-                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
+                    <Badge className="h-5 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
                         {unreadMessagesCount}
                     </Badge>
                 )}
@@ -143,7 +147,7 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -152,7 +156,7 @@ export function SellerSidebar() {
                 <Sparkles className="text-primary" />
                 <span>AI Seller Toolkit</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
@@ -166,7 +170,7 @@ export function SellerSidebar() {
                   <Info />
                   <span>About Us</span>
                 </Link>
-              </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenuItem>
              <SidebarMenuItem>
                 <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
@@ -174,7 +178,7 @@ export function SellerSidebar() {
                     <HelpCircle />
                     <span>Support</span>
                   </Link>
-                </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
@@ -186,7 +190,7 @@ export function SellerSidebar() {
                 <Settings />
                 <span>Shop Settings</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
         <Separator className="my-2" />
         <SidebarMenuItem>
@@ -200,7 +204,7 @@ export function SellerSidebar() {
                     <Store />
                     <span>View Public Shop</span>
                 </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
         </SidebarMenuItem>
         <SidebarMenuItem>
            <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
@@ -211,7 +215,7 @@ export function SellerSidebar() {
               </Avatar>
               <span className="truncate">{userProfile?.fullName || "My Account"}</span>
             </Link>
-          </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenuItem>
       </SidebarMenu>
     </>
