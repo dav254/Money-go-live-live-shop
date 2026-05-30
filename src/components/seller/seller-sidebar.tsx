@@ -146,8 +146,7 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+            </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-tools')}>
@@ -169,16 +168,14 @@ export function SellerSidebar() {
                   <Info />
                   <span>About Us</span>
                 </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+              </SidebarMenuItem>
              <SidebarMenuItem>
                 <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
                   <Link href="/dashboard/seller/help">
                     <HelpCircle />
                     <span>Support</span>
                   </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
 
@@ -190,8 +187,7 @@ export function SellerSidebar() {
                 <Settings />
                 <span>Shop Settings</span>
               </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+            </SidebarMenuItem>
         <Separator className="my-2" />
         <SidebarMenuItem>
             <SidebarMenuButton
@@ -204,8 +200,7 @@ export function SellerSidebar() {
                     <Store />
                     <span>View Public Shop</span>
                 </Link>
-            </SidebarMenuButton>
-        </SidebarMenuItem>
+            </SidebarMenuItem>
         <SidebarMenuItem>
            <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
             <Link href="/dashboard/account">
@@ -215,8 +210,7 @@ export function SellerSidebar() {
               </Avatar>
               <span className="truncate">{userProfile?.fullName || "My Account"}</span>
             </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+          </SidebarMenuItem>
       </SidebarMenu>
     </>
   );
