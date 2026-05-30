@@ -6,10 +6,6 @@ import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@v
 import { VideoOff, Loader2, AlertCircle } from 'lucide-react';
 import { useUser, useUserProfile } from '@/firebase';
 
-/**
- * Optimized Viewer for Buyers.
- * Streams start playing the second the first packet is received.
- */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,7 +63,6 @@ const ViewerMeetingView = () => {
     }
   }, [join, isMeetingJoined]);
 
-  // Find host participant (usually the only non-local participant in a show)
   const host = useMemo(() => {
     const participantsArray = Array.from(participants.values());
     return participantsArray.find(p => !p.local) || null;

@@ -72,7 +72,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
     const { toast } = useToast();
     const { user } = useUser();
 
-    const handleDeleteOrder = async (orderId: string) => {
+    const handleCancelOrder = async (orderId: string) => {
         if (!firestore || !user) return;
         try {
             const token = await user.getIdToken();
@@ -81,7 +81,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'cancelled' })
             });
-            if (!response.ok) throw new Error('Failed to update order.');
+            if (!response.ok) throw new Error('Failed to cancel order.');
             toast({ title: 'Order Cancelled' });
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
@@ -122,8 +122,8 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
         <div className="flex h-64 flex-col items-center justify-center gap-4 text-center rounded-[2rem] border border-dashed border-white/10 bg-neutral-900/20">
             <ListOrdered className="h-12 w-12 text-neutral-700" />
             <div className="space-y-1">
-                <h2 className="text-lg font-black uppercase tracking-tighter text-white/50">No Orders in this queue</h2>
-                <p className="text-neutral-500 text-[10px] font-bold uppercase tracking-widest max-w-xs mx-auto">This stage of the pipeline is currently clear.</p>
+                <h2 className="text-lg font-black uppercase tracking-tighter text-white/50">Pipeline Clear</h2>
+                <p className="text-neutral-500 text-[10px] font-bold uppercase tracking-widest max-w-xs mx-auto">No orders currently match this filter.</p>
             </div>
         </div>
        )
@@ -172,31 +172,29 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-2xl border-white/10 bg-neutral-950">
-                                                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Admin</DropdownMenuLabel>
+                                                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Order Support</DropdownMenuLabel>
                                                 <DropdownMenuItem asChild>
                                                     <Link href={`/messages?chatWith=${order.buyerId}`} className="cursor-pointer font-bold text-xs uppercase">
                                                         <MessageSquare className="mr-2 h-4 w-4" />Chat with Buyer
                                                     </Link>
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator className="bg-white/5" />
-                                                
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive font-bold text-xs uppercase tracking-widest focus:text-destructive focus:bg-destructive/10">
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            CANCEL ORDER
+                                                            <Trash2 className="mr-2 h-4 w-4" /> CANCEL ORDER
                                                         </DropdownMenuItem>
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent className="rounded-3xl border-white/10 bg-neutral-950 border-2">
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Cancel Order?</AlertDialogTitle>
+                                                            <AlertDialogTitle className="font-black uppercase tracking-tighter text-white">Cancel Transaction?</AlertDialogTitle>
                                                             <AlertDialogDescription className="text-xs font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">
-                                                                This will mark order #{order.id.substring(0, 8)}... as cancelled.
+                                                                This will mark order #{order.id.substring(0, 8)}... as cancelled. This action is tracked for safety.
                                                             </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
-                                                            <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Back</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px] border-none">
+                                                            <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Close</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleCancelOrder(order.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px] border-none">
                                                                 CONFIRM CANCEL
                                                             </AlertDialogAction>
                                                         </AlertDialogFooter>
@@ -252,15 +250,15 @@ export default function SellerOrdersPage() {
                 </h1>
                 <p className="text-muted-foreground font-medium text-[10px] uppercase tracking-widest mt-2 flex items-center gap-2">
                     <CheckCircle className="h-3 w-3 text-primary" /> 
-                    Fulfillment and verification dashboard
+                    Fulfillment and escrow management
                 </p>
             </div>
             
             {paidOrdersCount > 0 && (
                 <Alert className="max-w-sm bg-primary/10 border-primary/20 text-primary rounded-2xl animate-in slide-in-from-top-4 duration-500">
                     <AlertCircle className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Payment Confirmed</AlertTitle>
-                    <AlertDescription className="text-xs font-bold uppercase tracking-tight">You have {paidOrdersCount} order(s) where payment is verified. Contact Admin to coordinate delivery.</AlertDescription>
+                    <AlertTitle className="text-[10px] font-black uppercase tracking-widest">Payment Escrowed</AlertTitle>
+                    <AlertDescription className="text-xs font-bold uppercase tracking-tight">You have {paidOrdersCount} order(s) with verified payment. Admin will chat with you soon to release delivery funds.</AlertDescription>
                 </Alert>
             )}
         </div>

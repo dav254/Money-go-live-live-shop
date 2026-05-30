@@ -1,23 +1,20 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';
+import { StopCircle, Loader2, MessageSquare, ShoppingBag, X, Zap, Users, Clock, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where, increment } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 import { LivePromoPanel } from './LivePromoPanel';
 import { LiveViewersList } from './LiveViewersList';
 import type { LiveSession } from '@/lib/types';
 
-/**
- * Optimized ParticipantView for the Seller Studio.
- */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -72,14 +69,8 @@ interface StudioControlsProps {
 const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel, hasUnreadChat }: StudioControlsProps) => {
   const { leave } = useMeeting();
 
-  const handleEndClick = () => {
-    leave();
-    onEnd();
-  };
-
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
-      
       <Button
         size="icon"
         variant="ghost"
@@ -146,7 +137,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
       ) : (
         <Button
           variant="destructive"
-          onClick={handleEndClick}
+          onClick={() => { leave(); onEnd(); }}
           className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:sm text-white"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
@@ -174,10 +165,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   const { data: session } = useDoc<LiveSession>(sessionRef);
 
   useEffect(() => {
-    if (!firestore || !user?.uid || !isLive || activePanel === 'chat' || !session?.startTime) {
-      if (activePanel === 'chat') setHasUnreadChat(false);
-      return;
-    }
+    if (!firestore || !user?.uid || !isLive || !session?.startTime) return;
 
     const q = query(
       collection(firestore, `liveSessions/${user.uid}/chat`),
@@ -213,10 +201,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
         const mins = Math.floor(remaining / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
-        
-        if (mins < 5) setIsLowTime(true);
-        else setIsLowTime(false);
-        
+        setIsLowTime(mins < 5);
         setTimeRemaining(`${mins}:${secs.toString().padStart(2, '0')}`);
     }, 1000);
 
@@ -229,10 +214,6 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
         join();
     }
   }, [join, isMeetingJoined]);
-
-  const handleTogglePanel = (panel: 'chat' | 'products' | 'promos' | 'viewers') => {
-      setActivePanel(prev => prev === panel ? null : panel);
-  };
 
   const handlePinProduct = async (product: any) => {
     if (!user || !firestore) return;
@@ -323,7 +304,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
             onBroadcast={handleBroadcastWithUpdate} 
             isLive={isLive} 
             activePanel={activePanel}
-            onTogglePanel={handleTogglePanel}
+            onTogglePanel={(p) => setActivePanel(prev => prev === p ? null : p)}
             hasUnreadChat={hasUnreadChat}
           />
       </div>
@@ -337,51 +318,38 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
                     {activePanel === 'chat' ? 'Public Chat' : activePanel === 'products' ? 'Catalog Tools' : activePanel === 'viewers' ? 'Active Viewers' : 'Live Promos'}
                   </p>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 rounded-full hover:bg-white/5" 
-                    onClick={() => setActivePanel(null)}
-                  >
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/5" onClick={() => setActivePanel(null)}>
                     <X className="h-4 w-4 text-white/40" />
                   </Button>
               </div>
 
               <div className="flex-1 overflow-hidden relative">
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
-                      {user ? <LiveChat streamId={user.uid} /> : null}
+                      {user && <LiveChat streamId={user.uid} />}
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'viewers' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       <LiveViewersList />
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'products' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
-                      <div className="flex flex-col h-full overflow-hidden">
-                          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
-                              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
-                              <ShieldCheck className="h-4 w-4 text-green-500" />
-                          </div>
-                          <div className="flex-1 overflow-hidden">
-                              {user && (
+                      {user && (
+                          <div className="flex flex-col h-full overflow-hidden">
+                              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
+                                  <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
+                                  <Radio className="h-4 w-4 text-green-500" />
+                              </div>
+                              <div className="flex-1 overflow-hidden">
                                   <LiveProductShelf 
                                       sellerId={user.uid} 
                                       onPinProduct={handlePinProduct} 
                                       onUnpinProduct={handleUnpinProduct}
                                       pinnedProductId={pinnedProductId}
                                   />
-                              )}
+                              </div>
                           </div>
-                      </div>
+                      )}
                   </div>
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'promos' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
-                      <div className="flex flex-col h-full overflow-hidden">
-                          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
-                              <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Growth Tools</p>
-                              <Sparkles className="h-4 w-4 text-yellow-500" />
-                          </div>
-                          <div className="flex-1 overflow-hidden">
-                              {user && <LivePromoPanel streamId={user.uid} />}
-                          </div>
-                      </div>
+                      {user && <LivePromoPanel streamId={user.uid} />}
                   </div>
               </div>
           </div>
@@ -408,13 +376,8 @@ export default function VideoSDKStudio({ meetingId, participantName, token, onEn
         name: participantName,
         mode: "CONFERENCE",
         multiStream: false,
-        webcamConfig: {
-            resolution: "hhd", 
-            optimizationMode: "motion",
-        },
-        micConfig: {
-            quality: "high_res",
-        }
+        webcamConfig: { resolution: "hhd", optimizationMode: "motion" },
+        micConfig: { quality: "high_res" }
       }}
     >
       <MeetingConsumer>
