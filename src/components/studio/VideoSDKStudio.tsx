@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
 import { StopCircle, Loader2, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';

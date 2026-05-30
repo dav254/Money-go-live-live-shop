@@ -1,4 +1,3 @@
-
 'use client';
 
 import { SellerLayout } from '@/components/layout/seller-layout';
