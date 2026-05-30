@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
 import { useUser, useFirestore, useDoc } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, where, increment } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 import { LivePromoPanel } from './LivePromoPanel';

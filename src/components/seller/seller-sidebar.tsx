@@ -139,7 +139,7 @@ export function SellerSidebar() {
       </SidebarGroup>
 
       <SidebarGroup>
-        <SidebarGroupLabel>Growth & Leads</SidebarGroupLabel>
+        <SidebarGroupLabel>Growth</SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/go-live')}>
@@ -154,7 +154,7 @@ export function SellerSidebar() {
             <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/ai-tools')}>
               <Link href="/dashboard/seller/ai-tools">
                 <Sparkles className="text-primary" />
-                <span>AI Seller Toolkit</span>
+                <span>AI Toolkit</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
