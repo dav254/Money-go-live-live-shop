@@ -17,7 +17,6 @@ const HomePageContent = () => {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
 
-  // Automatic redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       const role = userProfile.userRole || userProfile.role;
@@ -33,7 +32,6 @@ const HomePageContent = () => {
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
-  // Show a clean loader while checking auth status to prevent flicker
   if (isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-black">

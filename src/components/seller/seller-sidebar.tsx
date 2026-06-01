@@ -82,7 +82,7 @@ export function SellerSidebar() {
                 <Home />
                 <span>Overview</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
           
           <SidebarMenuItem>
@@ -91,7 +91,7 @@ export function SellerSidebar() {
                 <ShoppingBag />
                 <span>Inventory</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -107,7 +107,7 @@ export function SellerSidebar() {
                     </Badge>
                 )}
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -116,7 +116,7 @@ export function SellerSidebar() {
                 <AreaChart />
                 <span>Analytics</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -132,7 +132,7 @@ export function SellerSidebar() {
                     </Badge>
                 )}
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
@@ -146,7 +146,7 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -155,7 +155,7 @@ export function SellerSidebar() {
                 <Sparkles className="text-primary" />
                 <span>AI Toolkit</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
@@ -169,7 +169,7 @@ export function SellerSidebar() {
                   <Info />
                   <span>About Us</span>
                 </Link>
-              </SidebarMenuItem>
+              </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
                 <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
@@ -177,11 +177,10 @@ export function SellerSidebar() {
                     <HelpCircle />
                     <span>Support</span>
                   </Link>
-                </SidebarMenuItem>
+                </SidebarMenuButton>
               </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
-
 
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
@@ -190,7 +189,7 @@ export function SellerSidebar() {
                 <Settings />
                 <span>Shop Settings</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         <Separator className="my-2" />
         <SidebarMenuItem>
@@ -202,7 +201,7 @@ export function SellerSidebar() {
             >
                 <Link href={`/sellers/${user?.uid}`}>
                     <Store />
-                    <span>View Public Shop</span>
+                    <span>View My Shop</span>
                 </Link>
             </SidebarMenuButton>
         </SidebarMenuItem>

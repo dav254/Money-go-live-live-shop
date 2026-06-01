@@ -14,7 +14,7 @@ export const Logo = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => 
     </g>
     <text x="50" y="34" fontFamily="var(--font-sora), sans-serif" fontWeight="bold" fill="currentColor">
       <tspan fontSize="30" fill="hsl(var(--foreground))">GoEarn</tspan>
-      <tspan fontSize="18" dx="2" dy="-3" fill="hsl(var(--primary))">vid</tspan>
+      <tspan fontSize="16" dx="2" dy="-5" fill="hsl(var(--primary))">vid</tspan>
     </text>
   </svg>
 );
