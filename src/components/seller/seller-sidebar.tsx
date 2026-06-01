@@ -38,7 +38,7 @@ export function SellerSidebar() {
   const firestore = useFirestore();
   const isActive = (path: string) => pathname === path || pathname.startsWith(path);
 
-  // Real-time query for active/paid orders
+  // Query for active orders (pending or processing) to show in the sidebar badge
   const ordersQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -51,7 +51,7 @@ export function SellerSidebar() {
   const { data: activeOrders } = useCollection<Order>(ordersQuery);
   const activeOrdersCount = activeOrders?.length || 0;
 
-  // Real-time query for unread messages
+  // Query for chats to find total unread count
   const chatsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -82,7 +82,7 @@ export function SellerSidebar() {
                 <Home />
                 <span>Overview</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
           
           <SidebarMenuItem>
@@ -91,7 +91,7 @@ export function SellerSidebar() {
                 <ShoppingBag />
                 <span>Inventory</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -107,7 +107,7 @@ export function SellerSidebar() {
                     </Badge>
                 )}
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -116,7 +116,7 @@ export function SellerSidebar() {
                 <AreaChart />
                 <span>Analytics</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -132,7 +132,7 @@ export function SellerSidebar() {
                     </Badge>
                 )}
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
@@ -146,7 +146,7 @@ export function SellerSidebar() {
                 <Radio className="text-red-600" />
                 <span>Live Studio</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
@@ -155,7 +155,7 @@ export function SellerSidebar() {
                 <Sparkles className="text-primary" />
                 <span>AI Toolkit</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
@@ -169,7 +169,7 @@ export function SellerSidebar() {
                   <Info />
                   <span>About Us</span>
                 </Link>
-              </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenuItem>
              <SidebarMenuItem>
                 <SidebarMenuButton size="sm" asChild isActive={isActive('/dashboard/seller/help')}>
@@ -177,10 +177,11 @@ export function SellerSidebar() {
                     <HelpCircle />
                     <span>Support</span>
                   </Link>
-                </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
+
 
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
@@ -189,7 +190,7 @@ export function SellerSidebar() {
                 <Settings />
                 <span>Shop Settings</span>
               </Link>
-            </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenuItem>
         <Separator className="my-2" />
         <SidebarMenuItem>

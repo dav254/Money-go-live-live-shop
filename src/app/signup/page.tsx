@@ -54,6 +54,7 @@ export default function SignupPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
+  // Redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       const role = userProfile.userRole || userProfile.role;
