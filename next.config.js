@@ -1,4 +1,3 @@
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
@@ -19,7 +18,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Permissions-Policy',
-            value: 'clipboard-write=*',
+            value: 'clipboard-write=(self "https://goearnvid.shop")',
           },
           {
             key: 'Content-Security-Policy',

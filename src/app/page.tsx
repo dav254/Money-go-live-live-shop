@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from "react";
@@ -108,7 +107,7 @@ const HomePageContent = () => {
 
             <p className="animate-slide-up" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)', color: 'rgba(255,255,255,0.6)', maxWidth: '48rem', margin: '0 auto 2.5rem', animationDelay: '0.1s' }}>
               The <span style={{ color: 'hsl(200, 100%, 55%)', fontWeight: 600 }}>2025</span> platform for creators, hustlers, and entrepreneurs.
-              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarnvid</span> transforms your content into real wealth.
+              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarnvid.shop</span> transforms your content into real wealth.
             </p>
 
             <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'center', alignItems: 'center', marginBottom: '4rem', animationDelay: '0.2s' }}>

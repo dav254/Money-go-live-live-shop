@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Seller } from '@/lib/types';
@@ -113,7 +112,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
     };
   
   const handleShare = () => {
-    const shopUrl = window.location.href;
+    const shopUrl = `https://goearnvid.shop/sellers/${seller.id}`;
     navigator.clipboard.writeText(shopUrl).then(() => {
       toast({
         title: "Link Copied!",

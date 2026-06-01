@@ -103,7 +103,7 @@ export default function SignupPage() {
       await setDoc(userDocRef, profile);
       toast({ 
         title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!', 
-        description: values.role === 'seller' ? "Welcome to GoEarnvid! You've received 1000 free AI points." : "You've successfully joined GoEarnvid." 
+        description: values.role === 'seller' ? "Welcome to GoEarnvid! You've received 1000 free AI points." : "You've successfully joined GoEarnvid.shop" 
       });
 
     } catch (error: any) {
