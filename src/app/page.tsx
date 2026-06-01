@@ -7,7 +7,7 @@ import {
   RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard
 } from "lucide-react";
 import Link from "next/link";
-import { LandingLayout } from '@/components/layout/landing-layout';
+import { LandingLayout } from '@/components/layout/landing-header';
 import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
 

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Share2, Rocket } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Rocket } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -36,8 +36,7 @@ export default function SellerGoLivePage() {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
-  const [token, setToken] = setTokenState => setToken(setTokenState);
-  const [currentToken, setToken] = useState<string | null>(null);
+  const [currentToken, setCurrentToken] = useState<string | null>(null);
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
@@ -53,7 +52,7 @@ export default function SellerGoLivePage() {
           if (data.error === 'CONFIG_MISSING') setIsConfigMissing(true);
           throw new Error(data.message || "Authentication failure");
       }
-      if (data.token) setToken(data.token);
+      if (data.token) setCurrentToken(data.token);
     } catch (err: any) {
       console.error("Error fetching VideoSDK token:", err);
     }

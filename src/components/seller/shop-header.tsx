@@ -4,7 +4,7 @@ import type { Seller } from '@/lib/types';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Plus, Share2, Facebook, Instagram, Twitter, MessageCircle, MessageSquare, Verified } from 'lucide-react';
+import { Share2, Facebook, Instagram, Twitter, MessageCircle, MessageSquare, Verified } from 'lucide-react';
 import { SellerBadges } from './seller-badges';
 import { ShopStoryHighlights } from './shop-story-highlights';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
