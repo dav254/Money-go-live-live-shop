@@ -7,7 +7,6 @@ import {
   RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
@@ -138,7 +137,7 @@ const HomePageContent = () => {
               Become a <span className="text-gradient">Founding Seller</span>
             </h2>
             <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              Your exclusive chance to grow with us from Day One. Build a brand that stands out on <span className="font-bold text-white">GoEarnvid</span>.
+              Your exclusive chance to grow with us from Day One. Build a brand that stands out on <span className="font-bold text-white">GoEarnvid.shop</span>.
               <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}>Join early. Be discovered early. Earn early.</span>
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem', maxWidth: '56rem', margin: '0 auto 3rem' }}>
