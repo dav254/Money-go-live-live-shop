@@ -1,10 +1,10 @@
-# Go Earn: Video-First Social Commerce
+# GoEarnvid: Video-First Social Commerce
 
-Go Earn is a modern marketplace designed for the next generation of entrepreneurs, creators, and shoppers. It transforms the shopping experience into an interactive, video-driven ecosystem.
+GoEarnvid is a modern marketplace designed for the next generation of entrepreneurs, creators, and shoppers. It transforms the shopping experience into an interactive, video-driven ecosystem.
 
 ## 🚀 How It Works
 
-Go Earn operates as a three-sided marketplace connecting **Sellers**, **Resellers**, and **Buyers** through a unified digital platform.
+GoEarnvid operates as a three-sided marketplace connecting **Sellers**, **Resellers**, and **Buyers** through a unified digital platform.
 
 ### 🎥 For Sellers (The Creators)
 *   **Authentic Content:** Upload short-form videos to showcase products in a high-conversion, TikTok-style feed.
@@ -36,4 +36,4 @@ Go Earn operates as a three-sided marketplace connecting **Sellers**, **Reseller
 The platform includes a robust Admin Dashboard for monitoring system health, moderating content, managing payouts, and overseeing the AI recommendation engines.
 
 ---
-© 2026 Go Earn. Built for the future of commerce.
+© 2026 GoEarnvid. Built for the future of commerce.

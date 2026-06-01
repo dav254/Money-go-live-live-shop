@@ -2,10 +2,9 @@
 
 import { useEffect } from "react";
 import { 
-  Play, Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
-  Radio, Users, MessageSquare, Share2, CheckCircle, Heart, ShoppingBag, 
-  Shield, Lock, CreditCard, User, Handshake, Globe, Cpu, Layers, MapPin,
-  RadioTower, Bot, Tag, Eye, Loader2
+  Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
+  Radio, Users, Share2, Globe, Cpu, Layers,
+  RadioTower, Bot, Eye, Loader2
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -98,14 +97,6 @@ const HomePageContent = () => {
     { icon: Shield, title: "Trusted & Secure", description: "Built on a secure foundation with seller verification and fraud detection to protect everyone.", gradient: "gradient-hero" },
   ];
 
-  const roadmapSteps = [
-    { icon: User, title: "Complete Your Shop Profile", description: "Add logo, banner & bio to build trust", gradient: "gradient-hero" },
-    { icon: Upload, title: "Upload Your First Product", description: "Videos convert 10× more — use them", gradient: "gradient-hero" },
-    { icon: Users, title: "Enable Reseller Program", description: "Let others promote for free", gradient: "gradient-hero" },
-    { icon: Radio, title: "Go Live", description: "Sell faster with real-time engagement", gradient: "gradient-hero" },
-    { icon: Share2, title: "Share Your Shop Link", description: "Post on WhatsApp, IG, TikTok", gradient: "gradient-hero" },
-  ];
-
   return (
     <>
       <BackgroundEffects />
@@ -126,7 +117,7 @@ const HomePageContent = () => {
 
             <p className="animate-slide-up" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)', color: 'rgba(255,255,255,0.6)', maxWidth: '48rem', margin: '0 auto 2.5rem', animationDelay: '0.1s' }}>
               The <span style={{ color: 'hsl(200, 100%, 55%)', fontWeight: 600 }}>2025</span> platform for creators, hustlers, and entrepreneurs.
-              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarn</span> transforms your content into real wealth.
+              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarnvid</span> transforms your content into real wealth.
             </p>
 
             <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'center', alignItems: 'center', marginBottom: '4rem', animationDelay: '0.2s' }}>
@@ -159,7 +150,7 @@ const HomePageContent = () => {
               Become a <span className="text-gradient">Founding Seller</span>
             </h2>
             <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              Your exclusive chance to grow with us from Day One. Build a brand that stands out.
+              Your exclusive chance to grow with us from Day One. Build a brand that stands out on <span className="font-bold text-white">GoEarnvid</span>.
               <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}>Join early. Be discovered early. Earn early.</span>
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem', maxWidth: '56rem', margin: '0 auto 3rem' }}>
@@ -199,7 +190,7 @@ const HomePageContent = () => {
                   <span className="text-gradient">Go Live.</span>
                 </h2>
                 <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.6)', maxWidth: '36rem' }}>
-                  The most powerful way to build trust and close sales. Connect with your audience, answer questions, and showcase your products in real-time.
+                  The most powerful way to build trust and close sales on GoEarnvid. Connect with your audience, answer questions, and showcase your products in real-time.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="flex gap-4">
@@ -291,7 +282,7 @@ const HomePageContent = () => {
                 <span style={{ color: 'hsl(55, 100%, 50%)' }}>Earn</span>
               </h2>
               <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', maxWidth: '42rem', margin: '0 auto' }}>
-                Everything you need to build a thriving business in the <span className="text-gradient" style={{ fontWeight: 600 }}>future of commerce</span>.
+                Everything you need to build a thriving business in the <span className="text-gradient" style={{ fontWeight: 600 }}>future of commerce</span> at GoEarnvid.
               </p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '80rem', margin: '0 auto' }}>

@@ -94,7 +94,7 @@ export default function LoginPage() {
             return;
         }
 
-        toast({ title: 'Login Successful!', description: "Welcome back." });
+        toast({ title: 'Login Successful!', description: "Welcome back to GoEarnvid." });
       }
     } catch (error: any) {
       console.error('Login Error:', error);
@@ -128,7 +128,7 @@ export default function LoginPage() {
         <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
-            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your Go Earn account</CardDescription>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your GoEarnvid account</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>

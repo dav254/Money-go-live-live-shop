@@ -58,13 +58,13 @@ const prompt = ai.definePrompt({
   name: 'generateAdKitPrompt',
   input: { schema: AdKitInputSchema },
   output: { schema: AdKitOutputSchema },
-  prompt: `You are an expert digital marketing assistant for an e-commerce platform called Go Earn. A seller wants to promote a product video on {{platform}}. Your task is to generate a complete "Ad Kit" for them.
+  prompt: `You are an expert digital marketing assistant for an e-commerce platform called GoEarnvid. A seller wants to promote a product video on {{platform}}. Your task is to generate a complete "Ad Kit" for them.
 
 Product Information:
 - Name: {{{productName}}}
 - Description: {{{productDescription}}}
 - Seller Location: {{{location}}}
-- Product Link: https://goearn.com/products/{{{productId}}}
+- Product Link: https://goearnvid.shop/products/{{{productId}}}
 
 Generate the following:
 1.  **title**: A catchy, SEO-friendly title for the YouTube video or TikTok post.

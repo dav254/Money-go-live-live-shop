@@ -1,11 +1,10 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'Go Earn: Live Shop',
+  title: 'GoEarnvid: Live Shop',
   description: 'A video-driven marketplace to buy and sell products.',
   icons: {
     icon: '/favicon.ico',

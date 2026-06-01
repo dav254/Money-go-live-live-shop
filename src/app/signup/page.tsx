@@ -103,7 +103,7 @@ export default function SignupPage() {
       await setDoc(userDocRef, profile);
       toast({ 
         title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!', 
-        description: values.role === 'seller' ? "You've received 1000 free AI points to start your journey." : "You've successfully signed up." 
+        description: values.role === 'seller' ? "Welcome to GoEarnvid! You've received 1000 free AI points." : "You've successfully joined GoEarnvid." 
       });
 
     } catch (error: any) {
@@ -130,7 +130,7 @@ export default function SignupPage() {
         <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Create Account</CardTitle>
-            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Join the future of social commerce</CardDescription>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Join the future of social commerce at GoEarnvid</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
