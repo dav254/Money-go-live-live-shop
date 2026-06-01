@@ -116,8 +116,7 @@ export function SellerSidebar() {
                 <AreaChart />
                 <span>Analytics</span>
               </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+            </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')}>

@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import { 
   Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
   Radio, Users, Share2, Globe, Cpu, Layers,
-  RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard
+  RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard 
 } from "lucide-react";
 import Link from "next/link";
-import { LandingLayout } from '@/components/layout/landing-header';
+import { LandingLayout } from '@/components/layout/landing-layout';
 import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
 
