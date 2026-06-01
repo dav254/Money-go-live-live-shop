@@ -36,7 +36,8 @@ export default function SellerGoLivePage() {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isLive, setIsLive] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = setTokenState => setToken(setTokenState);
+  const [currentToken, setToken] = useState<string | null>(null);
   const [isConfigMissing, setIsConfigMissing] = useState(false);
   const [wantsToSetup, setWantsToSetup] = useState(false);
   const [hasPermissions, setHasPermissions] = useState<boolean | null>(null);
@@ -59,7 +60,7 @@ export default function SellerGoLivePage() {
   }, []);
 
   const handleStartBroadcastDirect = useCallback(async () => {
-    if (!user || !token) return;
+    if (!user || !currentToken) return;
     setIsStarting(true);
     setIsHardwareReleased(false);
     
@@ -89,7 +90,7 @@ export default function SellerGoLivePage() {
     } finally { 
         setIsStarting(false);
     }
-  }, [user, token, toast, streamTitle]);
+  }, [user, currentToken, toast, streamTitle]);
 
   useEffect(() => { fetchToken(); }, [fetchToken]);
 
@@ -149,14 +150,6 @@ export default function SellerGoLivePage() {
 
   const handleReactivateCamera = () => {
       setIsHardwareReleased(false);
-  };
-
-  const handleShare = () => {
-      if (!user) return;
-      const url = `${window.location.origin}/buyer/live/${user.uid}`;
-      navigator.clipboard.writeText(url).then(() => {
-          toast({ title: 'Link Copied!', description: 'Invite people to your stream.' });
-      });
   };
 
   if (isConfigMissing) {
@@ -246,7 +239,7 @@ export default function SellerGoLivePage() {
                                     size="lg" 
                                     className="w-full h-20 rounded-[2rem] font-black text-2xl bg-red-600 hover:bg-red-700 text-white shadow-2xl shadow-red-600/40 group transition-all" 
                                     onClick={handleStartBroadcastDirect} 
-                                    disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !token}
+                                    disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !currentToken}
                                   >
                                       {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Rocket className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
                                       START BROADCAST
@@ -294,11 +287,11 @@ export default function SellerGoLivePage() {
   return (
     <SellerLayout fullWidth>
       <div className="flex-1 relative bg-black h-[calc(100vh-4rem)] overflow-hidden">
-        {token && (
+        {currentToken && (
             <VideoSDKStudio 
               meetingId={meetingId} 
               participantName={userProfile?.shopName || "Seller"} 
-              token={token}
+              token={currentToken}
               isLive={isLive}
               onBroadcast={() => setIsLive(true)}
               onEnd={handleEndBroadcast}
