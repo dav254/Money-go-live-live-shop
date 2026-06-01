@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { 
   Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
   Radio, Users, Share2, Globe, Cpu, Layers,
-  RadioTower, Bot, Eye, Loader2
+  RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -67,16 +67,6 @@ const HomePageContent = () => {
     <section id={id} className={className} style={{ position: 'relative', padding: '5rem 0', ...style }}>
       {children}
     </section>
-  );
-  
-  const FeatureCard = ({ icon: Icon, title, description, gradient }: { icon: any; title: string; description: string; gradient: string }) => (
-    <div className="glass-card" style={{ padding: '1.5rem', borderRadius: '1rem', transition: 'all 0.5s ease', overflow: 'hidden', height: '100%' }}>
-      <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} className={gradient}>
-        <Icon style={{ width: '1.75rem', height: '1.75rem', color: 'white' }} />
-      </div>
-      <h3 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>{title}</h3>
-      <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)' }}>{description}</p>
-    </div>
   );
   
   const stats = [
@@ -287,7 +277,13 @@ const HomePageContent = () => {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '80rem', margin: '0 auto' }}>
               {features.map((feature, index) => (
-                <FeatureCard key={index} {...feature} />
+                 <div key={index} className="glass-card" style={{ padding: '1.5rem', borderRadius: '1rem', transition: 'all 0.5s ease', overflow: 'hidden', height: '100%' }}>
+                  <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} className={feature.gradient}>
+                    <feature.icon style={{ width: '1.75rem', height: '1.75rem', color: 'white' }} />
+                  </div>
+                  <h3 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>{feature.title}</h3>
+                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)' }}>{feature.description}</p>
+                </div>
               ))}
             </div>
           </div>
