@@ -1,10 +1,9 @@
-
 'use client';
 
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, FileText, Percent, Loader2, Save } from 'lucide-react';
+import { AlertCircle, FileText, Percent, Loader2, Save, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -67,7 +66,7 @@ export default function AdminTaxPage() {
         
         <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-200">
           <AlertCircle className="h-4 w-4 !text-blue-400" />
-          <AlertTitle className="font-bold !text-blue-300">How Tax Works on Go Earn</AlertTitle>
+          <AlertTitle className="font-bold !text-blue-300">How Tax Works on GoEarnvid</AlertTitle>
           <AlertDescription>
             Taxes are **paid by the buyer** at checkout. The rate set here is automatically added to the buyer's invoice. Collected taxes are pooled here for you to remit to government authorities. This model ensures seller earnings remain untouched.
           </AlertDescription>
@@ -112,7 +111,7 @@ export default function AdminTaxPage() {
                     </div>
                     <Button variant="outline" className="w-full" disabled>
                         <Download className="mr-2 h-4 w-4" />
-                        Download KRA Report (Coming Soon)
+                        Download Report (Coming Soon)
                     </Button>
                 </CardContent>
             </Card>

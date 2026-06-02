@@ -1,5 +1,12 @@
-// Deprecated to resolve Next.js 15 build conflict.
-// Logic has been moved to src/app/api/orders/move-to-delivery/route.ts
-export default function handler(req: any, res: any) {
-  res.status(410).json({ error: "Route Deprecated. Use App Router equivalent instead." });
+import { NextApiRequest, NextApiResponse } from 'next';
+
+/**
+ * DEPRECATED: This route has been moved to src/app/api/orders/move-to-delivery/route.ts
+ * to comply with Next.js 15 App Router standards.
+ */
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  return res.status(410).json({ 
+    error: 'API Endpoint Moved', 
+    message: 'This endpoint is deprecated. Use the App Router equivalent instead.' 
+  });
 }
