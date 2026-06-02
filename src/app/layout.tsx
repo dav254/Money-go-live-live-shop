@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'GoEarnvid: Live Shop',
+  title: 'GoEarnvid: Video-First Commerce',
   description: 'The world\'s next-generation social commerce platform. Where videos become income.',
   icons: {
     icon: '/favicon.ico',

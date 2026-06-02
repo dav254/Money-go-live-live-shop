@@ -20,12 +20,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { LiveSession, UserProfile } from '@/lib/types';
-import { useDoc } from '@/firebase/firestore/use-doc';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Video, Users, Clock, ShieldAlert, StopCircle, UserX, ExternalLink, MoreVertical } from 'lucide-react';
+import { Video, Users, Clock, ShieldAlert, StopCircle, UserX, ExternalLink, MoreVertical, Radio } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -128,7 +127,7 @@ export default function AdminLiveSessionsPage() {
     }
   };
 
-  const columns: ColumnDef<LiveSession>[] = [
+  const columns: ColumnDef<LiveSession>[] = React.useMemo(() => [
     {
       accessorKey: 'title',
       header: 'Session',
@@ -227,11 +226,17 @@ export default function AdminLiveSessionsPage() {
             </div>
         )
     }
-  ];
+  ], [handleEndStream, handleSuspendSeller]);
+
+  const table = useReactTable({
+    data: liveSessions || [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
     <AdminLayout>
-      <div className="flex-1 space-y-8 p-4 md:p-8 pt-6">
+      <div className="flex-1 space-y-8 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                  <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">
