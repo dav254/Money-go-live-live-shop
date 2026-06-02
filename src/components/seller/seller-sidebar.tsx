@@ -13,7 +13,6 @@ import {
   Package,
   Store,
   HelpCircle,
-  Users,
   Home,
   MessageSquare,
   Radio,
@@ -38,7 +37,7 @@ export function SellerSidebar() {
   const firestore = useFirestore();
   const isActive = (path: string) => pathname === path || pathname.startsWith(path);
 
-  // Query for active orders (pending or processing) to show in the sidebar badge
+  // Query for active orders (pending or processing)
   const ordersQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
@@ -116,7 +115,8 @@ export function SellerSidebar() {
                 <AreaChart />
                 <span>Analytics</span>
               </Link>
-            </SidebarMenuItem>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton size="sm" asChild isActive={isActive('/messages')}>
