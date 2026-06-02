@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Text, UploadCloud, Radio, Video } from 'lucide-react';
+import { Loader2, Sparkles, Type, UploadCloud, Radio, Video } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useUser, useUserProfile } from '@/firebase';
@@ -20,7 +20,7 @@ export default function TextToVideoPage() {
     const [prompt, setPrompt] = useState('A cinematic, vibrant high-speed showcase of professional luxury watches on a rotating stand with neon reflections.');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
-    const [generatedVideoUrl, setGeneratedVideoUrl] = setGeneratedVideoUrl(null);
+    const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
 
     const handleGenerateVideo = async () => {
         if (!prompt.trim()) {
@@ -75,7 +75,7 @@ export default function TextToVideoPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="space-y-1">
                         <h1 className="font-headline text-3xl font-black uppercase tracking-tighter flex items-center gap-3">
-                            <Text className="text-primary h-8 w-8" /> 
+                            <Type className="text-primary h-8 w-8" /> 
                             AI Showcase Generator
                         </h1>
                         <p className="text-muted-foreground font-medium">Create and publish cinematic videos directly to the global Live Feed.</p>
@@ -148,7 +148,7 @@ export default function TextToVideoPage() {
                                         <Radio className="h-4 w-4 animate-pulse" />
                                         <AlertTitle className="font-black uppercase text-[10px] tracking-widest">Global Discovery Ready</AlertTitle>
                                         <AlertDescription className="text-xs font-medium">Publishing now will place this video in the main discover feed for all Go Earn users.</AlertDescription>
-                                    </Alert>
+                                     </Alert>
                                      <Button 
                                         size="lg"
                                         className="w-full h-16 rounded-2xl font-black text-xl bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-600/30" 

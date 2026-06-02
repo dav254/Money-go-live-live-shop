@@ -1,13 +1,5 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-
-/**
- * DEPRECATED: This route has been moved to the App Router.
- * Next.js 15 requires unique routes between pages/ and app/ directories.
- * Use src/app/api/orders/move-to-delivery/route.ts instead.
- */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    res.status(410).json({ 
-        error: 'Gone', 
-        message: 'This endpoint is deprecated. Use the App Router equivalent at /api/orders/move-to-delivery.' 
-    });
+// Deprecated to resolve Next.js 15 build conflict.
+// All order logic is now in App Router: src/app/api/orders/...
+export default function handler(req: any, res: any) {
+  res.status(410).json({ error: "Deprecated. Use App Router endpoint instead." });
 }
