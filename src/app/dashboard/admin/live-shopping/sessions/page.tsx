@@ -85,7 +85,7 @@ export default function AdminLiveSessionsPage() {
 
   const { data: liveSessions, isLoading } = useCollection<LiveSession>(liveSessionsQuery);
   
-  const handleEndStream = async (sessionId: string) => {
+  const handleEndStream = React.useCallback(async (sessionId: string) => {
     if (!currentUser) return;
     try {
         const token = await currentUser.getIdToken();
@@ -107,9 +107,9 @@ export default function AdminLiveSessionsPage() {
     } catch (e) {
         toast({ variant: 'destructive', title: "Moderation Failed" });
     }
-  };
+  }, [currentUser, toast]);
 
-  const handleSuspendSeller = async (sellerId: string) => {
+  const handleSuspendSeller = React.useCallback(async (sellerId: string) => {
     if (!firestore) return;
     try {
         await updateDoc(doc(firestore, 'userProfiles', sellerId), {
@@ -125,7 +125,7 @@ export default function AdminLiveSessionsPage() {
     } catch (e) {
         toast({ variant: 'destructive', title: "Action Failed" });
     }
-  };
+  }, [firestore, handleEndStream, toast]);
 
   const columns: ColumnDef<LiveSession>[] = React.useMemo(() => [
     {

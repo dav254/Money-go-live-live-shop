@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
   },
+  metadataBase: new URL('https://goearnvid.shop'),
 };
 
 export default function RootLayout({

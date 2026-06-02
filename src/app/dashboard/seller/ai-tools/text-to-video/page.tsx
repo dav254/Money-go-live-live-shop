@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Text, UploadCloud, Radio } from 'lucide-react';
+import { Loader2, Sparkles, Text, UploadCloud, Radio, Video } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useUser, useUserProfile } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function TextToVideoPage() {
     const { toast } = useToast();
@@ -19,7 +20,7 @@ export default function TextToVideoPage() {
     const [prompt, setPrompt] = useState('A cinematic, vibrant high-speed showcase of professional luxury watches on a rotating stand with neon reflections.');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
-    const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+    const [generatedVideoUrl, setGeneratedVideoUrl] = setGeneratedVideoUrl(null);
 
     const handleGenerateVideo = async () => {
         if (!prompt.trim()) {
@@ -117,7 +118,7 @@ export default function TextToVideoPage() {
                         <CardHeader>
                             <CardTitle className="text-lg font-black uppercase tracking-widest">2. Preview & Global Publish</CardTitle>
                              <CardDescription>
-                                Once generated, publish your video to the main feed to reach thousands of potential buyers instantly.
+                                Once generated, publish your video to the main feed to reach potential buyers instantly.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-1 flex flex-col justify-center gap-6">
