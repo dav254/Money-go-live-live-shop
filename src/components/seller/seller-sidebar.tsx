@@ -20,9 +20,10 @@ import {
   AreaChart,
   Info,
   Video,
+  Layers,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -33,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 
 export function SellerSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
@@ -164,9 +166,27 @@ export function SellerSidebar() {
         <SidebarGroupLabel>Videos</SidebarGroupLabel>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm">
-              <Video className="text-blue-500" />
-              <span>Showcase Feed</span>
+            <SidebarMenuButton 
+              size="sm" 
+              asChild 
+              isActive={isActive('/dashboard/seller/live-feed') && !searchParams.get('view')}
+            >
+              <Link href="/dashboard/seller/live-feed">
+                <Video className="text-blue-500" />
+                <span>Discovery Feed</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              size="sm" 
+              asChild 
+              isActive={isActive('/dashboard/seller/live-feed') && searchParams.get('view') === 'mine'}
+            >
+              <Link href="/dashboard/seller/live-feed?view=mine">
+                <Layers className="text-purple-500" />
+                <span>My Showcase</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
