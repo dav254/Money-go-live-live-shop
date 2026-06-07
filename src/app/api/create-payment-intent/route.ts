@@ -2,7 +2,11 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
+<<<<<<< HEAD
 import { submitPesapalOrder } from '@/lib/pesapal';
+=======
+import axios from 'axios';
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -17,18 +21,29 @@ function getPayPalClient() {
 }
 
 export async function POST(request: Request) {
+<<<<<<< HEAD
+=======
+    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
     try {
         const body = await request.json();
         const { amount, email, gateway, metadata, transactionType, orderId } = body;
 
+<<<<<<< HEAD
         if (!amount || !email || !gateway) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
+=======
+        if (!paystackSecret && gateway === 'paystack') {
+            return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
         }
 
         const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
 
         if (gateway === 'paystack') {
+<<<<<<< HEAD
             const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
             if (!paystackSecret) {
                 return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
@@ -75,6 +90,28 @@ export async function POST(request: Request) {
                 console.error("PesaPal API Error:", pesapalError);
                 return NextResponse.json({ error: 'PesaPal Initialization Failed', details: pesapalError.message }, { status: 500 });
             }
+=======
+            const response = await axios.post('https://api.paystack.co/transaction/initialize', {
+                email: email,
+                amount: Math.round(amount * 100), 
+                currency: 'USD',
+                reference: reference,
+                metadata: {
+                    ...metadata,
+                    orderId: orderId,
+                    transactionType: transactionType || 'product-purchase'
+                }
+            }, {
+                headers: {
+                    Authorization: `Bearer ${paystackSecret}`
+                }
+            });
+            
+            if (!response.data.status || !response.data.data.authorization_url) {
+                throw new Error(response.data.message || 'Paystack initialization failed');
+            }
+            checkoutUrl = response.data.data.authorization_url;
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();

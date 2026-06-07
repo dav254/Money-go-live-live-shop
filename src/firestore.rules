@@ -20,6 +20,7 @@ service cloud.firestore {
     // =========================
     match /userProfiles/{userId} {
       allow read: if true;
+<<<<<<< HEAD
       allow create, update, delete: if isOwner(userId);
     }
 
@@ -30,6 +31,15 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn();
       allow update, delete: if isSignedIn() && resource.data.sellerId == request.auth.uid;
+=======
+      allow list: if request.auth != null && (request.auth.uid == userId || resource.data.referredBy == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow update: if request.auth.uid == userId ||
+                      (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
+                      (request.resource.data.aiPoints == resource.data.aiPoints + 5 && request.auth.uid != null);
+      allow create: if request.auth.uid != null;
+      allow delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
       
       match /reviews/{reviewId} {
         allow read: if true;
@@ -44,7 +54,97 @@ service cloud.firestore {
 
     match /sellerShops/{shopId} {
       allow read: if true;
+<<<<<<< HEAD
       allow write: if isOwner(shopId);
+=======
+      allow update: if request.auth.uid == shopId && !('followers' in request.resource.data);
+      allow write: if request.auth.uid == shopId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /products/{productId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if request.resource.data.sellerId == request.auth.uid;
+      allow update: if 
+        (resource.data.sellerId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt']))
+        ||
+        (request.auth != null &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
+      allow delete: if resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+
+      match /comments/{commentId} {
+        allow list, read: if true;
+        allow create: if request.auth != null;
+      }
+      match /reviews/{reviewId} {
+          allow read, list: if true;
+          allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
+      }
+    }
+    
+    match /errorLogs/{errorId} {
+      allow create: if request.auth != null;
+      allow list, read, update, delete: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+     match /activityLogs/{logId} {
+      allow list, read: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /orders/{orderId} {
+       allow list: if request.auth != null && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read: if request.auth != null && 
+                     (resource.data.buyerId == request.auth.uid || 
+                      resource.data.sellerId == request.auth.uid ||
+                      resource.data.resellerId == request.auth.uid ||
+                      get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if request.auth != null && request.resource.data.buyerId == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && 
+                     (get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
+                      resource.data.sellerId == request.auth.uid);
+    }
+    
+    match /payouts/{payoutId} {
+      allow read: if request.auth != null && (resource.data.sellerId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow create: if request.auth != null && request.resource.data.sellerId == request.auth.uid;
+      allow update: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /walletTransactions/{transactionId} {
+        allow create: if false; 
+        allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+        allow list: if request.auth != null && (request.query.limit <= 50 && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin'));
+    }
+
+    match /categories/{categoryId} {
+        allow read: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+    
+    match /homepageSlides/{slideId} {
+        allow read, list: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /helpArticles/{articleId} {
+        allow read: if true;
+        allow write: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow list: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin');
+      allow update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+    }
+
+    match /complaints/{complaintId} {
+      allow create: if request.auth != null && request.resource.data.complainantId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
     }
 
     match /liveSessions/{sessionId} {

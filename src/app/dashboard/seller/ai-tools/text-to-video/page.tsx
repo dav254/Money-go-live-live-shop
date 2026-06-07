@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import { Loader2, Sparkles, Type, UploadCloud, Radio, Video } from 'lucide-react';
+=======
+import { Loader2, Sparkles, Text, UploadCloud, Radio, Video } from 'lucide-react';
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useUser, useUserProfile } from '@/firebase';

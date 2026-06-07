@@ -61,11 +61,11 @@
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
     "lucide-react": "^0.475.0",
-    "next": "^15.0.0",
+    "next": "15.0.7",
+    "next-auth": "^4.24.13",
     "next-themes": "^0.3.0",
     "node-fetch": "^2.6.7",
     "nprogress": "^0.2.0",
-    "paystack": "^2.0.1",
     "react": "^18.3.1",
     "react-day-picker": "^9.5.1",
     "react-dom": "^18.3.1",
@@ -89,6 +89,10 @@
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+<<<<<<< HEAD
   },
   "packageManager": "pnpm@11.5.2+sha512.71c631e382066efc25625d5cf029075de07b61b37f6e27350fbd84b1bda5864c8c1967adc280776b45c30a715c0359a3be08fef42d5bb09e2b99029979692916"
+=======
+  }
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
 }

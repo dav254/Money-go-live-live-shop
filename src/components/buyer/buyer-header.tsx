@@ -13,9 +13,15 @@ import { Skeleton } from '../ui/skeleton';
 import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
+<<<<<<< HEAD
 import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Chat } from '@/lib/types';
+=======
+import { useUser, useUserProfile } from '@/firebase';
+import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
+import { Badge } from '../ui/badge';
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
 import { Logo } from '../logo';
 
 export function BuyerHeader() {
@@ -77,11 +83,19 @@ export function BuyerHeader() {
           <SheetContent side="left" className="p-0">
             <div className="flex h-full flex-col gap-y-4 overflow-y-auto bg-card">
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
+<<<<<<< HEAD
                  <SheetTitle asChild>
                     <Link href="/buyer/dashboard">
                       <Logo className="h-8 w-auto text-primary cursor-pointer" />
                     </Link>
                  </SheetTitle>
+=======
+                <SheetTitle asChild>
+                  <Link href="/buyer/dashboard">
+                    <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                  </Link>
+                </SheetTitle>
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
               </SheetHeader>
               <div className="p-4 pt-0">
                 <BuyerSidebar />
@@ -97,8 +111,13 @@ export function BuyerHeader() {
               <Skeleton className="h-6 w-40" />
             ) : (
               <Link href="/buyer/dashboard">
+<<<<<<< HEAD
                  <h1 className="text-sm font-black uppercase tracking-tight truncate hover:text-primary transition-colors">
                     Shop GoEarn<span className="text-[10px] lowercase align-top opacity-80">vid</span>
+=======
+                <h1 className="text-sm font-black uppercase tracking-tight truncate hover:text-primary transition-colors">
+                  Shop Go Earn
+>>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
                 </h1>
               </Link>
             )}
