@@ -1,6 +1,6 @@
-// This file is disabled to resolve Next.js 15 build conflicts with the App Router directory.
-// Consolidation into src/app/api/orders/move-to-delivery/route.ts is complete.
+// This file is deprecated to resolve Next.js 15 build conflicts.
+// The primary route is now located at src/app/api/orders/move-to-delivery/route.ts
 export const dynamic = 'force-dynamic';
 export async function GET() {
-    return new Response('Conflict resolved. Use /api/orders/move-to-delivery route instead.', { status: 404 });
+    return new Response('Deprecated. Use App Router endpoint.', { status: 410 });
 }

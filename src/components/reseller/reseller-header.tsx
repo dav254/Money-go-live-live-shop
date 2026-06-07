@@ -19,18 +19,10 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
         <SidebarTrigger />
 
         <div className="hidden md:block">
-<<<<<<< HEAD
             <Link href="/dashboard/reseller">
                 <h1 className="text-lg font-black uppercase tracking-tighter">
                   Reseller <span className="text-primary">Hub</span>
                 </h1>
-=======
-            <Link href="/dashboard/reseller" className="flex items-center gap-2">
-              <Logo className="h-8 w-auto text-primary cursor-pointer" />
-              <h1 className="text-lg font-black uppercase tracking-tighter">
-                Reseller <span className="text-primary">Hub</span>
-              </h1>
->>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
             </Link>
         </div>
       </div>
