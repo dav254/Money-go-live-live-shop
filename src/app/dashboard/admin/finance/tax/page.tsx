@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 'use client';
 
 import { AdminLayout } from '@/components/layout/admin-layout';
@@ -129,8 +128,3 @@ export default function AdminTaxPage() {
     </AdminLayout>
   );
 }
-=======
-import { AlertCircle, FileText, Percent, Loader2, Save, Download } from 'lucide-react';
-
-// existing content of the file
->>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65

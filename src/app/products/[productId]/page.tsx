@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -11,11 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-<<<<<<< HEAD
 import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck } from 'lucide-react';
-=======
-import { Star, Truck, MapPin, Plus, Store, Minus, X, Maximize2, Loader2, Tag } from 'lucide-react';
->>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
@@ -146,13 +141,8 @@ export default function BuyerProductPage() {
                                 </DialogTrigger>
                                 <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 flex items-center justify-center z-[100]">
                                     <DialogHeader className="sr-only">
-<<<<<<< HEAD
                                         <DialogTitle>{product.name} - Immersive View</DialogTitle>
                                         <DialogDescription>A high-fidelity full-screen view of the product image.</DialogDescription>
-=======
-                                        <DialogTitle>{product.name} - Immersive Preview</DialogTitle>
-                                        <DialogDescription>High-fidelity zoomed view of {product.name}</DialogDescription>
->>>>>>> 0c57e3d3b3098531b5f6d63d587f0358bde11c65
                                     </DialogHeader>
                                     <div className="relative w-full h-full flex items-center justify-center p-4">
                                         <DialogClose className="absolute top-6 right-6 z-[110] bg-white/10 hover:bg-white/20 p-3 rounded-full text-white">
