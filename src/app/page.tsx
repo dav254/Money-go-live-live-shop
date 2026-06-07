@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { 
   Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
-  Radio, Users, Share2, Globe, Cpu, Layers,
+  Radio, Users, Globe, Cpu, Layers,
   RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard 
 } from "lucide-react";
 import Link from "next/link";
@@ -21,8 +21,6 @@ const HomePageContent = () => {
       const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
-      } else if (role === 'reseller') {
-        router.replace('/dashboard/reseller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
@@ -76,7 +74,6 @@ const HomePageContent = () => {
   const features = [
     { icon: Video, title: "Video-First Commerce", description: "Engage buyers with authentic product videos, proven to increase conversion and trust.", gradient: "gradient-hero" },
     { icon: RadioTower, title: "Live Shopping", description: "Host real-time selling events, interact with customers, and drive sales through live engagement.", gradient: "gradient-hero" },
-    { icon: Share2, title: "Reseller Network", description: "Amplify your reach by enabling a network of resellers to promote your products for a commission.", gradient: "gradient-hero" },
     { icon: Bot, title: "AI-Powered Toolkit", description: "Leverage AI for content generation, sales strategy, and video creation to stay ahead of the curve.", gradient: "gradient-hero" },
     { icon: Layers, title: "Seamless Platform", description: "Manage products, orders, and payouts from a single, intuitive dashboard designed for growth.", gradient: "gradient-hero" },
     { icon: Users, title: "Direct Communication", description: "Build relationships and answer questions instantly with built-in chat between buyers and sellers.", gradient: "gradient-hero" },

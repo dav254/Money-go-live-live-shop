@@ -1,4 +1,3 @@
-
 'use client';
 
 import { MainLayout } from '@/components/layout/main-layout';
@@ -21,7 +20,7 @@ const values = [
     {
         icon: TrendingUp,
         title: "Growth",
-        description: "We are obsessed with growth—not just for us, but for our users. Our reseller network and AI tools are designed to amplify reach and maximize sales."
+        description: "We are obsessed with growth—not just for us, but for our users. Our AI tools are designed to amplify reach and maximize sales."
     },
      {
         icon: Globe,
@@ -77,14 +76,11 @@ export default function AboutUsPage() {
                     <div className="container mx-auto max-w-4xl text-center">
                         <h2 className="font-headline text-3xl font-bold">Join the Movement</h2>
                         <p className="mt-4 text-lg text-muted-foreground mb-8">
-                            Whether you're looking to sell your products, earn by reselling, or discover unique items, your journey starts here.
+                            Whether you're looking to sell your products or discover unique items, your journey starts here.
                         </p>
                         <div className="flex justify-center gap-4">
                             <Button size="lg" asChild>
                                 <Link href="/signup?role=seller">Start Selling</Link>
-                            </Button>
-                            <Button size="lg" variant="secondary" asChild>
-                                <Link href="/signup?role=reseller">Start Earning</Link>
                             </Button>
                         </div>
                     </div>

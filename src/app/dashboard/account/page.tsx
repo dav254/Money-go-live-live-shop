@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
-import { ResellerLayout } from '@/components/layout/reseller-layout';
 import {
   Card,
   CardContent,
@@ -367,7 +366,7 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
 
           <TabsContent value="security">
             <Card>
-              <CardHeader><CardTitle>Security Settings</CardTitle><CardDescription>Manage your password and account security.</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Security Settings</CardTitle><CardDescription>Manage your password and account security settings.</CardDescription></CardHeader>
               <CardContent className="space-y-6">
                  <Form {...passwordForm}>
                     <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
@@ -414,8 +413,6 @@ export default function AccountSettingsPageWrapper() {
         switch (userProfile?.userRole) {
             case 'seller':
                 return <SellerLayout>{content}</SellerLayout>;
-            case 'reseller':
-                return <ResellerLayout>{content}</ResellerLayout>;
             default:
                 return <BuyerLayout>{content}</BuyerLayout>;
         }

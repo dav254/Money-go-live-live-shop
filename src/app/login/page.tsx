@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -58,8 +57,6 @@ export default function LoginPage() {
       const role = userProfile.userRole;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
-      } else if (role === 'reseller') {
-        router.replace('/dashboard/reseller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
