@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { 
   ArrowRight, Sparkles, Zap, 
   Video, Users, Globe,
-  Bot, Loader2, ShoppingBag, Play, DollarSign
+  Bot, Loader2, ShoppingBag, Play, DollarSign, Briefcase
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -44,32 +44,36 @@ export default function HomePage() {
 
   const feed = [
     {
-      type: "video",
-      title: "How I Earned KES 5,000 Today",
+      type: "VIDEO",
+      title: "How I Earned $45 Today",
       author: "Sarah J.",
       icon: Video,
-      color: "text-blue-500"
+      color: "text-blue-500",
+      description: "Top performing creator"
     },
     {
-      type: "business",
-      title: "New Gadget Promo - 20% Commission",
+      type: "BUSINESS",
+      title: "New Gadget Promo - 20% Comm.",
       author: "Tech Africa",
       icon: ShoppingBag,
-      color: "text-purple-500"
+      color: "text-purple-500",
+      description: "High margin items"
     },
     {
-      type: "job",
+      type: "JOB",
       title: "Content Creator Needed",
       author: "Fashion Hub",
-      icon: Users,
-      color: "text-green-500"
+      icon: Briefcase,
+      color: "text-green-500",
+      description: "Daily task available"
     },
     {
-      type: "earning",
+      type: "EARNING",
       title: "Refer & Unlock 500 AI Points",
       author: "Go Earn",
       icon: DollarSign,
-      color: "text-yellow-500"
+      color: "text-yellow-500",
+      description: "Limited bonus"
     },
   ];
 
@@ -85,6 +89,8 @@ export default function HomePage() {
                         Aisha just earned $15 in Nairobi
                         <span className="text-white/30">•</span>
                         John just sold 5 units in Lagos
+                        <span className="text-white/30">•</span>
+                        Musa earned $10 commission
                     </div>
                 ))}
             </div>
@@ -100,7 +106,7 @@ export default function HomePage() {
                 Social Commerce v2.0
             </div>
             
-            <h1 className="font-cyber text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase">
+            <h1 className="font-headline text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase">
               DISCOVER <br />
               <span className="text-gradient glow-text">OPPORTUNITIES</span>
             </h1>
@@ -112,7 +118,7 @@ export default function HomePage() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button asChild size="lg" className="h-16 px-10 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest shadow-2xl shadow-primary/20 group">
-                    <Link href="/signup?role=seller">
+                    <Link href="/signup">
                         Start Earning <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Link>
                 </Button>

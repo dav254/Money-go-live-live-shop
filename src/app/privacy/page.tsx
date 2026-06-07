@@ -1,4 +1,3 @@
-
 import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -17,12 +16,12 @@ export default function PrivacyPolicyPage() {
                         <h2 className="mb-4">1. Information We Collect</h2>
                         <p>We collect information to provide and improve our services. The types of information we collect include:</p>
                         <ul>
-                            <li><strong>Account Information:</strong> When you register, we collect your full name, username, email address, password, and chosen user role (Buyer, Seller, or Reseller). We may also collect your phone number for verification and communication.</li>
+                            <li><strong>Account Information:</strong> When you register, we collect your full name, username, email address, password, and chosen user role (Buyer or Seller). We may also collect your phone number for verification and communication.</li>
                             <li><strong>Profile Information:</strong> You may choose to provide additional information for your public profile, such as a profile picture, biography, and location.</li>
                             <li><strong>Shop Information (for Sellers):</strong> We collect your shop name, logo, banner, and business policies (e.g., return and delivery info).</li>
                             <li><strong>User-Generated Content:</strong> We collect all content you upload, including product videos, images, descriptions, prices, reviews, comments, and live stream content.</li>
                             <li><strong>Transactional Information:</strong> We collect details about transactions you conduct on the platform, including products purchased or sold, order details, shipping addresses, payment method types (e.g., 'PayPal', 'card'), and transaction amounts. We do **not** directly store your credit card number; this is handled by our secure payment processors.</li>
-                            <li><strong>Financial Information (for Sellers/Resellers):</strong> To facilitate payouts, we collect your payout method details, such as PayPal email or bank account information.</li>
+                            <li><strong>Financial Information (for Sellers):</strong> To facilitate payouts, we collect your payout method details, such as PayPal email or bank account information.</li>
                             <li><strong>Usage Data:</strong> We automatically collect information about your interactions with our Services, such as product views, likes, shares, and search queries.</li>
                         </ul>
 
@@ -31,8 +30,7 @@ export default function PrivacyPolicyPage() {
                         <ul>
                             <li>To operate and maintain the marketplace, including facilitating transactions between buyers and sellers.</li>
                             <li>To manage your account, provide customer support, and communicate with you.</li>
-                            <li>To process payments for purchases and facilitate payouts for sellers and resellers.</li>
-                            <li>To operate the Reseller Program, including tracking referral links and calculating commissions.</li>
+                            <li>To process payments for purchases and facilitate payouts for sellers.</li>
                             <li>To display your public profile, shop, and product listings to other users.</li>
                             <li>To power our AI features, such as providing product recommendations, generating content, and detecting fraudulent activity.</li>
                             <li>To analyze usage trends to improve our Services and user experience.</li>
