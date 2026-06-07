@@ -57,7 +57,7 @@ export default function SignupPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Redirect if already logged in
+  // Redirect if already logged in and profile exists
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       const role = userProfile.userRole || userProfile.role;
@@ -84,6 +84,11 @@ export default function SignupPage() {
 
   async function handleGoogleSignup() {
     const selectedRole = form.getValues('role');
+    if (!selectedRole) {
+        toast({ variant: 'destructive', title: 'Action Required', description: 'Please select whether you are a Buyer or Seller before continuing with Google.' });
+        return;
+    }
+
     setIsGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -93,6 +98,7 @@ export default function SignupPage() {
       const userDocRef = doc(firestore, "userProfiles", signedUpUser.uid);
       const userDocSnap = await getDoc(userDocRef);
 
+      // Only create profile if it doesn't exist
       if (!userDocSnap.exists()) {
         const profile = {
           id: signedUpUser.uid,
@@ -122,7 +128,7 @@ export default function SignupPage() {
       toast({
         variant: 'destructive',
         title: 'Authentication Failed',
-        description: 'Could not sign up with Google.',
+        description: 'Could not sign up with Google. Please try again.',
       });
     } finally {
       setIsGoogleLoading(false);
@@ -166,7 +172,7 @@ export default function SignupPage() {
     }
   }
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

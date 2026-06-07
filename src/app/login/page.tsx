@@ -52,10 +52,11 @@ export default function LoginPage() {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') {
         auth.signOut();
+        toast({ variant: 'destructive', title: 'Account Suspended', description: 'Please contact support.' });
         return;
       }
       
-      const role = userProfile.userRole;
+      const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
       } else if (role === 'reseller') {
@@ -66,7 +67,7 @@ export default function LoginPage() {
         router.replace('/buyer/dashboard');
       }
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth]);
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -87,24 +88,14 @@ export default function LoginPage() {
       const userDocSnap = await getDoc(userDocRef);
 
       if (!userDocSnap.exists()) {
-        // Create default profile for first-time Google sign-ins via Login
-        const profile = {
-          id: loggedUser.uid,
-          uid: loggedUser.uid,
-          fullName: loggedUser.displayName || 'Google User',
-          username: loggedUser.email?.split('@')[0] || `user_${loggedUser.uid.substring(0, 5)}`,
-          email: loggedUser.email,
-          profilePictureUrl: loggedUser.photoURL,
-          joinDate: new Date().toISOString(),
-          userRole: 'buyer',
-          role: 'buyer',
-          aiPoints: 0,
-          status: 'active',
-        };
-        await setDoc(userDocRef, profile);
+        // If they don't have a profile, they likely tried to login without signing up
+        // We redirect them to signup with a message
+        toast({ title: 'Profile Not Found', description: 'Please complete your registration to choose a role.' });
+        router.push('/signup');
+      } else {
+        toast({ title: 'Login Successful!', description: "Welcome back." });
       }
       
-      toast({ title: 'Login Successful!', description: "Welcome to GoEarnvid." });
     } catch (error: any) {
       console.error('Google Auth Error:', error);
       toast({
@@ -120,33 +111,12 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const loggedUser = userCredential.user;
-
-      const userDocRef = doc(firestore, 'userProfiles', loggedUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-
-      if (userDocSnap.exists()) {
-        const profile = userDocSnap.data();
-        
-        if (profile.status === 'suspended') {
-            await auth.signOut();
-            toast({
-                variant: 'destructive',
-                title: 'Account Suspended',
-                description: 'Your account has been suspended. Please contact support.',
-            });
-            return;
-        }
-
-        toast({ title: 'Login Successful!', description: "Welcome back to GoEarnvid." });
-      }
+      toast({ title: 'Authenticated', description: 'Checking profile...' });
     } catch (error: any) {
       console.error('Login Error:', error);
-      let description = 'Incorrect email or password. Please check your details and try again.';
+      let description = 'Incorrect email or password.';
       
-      if (error.code === 'auth/network-request-failed') {
-        description = 'Network connection failed. Check your internet and try again.';
-      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         description = 'The email or password you entered is incorrect.';
       }
       
@@ -158,9 +128,9 @@ export default function LoginPage() {
     }
   }
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center bg-black">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );

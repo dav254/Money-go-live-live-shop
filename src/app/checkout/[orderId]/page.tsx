@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
@@ -19,6 +20,7 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 
 function CheckoutSkeleton() {
     return (
@@ -63,32 +65,24 @@ const PayPalIcon = () => (
     </svg>
 );
 
-const PaystackIcon = () => (
-    <div className="flex items-center gap-1">
+const PaystackIcon = ({ isMpesa }: { isMpesa: boolean }) => (
+    <div className="flex items-center gap-2">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="#011b33"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="currentColor"/>
         </svg>
-        <span className="bg-[#011b33] text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA</span>
+        {isMpesa && <span className="bg-green-600 text-[8px] text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm">M-PESA</span>}
     </div>
-);
-
-const PesapalIcon = () => (
-    <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="50" cy="50" r="50" fill="#F05A28"/>
-        <path d="M40 30H65C72 30 78 35 78 43C78 51 72 56 65 56H40V75H32V30H40ZM40 48H65C68.5 48 70 45.5 70 43C70 40.5 68.5 38 65 38H40V48Z" fill="white"/>
-        <path d="M25 50C25 36 36 25 50 25M75 50C75 64 64 75 50 75" stroke="white" strokeWidth="5" strokeLinecap="round"/>
-    </svg>
 );
 
 export default function CheckoutPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
     const orderId = params.orderId as string;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
+    const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
     const orderRef = useMemoFirebase(() => {
         if (!orderId || !firestore) return null;
@@ -97,45 +91,19 @@ export default function CheckoutPage() {
 
     const { data: order, isLoading: isLoadingOrder, error: orderError } = useDoc<Order>(orderRef);
     
-    const [liveShippingCost, setLiveShippingCost] = useState<number>(0);
-    const [isLoadingShipping, setIsLoadingShipping] = useState(true);
-
     useEffect(() => {
-        if (searchParams.get('gateway') === 'pesapal' && searchParams.get('OrderTrackingId')) {
-            toast({
-                title: 'Transaction Initialized',
-                description: 'We are verifying your PesaPal payment. Please check your orders in a few minutes.',
-            });
-            router.push('/buyer/my-orders');
-        }
-    }, [searchParams, toast, router]);
+        setUserLocation(getLocationFromStorage());
+    }, []);
 
-    useEffect(() => {
-        const fetchSellerShipping = async () => {
-            if (order?.sellerId && firestore) {
-                setIsLoadingShipping(true);
-                const firstItemProductId = order.items?.[0]?.productId || order.productId;
-                if (!firstItemProductId) {
-                    setIsLoadingShipping(false);
-                    return;
-                }
-                const productRef = doc(firestore, 'products', firstItemProductId);
-                const productSnap = await getDoc(productRef);
-                if (productSnap.exists()) {
-                    const productData = productSnap.data() as Product;
-                    setLiveShippingCost(productData.shippingCost || 0);
-                }
-                setIsLoadingShipping(false);
-            }
-        };
-        fetchSellerShipping();
-    }, [order, firestore]);
+    const isKenya = useMemo(() => {
+        return userLocation?.country?.toUpperCase() === 'KENYA' || userLocation?.city?.toUpperCase() === 'NAIROBI';
+    }, [userLocation]);
     
     const subtotal = order?.subtotal ?? order?.productPrice ?? 0;
-    const liveTotalAmount = subtotal + liveShippingCost;
+    const shippingCost = order?.shippingCost ?? 0;
+    const totalAmount = subtotal + shippingCost;
     
-    const isLoading = isLoadingOrder || isUserLoading || isLoadingShipping;
-    const error = orderError;
+    const isLoading = isLoadingOrder || isUserLoading;
 
     const orderItems = useMemo(() => {
         if (!order) return [];
@@ -153,7 +121,7 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal') => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal') => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
@@ -171,7 +139,7 @@ export default function CheckoutPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     orderId: order.id,
-                    amount: liveTotalAmount,
+                    amount: totalAmount,
                     email: user.email,
                     gateway: gateway,
                 }),
@@ -200,7 +168,7 @@ export default function CheckoutPage() {
     };
 
     if (isLoading) return <BuyerLayout><div className="container py-12"><CheckoutSkeleton /></div></BuyerLayout>;
-    if (error || !order) return <BuyerLayout><div className="container py-12 text-center"><h1 className="text-2xl font-bold">Order Not Found</h1></div></BuyerLayout>;
+    if (orderError || !order) return <BuyerLayout><div className="container py-12 text-center"><h1 className="text-2xl font-bold">Order Not Found</h1></div></BuyerLayout>;
     
     if (order.orderStatus !== 'pending') {
          return (
@@ -220,7 +188,7 @@ export default function CheckoutPage() {
                                 <Badge className="bg-green-600 font-black uppercase text-[10px]">{order.orderStatus}</Badge>
                             </div>
                             <Separator className="bg-white/5" />
-                            <p className="text-xs text-neutral-400 leading-relaxed">The seller has been notified and will start processing your delivery shortly.</p>
+                            <p className="text-xs text-neutral-400 leading-relaxed text-left">The seller has been notified and will start processing your delivery shortly.</p>
                         </CardContent>
                     </Card>
                     <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
@@ -238,8 +206,8 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     <Card className="border-white/5 bg-card/50">
                         <CardHeader>
-                            <CardTitle className="font-headline text-xl uppercase tracking-tight">Order Summary</CardTitle>
-                            <CardDescription className="text-xs uppercase tracking-widest font-bold">Review your order before payment.</CardDescription>
+                            <CardTitle className="font-headline text-xl uppercase tracking-tight text-white">Order Summary</CardTitle>
+                            <CardDescription className="text-xs uppercase tracking-widest font-bold">Review your items before checkout.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {orderItems.map((item) => (
@@ -248,7 +216,7 @@ export default function CheckoutPage() {
                                         <Image src={item.imageUrl || getPlaceholderImage()} alt={item.name || 'Product'} fill className="object-cover" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="font-bold text-sm truncate uppercase tracking-tight">{item.name}</p>
+                                        <p className="font-bold text-sm truncate uppercase tracking-tight text-white">{item.name}</p>
                                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Qty: {item.quantity}</p>
                                     </div>
                                     <p className="ml-auto font-black text-sm text-primary">${(item.price * item.quantity).toLocaleString()}</p>
@@ -257,14 +225,14 @@ export default function CheckoutPage() {
                             <Separator className="bg-white/5" />
                             <div className="space-y-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                 <div className="flex justify-between"><p>Subtotal</p><p>${subtotal.toLocaleString()}</p></div>
-                                <div className="flex justify-between"><p>Shipping</p><p>${liveShippingCost.toLocaleString()}</p></div>
+                                <div className="flex justify-between"><p>Shipping</p><p>${shippingCost.toLocaleString()}</p></div>
                             </div>
                         </CardContent>
                         <CardFooter className="bg-white/5 p-6 rounded-b-lg border-t border-white/5">
                             <div className="flex justify-between w-full">
                                 <div className="space-y-0.5">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Total Amount</p>
-                                    <p className="text-2xl font-black tracking-tighter text-white">USD ${liveTotalAmount.toLocaleString()}</p>
+                                    <p className="text-2xl font-black tracking-tighter text-white">USD ${totalAmount.toLocaleString()}</p>
                                 </div>
                                 <ShieldCheck className="h-8 w-8 text-primary/40" />
                             </div>
@@ -272,33 +240,27 @@ export default function CheckoutPage() {
                     </Card>
 
                     <div className="space-y-6">
-                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Options</h2>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Method</h2>
                         <div className="grid gap-3">
-                            <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 transition-all border border-white/5 group" onClick={() => handlePayment('pesapal')} disabled={!!isLoadingPayment}>
-                                <div className="h-14 w-14 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition-transform">
-                                    {isLoadingPayment === 'pesapal' ? <Loader2 className="animate-spin text-primary" /> : <PesapalIcon />}
-                                </div>
-                                <div className="text-left min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-black text-sm uppercase tracking-widest">PesaPal</p>
-                                        <Badge className="bg-[#F05A28] text-[8px] h-4 px-1 font-black border-none text-white">M-PESA / VISA</Badge>
-                                    </div>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Instant M-Pesa & Global Cards</p>
-                                </div>
-                            </Button>
-
                             <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-white text-black hover:bg-neutral-200 transition-all border-none group" onClick={() => handlePayment('paystack')} disabled={!!isLoadingPayment}>
-                                <div className="h-14 w-14 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 group-hover:scale-105 transition-transform">
-                                    {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon />}
+                                <div className={cn(
+                                    "h-14 w-14 rounded-xl flex items-center justify-center shrink-0 border border-neutral-200 group-hover:scale-105 transition-transform shadow-sm",
+                                    isKenya ? "bg-green-50" : "bg-neutral-100"
+                                )}>
+                                    {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon isMpesa={isKenya} />}
                                 </div>
                                 <div className="text-left min-w-0">
-                                    <p className="font-black text-sm uppercase tracking-widest">Paystack</p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Fast Card & Bank Transfers</p>
+                                    <p className="font-black text-sm uppercase tracking-widest">
+                                        {isKenya ? 'Pay with M-Pesa' : 'Paystack'}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">
+                                        {isKenya ? 'Instant Mobile Money Transfer' : 'Fast Card & Bank Transfers'}
+                                    </p>
                                 </div>
                             </Button>
 
                             <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white transition-all border-none group" onClick={() => handlePayment('paypal')} disabled={!!isLoadingPayment}>
-                                <div className="h-14 w-14 rounded-xl bg-white flex items-center justify-center shrink-0 border border-white/20 group-hover:scale-105 transition-transform">
+                                <div className="h-14 w-14 rounded-xl bg-white flex items-center justify-center shrink-0 border border-white/20 group-hover:scale-105 transition-transform shadow-lg">
                                     {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin text-black" /> : <PayPalIcon />}
                                 </div>
                                 <div className="text-left min-w-0">
@@ -306,6 +268,16 @@ export default function CheckoutPage() {
                                     <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">Global Credit & Wallet</p>
                                 </div>
                             </Button>
+                        </div>
+                        
+                        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                            <div className="flex items-center gap-3">
+                                <ShieldCheck className="h-5 w-5 text-primary" />
+                                <p className="text-[10px] font-black uppercase text-primary tracking-widest">PCI DSS SECURE</p>
+                            </div>
+                            <p className="text-[9px] text-neutral-500 mt-2 font-medium leading-relaxed">
+                                Your payment details are encrypted and processed by regulated financial institutions. Go Earn never stores your card information.
+                            </p>
                         </div>
                     </div>
                 </div>
