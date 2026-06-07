@@ -186,7 +186,7 @@ export function SellerSidebar() {
             >
               <Link href="/dashboard/seller/live-feed?view=saved">
                 <Heart className="text-pink-500" />
-                <span>Saved Items</span>
+                <span>My Saved Items</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

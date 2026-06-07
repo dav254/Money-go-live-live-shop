@@ -115,6 +115,7 @@ function LiveFeedContent() {
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         
+        // This logic ensures only the items in the LOGGED IN user's wishlist are shown
         if (view === 'saved' && userProfile) {
             const wishlist = userProfile.wishlist || [];
             if (wishlist.length === 0) return null;
@@ -210,14 +211,14 @@ function LiveFeedContent() {
                         <Input 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={view === 'saved' ? "Search your saved items..." : "Search global discovery..."} 
+                            placeholder={view === 'saved' ? "Search your private collection..." : "Search global discovery..."} 
                             className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10 rounded-full focus:bg-white/20 focus:border-primary/50 backdrop-blur-md transition-all h-10 md:h-11"
                         />
                     </div>
                 </form>
                 <div className="flex items-center gap-2">
                     <Badge variant="outline" className="hidden md:flex border-white/10 bg-black/40 text-white font-black uppercase tracking-widest text-[9px] h-8 px-3">
-                        {view === 'saved' ? 'Saved Collection' : 'Global Discovery'}
+                        {view === 'saved' ? 'My Private Collection' : 'Global Discovery'}
                     </Badge>
                 </div>
             </div>
@@ -247,11 +248,11 @@ function LiveFeedContent() {
                             {view === 'saved' ? <Bookmark className="h-10 w-10 text-neutral-500" /> : <Video className="h-10 w-10 text-neutral-500" />}
                         </div>
                         <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">
-                            {view === 'saved' ? 'Your Saved Items are Empty' : 'Discovery Empty'}
+                            {view === 'saved' ? 'My Saved Items are Empty' : 'Discovery Empty'}
                         </h2>
                         <p className="text-neutral-500 text-sm font-medium leading-relaxed mb-8">
                             {view === 'saved' 
-                                ? "You haven't saved any products yet. Heart some items in the Discovery Feed to see them here." 
+                                ? "This collection is private to you. Heart some items in the Discovery Feed to see them here." 
                                 : "We couldn't find any media to show right now. Check back later!"}
                         </p>
                         {view === 'saved' && (
