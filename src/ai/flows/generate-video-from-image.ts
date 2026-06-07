@@ -1,8 +1,8 @@
 'use server';
 
 /**
- * @fileOverview An AI flow to generate a new image from a text prompt,
- * upload it to Firebase Storage, and save the URL to the product.
+ * @fileOverview An AI flow to generate a new image from a text prompt.
+ * Supports both standalone generation and product-associated generation.
  */
 
 import { ai } from '@/ai/genkit';
@@ -12,13 +12,13 @@ import { db, bucket } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 
 const GenerateVideoFromImageInputSchema = z.object({
-  productId: z.string().describe('The ID of the product to associate the image with.'),
+  productId: z.string().optional().describe('The ID of the product to associate the image with (optional).'),
   prompt: z.string().describe('A text prompt describing the new image to generate.'),
 });
 export type GenerateVideoFromImageInput = z.infer<typeof GenerateVideoFromImageInputSchema>;
 
 const GenerateVideoFromImageOutputSchema = z.object({
-  videoUrl: z.string().describe('The permanent URL of the generated and uploaded image.'),
+  videoUrl: z.string().describe('The URL or Data URI of the generated image.'),
 });
 export type GenerateVideoFromImageOutput = z.infer<typeof GenerateVideoFromImageOutputSchema>;
 
@@ -47,12 +47,18 @@ export async function generateVideoFromImage(input: GenerateVideoFromImageInput)
     throw new Error('Failed to generate a new image from the model.');
   }
 
-  const permanentImageUrl = await uploadToFirebase(media.url, input.productId);
-  
-  const productRef = db.collection('products').doc(input.productId);
-  await productRef.update({
-    imageUrls: FieldValue.arrayUnion(permanentImageUrl),
-  });
+  // If a product ID is provided, save it to the gallery
+  if (input.productId && input.productId !== 'standalone') {
+      const permanentImageUrl = await uploadToFirebase(media.url, input.productId);
+      
+      const productRef = db.collection('products').doc(input.productId);
+      await productRef.update({
+        imageUrls: FieldValue.arrayUnion(permanentImageUrl),
+      });
 
-  return { videoUrl: permanentImageUrl };
+      return { videoUrl: permanentImageUrl };
+  }
+
+  // Otherwise, return the raw data URI for immediate download/preview
+  return { videoUrl: media.url };
 }
