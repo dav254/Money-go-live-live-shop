@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -145,118 +144,6 @@ const SharedProductCard = ({ productId }: { productId: string }) => {
                 </div>
             </div>
         </div>
-    );
-};
-
-const CreateInvoiceDialog = ({ sellerId, buyerId, onSend }: { sellerId: string; buyerId: string; onSend: (orderId: string) => void }) => {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-    const [agreedPrice, setAgreedPrice] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
-
-    const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products'), where('sellerId', '==', sellerId)), [firestore, sellerId]);
-    const { data: products, isLoading } = useCollection<Product>(productsQuery);
-
-    const handleCreateOrder = async () => {
-        if (!selectedProductId || !agreedPrice) return;
-        setIsCreating(true);
-        const product = products?.find(p => p.id === selectedProductId);
-        if (!product) return;
-
-        const newOrderRef = doc(collection(firestore, 'orders'));
-        const orderData = {
-            id: newOrderRef.id,
-            buyerId,
-            sellerId,
-            productId: product.id,
-            productName: product.name,
-            productImage: product.imageUrl,
-            productPrice: Number(agreedPrice),
-            shippingCost: product.shippingCost || 0,
-            totalAmount: Number(agreedPrice) + (product.shippingCost || 0),
-            orderDate: serverTimestamp(),
-            orderStatus: 'pending',
-            shippingAddress: 'N/A (Update at checkout)',
-            quantity: 1,
-            timeline: [{ status: 'pending', date: new Date() }]
-        };
-
-        try {
-            await setDoc(newOrderRef, orderData);
-            onSend(newOrderRef.id);
-            toast({ title: 'Invoice Sent!', description: 'Buyer can now pay via the Pay Now button.' });
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to create invoice. Check permissions.' });
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
-    return (
-        <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-                <DialogTitle className="font-black text-base uppercase tracking-tighter">Send Secure Invoice</DialogTitle>
-                <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Confirm the deal with a payment link.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">1. Select Product from Catalog</Label>
-                    <div className="border rounded-2xl bg-muted/20 overflow-hidden shadow-inner">
-                        <ScrollArea className="h-60">
-                            <div className="p-2 space-y-1.5">
-                                {isLoading && <div className="flex flex-col items-center justify-center py-12 gap-2 opacity-50"><Loader2 className="h-5 w-5 animate-spin text-primary" /><span className="text-[8px] font-black uppercase tracking-widest">Syncing Catalog...</span></div>}
-                                {products?.map(p => (
-                                    <button 
-                                        key={p.id} 
-                                        type="button"
-                                        onClick={() => setSelectedProductId(p.id)}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 p-2 rounded-xl border transition-all text-left",
-                                            selectedProductId === p.id ? "bg-primary/10 border-primary shadow-sm" : "bg-transparent border-transparent hover:bg-muted"
-                                        )}
-                                    >
-                                        <div className="relative h-10 w-10 rounded-lg overflow-hidden bg-black shrink-0 border border-white/10">
-                                            <Image src={p.imageUrl || '/placeholder.svg'} alt={p.name || 'product'} fill className="object-cover" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <span className="text-[11px] font-black uppercase tracking-tight block truncate text-foreground">{p.name}</span>
-                                            <span className="text-[10px] font-bold text-primary">${p.price?.toLocaleString()}</span>
-                                        </div>
-                                        {selectedProductId === p.id && <CheckCheck className="h-4 w-4 text-primary shrink-0 mr-1" />}
-                                    </button>
-                                ))}
-                                {products?.length === 0 && <div className="py-12 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">No products found.</div>}
-                            </div>
-                        </ScrollArea>
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">2. Final Agreed Price (USD)</Label>
-                    <div className="relative">
-                        <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-                        <Input 
-                            type="number" 
-                            placeholder="0.00" 
-                            className="pl-10 h-14 bg-muted/30 border-white/10 rounded-2xl font-black text-xl tracking-tighter"
-                            value={agreedPrice}
-                            onChange={e => setAgreedPrice(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
-            <DialogFooter className="sm:justify-start">
-                <Button 
-                    className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 border-none" 
-                    onClick={handleCreateOrder}
-                    disabled={isCreating || !selectedProductId || !agreedPrice}
-                >
-                    {isCreating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="mr-2 h-4 w-4" />}
-                    SEND SECURE INVOICE
-                </Button>
-            </DialogFooter>
-        </DialogContent>
     );
 };
 
@@ -565,13 +452,6 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
     });
   }, [chat, currentUser, firestore, toast, sendMessage]);
 
-  const handleSendInvoice = useCallback((orderId: string) => {
-    sendMessage({ messageType: 'order', orderId }).catch(error => {
-        console.error("Error sending invoice:", error);
-        toast({ variant: 'destructive', title: 'Invoice Failed' });
-    });
-  }, [chat, currentUser, firestore, toast, sendMessage]);
-
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -786,28 +666,14 @@ export function ChatWindow({ chat, currentUser, onChatDeleted, onBack }: ChatWin
                         </Button>
                         
                         {userProfile?.userRole === 'seller' && (
-                            <>
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
-                                            <Package className="h-4 w-4" />
-                                        </Button>
-                                    </DialogTrigger>
-                                    <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
-                                </Dialog>
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-primary/10 text-primary">
-                                            <CreditCard className="h-4 w-4" />
-                                        </Button>
-                                    </DialogTrigger>
-                                    <CreateInvoiceDialog 
-                                        sellerId={currentUser.uid} 
-                                        buyerId={otherParticipantProfile?.id || ''} 
-                                        onSend={handleSendInvoice} 
-                                    />
-                                </Dialog>
-                            </>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-xl border-white/5 shrink-0 bg-neutral-900/50">
+                                        <Package className="h-4 w-4" />
+                                    </Button>
+                                </DialogTrigger>
+                                <ShareProductDialog sellerId={currentUser.uid} onShare={handleShareProduct} />
+                            </Dialog>
                         )}
                     </div>
 
