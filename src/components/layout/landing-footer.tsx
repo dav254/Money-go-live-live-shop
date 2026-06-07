@@ -1,6 +1,6 @@
 'use client';
 
-import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, Globe, MapPin, Heart } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Youtube, Phone, Globe, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../logo';
 
@@ -65,9 +65,7 @@ export function LandingFooter() {
               <h4 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Contact Us</h4>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {[
-                  { icon: Mail, text: "hello@goearn.co.ke" },
                   { icon: Phone, text: "+254794598895" },
-                  { icon: MapPin, text: "Nairobi, Kenya" },
                 ].map((item, index) => (
                   <li key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
