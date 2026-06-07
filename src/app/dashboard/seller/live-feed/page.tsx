@@ -10,7 +10,7 @@ import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft, Video, Layers, X } from 'lucide-react';
+import { Search, ChevronLeft, Video, Layers, X, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SellerLayout } from '@/components/layout/seller-layout';
