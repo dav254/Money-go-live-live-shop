@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useRef, useState, useEffect, Suspense } from 'react';
-import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, orderBy, limit, where } from 'firebase/firestore';
+import { useCollection, useDoc, useMemoFirebase, useUserProfile } from '@/firebase';
+import { collection, doc, query, orderBy, limit, where, documentId } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem, LiveSession } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -10,7 +10,7 @@ import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft, Video, Layers, X, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, Video, Heart, X, Loader2, Bookmark } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SellerLayout } from '@/components/layout/seller-layout';
@@ -103,6 +103,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
 function LiveFeedContent() {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const firestore = useFirestore();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -114,12 +115,12 @@ function LiveFeedContent() {
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         
-        if (view === 'mine' && user) {
+        if (view === 'saved' && userProfile) {
+            const wishlist = userProfile.wishlist || [];
+            if (wishlist.length === 0) return null;
             return query(
-                collection(firestore, 'products'), 
-                where('sellerId', '==', user.uid),
-                orderBy('uploadDate', 'desc'), 
-                limit(20)
+                collection(firestore, 'products'),
+                where(documentId(), 'in', wishlist.slice(0, 30))
             );
         }
 
@@ -128,10 +129,10 @@ function LiveFeedContent() {
             orderBy('uploadDate', 'desc'), 
             limit(10)
         );
-    }, [firestore, view, user]);
+    }, [firestore, view, userProfile]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-    const isLoading = isUserLoading || areProductsLoading;
+    const isLoading = isUserLoading || areProductsLoading || isProfileLoading;
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
         const container = scrollContainerRef.current;
@@ -209,14 +210,14 @@ function LiveFeedContent() {
                         <Input 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={view === 'mine' ? "Search my showcase..." : "Search global discovery..."} 
+                            placeholder={view === 'saved' ? "Search your saved items..." : "Search global discovery..."} 
                             className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10 rounded-full focus:bg-white/20 focus:border-primary/50 backdrop-blur-md transition-all h-10 md:h-11"
                         />
                     </div>
                 </form>
                 <div className="flex items-center gap-2">
                     <Badge variant="outline" className="hidden md:flex border-white/10 bg-black/40 text-white font-black uppercase tracking-widest text-[9px] h-8 px-3">
-                        {view === 'mine' ? 'My Portfolio' : 'Global Discovery'}
+                        {view === 'saved' ? 'Saved Collection' : 'Global Discovery'}
                     </Badge>
                 </div>
             </div>
@@ -243,19 +244,19 @@ function LiveFeedContent() {
                 <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-neutral-950">
                     <div className="text-center p-8 max-w-sm">
                         <div className="p-4 bg-white/5 rounded-full w-fit mx-auto mb-6">
-                            {view === 'mine' ? <Layers className="h-10 w-10 text-neutral-500" /> : <Video className="h-10 w-10 text-neutral-500" />}
+                            {view === 'saved' ? <Bookmark className="h-10 w-10 text-neutral-500" /> : <Video className="h-10 w-10 text-neutral-500" />}
                         </div>
                         <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">
-                            {view === 'mine' ? 'Your Showcase is Empty' : 'Discovery Empty'}
+                            {view === 'saved' ? 'Your Saved Items are Empty' : 'Discovery Empty'}
                         </h2>
                         <p className="text-neutral-500 text-sm font-medium leading-relaxed mb-8">
-                            {view === 'mine' 
-                                ? "You haven't uploaded any products with media yet. Add some to see your portfolio come to life." 
+                            {view === 'saved' 
+                                ? "You haven't saved any products yet. Heart some items in the Discovery Feed to see them here." 
                                 : "We couldn't find any media to show right now. Check back later!"}
                         </p>
-                        {view === 'mine' && (
+                        {view === 'saved' && (
                             <Button asChild className="font-black uppercase tracking-widest text-xs h-12 rounded-xl">
-                                <Link href="/dashboard/products?tab=add-new">Upload My First Product</Link>
+                                <Link href="/dashboard/seller/live-feed">Explore Discovery Feed</Link>
                             </Button>
                         )}
                     </div>

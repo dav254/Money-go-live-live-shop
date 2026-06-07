@@ -21,6 +21,7 @@ import {
   Info,
   Video,
   Layers,
+  Heart,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -181,11 +182,11 @@ export function SellerSidebar() {
             <SidebarMenuButton 
               size="sm" 
               asChild 
-              isActive={isActive('/dashboard/seller/live-feed') && searchParams.get('view') === 'mine'}
+              isActive={isActive('/dashboard/seller/live-feed') && searchParams.get('view') === 'saved'}
             >
-              <Link href="/dashboard/seller/live-feed?view=mine">
-                <Layers className="text-purple-500" />
-                <span>My Showcase</span>
+              <Link href="/dashboard/seller/live-feed?view=saved">
+                <Heart className="text-pink-500" />
+                <span>Saved Items</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
