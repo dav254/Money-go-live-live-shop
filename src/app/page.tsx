@@ -1,17 +1,20 @@
 
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { 
-  Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
-  Radio, Users, Share2, Globe, Cpu, Layers,
-  RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard, Play, DollarSign
+  ArrowRight, Sparkles, Zap, 
+  Video, Users, Globe,
+  Bot, Loader2, ShoppingBag, CreditCard, Play, DollarSign
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default function HomePage() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -97,7 +100,7 @@ export default function HomePage() {
                 Social Commerce v2.0
             </div>
             
-            <h1 className="font-cyber text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9] mb-8">
+            <h1 className="font-cyber text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase">
               DISCOVER <br />
               <span className="text-gradient glow-text">OPPORTUNITIES</span>
             </h1>

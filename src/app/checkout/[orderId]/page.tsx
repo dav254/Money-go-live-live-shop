@@ -2,9 +2,8 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { getDoc, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useParams, useSearchParams } from 'next/navigation';
-import type { Order, Product } from '@/lib/types';
+import { useParams } from 'next/navigation';
+import type { Order } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,7 +11,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle, SmartphoneNfc, ArrowRight, PackageCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -37,17 +36,7 @@ function CheckoutSkeleton() {
                         <Skeleton className="h-5 w-20" />
                         <Skeleton className="h-5 w-16" />
                     </div>
-                     <div className="flex justify-between">
-                        <Skeleton className="h-5 w-24" />
-                        <Skeleton className="h-5 w-16" />
-                    </div>
                 </CardContent>
-                <CardFooter>
-                     <div className="flex justify-between w-full font-bold">
-                        <Skeleton className="h-6 w-20" />
-                        <Skeleton className="h-6 w-24" />
-                    </div>
-                </CardFooter>
             </Card>
             <div className="space-y-6">
                 <Skeleton className="h-12 w-full" />
@@ -61,7 +50,7 @@ const PayPalIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M20.071 6.842C20.071 10.34 17.587 11.905 13.923 11.905H11.531C11.084 11.905 10.713 12.247 10.648 12.69L9.431 18.91C9.408 19.027 9.498 19.133 9.617 19.133H12.355C12.802 19.133 13.173 18.791 13.238 18.348L14.159 13.62C14.224 13.177 14.595 12.835 15.042 12.835H15.938C19.011 12.835 21.096 11.365 21.096 8.356C21.096 7.643 20.978 6.993 20.761 6.425C20.375 6.681 19.824 6.842 19.141 6.842L20.071 6.842Z" fill="#003087"/>
         <path d="M19.141 6.842C19.824 6.842 20.375 6.681 20.761 6.425C20.174 4.887 18.528 4 16.038 4H10.153C9.706 4 9.335 4.342 9.27 4.785L7.02 16.321C6.997 16.438 7.087 16.544 7.206 16.544H10.14C10.587 16.544 10.958 16.202 11.023 15.759L11.531 12.69C11.596 12.247 11.967 11.905 12.414 11.905H14.806C18.47 11.905 20.954 10.34 20.954 6.842C20.954 6.842 20.954 6.842 20.954 6.842H19.141Z" fill="#009CDE"/>
-        <path d="M11.023 15.759L11.531 12.69C11.596 12.247 11.967 11.905 12.414 11.905H14.806C18.47 11.905 20.954 10.34 20.954 6.842C20.954 6.842 20.954 6.842 20.954 6.842H20.375 6.681 19.824 6.842 19.141 6.842H20.071L19.141 6.842Z" fill="#012169"/>
+        <path d="M11.023 15.759L11.531 12.69C11.596 12.247 11.967 11.905 12.414 11.905H14.806C18.47 11.905 20.954 10.34 20.954 6.842C20.954 6.842 20.954 6.842 20.954 6.842H20.375 6.681 19.824 6.842H19.141L20.071 6.842Z" fill="#012169"/>
     </svg>
 );
 
@@ -79,7 +68,6 @@ export default function CheckoutPage() {
     const orderId = params.orderId as string;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
-    const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -181,16 +169,6 @@ export default function CheckoutPage() {
                         <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Payment Received!</h1>
                         <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2">Order #{order.id.substring(0, 8)} is now being prepared.</p>
                     </div>
-                    <Card className="max-w-md w-full border-white/5 bg-neutral-900/50">
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">Current Status</span>
-                                <Badge className="bg-green-600 font-black uppercase text-[10px]">{order.orderStatus}</Badge>
-                            </div>
-                            <Separator className="bg-white/5" />
-                            <p className="text-xs text-neutral-400 leading-relaxed text-left">The seller has been notified and will start processing your delivery shortly.</p>
-                        </CardContent>
-                    </Card>
                     <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                         <Button asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs"><Link href="/buyer/my-orders">VIEW MY ORDERS</Link></Button>
                         <Button variant="outline" asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-white/10"><Link href="/buyer/dashboard">CONTINUE SHOPPING</Link></Button>
@@ -268,16 +246,6 @@ export default function CheckoutPage() {
                                     <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">Global Credit & Wallet</p>
                                 </div>
                             </Button>
-                        </div>
-                        
-                        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                            <div className="flex items-center gap-3">
-                                <ShieldCheck className="h-5 w-5 text-primary" />
-                                <p className="text-[10px] font-black uppercase text-primary tracking-widest">PCI DSS SECURE</p>
-                            </div>
-                            <p className="text-[9px] text-neutral-500 mt-2 font-medium leading-relaxed">
-                                Your payment details are encrypted and processed by regulated financial institutions. Go Earn never stores your card information.
-                            </p>
                         </div>
                     </div>
                 </div>
