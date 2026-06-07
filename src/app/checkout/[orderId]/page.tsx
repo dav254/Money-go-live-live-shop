@@ -11,7 +11,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle, SmartphoneNfc, ArrowRight, PackageCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, CheckCircle, ArrowRight, PackageCheck, SmartphoneNfc } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -19,6 +19,7 @@ import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { detectLocation, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 
 function CheckoutSkeleton() {
     return (
@@ -63,21 +64,13 @@ const PayPalIcon = () => (
     </svg>
 );
 
-const PaystackIcon = () => (
-    <div className="flex items-center gap-1">
+const PaystackIcon = ({ isKenya }: { isKenya: boolean }) => (
+    <div className="flex items-center gap-2">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill="#011b33"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 17L7 13L8.41 11.59L11 14.17L15.59 9.58L17 11L11 17Z" fill={isKenya ? "#00A3AD" : "#011b33"}/>
         </svg>
-        <span className="bg-[#011b33] text-[8px] text-white px-1 rounded font-black uppercase tracking-tighter">M-PESA</span>
+        {isKenya && <span className="bg-[#00A3AD] text-[8px] text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter shadow-sm">M-PESA</span>}
     </div>
-);
-
-const PesapalIcon = () => (
-    <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="50" cy="50" r="50" fill="#F05A28"/>
-        <path d="M40 30H65C72 30 78 35 78 43C78 51 72 56 65 56H40V75H32V30H40ZM40 48H65C68.5 48 70 45.5 70 43C70 40.5 68.5 38 65 38H40V48Z" fill="white"/>
-        <path d="M25 50C25 36 36 25 50 25M75 50C75 64 64 75 50 75" stroke="white" strokeWidth="5" strokeLinecap="round"/>
-    </svg>
 );
 
 export default function CheckoutPage() {
@@ -89,6 +82,7 @@ export default function CheckoutPage() {
     const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
+    const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
     const orderRef = useMemoFirebase(() => {
         if (!orderId || !firestore) return null;
@@ -101,14 +95,17 @@ export default function CheckoutPage() {
     const [isLoadingShipping, setIsLoadingShipping] = useState(true);
 
     useEffect(() => {
-        if (searchParams.get('gateway') === 'pesapal' && searchParams.get('OrderTrackingId')) {
-            toast({
-                title: 'Transaction Initialized',
-                description: 'We are verifying your PesaPal payment. Please check your orders in a few minutes.',
-            });
-            router.push('/buyer/my-orders');
-        }
-    }, [searchParams, toast, router]);
+        const fetchLocation = async () => {
+            const stored = getLocationFromStorage();
+            if (stored) {
+                setUserLocation(stored);
+            } else {
+                const detected = await detectLocation();
+                setUserLocation(detected);
+            }
+        };
+        fetchLocation();
+    }, []);
 
     useEffect(() => {
         const fetchSellerShipping = async () => {
@@ -137,6 +134,10 @@ export default function CheckoutPage() {
     const isLoading = isLoadingOrder || isUserLoading || isLoadingShipping;
     const error = orderError;
 
+    const isKenya = useMemo(() => {
+        return userLocation?.country?.toLowerCase() === 'kenya';
+    }, [userLocation]);
+
     const orderItems = useMemo(() => {
         if (!order) return [];
         if (order.items && order.items.length > 0) return order.items;
@@ -153,7 +154,7 @@ export default function CheckoutPage() {
     }, [order]);
 
 
-    const handlePayment = async (gateway: 'paystack' | 'paypal' | 'pesapal') => {
+    const handlePayment = async (gateway: 'paystack' | 'paypal') => {
         if (!order || !user?.email) {
             toast({
                 variant: 'destructive',
@@ -234,7 +235,7 @@ export default function CheckoutPage() {
 
     return (
         <BuyerLayout>
-            <div className="container py-12">
+            <div className="container py-12 px-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     <Card className="border-white/5 bg-card/50">
                         <CardHeader>
@@ -272,40 +273,48 @@ export default function CheckoutPage() {
                     </Card>
 
                     <div className="space-y-6">
-                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Options</h2>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Secure Payment Options</h2>
                         <div className="grid gap-3">
-                            <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 transition-all border border-white/5 group" onClick={() => handlePayment('pesapal')} disabled={!!isLoadingPayment}>
-                                <div className="h-14 w-14 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/10 group-hover:scale-105 transition-transform">
-                                    {isLoadingPayment === 'pesapal' ? <Loader2 className="animate-spin text-primary" /> : <PesapalIcon />}
-                                </div>
-                                <div className="text-left min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-black text-sm uppercase tracking-widest">PesaPal</p>
-                                        <Badge className="bg-[#F05A28] text-[8px] h-4 px-1 font-black border-none text-white">M-PESA / VISA</Badge>
-                                    </div>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Instant M-Pesa & Global Cards</p>
-                                </div>
-                            </Button>
-
-                            <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-white text-black hover:bg-neutral-200 transition-all border-none group" onClick={() => handlePayment('paystack')} disabled={!!isLoadingPayment}>
+                            <Button 
+                                size="lg" 
+                                className="w-full justify-start gap-4 h-24 rounded-2xl bg-white text-black hover:bg-neutral-200 transition-all border-none group shadow-xl" 
+                                onClick={() => handlePayment('paystack')} 
+                                disabled={!!isLoadingPayment}
+                            >
                                 <div className="h-14 w-14 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 group-hover:scale-105 transition-transform">
-                                    {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon />}
+                                    {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon isKenya={isKenya} />}
                                 </div>
                                 <div className="text-left min-w-0">
-                                    <p className="font-black text-sm uppercase tracking-widest">Paystack</p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Fast Card & Bank Transfers</p>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <p className="font-black text-sm uppercase tracking-widest">{isKenya ? 'Pay with M-Pesa' : 'Card / Bank'}</p>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter leading-tight">
+                                        {isKenya ? 'Instant Mobile Money Checkout' : 'Secure Global Payments'}
+                                    </p>
                                 </div>
                             </Button>
 
-                            <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white transition-all border-none group" onClick={() => handlePayment('paypal')} disabled={!!isLoadingPayment}>
+                            <Button 
+                                size="lg" 
+                                className="w-full justify-start gap-4 h-24 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white transition-all border-none group shadow-xl" 
+                                onClick={() => handlePayment('paypal')} 
+                                disabled={!!isLoadingPayment}
+                            >
                                 <div className="h-14 w-14 rounded-xl bg-white flex items-center justify-center shrink-0 border border-white/20 group-hover:scale-105 transition-transform">
                                     {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin text-black" /> : <PayPalIcon />}
                                 </div>
                                 <div className="text-left min-w-0">
                                     <p className="font-black text-sm uppercase tracking-widest">PayPal</p>
-                                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">Global Credit & Wallet</p>
+                                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter leading-tight">Global Credit & Wallet</p>
                                 </div>
                             </Button>
+                        </div>
+                        
+                        <div className="p-4 rounded-2xl bg-neutral-900/50 border border-white/5 flex items-center gap-3">
+                            <ShieldCheck className="h-5 w-5 text-green-500" />
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 leading-tight">
+                                Your payment is protected. Funds are held in escrow until delivery is confirmed.
+                            </p>
                         </div>
                     </div>
                 </div>

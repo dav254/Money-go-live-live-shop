@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
-import { submitPesapalOrder } from '@/lib/pesapal';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -58,22 +57,6 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: data.message || 'Paystack initialization failed' }, { status: 400 });
             }
             checkoutUrl = data.data.authorization_url;
-
-        } else if (gateway === 'pesapal') {
-            try {
-                const res = await submitPesapalOrder({
-                    orderId: orderId || reference,
-                    amount: amount,
-                    email: email,
-                    firstName: email.split('@')[0] || 'Guest',
-                    lastName: 'User',
-                    description: transactionType === 'points-purchase' ? 'AI Points Top-up' : `Order for ${email}`,
-                });
-                checkoutUrl = res.redirectUrl;
-            } catch (pesapalError: any) {
-                console.error("PesaPal API Error:", pesapalError);
-                return NextResponse.json({ error: 'PesaPal Initialization Failed', details: pesapalError.message }, { status: 500 });
-            }
 
         } else if (gateway === 'paypal') {
             const paypalClient = getPayPalClient();
