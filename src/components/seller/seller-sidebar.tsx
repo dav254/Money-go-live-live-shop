@@ -19,6 +19,7 @@ import {
   Sparkles,
   AreaChart,
   Info,
+  Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -158,6 +159,18 @@ export function SellerSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel>Videos</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="sm">
+              <Video className="text-blue-500" />
+              <span>Showcase Feed</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
       
       <SidebarGroup>
         <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
@@ -180,6 +193,7 @@ export function SellerSidebar() {
               </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
+
 
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>
