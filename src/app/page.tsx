@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { 
   ArrowRight, Sparkles, Zap, 
   Video, Users, Globe,
-  Bot, Loader2, ShoppingBag, CreditCard, Play, DollarSign
+  Bot, Loader2, ShoppingBag, Play, DollarSign
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -201,26 +201,6 @@ export default function HomePage() {
                     </div>
                 </div>
              </div>
-        </section>
-
-        {/* Feature Grid */}
-        <section className="container mx-auto max-w-6xl px-6 py-20 pb-40 text-center">
-            <h2 className="font-cyber text-3xl md:text-5xl font-black uppercase tracking-tighter mb-16">
-                BUILT FOR THE <span className="text-primary">HUSTLE</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {[
-                    { title: "AI TOOLKIT", desc: "Generate viral captions, product descriptions, and ad-ready videos in one click.", icon: Bot },
-                    { title: "SECURE PAYOUTS", desc: "Get your earnings instantly through M-Pesa or PayPal with our verified ledger.", icon: CreditCard },
-                    { title: "GLOBAL REACH", desc: "Let our network of resellers amplify your products to millions of buyers.", icon: Globe },
-                ].map((f, i) => (
-                    <div key={i} className="p-8 rounded-[2rem] bg-white/5 border border-white/5 hover:border-primary/20 transition-all text-left group">
-                        <f.icon className="h-8 w-8 text-primary mb-6 group-hover:scale-110 transition-transform" />
-                        <h3 className="font-black uppercase tracking-tight text-lg mb-4">{f.title}</h3>
-                        <p className="text-neutral-500 text-sm leading-relaxed">{f.desc}</p>
-                    </div>
-                ))}
-            </div>
         </section>
       </div>
     </LandingLayout>

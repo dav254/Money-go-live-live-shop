@@ -11,7 +11,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck, Tag } from 'lucide-react';
+import { Loader2, ShieldCheck, ChevronRight, PackageCheck, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -20,31 +20,6 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
-
-function CheckoutSkeleton() {
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Skeleton className="h-24 w-full" />
-                    <Separator />
-                     <div className="flex justify-between">
-                        <Skeleton className="h-5 w-20" />
-                        <Skeleton className="h-5 w-16" />
-                    </div>
-                </CardContent>
-            </Card>
-            <div className="space-y-6">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-            </div>
-        </div>
-    );
-}
 
 const PayPalIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -91,88 +66,38 @@ export default function CheckoutPage() {
     const shippingCost = order?.shippingCost ?? 0;
     const totalAmount = subtotal + shippingCost;
     
-    const isLoading = isLoadingOrder || isUserLoading;
-
-    const orderItems = useMemo(() => {
-        if (!order) return [];
-        if (order.items && order.items.length > 0) return order.items;
-        if (order.productId && order.productName && order.productPrice) {
-            return [{
-                productId: order.productId,
-                name: order.productName,
-                price: order.productPrice,
-                quantity: order.quantity || 1,
-                imageUrl: order.productImage || getPlaceholderImage(),
-            }];
-        }
-        return [];
-    }, [order]);
-
-
     const handlePayment = async (gateway: 'paystack' | 'paypal') => {
         if (!order || !user?.email) {
-            toast({
-                variant: 'destructive',
-                title: 'Cannot initiate payment',
-                description: 'Order details or user email is missing.',
-            });
+            toast({ variant: 'destructive', title: 'Payment setup error.' });
             return;
         }
-
         setIsLoadingPayment(gateway);
-
         try {
             const response = await fetch('/api/create-payment-intent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    orderId: order.id,
-                    amount: totalAmount,
-                    email: user.email,
-                    gateway: gateway,
-                }),
+                body: JSON.stringify({ orderId: order.id, amount: totalAmount, email: user.email, gateway }),
             });
-
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.details || data.error || 'Failed to create payment intent.');
-            }
-            
-            if (data.checkoutUrl) {
-                window.location.href = data.checkoutUrl;
-            } else {
-                throw new Error('No checkout URL received.');
-            }
-
+            if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+            else throw new Error(data.error || 'Failed');
         } catch (err: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Payment Error',
-                description: err.message || 'Could not initiate payment. Please try again.',
-            });
+            toast({ variant: 'destructive', title: 'Payment Error', description: err.message });
             setIsLoadingPayment(null);
         }
     };
 
-    if (isLoading) return <BuyerLayout><div className="container py-12"><CheckoutSkeleton /></div></BuyerLayout>;
-    if (orderError || !order) return <BuyerLayout><div className="container py-12 text-center"><h1 className="text-2xl font-bold">Order Not Found</h1></div></BuyerLayout>;
+    if (isLoadingOrder || isUserLoading) return <BuyerLayout><div className="container py-12"><Skeleton className="h-96 w-full" /></div></BuyerLayout>;
     
-    if (order.orderStatus !== 'pending') {
+    if (order?.orderStatus !== 'pending') {
          return (
             <BuyerLayout>
                 <div className="container py-12 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
                     <div className="p-6 rounded-full bg-green-500/10 border border-green-500/20 shadow-2xl animate-in zoom-in duration-500">
                         <PackageCheck className="h-20 w-20 text-green-500" />
                     </div>
-                    <div>
-                        <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Payment Received!</h1>
-                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2">Order #{order.id.substring(0, 8)} is now being prepared.</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                        <Button asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs"><Link href="/buyer/my-orders">VIEW MY ORDERS</Link></Button>
-                        <Button variant="outline" asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-white/10"><Link href="/buyer/dashboard">CONTINUE SHOPPING</Link></Button>
-                    </div>
+                    <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Payment Received!</h1>
+                    <Button asChild className="h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-xs"><Link href="/buyer/my-orders">VIEW MY ORDERS</Link></Button>
                 </div>
             </BuyerLayout>
         )
@@ -185,36 +110,16 @@ export default function CheckoutPage() {
                     <Card className="border-white/5 bg-card/50">
                         <CardHeader>
                             <CardTitle className="font-headline text-xl uppercase tracking-tight text-white">Order Summary</CardTitle>
-                            <CardDescription className="text-xs uppercase tracking-widest font-bold">Review your items before checkout.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {orderItems.map((item) => (
-                                <div key={item.productId} className="flex items-center gap-4">
-                                    <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/10 shadow-lg bg-black">
-                                        <Image src={item.imageUrl || getPlaceholderImage()} alt={item.name || 'Product'} fill className="object-cover" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-sm truncate uppercase tracking-tight text-white">{item.name}</p>
-                                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Qty: {item.quantity}</p>
-                                    </div>
-                                    <p className="ml-auto font-black text-sm text-primary">${(item.price * item.quantity).toLocaleString()}</p>
-                                </div>
-                            ))}
-                            <Separator className="bg-white/5" />
-                            <div className="space-y-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                <div className="flex justify-between"><p>Subtotal</p><p>${subtotal.toLocaleString()}</p></div>
-                                <div className="flex justify-between"><p>Shipping</p><p>${shippingCost.toLocaleString()}</p></div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="bg-white/5 p-6 rounded-b-lg border-t border-white/5">
-                            <div className="flex justify-between w-full">
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Total Amount</p>
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-primary">Total Amount</p>
                                     <p className="text-2xl font-black tracking-tighter text-white">USD ${totalAmount.toLocaleString()}</p>
                                 </div>
                                 <ShieldCheck className="h-8 w-8 text-primary/40" />
                             </div>
-                        </CardFooter>
+                        </CardContent>
                     </Card>
 
                     <div className="space-y-6">
@@ -228,12 +133,8 @@ export default function CheckoutPage() {
                                     {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon isMpesa={isKenya} />}
                                 </div>
                                 <div className="text-left min-w-0">
-                                    <p className="font-black text-sm uppercase tracking-widest">
-                                        {isKenya ? 'Pay with M-Pesa' : 'Paystack'}
-                                    </p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">
-                                        {isKenya ? 'Instant Mobile Money Transfer' : 'Fast Card & Bank Transfers'}
-                                    </p>
+                                    <p className="font-black text-sm uppercase tracking-widest">{isKenya ? 'Pay with M-Pesa' : 'Paystack'}</p>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Secure Payment Gateway</p>
                                 </div>
                             </Button>
 
