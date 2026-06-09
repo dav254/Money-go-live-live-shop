@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Radio, Sparkles, Play, ShieldCheck, Zap, ShoppingBag, Tag, Star, Camera, Activity, TrendingUp, Globe } from 'lucide-react';
+import { Radio, ShieldCheck, Zap, ShoppingBag, Tag, Eye, TrendingUp, Camera, Activity, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,6 @@ const DEMO_ITEMS = [
         price: 'USD $85.00',
         badge: 'NEW DROP',
         merchant: 'VoltStyle',
-        views: '12K'
     },
     {
         id: 'item-2',
@@ -26,7 +25,6 @@ const DEMO_ITEMS = [
         price: 'USD $1,200.00',
         badge: 'TOP SELLER',
         merchant: 'SiliconHub',
-        views: '8.4K'
     },
     {
         id: 'item-3',
@@ -36,7 +34,6 @@ const DEMO_ITEMS = [
         price: 'USD $450.00',
         badge: 'LIMITED',
         merchant: 'OpticFlow',
-        views: '15K'
     },
     {
         id: 'item-4',
@@ -46,7 +43,6 @@ const DEMO_ITEMS = [
         price: 'USD $150.00',
         badge: 'SERVICE',
         merchant: 'ZenithLife',
-        views: '3.2K'
     },
     {
         id: 'item-5',
@@ -56,7 +52,6 @@ const DEMO_ITEMS = [
         price: 'USD $300.00',
         badge: 'ARTISAN',
         merchant: 'AuraStudio',
-        views: '5.1K'
     },
     {
         id: 'item-6',
@@ -66,7 +61,6 @@ const DEMO_ITEMS = [
         price: 'USD $299.00',
         badge: 'FLIGHTS',
         merchant: 'SonicMax',
-        views: '11K'
     },
     {
         id: 'item-7',
@@ -76,7 +70,6 @@ const DEMO_ITEMS = [
         price: 'USD $24.00',
         badge: 'DAILY PING',
         merchant: 'BeanCode',
-        views: '2.4K'
     },
     {
         id: 'item-8',
@@ -86,7 +79,6 @@ const DEMO_ITEMS = [
         price: 'USD $110.00',
         badge: 'HOT DEAL',
         merchant: 'SwiftStride',
-        views: '19K'
     },
     {
         id: 'item-9',
@@ -96,7 +88,6 @@ const DEMO_ITEMS = [
         price: 'USD $999.00',
         badge: 'PRE-ORDER',
         merchant: 'TechNova',
-        views: '22K'
     },
     {
         id: 'item-10',
@@ -106,7 +97,6 @@ const DEMO_ITEMS = [
         price: 'USD $199.00',
         badge: 'TRENDING',
         merchant: 'NexusHome',
-        views: '6.7K'
     },
     {
         id: 'item-11',
@@ -116,7 +106,6 @@ const DEMO_ITEMS = [
         price: 'USD $45.00/hr',
         badge: 'ELITE RENTALS',
         merchant: 'DriveBase',
-        views: '4.5K'
     },
     {
         id: 'item-12',
@@ -126,9 +115,105 @@ const DEMO_ITEMS = [
         price: 'USD $180.00',
         badge: 'CRAFTED',
         merchant: 'ClickClack',
-        views: '9.2K'
     }
 ];
+
+const DemoCard = ({ item, index }: { item: typeof DEMO_ITEMS[0], index: number }) => {
+    const [viewers, setViewers] = useState(Math.floor(Math.random() * 500) + 100);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setViewers(prev => Math.max(50, prev + (Math.random() > 0.5 ? 1 : -1)));
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ 
+                delay: index * 0.05, 
+                duration: 0.8,
+                ease: [0.16, 1, 0.3, 1] 
+            }}
+            viewport={{ once: true, margin: "-50px" }}
+            className="group relative aspect-[9/16] rounded-[4rem] overflow-hidden border border-white/10 bg-neutral-900 shadow-2xl hover:border-primary/50 transition-all duration-700 hover:shadow-[0_0_60px_rgba(255,107,0,0.15)]"
+        >
+            {/* Media Layer */}
+            {item.type === 'video' ? (
+                <video
+                    src={item.url}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="h-full w-full object-cover opacity-40 group-hover:opacity-80 transition-opacity duration-1000 scale-[1.01]"
+                />
+            ) : (
+                <div className="h-full w-full relative">
+                    <Image 
+                        src={item.url} 
+                        alt={item.title}
+                        fill
+                        className="object-cover opacity-40 group-hover:opacity-80 transition-all duration-1000 group-hover:scale-110"
+                        data-ai-hint="product lifestyle photography"
+                    />
+                </div>
+            )}
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+            
+            {/* Top HUD */}
+            <div className="absolute top-8 left-8 right-8 z-10 flex justify-between items-start">
+                <Badge className="bg-red-600/90 hover:bg-red-600 border-none flex items-center gap-2 px-4 py-1.5 font-black uppercase tracking-widest text-[9px] animate-pulse shadow-2xl">
+                    <div className="h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
+                    SIGNAL LIVE
+                </Badge>
+                <div className="h-10 w-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                </div>
+            </div>
+
+            {/* Bottom Info Block */}
+            <div className="absolute bottom-10 left-10 right-10 z-10 space-y-5">
+                <div className="space-y-3">
+                    <Badge variant="outline" className="text-primary border-primary/40 bg-primary/5 font-black uppercase text-[9px] tracking-[0.3em] px-3 py-1">
+                        {item.badge}
+                    </Badge>
+                    <h4 className="text-white font-black uppercase text-2xl tracking-tighter leading-tight drop-shadow-2xl group-hover:text-primary transition-colors">
+                        {item.title}
+                    </h4>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-primary">
+                            <Tag className="h-4 w-4 fill-current opacity-70" />
+                            <p className="text-2xl font-black tracking-tighter glow-text leading-none">{item.price}</p>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-60">
+                            <Eye className="h-3 w-3 text-white" />
+                            <span className="text-[10px] font-black text-white">{viewers}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                    <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-neutral-800 border border-white/10 overflow-hidden flex items-center justify-center group-hover:border-primary transition-colors">
+                            <span className="text-[10px] font-black text-white">{item.merchant[0]}</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{item.merchant}</span>
+                    </div>
+                    <div className="h-12 w-12 rounded-[1.25rem] border border-primary/20 bg-primary/10 backdrop-blur-md flex items-center justify-center hover:bg-primary transition-all group-hover:scale-110 shadow-xl group-hover:shadow-primary/40">
+                        <ShoppingBag className="h-5 w-5 text-white" />
+                    </div>
+                </div>
+            </div>
+
+            {/* Scanner Line Animation */}
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-primary/50 to-transparent shadow-[0_0_15px_rgba(255,107,0,0.6)] -translate-y-full group-hover:animate-[scan_2.5s_linear_infinite]" />
+        </motion.div>
+    );
+};
 
 export default function AdminVideoShowcase() {
     return (
@@ -170,93 +255,7 @@ export default function AdminVideoShowcase() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                     {DEMO_ITEMS.map((item, i) => (
-                        <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                            transition={{ 
-                                delay: i * 0.05, 
-                                duration: 0.8,
-                                ease: [0.16, 1, 0.3, 1] 
-                            }}
-                            viewport={{ once: true, margin: "-50px" }}
-                            className="group relative aspect-[9/16] rounded-[4rem] overflow-hidden border border-white/10 bg-neutral-900 shadow-2xl hover:border-primary/50 transition-all duration-700 hover:shadow-[0_0_60px_rgba(255,107,0,0.15)]"
-                        >
-                            {/* Media Layer */}
-                            {item.type === 'video' ? (
-                                <video
-                                    src={item.url}
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    className="h-full w-full object-cover opacity-40 group-hover:opacity-80 transition-opacity duration-1000 scale-[1.01]"
-                                />
-                            ) : (
-                                <div className="h-full w-full relative">
-                                    <Image 
-                                        src={item.url} 
-                                        alt={item.title}
-                                        fill
-                                        className="object-cover opacity-40 group-hover:opacity-80 transition-all duration-1000 group-hover:scale-110"
-                                        data-ai-hint="product lifestyle photography"
-                                    />
-                                </div>
-                            )}
-                            
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
-                            
-                            {/* Top HUD */}
-                            <div className="absolute top-8 left-8 right-8 z-10 flex justify-between items-start">
-                                <Badge className="bg-red-600/90 hover:bg-red-600 border-none flex items-center gap-2 px-4 py-1.5 font-black uppercase tracking-widest text-[9px] animate-pulse shadow-2xl">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
-                                    SIGNAL LIVE
-                                </Badge>
-                                <div className="h-10 w-10 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 scale-90 group-hover:scale-100">
-                                    <TrendingUp className="h-4 w-4 text-primary" />
-                                </div>
-                            </div>
-
-                            {/* Bottom Info Block */}
-                            <div className="absolute bottom-10 left-10 right-10 z-10 space-y-5">
-                                <div className="space-y-3">
-                                    <Badge variant="outline" className="text-primary border-primary/40 bg-primary/5 font-black uppercase text-[9px] tracking-[0.3em] px-3 py-1">
-                                        {item.badge}
-                                    </Badge>
-                                    <h4 className="text-white font-black uppercase text-2xl tracking-tighter leading-tight drop-shadow-2xl group-hover:text-primary transition-colors">
-                                        {item.title}
-                                    </h4>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-primary">
-                                            <Tag className="h-4 w-4 fill-current opacity-70" />
-                                            <p className="text-2xl font-black tracking-tighter glow-text leading-none">{item.price}</p>
-                                        </div>
-                                        <div className="flex items-center gap-1 opacity-60">
-                                            <Eye className="h-3 w-3 text-white" />
-                                            <span className="text-[10px] font-black text-white">{item.views}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-neutral-800 border border-white/10 overflow-hidden flex items-center justify-center group-hover:border-primary transition-colors">
-                                            <span className="text-[10px] font-black text-white">{item.merchant[0]}</span>
-                                        </div>
-                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{item.merchant}</span>
-                                    </div>
-                                    <div className="h-12 w-12 rounded-[1.25rem] border border-primary/20 bg-primary/10 backdrop-blur-md flex items-center justify-center hover:bg-primary transition-all group-hover:scale-110 shadow-xl group-hover:shadow-primary/40">
-                                        <ShoppingBag className="h-5 w-5 text-white" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Scanner Line Animation */}
-                            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-primary/50 to-transparent shadow-[0_0_15px_rgba(255,107,0,0.6)] -translate-y-full group-hover:animate-[scan_2.5s_linear_infinite]" />
-                            
-                            {/* Interactive Corner Decor */}
-                            <div className="absolute -right-4 -top-4 w-20 h-20 bg-primary/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </motion.div>
+                        <DemoCard key={item.id} item={item} index={i} />
                     ))}
                 </div>
 
@@ -290,3 +289,4 @@ export default function AdminVideoShowcase() {
         </div>
     );
 }
+
