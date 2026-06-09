@@ -5,7 +5,8 @@ import {
   ArrowRight, Sparkles, Rocket, Video, Zap, 
   Radio, Globe, RadioTower, Bot, Eye, Loader2, 
   Shield, CreditCard, Target, ZapIcon, PlayCircle, 
-  BarChart3, Activity, ArrowUpRight, CheckCircle2
+  BarChart3, Activity, ArrowUpRight, CheckCircle2,
+  Play
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import GlobalSignalHub from "@/components/home/global-signal-hub";
+import AdminVideoShowcase from "@/components/home/admin-video-showcase";
 
 const LiveTicker = () => {
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -85,6 +87,13 @@ const HomePageContent = () => {
       }
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+
+  const scrollToDemos = () => {
+    const element = document.getElementById('demos');
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   if (isUserLoading || (user && isProfileLoading)) {
     return (
@@ -161,10 +170,13 @@ const HomePageContent = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl group" asChild>
-              <Link href="/buyer/dashboard">
-                ENTER DISCOVERY <Eye className="ml-3 h-5 w-5 group-hover:scale-125 transition-transform" />
-              </Link>
+            <Button 
+                onClick={scrollToDemos}
+                size="lg" 
+                variant="outline" 
+                className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl group"
+            >
+                WATCH LIVE DEMOS <Play className="ml-3 h-5 w-5 fill-white group-hover:scale-125 transition-transform animate-pulse" />
             </Button>
           </motion.div>
           
@@ -194,6 +206,9 @@ const HomePageContent = () => {
           </div>
         </div>
       </section>
+
+      {/* Admin Video Showcase Section */}
+      <AdminVideoShowcase />
 
       {/* 3D Global Signal Hub Section */}
       <section className="py-24 px-4 overflow-hidden">
