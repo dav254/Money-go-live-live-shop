@@ -142,7 +142,8 @@ service cloud.firestore {
     }
 
     match /errorLogs/{errorId} {
-      allow create: if isSignedIn();
+      // Allow guests to create error logs to resolve permission issues during frontend errors
+      allow create: if true;
       allow read, list: if isAdmin();
     }
 

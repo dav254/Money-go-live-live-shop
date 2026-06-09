@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from "react";
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
+import WorldMap from "@/components/home/world-map";
 
 const LiveTicker = () => {
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -70,7 +70,6 @@ const HomePageContent = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // AUTO-LOGIN LOGIC: Only redirect if a session is already active
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') return;
 
@@ -87,7 +86,6 @@ const HomePageContent = () => {
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
-  // Show a branded loader while we verify if the user is already logged in
   if (isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-black">
@@ -194,6 +192,13 @@ const HomePageContent = () => {
                 </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Global Activity Map Section */}
+      <section className="py-24 px-4">
+        <div className="container max-w-5xl mx-auto">
+          <WorldMap />
         </div>
       </section>
 
