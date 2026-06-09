@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from "react";
@@ -128,13 +129,13 @@ const HomePageContent = () => {
             className="space-y-4"
           >
             <h1 className="font-cyber text-6xl md:text-9xl font-black uppercase tracking-tighter leading-none">
-              <span className="text-white">COMMAND THE</span>
+              <span className="text-white">POST EARN</span>
               <br />
-              <span className="text-gradient glow-text">MARKET</span>
+              <span className="text-gradient glow-text">REPEAT</span>
             </h1>
             <p className="max-w-3xl mx-auto text-lg md:text-2xl text-neutral-400 font-medium leading-relaxed [text-wrap:balance]">
               Static shops are ghosts of the past. GoEarn is the <span className="text-white font-bold">Content Engine</span> that transforms your authentic videos into a 24/7 revenue stream. 
-              <span className="text-primary font-black italic ml-1 underline decoration-primary/30">Built for scale. Integrated for M-Pesa.</span>
+              <span className="text-primary font-black italic ml-1 underline decoration-primary/30">Join as a Seller and get 1,000 Free AI Points.</span>
             </p>
           </motion.div>
 
@@ -147,7 +148,7 @@ const HomePageContent = () => {
             <Button size="lg" className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm bg-primary hover:bg-primary/90 text-white shadow-[0_0_50px_rgba(255,107,0,0.3)] group relative overflow-hidden" asChild>
               <Link href="/signup?role=seller">
                 <span className="relative z-10 flex items-center gap-2">
-                   DEPLOY YOUR SHOP <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                   CLAIM YOUR 1000 PTS <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               </Link>
@@ -163,7 +164,7 @@ const HomePageContent = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-20 max-w-5xl mx-auto">
             {[
                 { label: 'Signal Quality', value: '4K ULTRA', icon: RadioTower, color: 'text-blue-500', bg: 'bg-blue-500/5' },
-                { label: 'Commission Rate', value: '0% START', icon: ZapIcon, color: 'text-yellow-500', bg: 'bg-yellow-500/5' },
+                { label: 'Merchant Bonus', value: '+1000 PTS', icon: ZapIcon, color: 'text-yellow-500', bg: 'bg-yellow-500/5' },
                 { label: 'Merchant Trust', value: 'VERIFIED', icon: Shield, color: 'text-green-500', bg: 'bg-green-500/5' },
                 { label: 'Global Reach', value: 'UNLIMITED', icon: Globe, color: 'text-primary', bg: 'bg-primary/5' },
             ].map((stat, i) => (
