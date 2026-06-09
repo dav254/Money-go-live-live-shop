@@ -27,16 +27,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
       
       // Fixed: Explicitly allow access to subcollections for the owner
-      match /cart/{document=**} {
+      match /cart/{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
-      match /paymentMethods/{document=**} {
+      match /paymentMethods/{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
-      match /payoutMethods/{document=**} {
+      match /payoutMethods/{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
-      match /wishlist/{document=**} {
+      match /wishlist/{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
     }
