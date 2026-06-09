@@ -43,7 +43,7 @@
     --muted-foreground: 0 0% 64.9%;
     --accent: 320 100% 60%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 15.9%;
     --input: 0 0% 15.9%;
@@ -109,6 +109,11 @@
 }
 
 #nprogress .bar {
-  background: hsl(var(--primary)) !important;
-  height: 3px !important;
+  background: #ff0000 !important;
+  height: 4px !important;
+  box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000 !important;
+}
+
+#nprogress .peg {
+  box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000 !important;
 }

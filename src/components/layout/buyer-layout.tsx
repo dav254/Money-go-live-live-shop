@@ -25,24 +25,26 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
 
   useEffect(() => {
     if (!isLoading && !user) {
-      // Direct redirect if the user logs out or attempts to access dashboard without a session
       router.replace('/login');
     }
   }, [user, isLoading, router]);
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-black">
+      <div className="flex h-screen w-full flex-col items-center justify-center gap-6 bg-black">
         <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-            <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+            <div className="absolute inset-[-10px] bg-red-600/20 rounded-full animate-pulse blur-lg" />
+            <div className="absolute inset-0 bg-red-600/20 rounded-full animate-ping" />
+            <Loader2 className="h-10 w-10 animate-spin text-red-600 relative z-10" />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60">Verifying Identity</p>
+        <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-red-600 animate-pulse">Verifying Session</p>
+            <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-600 mt-1">Establishing Secure Pipeline</p>
+        </div>
       </div>
     );
   }
 
-  // Prevent rendering if the user is being redirected
   if (!user) return null;
 
   return (
