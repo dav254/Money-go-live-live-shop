@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { 
   ArrowRight, Sparkles, Rocket, Video, Zap, 
   Radio, Globe, RadioTower, Bot, Eye, Loader2, 
-  Shield, CreditCard, Target, ZapIcon, PlayCircle, 
-  BarChart3, Activity, ArrowUpRight, CheckCircle2,
+  Shield, CreditCard, Target, PlayCircle, 
+  Activity, ArrowUpRight, CheckCircle2,
   Play
 } from "lucide-react";
 import Link from "next/link";
@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import GlobalSignalHub from "@/components/home/global-signal-hub";
-import AdminVideoShowcase from "@/components/home/admin-video-showcase";
 
 const LiveTicker = () => {
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -66,7 +65,7 @@ const LiveTicker = () => {
   );
 };
 
-const HomePageContent = () => {
+export default function HomePage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
@@ -80,20 +79,11 @@ const HomePageContent = () => {
         router.replace('/dashboard/seller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
-      } else if (role === 'reseller') {
-        router.replace('/dashboard/reseller');
       } else {
         router.replace('/buyer/dashboard');
       }
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
-
-  const scrollToDemos = () => {
-    const element = document.getElementById('demos');
-    if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   if (isUserLoading || (user && isProfileLoading)) {
     return (
@@ -108,7 +98,7 @@ const HomePageContent = () => {
   }
 
   return (
-    <>
+    <LandingLayout>
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-black">
         <div 
           className="animate-aurora opacity-40"
@@ -171,12 +161,14 @@ const HomePageContent = () => {
               </Link>
             </Button>
             <Button 
-                onClick={scrollToDemos}
+                asChild
                 size="lg" 
                 variant="outline" 
                 className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl group"
             >
-                WATCH LIVE DEMOS <Play className="ml-3 h-5 w-5 fill-white group-hover:scale-125 transition-transform animate-pulse" />
+                <Link href="/buyer/dashboard">
+                  WATCH LIVE DEMOS <Play className="ml-3 h-5 w-5 fill-white group-hover:scale-125 transition-transform animate-pulse" />
+                </Link>
             </Button>
           </motion.div>
           
@@ -184,7 +176,7 @@ const HomePageContent = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-20 max-w-5xl mx-auto">
             {[
                 { label: 'Signal Quality', value: '4K ULTRA', icon: RadioTower, color: 'text-blue-500', bg: 'bg-blue-500/5' },
-                { label: 'Merchant Bonus', value: '+1000 PTS', icon: ZapIcon, color: 'text-yellow-500', bg: 'bg-yellow-500/5' },
+                { label: 'Merchant Bonus', value: '+1000 PTS', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-500/5' },
                 { label: 'Merchant Trust', value: 'VERIFIED', icon: Shield, color: 'text-green-500', bg: 'bg-green-500/5' },
                 { label: 'Global Reach', value: 'UNLIMITED', icon: Globe, color: 'text-primary', bg: 'bg-primary/5' },
             ].map((stat, i) => (
@@ -206,9 +198,6 @@ const HomePageContent = () => {
           </div>
         </div>
       </section>
-
-      {/* Admin Video Showcase Section */}
-      <AdminVideoShowcase />
 
       {/* 3D Global Signal Hub Section */}
       <section className="py-24 px-4 overflow-hidden">
@@ -238,7 +227,7 @@ const HomePageContent = () => {
                         {[
                             { icon: PlayCircle, title: "Zero-Filter Policy", desc: "Show your products as they truly are. Build the deepest level of buyer trust." },
                             { icon: Bot, title: "AI-Augmented Logic", desc: "Our neural network optimizes your tags and descriptions for global SEO." },
-                            { icon: CreditCard, title: "Hyper-Local Checkout", desc: "Integrated M-Pesa flows mean zero drop-offs at the payment stage." },
+                            { icon: CreditCard, title: "Hyper-Local Checkout", desc: "Integrated payment flows mean zero drop-offs at the payment stage." },
                         ].map((item, i) => (
                             <motion.div 
                                 key={i}
@@ -268,7 +257,6 @@ const HomePageContent = () => {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                         
-                        {/* Interactive UI Mockup Overlay */}
                         <div className="absolute bottom-8 left-8 right-8 p-10 rounded-[3rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-2xl">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-4">
@@ -356,36 +344,6 @@ const HomePageContent = () => {
               </div>
           </div>
       </section>
-
-      {/* Cinematic Footer */}
-      <footer className="py-20 border-t border-white/5 bg-black">
-          <div className="container max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex flex-col items-center md:items-start gap-4">
-                <Link href="/" className="opacity-80 hover:opacity-100 transition-opacity">
-                  <div className="h-10 w-auto bg-white/5 p-2 rounded-xl border border-white/10 flex items-center justify-center">
-                    <span className="font-cyber font-black text-white text-lg tracking-tighter">GO<span className="text-primary">EARN</span></span>
-                  </div>
-                </Link>
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-700">
-                    © 2026 THE FUTURE OF COMMERCE • GLOBAL HUB
-                </p>
-            </div>
-            <div className="flex items-center gap-12">
-                <Link href="/features" className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors">Features</Link>
-                <Link href="/faq" className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors">Intelligence</Link>
-                <Link href="/terms" className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors">Protocol</Link>
-                <Link href="/privacy" className="text-[10px] font-black uppercase tracking-widest text-neutral-500 hover:text-primary transition-colors">Encryption</Link>
-            </div>
-          </div>
-      </footer>
-    </>
-  );
-};
-
-export default function HomePage() {
-  return (
-    <LandingLayout>
-      <HomePageContent />
     </LandingLayout>
-  )
+  );
 }

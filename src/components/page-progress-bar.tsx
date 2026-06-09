@@ -1,72 +1,70 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 export function PageProgressBar() {
+  const [width, setWidth] = useState(0);
+  const [loading, setLoading] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  function startLoading() {
-    const el = document.getElementById("loadingBar");
-    if (el) {
-      el.style.width = "70%";
-    }
-  }
+  const startLoading = () => {
+    setLoading(true);
+    // Small timeout to allow width 0 to be applied if it was recently finished
+    setTimeout(() => {
+      setWidth(70);
+    }, 10);
+  };
 
-  function finishLoading() {
-    const el = document.getElementById("loadingBar");
-    if (el) {
-      el.style.width = "100%";
+  const finishLoading = () => {
+    setWidth(100);
+    setTimeout(() => {
+      setWidth(0);
+      setLoading(false);
+    }, 300);
+  };
 
-      setTimeout(() => {
-        if (el) {
-          el.style.width = "0";
-        }
-      }, 300);
-    }
-  }
-
+  // Logic to finish loading when route changes
   useEffect(() => {
-    // When path or params change, we consider the new page loaded/ready
     finishLoading();
   }, [pathname, searchParams]);
 
+  // Handle link clicks to start loading
   useEffect(() => {
     const handleAnchorClick = (event: MouseEvent) => {
       try {
         const target = event.target as HTMLElement;
         const anchor = target.closest('a');
 
-        if (anchor && anchor.href && !anchor.target && !anchor.download) {
+        if (anchor && anchor.href) {
           const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
           
-          // Only start loading for internal navigations that change the path
-          if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
+          const isInternal = targetUrl.origin === currentUrl.origin;
+          const isSamePage = targetUrl.pathname === currentUrl.pathname && targetUrl.search === currentUrl.search;
+
+          if (isInternal && !isSamePage && !anchor.hasAttribute('download') && anchor.target !== '_blank') {
             startLoading();
           }
         }
       } catch (err) {
-        // Ignore errors from invalid URLs
+        // Ignore invalid URLs
       }
     };
 
-    // Listen for all clicks on document to intercept link clicks
     document.addEventListener('click', handleAnchorClick);
-
-    // Patch window.history.pushState for programmatic navigation (router.push)
-    const originalPushState = window.history.pushState;
-    window.history.pushState = (...args) => {
-      startLoading();
-      originalPushState.apply(window.history, args);
-    };
-
-    return () => {
-        document.removeEventListener('click', handleAnchorClick);
-        window.history.pushState = originalPushState;
-    }
+    return () => document.removeEventListener('click', handleAnchorClick);
   }, []);
 
-  return <div id="loadingBar" className="loading-bar" style={{ width: '0' }} />;
+  return (
+    <div 
+        id="loadingBar" 
+        className="loading-bar" 
+        style={{ 
+            width: `${width}%`,
+            opacity: loading || width > 0 ? 1 : 0 
+        }} 
+    />
+  );
 }
