@@ -26,12 +26,10 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow list: if isSignedIn() && (request.auth.uid == userId || resource.data.referredBy == request.auth.uid || isAdmin());
       
-      // Ownership rule: Allow the user to manage their own profile and ALL sub-collections (cart, wishlist, payments, etc.)
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }
 
-      // Admin updates for specific fields
       allow update: if isOwner(userId) ||
                       (isAdmin() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
@@ -142,7 +140,7 @@ service cloud.firestore {
     }
 
     match /errorLogs/{errorId} {
-      // Allow guests to create error logs to resolve permission issues during frontend errors
+      // CRITICAL: Allow public creation of error logs to prevent crashes during guest session errors
       allow create: if true;
       allow read, list: if isAdmin();
     }
