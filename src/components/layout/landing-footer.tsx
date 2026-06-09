@@ -9,9 +9,9 @@ export function LandingFooter() {
     { label: "Home", href: "/" },
     { label: "Features", href: "/features" },
     { label: "How It Works", href: "/#how-it-works" },
-    { label: "For Sellers", href: "/login" },
-    { label: "Blog", href: "#" }
+    { label: "For Sellers", href: "/login" }
   ];
+
   return (
     <footer style={{ position: 'relative', background: 'hsl(240, 20%, 4%)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '5rem', paddingBottom: '2.5rem' }}>
         <div className="container" style={{ padding: '0 1rem' }}>
