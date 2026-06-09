@@ -57,14 +57,18 @@ export default function SignupPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Redirect if already logged in
+  // AUTO-LOGIN LOGIC: Redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      if (userProfile.status === 'suspended') return;
+      
       const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
+      } else if (role === 'reseller') {
+        router.replace('/dashboard/reseller');
       } else {
         router.replace('/buyer/dashboard');
       }
@@ -166,10 +170,11 @@ export default function SignupPage() {
     }
   }
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-screen w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Authenticating Session</p>
       </div>
     );
   }

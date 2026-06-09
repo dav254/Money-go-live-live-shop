@@ -70,22 +70,32 @@ const HomePageContent = () => {
   const router = useRouter();
 
   useEffect(() => {
+    // AUTO-LOGIN LOGIC: Only redirect if a session is already active
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      if (userProfile.status === 'suspended') return;
+
       const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
+      } else if (role === 'reseller') {
+        router.replace('/dashboard/reseller');
       } else {
         router.replace('/buyer/dashboard');
       }
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
+  // Show a branded loader while we verify if the user is already logged in
   if (isUserLoading || (user && isProfileLoading)) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-black">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-black">
+        <div className="relative mb-4">
+            <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/60">Initializing Signal</p>
       </div>
     );
   }

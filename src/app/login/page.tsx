@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -46,15 +47,16 @@ export default function LoginPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Automatic redirect if already logged in
+  // AUTO-LOGIN LOGIC: If already signed in, redirect instantly
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') {
         auth.signOut();
+        toast({ variant: 'destructive', title: 'Access Denied', description: 'Your account is suspended.' });
         return;
       }
       
-      const role = userProfile.userRole;
+      const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
       } else if (role === 'reseller') {
@@ -65,7 +67,7 @@ export default function LoginPage() {
         router.replace('/buyer/dashboard');
       }
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth]);
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -157,10 +159,11 @@ export default function LoginPage() {
     }
   }
 
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex h-screen w-full flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-widest opacity-50">Authenticating Session</p>
       </div>
     );
   }
