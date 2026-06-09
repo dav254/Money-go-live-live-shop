@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X, MapPin, RefreshCw } from 'lucide-react';
+import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X, MapPin, RefreshCw, Palette, Sun, Moon, Monitor } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
@@ -35,6 +35,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { detectLocation, saveLocationToStorage, getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 import { cn } from '@/lib/utils';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
+import { useTheme } from 'next-themes';
 
 const passwordFormSchema = z.object({
   oldPassword: z.string().min(1, { message: "Old password is required." }),
@@ -164,6 +165,7 @@ const SellerVerificationForm = ({ user, userProfile, isLoading: isProfileLoading
 const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading }: SubComponentProps) => {
     const { toast } = useToast();
     const firestore = useFirestore();
+    const { theme, setTheme } = useTheme();
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
     const [isProfileSaving, setIsProfileSaving] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -280,10 +282,11 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
 
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">Account & Settings</h1>
+        <h1 className="font-headline text-3xl font-bold tracking-tight">Account & Preferences</h1>
         <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList>
+          <TabsList className="bg-muted/50 p-1">
             <TabsTrigger value="profile"><User className="mr-2 h-4 w-4" /> My Profile</TabsTrigger>
+            <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4" /> Appearance</TabsTrigger>
             {userProfile?.userRole === 'seller' && <TabsTrigger value="verification"><ShieldCheck className="mr-2 h-4 w-4" /> Verification</TabsTrigger>}
             <TabsTrigger value="security"><Lock className="mr-2 h-4 w-4" /> Security</TabsTrigger>
           </TabsList>
@@ -355,6 +358,69 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
                         </CardContent>
                     </form>
                 </Form>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="appearance">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Palette className="text-primary" /> Appearance</CardTitle>
+                <CardDescription>Customize how the platform looks for you.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                    <Label>Theme Preference</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button 
+                            onClick={() => setTheme('light')}
+                            className={cn(
+                                "flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all group",
+                                theme === 'light' ? "border-primary bg-primary/5 shadow-xl shadow-primary/10" : "border-white/5 hover:bg-muted/50"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-full transition-colors",
+                                theme === 'light' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:text-foreground"
+                            )}>
+                                <Sun className="h-6 w-6" />
+                            </div>
+                            <span className="font-black uppercase tracking-widest text-[10px]">Light Mode</span>
+                        </button>
+                        
+                        <button 
+                            onClick={() => setTheme('dark')}
+                            className={cn(
+                                "flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all group",
+                                theme === 'dark' ? "border-primary bg-primary/5 shadow-xl shadow-primary/10" : "border-white/5 hover:bg-muted/50"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-full transition-colors",
+                                theme === 'dark' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:text-foreground"
+                            )}>
+                                <Moon className="h-6 w-6" />
+                            </div>
+                            <span className="font-black uppercase tracking-widest text-[10px]">Dark Mode</span>
+                        </button>
+
+                        <button 
+                            onClick={() => setTheme('system')}
+                            className={cn(
+                                "flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all group",
+                                theme === 'system' ? "border-primary bg-primary/5 shadow-xl shadow-primary/10" : "border-white/5 hover:bg-muted/50"
+                            )}
+                        >
+                            <div className={cn(
+                                "p-3 rounded-full transition-colors",
+                                theme === 'system' ? "bg-primary text-white" : "bg-muted text-muted-foreground group-hover:text-foreground"
+                            )}>
+                                <Monitor className="h-6 w-6" />
+                            </div>
+                            <span className="font-black uppercase tracking-widest text-[10px]">System Default</span>
+                        </button>
+                    </div>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
 

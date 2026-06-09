@@ -2,7 +2,6 @@
 
 import { UserNav } from '../layout/user-nav';
 import { SidebarTrigger } from '../ui/sidebar';
-import { ThemeToggle } from '../theme-toggle';
 import type { UserProfile } from '@/lib/types';
 import { Logo } from '../logo';
 import Link from 'next/link';
@@ -27,7 +26,6 @@ export function ResellerHeader({ userProfile, isLoading }: ResellerHeaderProps) 
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <ThemeToggle />
         <UserNav />
       </div>
     </header>

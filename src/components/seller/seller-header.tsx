@@ -9,7 +9,6 @@ import { SidebarTrigger } from '../ui/sidebar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
-import { ThemeToggle } from '../theme-toggle';
 import { useUser, useUserProfile, useFirestore } from '@/firebase';
 import { usePathname } from 'next/navigation';
 
@@ -69,7 +68,6 @@ export function SellerHeader() {
       <div className="flex items-center gap-2">
         {!isLiveFeed && (
             <>
-                <ThemeToggle />
                 <Button variant="ghost" size="icon" asChild>
                 <Link href="/dashboard/seller/notifications">
                     <Bell />

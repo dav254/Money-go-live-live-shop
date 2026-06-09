@@ -10,7 +10,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../u
 import { BuyerSidebar } from './buyer-sidebar';
 import { SidebarTrigger } from '../ui/sidebar';
 import { Skeleton } from '../ui/skeleton';
-import { ThemeToggle } from '../theme-toggle';
 import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -133,7 +132,6 @@ export function BuyerHeader() {
             <Search className="h-5 w-5" />
             <span className="sr-only">Search</span>
         </Button>
-        <ThemeToggle />
         <Button variant="ghost" size="icon" asChild title="Messages" className="relative">
           <Link href="/messages">
             <MessageSquare className="h-5 w-5" />

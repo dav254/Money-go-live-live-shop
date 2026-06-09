@@ -7,7 +7,6 @@ import { UserNav } from '../layout/user-nav';
 import { Skeleton } from '../ui/skeleton';
 import { SidebarTrigger } from '../ui/sidebar';
 import { useUser, useUserProfile, useFirestore } from '@/firebase';
-import { ThemeToggle } from '../theme-toggle';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { Logo } from '../logo';
 import { AdminSidebar } from './admin-sidebar';
@@ -65,7 +64,6 @@ export function AdminHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <ThemeToggle />
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/admin/notifications">
             <Bell />
