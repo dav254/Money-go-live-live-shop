@@ -46,7 +46,7 @@ export function BuyerSidebar() {
     return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
   }, [chats, user]);
 
-  // Query for any active live sessions globally to show the "Live Now" indicator
+  // Query for any active live sessions globally
   const activeSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
@@ -139,10 +139,9 @@ export function BuyerSidebar() {
               <MessageSquare />
               <span>Messages</span>
               {unreadCount > 0 && (
-                <span className="absolute right-2 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
-                </span>
+                <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
+                  {unreadCount}
+                </Badge>
               )}
             </Link>
           </SidebarMenuButton>
