@@ -117,7 +117,7 @@ export function BuyerSidebar() {
           <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wishlist')} tooltip="Wishlist">
             <Link href="/buyer/wishlist">
               <Heart className="text-pink-500" />
-              <span>Saved Items</span>
+              <span>My Saved Items</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -165,7 +165,11 @@ export function BuyerSidebar() {
                     <span>My Orders</span>
                   </div>
                   {activeOrdersCount > 0 && (
+<<<<<<< HEAD
                     <Badge className="h-5 min-w-[1.25rem] px-1 bg-blue-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-blue-600/20">
+=======
+                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-blue-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-blue-600/20">
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
                       {activeOrdersCount}
                     </Badge>
                   )}

@@ -42,9 +42,9 @@ export default function BuyerWishlistPage() {
                     </div>
                     <div>
                         <h1 className="font-headline text-3xl font-black uppercase tracking-tighter text-white">
-                            Saved Items
+                            My Saved Items
                         </h1>
-                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-1">Your personal collection of must-have products.</p>
+                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-1">This collection is private to you.</p>
                     </div>
                 </div>
 
@@ -65,9 +65,9 @@ export default function BuyerWishlistPage() {
                         <div className="p-8 rounded-full bg-white/5 mb-6 border border-white/5">
                             <Heart className="h-12 w-12 text-neutral-800" />
                         </div>
-                        <h2 className="text-2xl font-black uppercase tracking-tighter text-white">Your List is Quiet</h2>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter text-white">Your List is Private & Quiet</h2>
                         <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-3 max-w-xs leading-relaxed">
-                            Start liking products in the feed to save them here for later.
+                            Start liking products in the feed to save them here. Only you can see this.
                         </p>
                         <Button className="mt-10 h-14 px-12 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20" asChild>
                             <Link href="/buyer/live">START DISCOVERING <ArrowRight className="ml-2 h-4 w-4" /></Link>

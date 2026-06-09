@@ -19,9 +19,12 @@ import {
   Sparkles,
   AreaChart,
   Info,
+  Video,
+  Layers,
+  Heart,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -32,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 
 export function SellerSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
@@ -158,6 +162,36 @@ export function SellerSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel>Videos</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              size="sm" 
+              asChild 
+              isActive={isActive('/dashboard/seller/live-feed') && !searchParams.get('view')}
+            >
+              <Link href="/dashboard/seller/live-feed">
+                <Video className="text-blue-500" />
+                <span>Discovery Feed</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              size="sm" 
+              asChild 
+              isActive={isActive('/dashboard/seller/live-feed') && searchParams.get('view') === 'saved'}
+            >
+              <Link href="/dashboard/seller/live-feed?view=saved">
+                <Heart className="text-pink-500" />
+                <span>My Saved Items</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
       
       <SidebarGroup>
         <SidebarGroupLabel>Help & Resources</SidebarGroupLabel>
@@ -180,6 +214,7 @@ export function SellerSidebar() {
               </SidebarMenuItem>
           </SidebarMenu>
       </SidebarGroup>
+
 
       <SidebarMenu className="mt-auto">
           <SidebarMenuItem>

@@ -27,8 +27,13 @@ export default function FeaturesPage() {
         </div>
 
         {/* Seller Features */}
+<<<<<<< HEAD
         <div className="mb-24">
             <h2 className="font-headline text-3xl font-bold mb-8 text-center text-white">For Sellers <span className="text-primary">&</span> Entrepreneurs</h2>
+=======
+        <div className="mb-20">
+            <h2 className="font-headline text-3xl font-bold mb-8 text-center">For Sellers <span className="text-primary">&</span> Entrepreneurs</h2>
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
                 {sellerFeatures.map((feature, index) => (
                     <Card key={index} className="bg-neutral-900 border-white/5 hover:border-primary/50 hover:shadow-lg transition-all">
@@ -41,7 +46,11 @@ export default function FeaturesPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
+<<<<<<< HEAD
                             <p className="text-sm text-neutral-400">{feature.description}</p>
+=======
+                            <p className="text-sm text-muted-foreground">{feature.description}</p>
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
                         </CardContent>
                     </Card>
                 ))}

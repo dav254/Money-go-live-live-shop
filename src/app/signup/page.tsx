@@ -1,7 +1,11 @@
 
 'use client';
 
+<<<<<<< HEAD
 import { useEffect, useState, Suspense } from 'react';
+=======
+import { useEffect } from 'react';
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,14 +35,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useAuth, useUser, useUserProfile, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+<<<<<<< HEAD
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Loader2, Sparkles } from 'lucide-react';
+=======
+import { useRouter } from 'next/navigation';
+import { doc, setDoc } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -56,10 +65,24 @@ function SignupFormContent() {
   const searchParams = useSearchParams();
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+<<<<<<< HEAD
   // Initialize form with URL parameter role if present
   const defaultRole = (searchParams.get('role') as 'buyer' | 'seller') || 'buyer';
+=======
+  useEffect(() => {
+    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      const role = userProfile.userRole || userProfile.role;
+      if (role === 'seller') {
+        router.replace('/dashboard/seller');
+      } else if (role === 'admin') {
+        router.replace('/dashboard/admin');
+      } else {
+        router.replace('/buyer/dashboard');
+      }
+    }
+  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -72,6 +95,7 @@ function SignupFormContent() {
     },
   });
 
+<<<<<<< HEAD
   // Handle auto-redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
@@ -139,6 +163,8 @@ function SignupFormContent() {
     }
   }
 
+=======
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -336,6 +362,7 @@ export default function SignupPage() {
   return (
     <AuthLayout>
       <div className="flex items-center justify-center py-12 px-4">
+<<<<<<< HEAD
         <Suspense fallback={
           <div className="flex flex-col items-center justify-center p-12">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -343,6 +370,106 @@ export default function SignupPage() {
         }>
           <SignupFormContent />
         </Suspense>
+=======
+        <Card className="w-full max-w-md border-primary/20 shadow-2xl">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Create Account</CardTitle>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Join the future of social commerce at GoEarnvid</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>I am a...</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger className="h-12 border-primary/20">
+                                <SelectValue placeholder="Select your role" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            <SelectItem value="buyer">Buyer (I want to shop)</SelectItem>
+                            <SelectItem value="seller">Seller (I want to sell)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                    control={form.control}
+                    name="fullName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="John Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                            <Input placeholder="johndoe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="m@example.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full h-12 font-black uppercase tracking-widest shadow-xl shadow-primary/20" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-4">
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="font-semibold text-primary hover:underline">
+                Login
+              </Link>
+            </p>
+          </CardFooter>
+        </Card>
+>>>>>>> 4f12c2ee803af08349669570d0b7ca812876038c
       </div>
     </AuthLayout>
   );
