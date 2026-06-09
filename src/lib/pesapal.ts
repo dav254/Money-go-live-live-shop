@@ -1,6 +1,6 @@
-
 /**
  * @fileOverview PesaPal V3 API Integration Utility
+ * Updated with robust error handling and standard headers.
  */
 
 import axios from 'axios';
@@ -21,6 +21,8 @@ export async function getPesapalAuthToken(): Promise<string> {
     }
 
     try {
+        console.log(`[PesaPal] Requesting token from: ${PESAPAL_URL}/api/Auth/RequestToken`);
+        
         const response = await axios.post(`${PESAPAL_URL}/api/Auth/RequestToken`, {
             consumer_key: consumerKey,
             consumer_secret: consumerSecret,
@@ -28,7 +30,9 @@ export async function getPesapalAuthToken(): Promise<string> {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-            }
+                'User-Agent': 'GoEarnvid-Commerce-Platform/1.0'
+            },
+            timeout: 10000 // 10 second timeout for flaky sandbox DNS
         });
 
         if (response.status !== 200 || !response.data.token) {
@@ -38,6 +42,12 @@ export async function getPesapalAuthToken(): Promise<string> {
         return response.data.token;
     } catch (err: any) {
         const message = err.response?.data?.message || err.message;
+        console.error(`[PesaPal Auth Error]:`, message);
+        
+        if (err.code === 'ENOTFOUND') {
+            throw new Error(`PesaPal Sandbox Server (${PESAPAL_URL}) is currently unreachable. Please try again later or switch to Live mode.`);
+        }
+        
         throw new Error(`PesaPal Network Error (Auth): ${message}`);
     }
 }
@@ -60,6 +70,7 @@ export async function registerPesapalIPN(token: string): Promise<string> {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
+                'User-Agent': 'GoEarnvid-Commerce-Platform/1.0'
             }
         });
 
@@ -108,6 +119,7 @@ export async function submitPesapalOrder(payload: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
+                'User-Agent': 'GoEarnvid-Commerce-Platform/1.0'
             }
         });
 

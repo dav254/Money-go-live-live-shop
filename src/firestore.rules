@@ -25,6 +25,13 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn();
       allow list: if isSignedIn() && (request.auth.uid == userId || resource.data.referredBy == request.auth.uid || isAdmin());
+      
+      // Ownership rule: Allow the user to manage their own profile and ALL sub-collections (cart, wishlist, payments, etc.)
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Admin updates for specific fields
       allow update: if isOwner(userId) ||
                       (isAdmin() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
@@ -109,7 +116,7 @@ service cloud.firestore {
 
     match /supportTickets/{ticketId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow list, read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list, read: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
       allow update, delete: if isAdmin();
     }
 
