@@ -10,15 +10,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck } from 'lucide-react';
+import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Product, SellerShop, UserProfile } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
+import type { Product, SellerShop, UserProfile, Order } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProductInfo } from '@/components/live/product-info';
 
 export default function BuyerProductPage() {
     const params = useParams();
@@ -47,6 +48,14 @@ export default function BuyerProductPage() {
     const { data: sellerShop, isLoading: isSellerShopLoading } = useDoc<SellerShop>(sellerShopRef);
     const { data: sellerProfile, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
 
+    const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
+
+    // Reset local state when product ID changes
+    useEffect(() => {
+        setQuantity(1);
+        setSelectedMedia(null);
+    }, [productId]);
+
     const allMedia = useMemo(() => {
         if (!product) return [];
         const media: { url: string, type: 'video' | 'image' }[] = [];
@@ -72,20 +81,18 @@ export default function BuyerProductPage() {
         return media.length > 0 ? media : [{ url: getPlaceholderImage(), type: 'image' }];
     }, [product]);
 
-    const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
-
     useEffect(() => {
         if (allMedia.length > 0 && !selectedMedia) {
             setSelectedMedia(allMedia[0]);
         }
     }, [allMedia, selectedMedia]);
 
-    const handleAddToCart = async () => {
+    const handleAddToCart = () => {
         if (!user) { router.push('/login'); return; }
         if (!product) return;
+        
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
-        try {
-          await setDoc(cartItemRef, {
+        const cartData = {
             productId: product.id,
             sellerId: product.sellerId,
             buyerId: user.uid,
@@ -94,30 +101,65 @@ export default function BuyerProductPage() {
             name: product.name,
             imageUrl: product.imageUrl || getPlaceholderImage(),
             addedAt: serverTimestamp(),
-          }, { merge: true });
-          toast({ title: 'Added to Cart' });
-        } catch (error) { console.error(error); }
+        };
+
+        setDoc(cartItemRef, cartData, { merge: true })
+            .catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: cartItemRef.path,
+                    operation: 'write',
+                    requestResourceData: cartData,
+                }));
+            });
+
+        toast({ title: 'Added to Cart' });
     };
 
-    const handleBuyNow = async () => {
+    const handleBuyNow = () => {
         if (!user) { router.push('/login'); return; }
         if (!product) return;
-        const newOrderRef = doc(collection(firestore, 'orders'));
+
+        const ordersCollectionRef = collection(firestore, 'orders');
+        const newOrderRef = doc(ordersCollectionRef);
         const shippingCost = product.shippingCost || 0;
-        const subtotal = product.price * quantity;
-        try {
-          await setDoc(newOrderRef, {
+        const subtotal = (product.price || 0) * quantity;
+        
+        const newOrderData = {
             id: newOrderRef.id,
             buyerId: user.uid,
             sellerId: product.sellerId,
-            items: [{ productId: product.id, name: product.name, price: product.price, quantity, imageUrl: product.imageUrl || getPlaceholderImage() }],
+            items: [{ 
+                productId: product.id, 
+                name: product.name, 
+                price: product.price, 
+                quantity, 
+                imageUrl: product.imageUrl || getPlaceholderImage() 
+            }],
+            productName: product.name,
+            productImage: product.imageUrl || getPlaceholderImage(),
+            productPrice: product.price,
+            shippingCost: shippingCost,
             totalAmount: subtotal + shippingCost,
+            subtotal: subtotal,
             orderDate: serverTimestamp(),
             orderStatus: 'pending',
             paymentMethod: 'pending',
-          });
-          router.push(`/checkout/${newOrderRef.id}`);
-        } catch (error) { console.error(error); }
+            quantity: quantity,
+            shippingAddress: userProfile?.location || 'Awaiting Input',
+        };
+
+        setDoc(newOrderRef, newOrderData)
+            .then(() => {
+                toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+                router.push(`/checkout/${newOrderRef.id}`);
+            })
+            .catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: newOrderRef.path,
+                    operation: 'create',
+                    requestResourceData: newOrderData,
+                }));
+            });
     };
 
     const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
@@ -175,18 +217,18 @@ export default function BuyerProductPage() {
                         <div className="flex-1 min-w-0">
                             <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category}</Badge>
                             <h1 className="font-headline text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
-                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price.toLocaleString()}</p>
+                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price?.toLocaleString()}</p>
                         </div>
                         
                         <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-72 shrink-0 shadow-2xl">
                             <Link href={`/sellers/${sellerId}`} className="flex items-center gap-3 group mb-4">
                                 <Avatar className="h-10 w-10 border border-white/10 group-hover:border-primary transition-all">
                                     <AvatarImage src={sellerShop?.logoUrl} />
-                                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{sellerShop?.shopName?.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{sellerShop?.shopName?.charAt(0) || 'S'}</AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">
                                     <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest leading-none mb-1">Seller</p>
-                                    <p className="font-bold text-sm truncate uppercase tracking-tight group-hover:text-primary transition-colors">{sellerShop?.shopName}</p>
+                                    <p className="font-bold text-sm truncate uppercase tracking-tight group-hover:text-primary transition-colors">{sellerShop?.shopName || 'Marketplace Seller'}</p>
                                 </div>
                             </Link>
                             
@@ -233,7 +275,7 @@ export default function BuyerProductPage() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-0.5">Pickup Location</p>
-                                        <p className="font-bold text-sm text-white uppercase tracking-tight">{sellerShop?.location || 'Store Location'}</p>
+                                        <p className="font-bold text-sm text-white uppercase tracking-tight">{sellerShop?.location || 'Global Store'}</p>
                                     </div>
                                 </div>
                                 <div className="p-6 flex items-center gap-4">
@@ -243,7 +285,7 @@ export default function BuyerProductPage() {
                                     <div>
                                         <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-0.5">Shipping Method</p>
                                         <p className="font-bold text-sm text-white uppercase tracking-tight">
-                                            {product.deliveryOptions || 'Standard Delivery'} — <span className="text-green-400">${product.shippingCost?.toFixed(2) || '0.00'}</span>
+                                            {product.deliveryOptions || 'Verified Delivery'} — <span className="text-green-400">${product.shippingCost?.toFixed(2) || '0.00'}</span>
                                         </p>
                                     </div>
                                 </div>
@@ -319,11 +361,22 @@ export default function BuyerProductPage() {
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2 text-white">
                                         <Clock className="h-4 w-4 text-primary" />
-                                        <h4 className="font-black uppercase text-[10px] tracking-widest">Seller Availability</h4>
+                                        <h4 className="font-black uppercase text-[10px] tracking-widest">Operation Metadata</h4>
                                     </div>
-                                    <p className="text-xs font-bold uppercase tracking-tight text-neutral-400">
-                                        Store Hours: <span className="text-white ml-1">{sellerShop?.storeHours || 'Open 24/7'}</span>
-                                    </p>
+                                    <div className="flex flex-col gap-4">
+                                        <p className="text-xs font-bold uppercase tracking-tight text-neutral-400">
+                                            Store Hours: <span className="text-white ml-1">{sellerShop?.storeHours || 'Open 24/7'}</span>
+                                        </p>
+                                        <div className="flex items-start gap-4">
+                                            <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/5">
+                                                <Store className="h-5 w-5 text-primary" />
+                                            </div>
+                                            <div>
+                                                <h5 className="font-black text-white text-[9px] uppercase tracking-widest mb-1">On Platform Since</h5>
+                                                <span className="text-sm font-medium">{sellerProfile?.joinDate ? new Date(sellerProfile.joinDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric'}) : 'Founding Member'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -337,7 +390,7 @@ export default function BuyerProductPage() {
                             <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
                         </Link>
                         <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase text-xs tracking-widest" onClick={handleBuyNow}>
-                            BUY FOR ${ (product.price * quantity).toLocaleString() }
+                            BUY FOR ${ ((product.price || 0) * quantity).toLocaleString() }
                         </Button>
                     </div>
                 </div>

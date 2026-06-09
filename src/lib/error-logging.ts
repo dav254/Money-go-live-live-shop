@@ -5,6 +5,9 @@ interface LogErrorOptions {
   context?: Record<string, any>;
 }
 
+// Module-level guard to prevent infinite recursion
+let isLogging = false;
+
 /**
  * Logs an error to the `errorLogs` collection in Firestore.
  * Highly robust to ensure that logging errors doesn't cause further crashes.
@@ -15,10 +18,14 @@ interface LogErrorOptions {
  */
 export const logError = async (firestore: Firestore | null, error: Error | null, options: LogErrorOptions = {}) => {
   // Defensive checks to prevent logging loops or crashes
-  if (!firestore || !error) {
-    console.error('Logging failed: Firestore or Error object is null.', { error, options });
+  if (!firestore || !error || isLogging) {
+    if (isLogging) {
+        console.warn('[Error Logging] Suppressing recursive error call to prevent crash loop.');
+    }
     return;
   }
+
+  isLogging = true;
 
   try {
     // Attempt to write the log to Firestore. 
@@ -34,10 +41,13 @@ export const logError = async (firestore: Firestore | null, error: Error | null,
       userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
     });
   } catch (loggingError) {
-    // Ultimate fallback to console to ensure we never lose visibility of an error
+    // Ultimate fallback to console using non-destructive warning level 
+    // to avoid triggering any secondary error listeners.
     console.group('CRITICAL: Firestore Error Logging Failed');
-    console.error('Original Error:', error);
-    console.error('Logging Failure:', loggingError);
+    console.warn('The original error that failed to log:', error.message);
+    console.warn('Logging infrastructure failure:', (loggingError as Error).message);
     console.groupEnd();
+  } finally {
+    isLogging = false;
   }
 };
