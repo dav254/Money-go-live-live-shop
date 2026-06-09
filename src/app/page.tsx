@@ -4,12 +4,15 @@ import { useEffect } from "react";
 import { 
   Upload, ArrowRight, Sparkles, Rocket, Crown, Star, Video, Zap, 
   Radio, Users, Globe, Cpu, Layers,
-  RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard 
+  RadioTower, Bot, Eye, Loader2, ShoppingBag, Shield, CreditCard,
+  Target, ZapIcon, PlayCircle, BarChart3
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const HomePageContent = () => {
   const { user, isLoading: isUserLoading } = useUser();
@@ -21,8 +24,6 @@ const HomePageContent = () => {
       const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') {
         router.replace('/dashboard/seller');
-      } else if (role === 'reseller') {
-        router.replace('/dashboard/reseller');
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
@@ -40,156 +41,167 @@ const HomePageContent = () => {
   }
 
   const BackgroundEffects = () => (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: -1 }}>
+    <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-black">
       <div 
-        className="animate-aurora"
+        className="animate-aurora opacity-30"
         style={{
           position: 'absolute',
           top: '-50%',
           left: '-50%',
           width: '200%',
           height: '200%',
-          opacity: 0.2,
-          background: 'radial-gradient(ellipse at 30% 40%, hsla(270, 100%, 60%, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 70% 60%, hsla(200, 100%, 55%, 0.3) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, hsla(55, 100%, 55%, 0.25) 0%, transparent 40%)'
+          background: 'radial-gradient(ellipse at 30% 40%, hsla(24, 100%, 55%, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 70% 60%, hsla(320, 100%, 60%, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, hsla(200, 100%, 55%, 0.1) 0%, transparent 40%)'
         }}
       />
-      <div className="animate-float-slow" style={{ position: 'absolute', top: '5rem', left: '2.5rem', width: '24rem', height: '24rem', borderRadius: '50%', filter: 'blur(48px)', opacity: 0.15, background: 'hsl(270, 100%, 60%)' }} />
-      <div className="animate-float-slow" style={{ position: 'absolute', bottom: '5rem', right: '2.5rem', width: '31rem', height: '31rem', borderRadius: '50%', filter: 'blur(48px)', opacity: 0.1, background: 'hsl(200, 100%, 55%)', animationDelay: '3s' }} />
-      <div className="animate-float-slow" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '44rem', height: '44rem', borderRadius: '50%', filter: 'blur(48px)', opacity: 0.08, background: 'hsl(55, 100%, 55%)', animationDelay: '6s' }} />
-      <div className="cyber-grid" style={{ position: 'absolute', inset: 0, opacity: 0.1 }} />
+      <div className="absolute top-0 left-0 w-full h-full cyber-grid opacity-20" />
+      <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/10 to-transparent" />
     </div>
   );
-
-  const Section = ({ children, className = "", id = "", style = {} }: { children: React.ReactNode; className?: string; id?: string; style?: React.CSSProperties }) => (
-    <section id={id} className={className} style={{ position: 'relative', padding: '5rem 0', ...style }}>
-      {children}
-    </section>
-  );
-  
-  const stats = [
-    { value: "50K+", label: "Active Sellers", icon: Users },
-    { value: "1M+", label: "Products Sold", icon: ShoppingBag },
-    { value: "0%", label: "Listing Fees", icon: Zap },
-    { value: "24/7", label: "AI Support", icon: Cpu },
-  ];
-
-  const features = [
-    { icon: Video, title: "Video-First Commerce", description: "Engage buyers with authentic product videos, proven to increase conversion and trust.", gradient: "gradient-hero" },
-    { icon: RadioTower, title: "Live Shopping", description: "Host real-time selling events, interact with customers, and drive sales through live engagement.", gradient: "gradient-hero" },
-    { icon: Bot, title: "AI-Powered Toolkit", description: "Leverage AI for content generation, sales strategy, and video creation to stay ahead of the curve.", gradient: "gradient-hero" },
-    { icon: Layers, title: "Seamless Platform", description: "Manage products, orders, and payouts from a single, intuitive dashboard designed for growth.", gradient: "gradient-hero" },
-    { icon: Users, title: "Direct Communication", description: "Build relationships and answer questions instantly with built-in chat between buyers and sellers.", gradient: "gradient-hero" },
-    { icon: CreditCard, title: "Fast & Secure Payouts", description: "Get your earnings quickly and securely through integrated payment and payout systems.", gradient: "gradient-hero" },
-    { icon: Shield, title: "Trusted & Secure", description: "Built on a secure foundation with seller verification and fraud detection to protect everyone.", gradient: "gradient-hero" },
-  ];
 
   return (
     <>
       <BackgroundEffects />
-      <div style={{ paddingTop: '5rem' }}>
-        <Section style={{ minHeight: 'calc(100vh - 5rem)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '0rem' }}>
-          <div className="container" style={{ position: 'relative', zIndex: 10, padding: '0 1rem', textAlign: 'center' }}>
-            <div className="glass-card-strong cyber-border animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 500, marginBottom: '2rem' }}>
-              <Sparkles style={{ width: '1rem', height: '1rem', color: 'hsl(55, 100%, 50%)' }} />
-              <span className="font-cyber" style={{ letterSpacing: '0.05em' }}>POST • EARN • REPEAT</span>
-              <Globe className="animate-spin-slow" style={{ width: '1rem', height: '1rem', color: 'hsl(200, 100%, 55%)' }} />
-            </div>
+      
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-20 px-4">
+        <div className="container max-w-6xl mx-auto text-center space-y-8">
+          
+          <div className="animate-fade-in inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 backdrop-blur-xl shadow-[0_0_30px_rgba(255,107,0,0.1)]">
+            <Radio className="h-3 w-3 text-primary animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary font-cyber">Live Signal Active</span>
+          </div>
 
-            <h1 className="font-cyber animate-slide-up" style={{ fontSize: 'clamp(2.5rem, 8vw, 6rem)', fontWeight: 800, marginBottom: '1.5rem', lineHeight: 1.1 }}>
-              Where Videos
-              <br />
-              <span className="text-gradient glow-text">Become Income</span>
-            </h1>
+          <h1 className="font-cyber text-5xl md:text-8xl font-black uppercase tracking-tighter leading-none animate-slide-up">
+            The 4K Content
+            <br />
+            <span className="text-gradient glow-text">Economy</span>
+          </h1>
 
-            <p className="animate-slide-up" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)', color: 'rgba(255,255,255,0.6)', maxWidth: '48rem', margin: '0 auto 2.5rem', animationDelay: '0.1s' }}>
-              The <span style={{ color: 'hsl(200, 100%, 55%)', fontWeight: 600 }}>2025</span> platform for creators, hustlers, and entrepreneurs.
-              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarn.shop</span> transforms your content into real wealth.
-            </p>
+          <p className="max-w-2xl mx-auto text-lg md:text-xl text-neutral-400 font-medium leading-relaxed animate-slide-up [animation-delay:200ms]">
+            GoEarn is the command center for the next generation of entrepreneurs. 
+            Transform your authentic videos into a global revenue stream with 
+            <span className="text-white font-bold"> AI-powered growth</span> and <span className="text-white font-bold">instant local payouts.</span>
+          </p>
 
-            <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'center', alignItems: 'center', marginBottom: '4rem', animationDelay: '0.2s' }}>
-              <Link href="/signup?role=seller" className="btn-hero font-cyber" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-                <Upload style={{ width: '1.25rem', height: '1.25rem' }} />
-                <span>Start Selling Now</span>
-                <ArrowRight style={{ width: '1.25rem', height: '1.25rem' }} />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up [animation-delay:400ms]">
+            <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-sm bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/40 group" asChild>
+              <Link href="/signup?role=seller">
+                Start Selling Now <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-            </div>
-
-            <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', maxWidth: '64rem', margin: '0 auto', animationDelay: '0.4s' }}>
-              {stats.map((stat, index) => (
-                <div key={index} className="glass-card-strong cyber-border" style={{ borderRadius: '1rem', padding: '1.5rem', transition: 'all 0.5s' }}>
-                  <stat.icon style={{ width: '1.5rem', height: '1.5rem', color: 'rgba(168, 85, 247, 0.6)', marginBottom: '0.5rem' }} />
-                  <div className="font-cyber text-gradient" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.25rem)', fontWeight: 700 }}>{stat.value}</div>
-                  <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)' }}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
+            </Button>
+            <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-sm border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl" asChild>
+              <Link href="/buyer/dashboard">Browse Live Feed</Link>
+            </Button>
           </div>
-        </Section>
-        
-        <Section id="for-sellers" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.05), hsl(240, 20%, 4%), rgba(59, 130, 246, 0.05))' }}>
-          <div className="container" style={{ padding: '0 1rem', textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', borderRadius: '9999px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', color: 'hsl(55, 100%, 50%)', fontSize: '0.875rem', fontWeight: 600, marginBottom: '2rem' }}>
-              <Crown style={{ width: '1rem', height: '1rem' }} />
-              <span className="font-cyber" style={{ letterSpacing: '0.05em' }}>EXCLUSIVE EARLY ACCESS</span>
-            </div>
-            <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
-              Become a <span className="text-gradient">Founding Seller</span>
-            </h2>
-            <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              Your exclusive chance to grow with us from Day One. Build a brand that stands out on <span className="font-bold text-white">GoEarn.shop</span>.
-              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}>Join early. Be discovered early. Earn early.</span>
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem', maxWidth: '56rem', margin: '0 auto 3rem' }}>
-              {[
-                { icon: Rocket, title: "Early Access", description: "Get featured before the crowd" },
-                { icon: Star, title: "Priority Support", description: "Direct line to success team" },
-                { icon: Crown, title: "Founding Badge", description: "Exclusive recognition forever" }
-              ].map((benefit, index) => (
-                <div key={index} className="glass-card-strong" style={{ padding: '2rem', borderRadius: '1.5rem', transition: 'all 0.5s', height: '100%' }}>
-                  <div className="gradient-hero" style={{ width: '4rem', height: '4rem', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem', marginLeft: 'auto', marginRight: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-                    <benefit.icon style={{ width: '2rem', height: '2rem', color: 'white' }} />
-                  </div>
-                  <h3 className="font-cyber" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>{benefit.title}</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.6)' }}>{benefit.description}</p>
+          
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-16 max-w-4xl mx-auto animate-fade-in [animation-delay:600ms]">
+            {[
+                { label: 'Active Signal', value: 'Live', icon: RadioTower, color: 'text-red-500' },
+                { label: 'Listing Fees', value: '0%', icon: ZapIcon, color: 'text-yellow-500' },
+                { label: 'Trust Factor', value: 'Verified', icon: Shield, color: 'text-blue-500' },
+                { label: 'Payout Speed', value: 'Instant', icon: Rocket, color: 'text-green-500' },
+            ].map((stat, i) => (
+                <div key={i} className="p-4 rounded-2xl bg-neutral-900/50 border border-white/5 backdrop-blur-md">
+                    <stat.icon className={cn("h-4 w-4 mb-2 mx-auto", stat.color)} />
+                    <p className="text-[9px] font-black uppercase tracking-widest text-neutral-500 mb-1">{stat.label}</p>
+                    <p className="text-xl font-black font-cyber text-white">{stat.value}</p>
                 </div>
-              ))}
-            </div>
-             <Link href="/signup?role=seller" className="btn-gold font-cyber" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-              <Rocket style={{ width: '1.25rem', height: '1.25rem' }} />
-              <span>Claim Your Founding Spot</span>
-              <ArrowRight style={{ width: '1.25rem', height: '1.25rem' }} />
-            </Link>
+            ))}
           </div>
-        </Section>
+        </div>
+      </section>
 
-        <Section id="features">
-          <div className="container" style={{ padding: '0 1rem' }}>
-            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-              <h2 className="font-cyber" style={{ fontSize: 'clamp(2rem, 5vw, 3.75rem)', fontWeight: 700, marginBottom: '1.5rem' }}>
-                <span style={{ color: 'hsl(270, 100%, 65%)' }}>Upload</span>
-                <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 0.75rem' }}>•</span>
-                <span style={{ color: 'hsl(200, 100%, 55%)' }}>Sell</span>
-                <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 0.75rem' }}>•</span>
-                <span style={{ color: 'hsl(55, 100%, 50%)' }}>Earn</span>
-              </h2>
-              <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', maxWidth: '42rem', margin: '0 auto' }}>
-                Everything you need to build a thriving business in the <span className="text-gradient" style={{ fontWeight: 600 }}>future of commerce</span> at GoEarn.
+      {/* Value Proposition Section */}
+      <section className="py-32 px-4 relative overflow-hidden">
+        <div className="container max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                <div className="space-y-8">
+                    <div className="space-y-4">
+                        <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5 uppercase font-black tracking-widest text-[10px] px-3 py-1">Sell Smarter</Badge>
+                        <h2 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-white">
+                            Engineered for
+                            <br />
+                            <span className="text-primary">Conversion</span>
+                        </h2>
+                    </div>
+                    <p className="text-neutral-400 text-lg leading-relaxed">
+                        The era of static images is over. GoEarn puts video at the heart of every interaction, building deep trust between sellers and buyers that a photo simply can't match.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 gap-6">
+                        {[
+                            { icon: PlayCircle, title: "Authentic Video Feed", desc: "No filters, no fakes. Real products shown by real people." },
+                            { icon: BarChart3, title: "AI-Driven Insights", desc: "Our models predict what buyers want before they even search." },
+                            { icon: CreditCard, title: "M-Pesa Integrated", desc: "Accept payments and withdraw funds with zero friction." },
+                        ].map((item, i) => (
+                            <div key={i} className="flex gap-4 p-6 rounded-3xl bg-neutral-900/30 border border-white/5 hover:border-primary/20 transition-all group">
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 group-hover:scale-110 transition-transform">
+                                    <item.icon className="h-6 w-6 text-primary" />
+                                </div>
+                                <div>
+                                    <h4 className="font-black uppercase tracking-tight text-white">{item.title}</h4>
+                                    <p className="text-sm text-neutral-500 font-medium mt-1">{item.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="relative">
+                    <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full opacity-30 animate-pulse" />
+                    <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl bg-neutral-900">
+                        <img 
+                            src="https://picsum.photos/seed/goearn-hero/800/1000" 
+                            alt="GoEarn Interface" 
+                            className="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-700" 
+                            data-ai-hint="luxury lifestyle fashion"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                        <div className="absolute bottom-10 left-10 right-10 p-8 rounded-3xl bg-black/40 backdrop-blur-2xl border border-white/10">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="h-12 w-12 rounded-full bg-red-600 flex items-center justify-center animate-pulse">
+                                    <Video className="text-white h-6 w-6" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Live Show</p>
+                                    <p className="font-cyber text-lg font-bold text-white uppercase">Flash Sale Active</p>
+                                </div>
+                            </div>
+                            <Progress value={85} className="h-1.5 bg-white/10" />
+                            <p className="mt-4 text-[10px] font-bold text-neutral-400 uppercase tracking-widest">Global Discovery Pool: 98% Synchronized</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-32 px-4">
+          <div className="container max-w-4xl mx-auto text-center space-y-12">
+              <h3 className="font-cyber text-3xl md:text-5xl font-black uppercase tracking-tighter text-white">
+                  Join the Founding
+                  <br />
+                  <span className="text-primary italic">Merchant Fleet</span>
+              </h3>
+              <p className="text-neutral-400 max-w-xl mx-auto font-medium">
+                  Early adopters receive priority placement in the discovery feed and exclusive low-commission periods. Secure your spot today.
               </p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '80rem', margin: '0 auto' }}>
-              {features.map((feature, index) => (
-                 <div key={index} className="glass-card" style={{ padding: '1.5rem', borderRadius: '1rem', transition: 'all 0.5s ease', overflow: 'hidden', height: '100%' }}>
-                  <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} className={feature.gradient}>
-                    <feature.icon style={{ width: '1.75rem', height: '1.75rem', color: 'white' }} />
-                  </div>
-                  <h3 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>{feature.title}</h3>
-                  <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)' }}>{feature.description}</p>
-                </div>
-              ))}
-            </div>
+              <div className="flex justify-center">
+                <Button size="lg" className="h-20 px-16 rounded-[2rem] font-black uppercase tracking-[0.2em] text-lg bg-white text-black hover:bg-neutral-200 shadow-[0_0_50px_rgba(255,255,255,0.15)] transition-all active:scale-95" asChild>
+                    <Link href="/signup?role=seller">Enter the Marketplace</Link>
+                </Button>
+              </div>
           </div>
-        </Section>
-      </div>
+      </section>
+
+      {/* Simple Footer Text */}
+      <footer className="py-12 border-t border-white/5 text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-neutral-700">
+              © 2026 GOEARN • THE FUTURE OF COMMERCE • ALL RIGHTS RESERVED
+          </p>
+      </footer>
     </>
   );
 };
