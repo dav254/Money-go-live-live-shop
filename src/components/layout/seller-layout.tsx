@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -39,9 +38,16 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
 
   if (isLoading || !user || (userProfile && userProfile.userRole !== 'seller')) {
     return (
-        <div className="flex h-screen w-full items-center justify-center gap-2">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p>Loading Seller Dashboard...</p>
+        <div className="flex h-screen w-full flex-col items-center justify-center gap-6 bg-black">
+            <div className="relative">
+                <div className="absolute inset-[-10px] bg-red-600/20 rounded-full animate-pulse blur-lg" />
+                <div className="absolute inset-0 bg-red-600/20 rounded-full animate-ping" />
+                <Loader2 className="h-10 w-10 animate-spin text-red-600 relative z-10" />
+            </div>
+            <div className="text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-red-600 animate-pulse">Syncing Studio</p>
+                <p className="text-[8px] font-bold uppercase tracking-widest text-neutral-600 mt-1">Connecting Merchant Node</p>
+            </div>
         </div>
     );
   }
