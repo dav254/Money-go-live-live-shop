@@ -33,6 +33,10 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
             }
 
+            // Paystack requires KES for M-Pesa support.
+            // We convert the USD amount to KES (using 130 as a standard rate)
+            const kesAmount = Math.round(amount * 130 * 100); // Amount in cents (shillings)
+
             const response = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
                 headers: {
@@ -41,8 +45,9 @@ export async function POST(request: Request) {
                 },
                 body: JSON.stringify({
                     email: email,
-                    amount: Math.round(amount * 100), 
-                    currency: 'USD',
+                    amount: kesAmount, 
+                    currency: 'KES',
+                    channels: ['card', 'mobile_money', 'bank', 'ussd'],
                     reference: reference,
                     metadata: {
                         ...metadata,

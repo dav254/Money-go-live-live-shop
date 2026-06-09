@@ -292,8 +292,11 @@ export default function CheckoutPage() {
                                     {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon />}
                                 </div>
                                 <div className="text-left min-w-0">
-                                    <p className="font-black text-sm uppercase tracking-widest">Paystack</p>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Fast Card & Bank Transfers</p>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="font-black text-sm uppercase tracking-widest">Paystack</p>
+                                        <Badge className="bg-[#011b33] text-[8px] h-4 px-1 font-black border-none text-white">CARD / M-PESA</Badge>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Fast M-Pesa, Card & Bank</p>
                                 </div>
                             </Button>
 
