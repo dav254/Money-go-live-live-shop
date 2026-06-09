@@ -92,7 +92,7 @@ const HomePageContent = () => {
           <div className="container" style={{ position: 'relative', zIndex: 10, padding: '0 1rem', textAlign: 'center' }}>
             <div className="glass-card-strong cyber-border animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '9999px', fontSize: '0.875rem', fontWeight: 500, marginBottom: '2rem' }}>
               <Sparkles style={{ width: '1rem', height: '1rem', color: 'hsl(55, 100%, 50%)' }} />
-              <span className="font-cyber" style={{ letterSpacing: '0.05em' }}>THE FUTURE OF SOCIAL COMMERCE</span>
+              <span className="font-cyber" style={{ letterSpacing: '0.05em' }}>POST • EARN • REPEAT</span>
               <Globe className="animate-spin-slow" style={{ width: '1rem', height: '1rem', color: 'hsl(200, 100%, 55%)' }} />
             </div>
 
@@ -104,7 +104,7 @@ const HomePageContent = () => {
 
             <p className="animate-slide-up" style={{ fontSize: 'clamp(1rem, 2.5vw, 1.5rem)', color: 'rgba(255,255,255,0.6)', maxWidth: '48rem', margin: '0 auto 2.5rem', animationDelay: '0.1s' }}>
               The <span style={{ color: 'hsl(200, 100%, 55%)', fontWeight: 600 }}>2025</span> platform for creators, hustlers, and entrepreneurs.
-              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarnvid.shop</span> transforms your content into real wealth.
+              <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}> GoEarn.shop</span> transforms your content into real wealth.
             </p>
 
             <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', justifyContent: 'center', alignItems: 'center', marginBottom: '4rem', animationDelay: '0.2s' }}>
@@ -137,7 +137,7 @@ const HomePageContent = () => {
               Become a <span className="text-gradient">Founding Seller</span>
             </h2>
             <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', marginBottom: '3rem', maxWidth: '42rem', margin: '0 auto 3rem' }}>
-              Your exclusive chance to grow with us from Day One. Build a brand that stands out on <span className="font-bold text-white">GoEarnvid.shop</span>.
+              Your exclusive chance to grow with us from Day One. Build a brand that stands out on <span className="font-bold text-white">GoEarn.shop</span>.
               <span className="text-gradient-cyber" style={{ display: 'block', marginTop: '0.5rem', fontWeight: 600 }}>Join early. Be discovered early. Earn early.</span>
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '3rem', maxWidth: '56rem', margin: '0 auto 3rem' }}>
@@ -174,7 +174,7 @@ const HomePageContent = () => {
                 <span style={{ color: 'hsl(55, 100%, 50%)' }}>Earn</span>
               </h2>
               <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.6)', maxWidth: '42rem', margin: '0 auto' }}>
-                Everything you need to build a thriving business in the <span className="text-gradient" style={{ fontWeight: 600 }}>future of commerce</span> at GoEarnvid.
+                Everything you need to build a thriving business in the <span className="text-gradient" style={{ fontWeight: 600 }}>future of commerce</span> at GoEarn.
               </p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '80rem', margin: '0 auto' }}>

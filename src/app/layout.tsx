@@ -4,12 +4,12 @@ import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'GoEarnvid: Video-First Commerce',
+  title: 'GoEarn: Post, Earn, Repeat',
   description: 'The world\'s next-generation social commerce platform. Where videos become income.',
   icons: {
     icon: '/favicon.ico',
   },
-  metadataBase: new URL('https://goearnvid.shop'),
+  metadataBase: new URL('https://goearn.shop'),
 };
 
 export default function RootLayout({

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -104,7 +103,7 @@ export default function LoginPage() {
         await setDoc(userDocRef, profile);
       }
       
-      toast({ title: 'Login Successful!', description: "Welcome to GoEarnvid." });
+      toast({ title: 'Login Successful!', description: "Welcome to GoEarn." });
     } catch (error: any) {
       console.error('Google Auth Error:', error);
       toast({
@@ -138,7 +137,7 @@ export default function LoginPage() {
             return;
         }
 
-        toast({ title: 'Login Successful!', description: "Welcome back to GoEarnvid." });
+        toast({ title: 'Login Successful!', description: "Welcome back to GoEarn." });
       }
     } catch (error: any) {
       console.error('Login Error:', error);
@@ -172,7 +171,7 @@ export default function LoginPage() {
         <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
-            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your GoEarnvid account</CardDescription>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your GoEarn account</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <Button 
