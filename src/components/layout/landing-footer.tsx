@@ -1,6 +1,6 @@
 'use client';
 
-import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, Globe, MapPin, Heart } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Youtube, Globe, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../logo';
 
@@ -10,7 +10,6 @@ export function LandingFooter() {
     { label: "Features", href: "/features" },
     { label: "How It Works", href: "/#how-it-works" },
     { label: "For Sellers", href: "/login" },
-    { label: "For Resellers", href: "/login" },
     { label: "Blog", href: "#" }
   ];
   return (
@@ -50,30 +49,11 @@ export function LandingFooter() {
                 {[
                   { label: "Help Center", href: "#" },
                   { label: "FAQs", href: "/faq" },
-                  { label: "Contact Us", href: "#" },
                   { label: "Privacy Policy", href: "/privacy" },
                   { label: "Terms of Service", href: "/terms" }
                 ].map((link) => (
                   <li key={link.label}>
                     <Link href={link.href} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Contact Us</h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {[
-                  { icon: Mail, text: "hello@goearn.co.ke" },
-                  { icon: Phone, text: "+254794598895" },
-                  { icon: MapPin, text: "Nairobi, Kenya" },
-                ].map((item, index) => (
-                  <li key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <item.icon style={{ width: '1.25rem', height: '1.25rem', color: 'hsl(270, 100%, 65%)' }} />
-                    </div>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>{item.text}</span>
                   </li>
                 ))}
               </ul>
