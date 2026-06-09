@@ -108,7 +108,15 @@
     }
 }
 
-#nprogress .bar {
-  background: hsl(var(--primary)) !important;
-  height: 3px !important;
+/* Top Loading Bar */
+.loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 0;
+  background: linear-gradient(90deg, #ff0000, #ff4d4d);
+  z-index: 9999;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+  transition: width 0.3s ease;
 }
