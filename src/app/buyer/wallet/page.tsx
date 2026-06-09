@@ -191,7 +191,7 @@ export default function BuyerPaymentsPage() {
 
     const handleCopyRef = () => {
         if (!user) return;
-        const refLink = `${window.location.origin}/signup?ref=${user.uid}`;
+        const refLink = `https://goearnvid.shop/signup?ref=${user.uid}`;
         navigator.clipboard.writeText(refLink);
         toast({ title: "Link Copied!", description: "Share this link to earn rewards." });
     };
@@ -254,7 +254,7 @@ export default function BuyerPaymentsPage() {
                     <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-3 shadow-inner">
                         <p className="text-[10px] font-black uppercase text-neutral-400 tracking-widest">My Referral Link</p>
                         <div className="flex gap-2">
-                            <Input readOnly value={user ? `${window.location.origin}/signup?ref=${user.uid.substring(0,6)}...` : ''} className="h-10 bg-black/40 border-white/10 text-[10px] font-bold font-mono text-white" />
+                            <Input readOnly value={user ? `https://goearnvid.shop/signup?ref=${user.uid.substring(0,6)}...` : ''} className="h-10 bg-black/40 border-white/10 text-[10px] font-bold font-mono text-white" />
                             <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0" onClick={handleCopyRef}>
                                 <Copy className="h-4 w-4" />
                             </Button>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, ReactNode } from 'react';
@@ -12,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -614,4 +614,3 @@ export default function ResellerWalletPage() {
     </ResellerLayout>
   );
 }
-
