@@ -3,6 +3,8 @@
  * @fileOverview PesaPal V3 API Integration Utility
  */
 
+import axios from 'axios';
+
 const PESAPAL_URL = process.env.PESAPAL_ENVIRONMENT === 'live' 
     ? 'https://pay.pesapal.com/v3' 
     : 'https://cybil.pesapal.com/v3';
@@ -19,27 +21,24 @@ export async function getPesapalAuthToken(): Promise<string> {
     }
 
     try {
-        const response = await fetch(`${PESAPAL_URL}/api/Auth/RequestToken`, {
-            method: 'POST',
+        const response = await axios.post(`${PESAPAL_URL}/api/Auth/RequestToken`, {
+            consumer_key: consumerKey,
+            consumer_secret: consumerSecret,
+        }, {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                consumer_key: consumerKey,
-                consumer_secret: consumerSecret,
-            }),
+            }
         });
 
-        const data = await response.json();
-        
-        if (!response.ok || !data.token) {
-            throw new Error(`PesaPal Auth Failed: ${data.message || response.statusText}`);
+        if (response.status !== 200 || !response.data.token) {
+            throw new Error(`PesaPal Auth Failed: ${response.data.message || response.statusText}`);
         }
 
-        return data.token;
+        return response.data.token;
     } catch (err: any) {
-        throw new Error(`PesaPal Network Error (Auth): ${err.message}`);
+        const message = err.response?.data?.message || err.message;
+        throw new Error(`PesaPal Network Error (Auth): ${message}`);
     }
 }
 
@@ -53,27 +52,25 @@ export async function registerPesapalIPN(token: string): Promise<string> {
     const ipnUrl = `${baseUrl}/api/webhooks/pesapal`;
 
     try {
-        const response = await fetch(`${PESAPAL_URL}/api/Services/RegisterIPN`, {
-            method: 'POST',
+        const response = await axios.post(`${PESAPAL_URL}/api/Services/RegisterIPN`, {
+            url: ipnUrl,
+            ipn_notification_type: 'GET',
+        }, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                url: ipnUrl,
-                ipn_notification_type: 'GET',
-            }),
+            }
         });
 
-        const data = await response.json();
-        if (!response.ok || !data.ipn_id) {
-            throw new Error(`IPN Registration Failed: ${data.message || response.statusText}`);
+        if (response.status !== 200 || !response.data.ipn_id) {
+            throw new Error(`IPN Registration Failed: ${response.data.message || response.statusText}`);
         }
 
-        return data.ipn_id;
+        return response.data.ipn_id;
     } catch (err: any) {
-        throw new Error(`PesaPal Network Error (IPN): ${err.message}`);
+        const message = err.response?.data?.message || err.message;
+        throw new Error(`PesaPal Network Error (IPN): ${message}`);
     }
 }
 
@@ -106,27 +103,24 @@ export async function submitPesapalOrder(payload: {
     };
 
     try {
-        const response = await fetch(`${PESAPAL_URL}/api/Transactions/SubmitOrderRequest`, {
-            method: 'POST',
+        const response = await axios.post(`${PESAPAL_URL}/api/Transactions/SubmitOrderRequest`, requestBody, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
+            }
         });
 
-        const data = await response.json();
-        
-        if (!response.ok || data.status !== '200') {
-            throw new Error(`PesaPal Order Error: ${data.message || response.statusText}`);
+        if (response.status !== 200) {
+            throw new Error(`PesaPal Order Error: ${response.data.message || response.statusText}`);
         }
 
         return {
-            redirectUrl: data.redirect_url,
-            orderTrackingId: data.order_tracking_id
+            redirectUrl: response.data.redirect_url,
+            orderTrackingId: response.data.order_tracking_id
         };
     } catch (err: any) {
-        throw new Error(`PesaPal Network Error (Order): ${err.message}`);
+        const message = err.response?.data?.message || err.message;
+        throw new Error(`PesaPal Network Error (Order): ${message}`);
     }
 }
