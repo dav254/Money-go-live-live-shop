@@ -26,17 +26,17 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow delete: if isAdmin();
       
-      // Fixed: Use recursive wildcard to allow both 'get' and 'list' for subcollections
-      match /cart/{allPaths=**} {
+      // Fixed: Explicitly allow access to subcollections for the owner
+      match /cart/{document=**} {
         allow read, write: if isOwner(userId);
       }
-      match /paymentMethods/{allPaths=**} {
+      match /paymentMethods/{document=**} {
         allow read, write: if isOwner(userId);
       }
-      match /payoutMethods/{allPaths=**} {
+      match /payoutMethods/{document=**} {
         allow read, write: if isOwner(userId);
       }
-      match /wishlist/{allPaths=**} {
+      match /wishlist/{document=**} {
         allow read, write: if isOwner(userId);
       }
     }

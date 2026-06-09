@@ -44,8 +44,8 @@ env:
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
   - variable: PESAPAL_CONSUMER_KEY
-    secret: PESAPAL_CONSUMER_KEY
+    value: "FbHiLGk/bacKx6pK3H78rmQ60h4Q8Nni"
   - variable: PESAPAL_CONSUMER_SECRET
-    secret: PESAPAL_CONSUMER_SECRET
+    value: "RvEU4vJ9VgnDxkC0QfPsHPVCZmc="
   - variable: PESAPAL_ENVIRONMENT
     value: "sandbox" # Change to 'live' for production
