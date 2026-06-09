@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
-import WorldMap from "@/components/home/world-map";
+import GlobalSignalHub from "@/components/home/global-signal-hub";
 
 const LiveTicker = () => {
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -195,10 +195,10 @@ const HomePageContent = () => {
         </div>
       </section>
 
-      {/* Global Activity Map Section */}
-      <section className="py-24 px-4">
-        <div className="container max-w-5xl mx-auto">
-          <WorldMap />
+      {/* 3D Global Signal Hub Section */}
+      <section className="py-24 px-4 overflow-hidden">
+        <div className="container max-w-7xl mx-auto">
+          <GlobalSignalHub />
         </div>
       </section>
 
