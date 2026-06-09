@@ -53,7 +53,7 @@ export function BuyerSidebar() {
   }, [firestore]);
 
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
-  const isAnySellerLive = useMemo(() => activeSessions && activeSessions.length > 0, [activeSessions]);
+  const liveCount = useMemo(() => activeSessions?.length || 0, [activeSessions]);
 
   // Query for cart items to display count
   const cartQuery = useMemoFirebase(() => {
@@ -100,14 +100,15 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-now')} tooltip="Live Shows">
-            <Link href="/buyer/live-now" className="relative">
-              <Radio className={isAnySellerLive ? "text-red-600" : ""} />
-              <span>Live Now</span>
-              {isAnySellerLive && (
-                <span className="absolute right-2 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
-                </span>
+            <Link href="/buyer/live-now" className="relative flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <Radio className={liveCount > 0 ? "text-red-600" : ""} />
+                <span>Live Now</span>
+              </div>
+              {liveCount > 0 && (
+                <Badge className="h-5 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
+                  {liveCount}
+                </Badge>
               )}
             </Link>
           </SidebarMenuButton>
@@ -122,11 +123,13 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
          <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/cart')} tooltip="My Cart">
-            <Link href="/cart" className="relative">
-              <ShoppingCart />
-              <span>My Cart</span>
+            <Link href="/cart" className="relative flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <ShoppingCart />
+                <span>My Cart</span>
+              </div>
               {cartCount > 0 && (
-                <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
+                <Badge className="h-5 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
                   {cartCount}
                 </Badge>
               )}
@@ -135,11 +138,13 @@ export function BuyerSidebar() {
         </SidebarMenuItem>
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/messages')} tooltip="Messages">
-            <Link href="/messages" className="relative">
-              <MessageSquare />
-              <span>Messages</span>
+            <Link href="/messages" className="relative flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <MessageSquare />
+                <span>Messages</span>
+              </div>
               {unreadCount > 0 && (
-                <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-primary text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-primary/20">
+                <Badge className="absolute right-2 h-4 min-w-[1rem] px-1 bg-red-600 text-white border-none text-[8px] font-black animate-bounce shrink-0 shadow-lg shadow-red-600/20">
                   {unreadCount}
                 </Badge>
               )}
@@ -154,11 +159,13 @@ export function BuyerSidebar() {
         <SidebarMenu>
              <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
-                <Link href="/buyer/my-orders" className="relative">
-                  <Package />
-                  <span>My Orders</span>
+                <Link href="/buyer/my-orders" className="relative flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <Package />
+                    <span>My Orders</span>
+                  </div>
                   {activeOrdersCount > 0 && (
-                    <Badge className="absolute right-2 h-4 min-w-[1.25rem] px-1 bg-blue-600 text-white border-none text-[9px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-blue-600/20">
+                    <Badge className="h-5 min-w-[1.25rem] px-1 bg-blue-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-blue-600/20">
                       {activeOrdersCount}
                     </Badge>
                   )}
