@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser, useFirestore } from '@/firebase';
@@ -37,8 +36,8 @@ export function UserNav() {
     try {
       await signOut(auth);
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
+      // Immediate redirect to login to ensure session is cleared from UI
       router.push('/login'); 
-      router.refresh();
     } catch (error) {
       console.error("Sign out error", error);
       toast({ variant: "destructive", title: "Error signing out" });

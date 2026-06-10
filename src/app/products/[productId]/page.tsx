@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProductInfo } from '@/components/live/product-info';
 
 export default function BuyerProductPage() {
     const params = useParams();
@@ -28,13 +29,7 @@ export default function BuyerProductPage() {
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
-    
     const [quantity, setQuantity] = useState(1);
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
 
     const productRef = useMemoFirebase(() => {
         return productId ? doc(firestore, 'products', productId) : null;
@@ -53,12 +48,20 @@ export default function BuyerProductPage() {
     const { data: sellerShop, isLoading: isSellerShopLoading } = useDoc<SellerShop>(sellerShopRef);
     const { data: sellerProfile, isLoading: isSellerProfileLoading } = useDoc<UserProfile>(sellerProfileRef);
 
+    const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
+
+    // Reset local state when product ID changes
+    useEffect(() => {
+        setQuantity(1);
+        setSelectedMedia(null);
+    }, [productId]);
+
     const allMedia = useMemo(() => {
         if (!product) return [];
         const media: { url: string, type: 'video' | 'image' }[] = [];
         
         if (product.videoUrl && product.videoUrl.trim() !== "") media.push({ url: product.videoUrl, type: 'video' });
-        if (Array.isArray(product.videoUrls)) {
+        if (product.videoUrls) {
             product.videoUrls.forEach(url => {
                 if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
                     media.push({ url, type: 'video' });
@@ -67,7 +70,7 @@ export default function BuyerProductPage() {
         }
 
         if (product.imageUrl && product.imageUrl.trim() !== "") media.push({ url: product.imageUrl, type: 'image' });
-        if (Array.isArray(product.imageUrls)) {
+        if (product.imageUrls) {
             product.imageUrls.forEach(url => {
                 if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
                     media.push({ url, type: 'image' });
@@ -78,8 +81,6 @@ export default function BuyerProductPage() {
         return media.length > 0 ? media : [{ url: getPlaceholderImage(), type: 'image' }];
     }, [product]);
 
-    const [selectedMedia, setSelectedMedia] = useState<{url: string, type: 'video' | 'image'} | null>(null);
-
     useEffect(() => {
         if (allMedia.length > 0 && !selectedMedia) {
             setSelectedMedia(allMedia[0]);
@@ -89,77 +90,82 @@ export default function BuyerProductPage() {
     const handleAddToCart = () => {
         if (!user) { router.push('/login'); return; }
         if (!product) return;
-
+        
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
         const cartData = {
             productId: product.id,
-            sellerId: product.sellerId || '',
+            sellerId: product.sellerId,
             buyerId: user.uid,
             quantity: increment(quantity),
-            price: product.price || 0,
-            name: product.name || 'Unnamed Product',
+            price: product.price,
+            name: product.name,
             imageUrl: product.imageUrl || getPlaceholderImage(),
             addedAt: serverTimestamp(),
         };
 
         setDoc(cartItemRef, cartData, { merge: true })
-            .then(() => toast({ title: 'Added to Cart' }))
-            .catch(async (error) => {
-                const permissionError = new FirestorePermissionError({
+            .catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: cartItemRef.path,
                     operation: 'write',
                     requestResourceData: cartData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+                }));
             });
+
+        toast({ title: 'Added to Cart' });
     };
 
     const handleBuyNow = () => {
         if (!user) { router.push('/login'); return; }
         if (!product) return;
 
-        const newOrderRef = doc(collection(firestore, 'orders'));
+        const ordersCollectionRef = collection(firestore, 'orders');
+        const newOrderRef = doc(ordersCollectionRef);
         const shippingCost = product.shippingCost || 0;
-        const price = product.price || 0;
-        const subtotal = price * quantity;
+        const subtotal = (product.price || 0) * quantity;
         
-        const orderData: Partial<Order> = {
+        const newOrderData = {
             id: newOrderRef.id,
             buyerId: user.uid,
-            sellerId: product.sellerId || '',
-            productId: product.id,
-            productName: product.name || 'Unnamed Product',
+            sellerId: product.sellerId,
+            items: [{ 
+                productId: product.id, 
+                name: product.name, 
+                price: product.price, 
+                quantity, 
+                imageUrl: product.imageUrl || getPlaceholderImage() 
+            }],
+            productName: product.name,
             productImage: product.imageUrl || getPlaceholderImage(),
-            productPrice: price,
+            productPrice: product.price,
             shippingCost: shippingCost,
             totalAmount: subtotal + shippingCost,
             subtotal: subtotal,
-            quantity: quantity,
             orderDate: serverTimestamp(),
             orderStatus: 'pending',
             paymentMethod: 'pending',
-            shippingAddress: 'Awaiting shipping details',
+            quantity: quantity,
+            shippingAddress: userProfile?.location || 'Awaiting Input',
         };
 
-        setDoc(newOrderRef, orderData)
-            .then(() => router.push(`/checkout/${newOrderRef.id}`))
-            .catch(async (error) => {
-                const permissionError = new FirestorePermissionError({
+        setDoc(newOrderRef, newOrderData)
+            .then(() => {
+                toast({ title: 'Order Created!', description: 'Redirecting to checkout...' });
+                router.push(`/checkout/${newOrderRef.id}`);
+            })
+            .catch(async () => {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
                     path: newOrderRef.path,
                     operation: 'create',
-                    requestResourceData: orderData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
+                    requestResourceData: newOrderData,
+                }));
             });
     };
 
-    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading || !isMounted;
-    
+    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
     if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     
-    const displayPrice = product.price || 0;
-
     return (
         <MainLayout>
             <div className="bg-black text-white pb-32 min-h-screen">
@@ -169,7 +175,7 @@ export default function BuyerProductPage() {
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <div className="cursor-zoom-in relative w-full h-full">
-                                        <Image src={selectedMedia.url} alt={product.name || 'product'} fill className="object-contain" priority />
+                                        <Image src={selectedMedia.url} alt={product.name} fill className="object-contain" priority />
                                         <div className="absolute bottom-4 right-4 bg-black/50 p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Maximize2 className="h-5 w-5 text-white" />
                                         </div>
@@ -185,7 +191,7 @@ export default function BuyerProductPage() {
                                             <X className="h-8 w-8" />
                                         </DialogClose>
                                         <div className="relative w-full h-full">
-                                            <Image src={selectedMedia.url} alt={product.name || 'product'} fill className="object-contain" />
+                                            <Image src={selectedMedia.url} alt={product.name} fill className="object-contain" />
                                         </div>
                                     </div>
                                 </DialogContent>
@@ -209,9 +215,9 @@ export default function BuyerProductPage() {
                 <div className="container mx-auto max-w-4xl py-8 px-4 space-y-8">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div className="flex-1 min-w-0">
-                            <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category || 'General'}</Badge>
+                            <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category}</Badge>
                             <h1 className="font-headline text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
-                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${displayPrice.toLocaleString()}</p>
+                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price?.toLocaleString()}</p>
                         </div>
                         
                         <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-72 shrink-0 shadow-2xl">
@@ -269,7 +275,7 @@ export default function BuyerProductPage() {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-0.5">Pickup Location</p>
-                                        <p className="font-bold text-sm text-white uppercase tracking-tight">{sellerShop?.location || 'Store Location'}</p>
+                                        <p className="font-bold text-sm text-white uppercase tracking-tight">{sellerShop?.location || 'Global Store'}</p>
                                     </div>
                                 </div>
                                 <div className="p-6 flex items-center gap-4">
@@ -279,7 +285,7 @@ export default function BuyerProductPage() {
                                     <div>
                                         <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest mb-0.5">Shipping Method</p>
                                         <p className="font-bold text-sm text-white uppercase tracking-tight">
-                                            {product.deliveryOptions || 'Standard Delivery'} — <span className="text-green-400">${product.shippingCost?.toFixed(2) || '0.00'}</span>
+                                            {product.deliveryOptions || 'Verified Delivery'} — <span className="text-green-400">${product.shippingCost?.toFixed(2) || '0.00'}</span>
                                         </p>
                                     </div>
                                 </div>
@@ -355,11 +361,22 @@ export default function BuyerProductPage() {
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-2 text-white">
                                         <Clock className="h-4 w-4 text-primary" />
-                                        <h4 className="font-black uppercase text-[10px] tracking-widest">Seller Availability</h4>
+                                        <h4 className="font-black uppercase text-[10px] tracking-widest">Operation Metadata</h4>
                                     </div>
-                                    <p className="text-xs font-bold uppercase tracking-tight text-neutral-400">
-                                        Store Hours: <span className="text-white ml-1">{sellerShop?.storeHours || 'Open 24/7'}</span>
-                                    </p>
+                                    <div className="flex flex-col gap-4">
+                                        <p className="text-xs font-bold uppercase tracking-tight text-neutral-400">
+                                            Store Hours: <span className="text-white ml-1">{sellerShop?.storeHours || 'Open 24/7'}</span>
+                                        </p>
+                                        <div className="flex items-start gap-4">
+                                            <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0 border border-white/5">
+                                                <Store className="h-5 w-5 text-primary" />
+                                            </div>
+                                            <div>
+                                                <h5 className="font-black text-white text-[9px] uppercase tracking-widest mb-1">On Platform Since</h5>
+                                                <span className="text-sm font-medium">{sellerProfile?.joinDate ? new Date(sellerProfile.joinDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric'}) : 'Founding Member'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -373,7 +390,7 @@ export default function BuyerProductPage() {
                             <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
                         </Link>
                         <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase text-xs tracking-widest" onClick={handleBuyNow}>
-                            BUY FOR ${ (displayPrice * quantity).toLocaleString() }
+                            BUY FOR ${ ((product.price || 0) * quantity).toLocaleString() }
                         </Button>
                     </div>
                 </div>

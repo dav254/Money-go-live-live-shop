@@ -4,67 +4,67 @@ import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 export function PageProgressBar() {
+  const [width, setWidth] = useState(0);
+  const [loading, setLoading] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [mounted, setMounted] = useState(false);
 
+  const startLoading = () => {
+    setLoading(true);
+    // Small timeout to allow width 0 to be applied if it was recently finished
+    setTimeout(() => {
+      setWidth(70);
+    }, 10);
+  };
+
+  const finishLoading = () => {
+    setWidth(100);
+    setTimeout(() => {
+      setWidth(0);
+      setLoading(false);
+    }, 300);
+  };
+
+  // Logic to finish loading when route changes
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    finishLoading();
+  }, [pathname, searchParams]);
 
+  // Handle link clicks to start loading
   useEffect(() => {
-    if (!mounted) return;
-    
-    const bar = document.getElementById("global-loading-bar");
-    if (bar) {
-      // On arrival, complete to 100% and fade out
-      bar.style.width = "100%";
-      setTimeout(() => {
-        bar.style.opacity = "0";
-        setTimeout(() => {
-          bar.style.width = "0%";
-        }, 300);
-      }, 200);
-    }
-  }, [pathname, searchParams, mounted]);
+    const handleAnchorClick = (event: MouseEvent) => {
+      try {
+        const target = event.target as HTMLElement;
+        const anchor = target.closest('a');
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    const handleAnchorClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const anchor = target.closest('a');
-
-      if (anchor && anchor.href && !anchor.target) {
-        try {
-          const url = new URL(anchor.href);
+        if (anchor && anchor.href) {
+          const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
+          
+          const isInternal = targetUrl.origin === currentUrl.origin;
+          const isSamePage = targetUrl.pathname === currentUrl.pathname && targetUrl.search === currentUrl.search;
 
-          // Only trigger for internal navigations that change the path
-          if (url.origin === currentUrl.origin && url.pathname !== currentUrl.pathname) {
-            const bar = document.getElementById("global-loading-bar");
-            if (bar) {
-              bar.style.opacity = "1";
-              bar.style.width = "70%"; // Instant 70% jump for high velocity feedback
-            }
+          if (isInternal && !isSamePage && !anchor.hasAttribute('download') && anchor.target !== '_blank') {
+            startLoading();
           }
-        } catch (err) {
-          // Ignore invalid URLs
         }
+      } catch (err) {
+        // Ignore invalid URLs
       }
     };
 
     document.addEventListener('click', handleAnchorClick);
     return () => document.removeEventListener('click', handleAnchorClick);
-  }, [mounted]);
-
-  if (!mounted) return null;
+  }, []);
 
   return (
     <div 
-      id="global-loading-bar" 
-      className="loading-bar" 
-      style={{ opacity: 0 }} 
+        id="loadingBar" 
+        className="loading-bar" 
+        style={{ 
+            width: `${width}%`,
+            opacity: loading || width > 0 ? 1 : 0 
+        }} 
     />
   );
 }

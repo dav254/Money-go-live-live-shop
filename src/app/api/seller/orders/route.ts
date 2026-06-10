@@ -1,13 +1,11 @@
 
-'use server';
-
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, db } from '@/firebase/server';
+import { db, auth } from '@/firebase/server';
 import type { Order } from '@/lib/types';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 /**
  * API route to fetch all orders for the authenticated seller.
+ * Uses Firebase Admin SDK for server-side processing.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,25 +13,23 @@ export async function GET(request: NextRequest) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ message: 'Unauthorized: Missing token' }, { status: 401 });
     }
+    
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await auth.verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    const ordersQuery = query(
-      collection(db, 'orders'),
-      where('sellerId', '==', uid),
-      orderBy('orderDate', 'desc')
-    );
-
-    const querySnapshot = await getDocs(ordersQuery);
+    const ordersSnapshot = await db.collection('orders')
+        .where('sellerId', '==', uid)
+        .orderBy('orderDate', 'desc')
+        .get();
     
-    const orders = querySnapshot.docs.map(doc => {
+    const orders = ordersSnapshot.docs.map(doc => {
         const data = doc.data() as Order;
-        // Convert Firestore Timestamp to a serializable format (ISO string)
         return {
             ...data,
             id: doc.id,
-            orderDate: data.orderDate.toDate().toISOString(),
+            // Convert Firestore Timestamp to ISO string for serializability
+            orderDate: data.orderDate ? (data.orderDate as any).toDate().toISOString() : null,
         };
     });
 
