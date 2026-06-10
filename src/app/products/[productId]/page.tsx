@@ -12,8 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Product, SellerShop, UserProfile } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
+import type { Product, SellerShop, UserProfile, Order } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -86,44 +86,71 @@ export default function BuyerProductPage() {
         }
     }, [allMedia, selectedMedia]);
 
-    const handleAddToCart = async () => {
+    const handleAddToCart = () => {
         if (!user) { router.push('/login'); return; }
         if (!product) return;
+
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
-        try {
-          await setDoc(cartItemRef, {
+        const cartData = {
             productId: product.id,
-            sellerId: product.sellerId,
+            sellerId: product.sellerId || '',
             buyerId: user.uid,
             quantity: increment(quantity),
             price: product.price || 0,
             name: product.name || 'Unnamed Product',
             imageUrl: product.imageUrl || getPlaceholderImage(),
             addedAt: serverTimestamp(),
-          }, { merge: true });
-          toast({ title: 'Added to Cart' });
-        } catch (error) { console.error(error); }
+        };
+
+        setDoc(cartItemRef, cartData, { merge: true })
+            .then(() => toast({ title: 'Added to Cart' }))
+            .catch(async (error) => {
+                const permissionError = new FirestorePermissionError({
+                    path: cartItemRef.path,
+                    operation: 'write',
+                    requestResourceData: cartData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
     };
 
-    const handleBuyNow = async () => {
+    const handleBuyNow = () => {
         if (!user) { router.push('/login'); return; }
         if (!product) return;
+
         const newOrderRef = doc(collection(firestore, 'orders'));
         const shippingCost = product.shippingCost || 0;
-        const subtotal = (product.price || 0) * quantity;
-        try {
-          await setDoc(newOrderRef, {
+        const price = product.price || 0;
+        const subtotal = price * quantity;
+        
+        const orderData: Partial<Order> = {
             id: newOrderRef.id,
             buyerId: user.uid,
-            sellerId: product.sellerId,
-            items: [{ productId: product.id, name: product.name, price: product.price, quantity, imageUrl: product.imageUrl || getPlaceholderImage() }],
+            sellerId: product.sellerId || '',
+            productId: product.id,
+            productName: product.name || 'Unnamed Product',
+            productImage: product.imageUrl || getPlaceholderImage(),
+            productPrice: price,
+            shippingCost: shippingCost,
             totalAmount: subtotal + shippingCost,
+            subtotal: subtotal,
+            quantity: quantity,
             orderDate: serverTimestamp(),
             orderStatus: 'pending',
             paymentMethod: 'pending',
-          });
-          router.push(`/checkout/${newOrderRef.id}`);
-        } catch (error) { console.error(error); }
+            shippingAddress: 'Awaiting shipping details',
+        };
+
+        setDoc(newOrderRef, orderData)
+            .then(() => router.push(`/checkout/${newOrderRef.id}`))
+            .catch(async (error) => {
+                const permissionError = new FirestorePermissionError({
+                    path: newOrderRef.path,
+                    operation: 'create',
+                    requestResourceData: orderData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            });
     };
 
     const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading || !isMounted;
