@@ -1,59 +1,64 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import NProgress from 'nprogress';
 
 export function PageProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    NProgress.done();
+    // When the path or search params change, the new page has arrived.
+    // We finish the loading state.
+    const finishLoading = () => {
+      const bar = document.getElementById("loadingBar");
+      if (bar) {
+        bar.style.width = "100%";
+        setTimeout(() => {
+          bar.style.width = "0";
+          setLoading(false);
+        }, 300);
+      }
+    };
+
+    finishLoading();
   }, [pathname, searchParams]);
 
   useEffect(() => {
-    NProgress.configure({ showSpinner: false });
-
     const handleAnchorClick = (event: MouseEvent) => {
       try {
         const target = event.target as HTMLElement;
         const anchor = target.closest('a');
 
-        if (anchor && anchor.href) {
+        if (anchor && anchor.href && !anchor.target) {
           const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
-          if (targetUrl.origin === currentUrl.origin) {
-            NProgress.start();
+          
+          // Only trigger for internal links that aren't hashes
+          if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
+            setLoading(true);
+            const bar = document.getElementById("loadingBar");
+            if (bar) {
+              bar.style.width = "70%";
+            }
           }
         }
       } catch (err) {
-        // Ignore errors from invalid URLs
-        NProgress.start();
+        // Silent fail for invalid URLs
       }
     };
 
-    const handleMutation: MutationCallback = () => {
-      const anchorElements = document.querySelectorAll('a');
-      anchorElements.forEach(anchor => anchor.addEventListener('click', handleAnchorClick));
-    };
-
-    const mutationObserver = new MutationObserver(handleMutation);
-    mutationObserver.observe(document, { childList: true, subtree: true });
-
-    // Fallback for router.push, etc.
-    const originalPushState = window.history.pushState;
-    window.history.pushState = (...args) => {
-      NProgress.start();
-      originalPushState.apply(window.history, args);
-    };
-
-    return () => {
-        mutationObserver.disconnect();
-        window.history.pushState = originalPushState;
-    }
+    document.addEventListener('click', handleAnchorClick);
+    return () => document.removeEventListener('click', handleAnchorClick);
   }, []);
 
-  return null;
+  return (
+    <div 
+      id="loadingBar" 
+      className="loading-bar" 
+      style={{ opacity: loading ? 1 : 0 }} 
+    />
+  );
 }

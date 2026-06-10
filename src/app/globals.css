@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Sora:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
@@ -86,6 +87,19 @@
       text-shadow: 0 0 40px hsla(var(--primary), 0.4);
     }
 
+    /* Top Loading Bar */
+    .loading-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 4px;
+      width: 0;
+      background: linear-gradient(90deg, #ff0000, #ff4d4d);
+      z-index: 9999;
+      box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+      transition: width 0.3s ease;
+    }
+
     @keyframes aurora { 
         0%, 100% { opacity: 0.3; transform: translateX(-5%) translateY(-5%) rotate(0deg) scale(1); } 
         50% { opacity: 0.5; transform: translateX(5%) translateY(5%) rotate(10deg) scale(1.1); } 
@@ -106,9 +120,4 @@
     .animate-spin-slow {
       animation: spin-slow 10s linear infinite;
     }
-}
-
-#nprogress .bar {
-  background: hsl(var(--primary)) !important;
-  height: 3px !important;
 }
