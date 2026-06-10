@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from "react";
@@ -6,7 +7,9 @@ import {
   Radio, Globe, RadioTower, Bot, Eye, Loader2, 
   Shield, CreditCard, Target, PlayCircle, 
   Activity, ArrowUpRight, CheckCircle2,
-  Play, Tag, ShoppingBag
+  Play, Tag, ShoppingBag, ShieldCheck, Users,
+  Heart,
+  Layers
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -14,9 +17,9 @@ import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { Progress } from "@/components/ui/progress";
 import dynamic from 'next/dynamic';
 import placeholderData from '@/app/lib/placeholder-images.json';
 import Image from 'next/image';
@@ -76,6 +79,74 @@ const LiveMarketplaceDemo = () => {
         </div>
     );
 };
+
+const EcosystemShowcase = () => (
+    <div className="py-24 border-t border-white/5 bg-neutral-950/20">
+        <div className="container max-w-7xl mx-auto px-4">
+            <div className="text-center mb-16 space-y-4">
+                <Badge variant="outline" className="text-primary border-primary/30 font-black uppercase text-[10px] px-5 py-1 rounded-full bg-primary/5">The Protocol of Yield</Badge>
+                <h2 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">THE ENGINE OF <span className="text-primary italic">WEALTH</span></h2>
+                <p className="max-w-2xl mx-auto text-neutral-500 font-bold uppercase tracking-tight text-[11px] md:text-xs leading-relaxed border-l-2 border-primary/20 pl-6 text-left">GoEarn is a high-velocity network where every action—posting, sharing, or shopping—is optimized for financial yield. We have decommissioned traditional static storefronts in favor of a cinematic discovery experience.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* SELLERS */}
+                <Card className="bg-neutral-900/50 border-white/5 p-8 rounded-[3rem] space-y-6 hover:border-primary/30 transition-all group">
+                    <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform">
+                        <Rocket className="h-8 w-8 text-primary" />
+                    </div>
+                    <div className="space-y-4">
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">FOR SELLERS</h3>
+                        <p className="text-sm text-neutral-400 font-medium leading-relaxed">Transform your inventory into viral visual assets. Our AI-driven discovery engine prioritizes authentic video content, bridging the gap between product storytelling and direct revenue. Receive instant, verified payouts directly to your wallet.</p>
+                        <div className="space-y-2 pt-4">
+                            {["Zero Listing Fees", "Neural Content Toolkit", "Live Studio Signals"].map(item => (
+                                <div key={item} className="flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-widest">
+                                    <CheckCircle2 className="h-3 w-3" /> {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* RESELLERS */}
+                <Card className="bg-neutral-900/50 border-white/5 p-8 rounded-[3rem] space-y-6 hover:border-blue-500/30 transition-all group">
+                    <div className="h-16 w-16 rounded-3xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform">
+                        <Users className="h-8 w-8 text-blue-500" />
+                    </div>
+                    <div className="space-y-4">
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">FOR RESELLERS</h3>
+                        <p className="text-sm text-neutral-400 font-medium leading-relaxed">Initialize a global side-hustle with zero inventory risk. Amplify the products you believe in by deploying smart tracking links across social platforms. Our automated ledger tracks every conversion, ensuring your commission clears instantly.</p>
+                        <div className="space-y-2 pt-4">
+                            {["Dynamic Commission Tiers", "Smart Referral Logic", "Infinite ROI Potential"].map(item => (
+                                <div key={item} className="flex items-center gap-2 text-[9px] font-black text-blue-500 uppercase tracking-widest">
+                                    <CheckCircle2 className="h-3 w-3" /> {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* BUYERS */}
+                <Card className="bg-neutral-900/50 border-white/5 p-8 rounded-[3rem] space-y-6 hover:border-green-500/30 transition-all group">
+                    <div className="h-16 w-16 rounded-3xl bg-green-500/10 flex items-center justify-center border border-green-500/20 group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="h-8 w-8 text-green-500" />
+                    </div>
+                    <div className="space-y-4">
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter">FOR SHOPPERS</h3>
+                        <p className="text-sm text-neutral-400 font-medium leading-relaxed">Stop guessing and start seeing. Experience a immersive marketplace where real merchants show real products in real-time. Every transaction is secured by our trust protocol, holding funds in escrow until the items are in your hands.</p>
+                        <div className="space-y-2 pt-4">
+                            {["Verified Merchant Hubs", "Escrow Payment Stack", "Live Signal Interaction"].map(item => (
+                                <div key={item} className="flex items-center gap-2 text-[9px] font-black text-green-500 uppercase tracking-widest">
+                                    <CheckCircle2 className="h-3 w-3" /> {item}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        </div>
+    </div>
+);
 
 const LiveTicker = () => {
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -246,6 +317,9 @@ export default function HomePage() {
               <LiveMarketplaceDemo />
           </div>
       </section>
+
+      {/* Ecosystem showcase - New Expanded Description Section */}
+      <EcosystemShowcase />
 
       <section className="py-24 px-4 overflow-hidden">
         <div className="container max-w-7xl mx-auto">
