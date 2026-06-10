@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck } from 'lucide-react';
+import { MapPin, Plus, Store, Minus, X, Maximize2, Loader2, ShoppingCart, Truck, Tag, Facebook, Instagram, Twitter, MessageCircle, Mail, Phone, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Product, SellerShop, UserProfile } from '@/lib/types';
 import { useDoc, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
@@ -28,7 +28,13 @@ export default function BuyerProductPage() {
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const router = useRouter();
+    
     const [quantity, setQuantity] = useState(1);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const productRef = useMemoFirebase(() => {
         return productId ? doc(firestore, 'products', productId) : null;
@@ -52,7 +58,7 @@ export default function BuyerProductPage() {
         const media: { url: string, type: 'video' | 'image' }[] = [];
         
         if (product.videoUrl && product.videoUrl.trim() !== "") media.push({ url: product.videoUrl, type: 'video' });
-        if (product.videoUrls) {
+        if (Array.isArray(product.videoUrls)) {
             product.videoUrls.forEach(url => {
                 if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
                     media.push({ url, type: 'video' });
@@ -61,7 +67,7 @@ export default function BuyerProductPage() {
         }
 
         if (product.imageUrl && product.imageUrl.trim() !== "") media.push({ url: product.imageUrl, type: 'image' });
-        if (product.imageUrls) {
+        if (Array.isArray(product.imageUrls)) {
             product.imageUrls.forEach(url => {
                 if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
                     media.push({ url, type: 'image' });
@@ -90,8 +96,8 @@ export default function BuyerProductPage() {
             sellerId: product.sellerId,
             buyerId: user.uid,
             quantity: increment(quantity),
-            price: product.price,
-            name: product.name,
+            price: product.price || 0,
+            name: product.name || 'Unnamed Product',
             imageUrl: product.imageUrl || getPlaceholderImage(),
             addedAt: serverTimestamp(),
           }, { merge: true });
@@ -104,7 +110,7 @@ export default function BuyerProductPage() {
         if (!product) return;
         const newOrderRef = doc(collection(firestore, 'orders'));
         const shippingCost = product.shippingCost || 0;
-        const subtotal = product.price * quantity;
+        const subtotal = (product.price || 0) * quantity;
         try {
           await setDoc(newOrderRef, {
             id: newOrderRef.id,
@@ -120,10 +126,13 @@ export default function BuyerProductPage() {
         } catch (error) { console.error(error); }
     };
 
-    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
+    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading || !isMounted;
+    
     if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     
+    const displayPrice = product.price || 0;
+
     return (
         <MainLayout>
             <div className="bg-black text-white pb-32 min-h-screen">
@@ -133,7 +142,7 @@ export default function BuyerProductPage() {
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <div className="cursor-zoom-in relative w-full h-full">
-                                        <Image src={selectedMedia.url} alt={product.name} fill className="object-contain" priority />
+                                        <Image src={selectedMedia.url} alt={product.name || 'product'} fill className="object-contain" priority />
                                         <div className="absolute bottom-4 right-4 bg-black/50 p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Maximize2 className="h-5 w-5 text-white" />
                                         </div>
@@ -149,7 +158,7 @@ export default function BuyerProductPage() {
                                             <X className="h-8 w-8" />
                                         </DialogClose>
                                         <div className="relative w-full h-full">
-                                            <Image src={selectedMedia.url} alt={product.name} fill className="object-contain" />
+                                            <Image src={selectedMedia.url} alt={product.name || 'product'} fill className="object-contain" />
                                         </div>
                                     </div>
                                 </DialogContent>
@@ -173,20 +182,20 @@ export default function BuyerProductPage() {
                 <div className="container mx-auto max-w-4xl py-8 px-4 space-y-8">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                         <div className="flex-1 min-w-0">
-                            <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category}</Badge>
+                            <Badge variant="secondary" className="bg-primary/10 text-primary font-black uppercase text-[10px] mb-2">{product.category || 'General'}</Badge>
                             <h1 className="font-headline text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">{product.name}</h1>
-                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${product.price.toLocaleString()}</p>
+                            <p className="text-4xl md:text-5xl font-black text-primary tracking-tighter mt-4 leading-none">USD ${displayPrice.toLocaleString()}</p>
                         </div>
                         
                         <div className="bg-neutral-900/50 rounded-3xl p-6 border border-white/10 md:w-72 shrink-0 shadow-2xl">
                             <Link href={`/sellers/${sellerId}`} className="flex items-center gap-3 group mb-4">
                                 <Avatar className="h-10 w-10 border border-white/10 group-hover:border-primary transition-all">
                                     <AvatarImage src={sellerShop?.logoUrl} />
-                                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{sellerShop?.shopName?.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback className="bg-neutral-800 text-xs font-black uppercase">{sellerShop?.shopName?.charAt(0) || 'S'}</AvatarFallback>
                                 </Avatar>
                                 <div className="min-w-0">
                                     <p className="text-[10px] font-black uppercase text-neutral-500 tracking-widest leading-none mb-1">Seller</p>
-                                    <p className="font-bold text-sm truncate uppercase tracking-tight group-hover:text-primary transition-colors">{sellerShop?.shopName}</p>
+                                    <p className="font-bold text-sm truncate uppercase tracking-tight group-hover:text-primary transition-colors">{sellerShop?.shopName || 'Marketplace Seller'}</p>
                                 </div>
                             </Link>
                             
@@ -337,7 +346,7 @@ export default function BuyerProductPage() {
                             <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-neutral-500">Shop</span>
                         </Link>
                         <Button className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl h-14 font-black uppercase text-xs tracking-widest" onClick={handleBuyNow}>
-                            BUY FOR ${ (product.price * quantity).toLocaleString() }
+                            BUY FOR ${ (displayPrice * quantity).toLocaleString() }
                         </Button>
                     </div>
                 </div>

@@ -45,7 +45,7 @@ export function PageProgressBar() {
             const bar = document.getElementById("global-loading-bar");
             if (bar) {
               bar.style.opacity = "1";
-              bar.style.width = "70%"; // Instant 70% jump
+              bar.style.width = "70%"; // Instant 70% jump for high velocity feedback
             }
           }
         } catch (err) {
