@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 export function PageProgressBar() {
@@ -9,28 +9,25 @@ export function PageProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const startLoading = () => {
+  const startLoading = useCallback(() => {
     setLoading(true);
-    // Small timeout to allow width 0 to be applied if it was recently finished
-    setTimeout(() => {
-      setWidth(70);
-    }, 10);
-  };
+    // Instant jump to 70% as requested for high-velocity feel
+    setWidth(70);
+  }, []);
 
-  const finishLoading = () => {
+  const finishLoading = useCallback(() => {
     setWidth(100);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setWidth(0);
       setLoading(false);
-    }, 300);
-  };
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
-  // Logic to finish loading when route changes
   useEffect(() => {
     finishLoading();
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, finishLoading]);
 
-  // Handle link clicks to start loading
   useEffect(() => {
     const handleAnchorClick = (event: MouseEvent) => {
       try {
@@ -49,13 +46,13 @@ export function PageProgressBar() {
           }
         }
       } catch (err) {
-        // Ignore invalid URLs
+        // Safe fail
       }
     };
 
     document.addEventListener('click', handleAnchorClick);
     return () => document.removeEventListener('click', handleAnchorClick);
-  }, []);
+  }, [startLoading]);
 
   return (
     <div 

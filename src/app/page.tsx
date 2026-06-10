@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from "react";
@@ -9,7 +8,8 @@ import {
   Activity, ArrowUpRight, CheckCircle2,
   Play, Tag, ShoppingBag, ShieldCheck, Users,
   Heart,
-  Layers
+  Layers,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -30,8 +30,10 @@ const GlobalSignalHub = dynamic(() => import("@/components/home/global-signal-hu
 });
 
 const LiveMarketplaceDemo = () => {
-    const items = placeholderData.demoItems || [];
+    const items = placeholderData?.demoItems || [];
     
+    if (items.length === 0) return null;
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-12">
             {items.map((item, i) => (
@@ -90,7 +92,6 @@ const EcosystemShowcase = () => (
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* SELLERS */}
                 <Card className="bg-neutral-900/50 border-white/5 p-8 rounded-[3rem] space-y-6 hover:border-primary/30 transition-all group">
                     <div className="h-16 w-16 rounded-3xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-transform">
                         <Rocket className="h-8 w-8 text-primary" />
@@ -108,7 +109,6 @@ const EcosystemShowcase = () => (
                     </div>
                 </Card>
 
-                {/* RESELLERS */}
                 <Card className="bg-neutral-900/50 border-white/5 p-8 rounded-[3rem] space-y-6 hover:border-blue-500/30 transition-all group">
                     <div className="h-16 w-16 rounded-3xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform">
                         <Users className="h-8 w-8 text-blue-500" />
@@ -126,7 +126,6 @@ const EcosystemShowcase = () => (
                     </div>
                 </Card>
 
-                {/* BUYERS */}
                 <Card className="bg-neutral-900/50 border-white/5 p-8 rounded-[3rem] space-y-6 hover:border-green-500/30 transition-all group">
                     <div className="h-16 w-16 rounded-3xl bg-green-500/10 flex items-center justify-center border border-green-500/20 group-hover:scale-110 transition-transform">
                         <ShieldCheck className="h-8 w-8 text-green-500" />
@@ -204,15 +203,10 @@ export default function HomePage() {
     setIsMounted(true);
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') return;
-
       const role = userProfile.userRole || userProfile.role;
-      if (role === 'seller') {
-        router.replace('/dashboard/seller');
-      } else if (role === 'admin') {
-        router.replace('/dashboard/admin');
-      } else {
-        router.replace('/buyer/dashboard');
-      }
+      if (role === 'seller') router.replace('/dashboard/seller');
+      else if (role === 'admin') router.replace('/dashboard/admin');
+      else router.replace('/buyer/dashboard');
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
@@ -247,10 +241,8 @@ export default function HomePage() {
 
       <LiveTicker />
       
-      {/* Hero Section */}
       <section className="relative min-h-[85vh] flex flex-col items-center justify-center pt-12 px-4">
         <div className="container max-w-6xl mx-auto text-center space-y-10">
-          
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -305,11 +297,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Live Marketplace Demo Section */}
       <section className="py-24 px-4 border-y border-white/5 bg-neutral-950/30">
           <div className="container max-w-7xl mx-auto">
               <div className="flex items-end justify-between mb-12">
-                  <div className="space-y-4">
+                  <div className="space-y-4 text-left">
                       <Badge variant="outline" className="text-primary border-primary/30 font-black uppercase text-[10px] px-4">LIVE DISCOVERY</Badge>
                       <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-white">READY FOR <span className="text-primary italic">YIELD</span></h2>
                   </div>
@@ -318,16 +309,18 @@ export default function HomePage() {
           </div>
       </section>
 
-      {/* Ecosystem showcase - New Expanded Description Section */}
       <EcosystemShowcase />
 
       <section className="py-24 px-4 overflow-hidden">
         <div className="container max-w-7xl mx-auto">
+          <div className="text-center mb-16 space-y-4">
+              <h2 className="font-cyber text-3xl font-black uppercase tracking-tight text-white">Global Signal Distribution</h2>
+              <p className="text-neutral-500 text-xs font-bold uppercase tracking-widest">Real-time merchant nodes across the ecosystem</p>
+          </div>
           <GlobalSignalHub />
         </div>
       </section>
 
-      {/* Final CTA */}
       <section className="py-48 px-4 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
           <div className="container max-w-5xl mx-auto text-center space-y-16 relative z-10">
