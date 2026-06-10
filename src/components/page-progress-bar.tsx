@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,58 +6,65 @@ import { usePathname, useSearchParams } from 'next/navigation';
 export function PageProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // When the path or search params change, the new page has arrived.
-    // We finish the loading state.
-    const finishLoading = () => {
-      const bar = document.getElementById("loadingBar");
-      if (bar) {
-        bar.style.width = "100%";
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const bar = document.getElementById("global-loading-bar");
+    if (bar) {
+      // On arrival, complete to 100% and fade out
+      bar.style.width = "100%";
+      setTimeout(() => {
+        bar.style.opacity = "0";
         setTimeout(() => {
-          bar.style.width = "0";
-          setLoading(false);
+          bar.style.width = "0%";
         }, 300);
-      }
-    };
-
-    finishLoading();
-  }, [pathname, searchParams]);
+      }, 200);
+    }
+  }, [pathname, searchParams, mounted]);
 
   useEffect(() => {
-    const handleAnchorClick = (event: MouseEvent) => {
-      try {
-        const target = event.target as HTMLElement;
-        const anchor = target.closest('a');
+    if (!mounted) return;
 
-        if (anchor && anchor.href && !anchor.target) {
-          const targetUrl = new URL(anchor.href);
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+
+      if (anchor && anchor.href && !anchor.target) {
+        try {
+          const url = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
-          
-          // Only trigger for internal links that aren't hashes
-          if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
-            setLoading(true);
-            const bar = document.getElementById("loadingBar");
+
+          // Only trigger for internal navigations that change the path
+          if (url.origin === currentUrl.origin && url.pathname !== currentUrl.pathname) {
+            const bar = document.getElementById("global-loading-bar");
             if (bar) {
-              bar.style.width = "70%";
+              bar.style.opacity = "1";
+              bar.style.width = "70%"; // Instant 70% jump
             }
           }
+        } catch (err) {
+          // Ignore invalid URLs
         }
-      } catch (err) {
-        // Silent fail for invalid URLs
       }
     };
 
     document.addEventListener('click', handleAnchorClick);
     return () => document.removeEventListener('click', handleAnchorClick);
-  }, []);
+  }, [mounted]);
+
+  if (!mounted) return null;
 
   return (
     <div 
-      id="loadingBar" 
+      id="global-loading-bar" 
       className="loading-bar" 
-      style={{ opacity: loading ? 1 : 0 }} 
+      style={{ opacity: 0 }} 
     />
   );
 }

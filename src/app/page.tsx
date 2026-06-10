@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from "react";
@@ -6,7 +5,7 @@ import {
   ArrowRight, Sparkles, Video, Zap, 
   Radio, Globe, RadioTower, Eye, Loader2, 
   Shield, CreditCard, Activity, ArrowUpRight,
-  TrendingUp, ShoppingBag, Flame
+  TrendingUp, ShoppingBag, Flame, CheckCircle
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -25,12 +24,12 @@ const GlobalSignalHub = dynamic(() => import("@/components/home/global-signal-hu
 });
 
 const LiveMarketplaceDemo = () => {
-    const demoItems = [
-        { id: 1, name: "Neon Smartwatch", price: "$120.00", image: placeholderData.demoItems[0].url, hint: placeholderData.demoItems[0].hint },
-        { id: 2, name: "Aero Headphones", price: "$85.00", image: placeholderData.demoItems[1].url, hint: placeholderData.demoItems[1].hint },
-        { id: 3, name: "Urban Pack v2", price: "$64.00", image: placeholderData.demoItems[2].url, hint: placeholderData.demoItems[2].hint },
-        { id: 4, name: "Vapor Sneakers", price: "$150.00", image: placeholderData.demoItems[3].url, hint: placeholderData.demoItems[3].hint },
-    ];
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted) return null;
+
+    const demoItems = placeholderData.demoItems || [];
 
     return (
         <section className="py-24 px-4 relative overflow-hidden">
@@ -58,8 +57,8 @@ const LiveMarketplaceDemo = () => {
                             className="relative aspect-[3/4] rounded-[2.5rem] overflow-hidden border border-white/5 group shadow-2xl bg-neutral-900"
                         >
                              <img 
-                                src={item.image} 
-                                alt={item.name} 
+                                src={item.url} 
+                                alt={item.id} 
                                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 opacity-70" 
                                 data-ai-hint={item.hint}
                              />
@@ -76,10 +75,10 @@ const LiveMarketplaceDemo = () => {
                                     <div className="h-4 w-4 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
                                         <TrendingUp className="h-2 w-2 text-primary" />
                                     </div>
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] truncate">{item.name}</p>
+                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] truncate">GOEARN VERIFIED</p>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <p className="text-2xl font-black text-white font-cyber tracking-tighter">{item.price}</p>
+                                    <p className="text-2xl font-black text-white font-cyber tracking-tighter">${(40 + (i * 25)).toFixed(2)}</p>
                                     <Button size="icon" className="h-10 w-10 rounded-full bg-primary text-white shadow-xl shadow-primary/20 border-none hover:scale-110 transition-transform">
                                         <ShoppingBag className="h-4 w-4" />
                                     </Button>
@@ -143,9 +142,14 @@ export default function HomePage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') return;
       const role = userProfile.userRole || userProfile.role;
       if (role === 'seller') router.replace('/dashboard/seller');
@@ -153,9 +157,9 @@ export default function HomePage() {
       else if (role === 'reseller') router.replace('/dashboard/reseller');
       else router.replace('/buyer/dashboard');
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+  }, [mounted, user, userProfile, isUserLoading, isProfileLoading, router]);
 
-  if (isUserLoading || (user && isProfileLoading)) {
+  if (!mounted || isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-black">
         <div className="relative mb-4">
@@ -235,7 +239,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-12 text-[10px] font-black uppercase tracking-widest text-neutral-500">
                 <Link href="/features" className="hover:text-primary transition-colors">Features</Link>
-                <Link href="/faq" className="hover:text-primary transition-colors">Intelligence</Link>
+                <Link href="/how-it-works" className="hover:text-primary transition-colors">How it Works</Link>
                 <Link href="/terms" className="hover:text-primary transition-colors">Protocol</Link>
                 <Link href="/privacy" className="hover:text-primary transition-colors">Encryption</Link>
             </div>
