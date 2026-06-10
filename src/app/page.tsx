@@ -6,7 +6,7 @@ import {
   Radio, Globe, RadioTower, Bot, Eye, Loader2, 
   Shield, CreditCard, Target, PlayCircle, 
   Activity, ArrowUpRight, CheckCircle2,
-  Play
+  Play, Tag, ShoppingBag
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -17,7 +17,65 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
-import GlobalSignalHub from "@/components/home/global-signal-hub";
+import dynamic from 'next/dynamic';
+import placeholderData from '@/app/lib/placeholder-images.json';
+import Image from 'next/image';
+
+const GlobalSignalHub = dynamic(() => import("@/components/home/global-signal-hub"), { 
+    ssr: false,
+    loading: () => <div className="h-[400px] w-full bg-neutral-900/20 animate-pulse rounded-[3rem]" />
+});
+
+const LiveMarketplaceDemo = () => {
+    const items = placeholderData.demoItems || [];
+    
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-12">
+            {items.map((item, i) => (
+                <motion.div 
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="group relative aspect-[3/4] rounded-[2.5rem] overflow-hidden border border-white/10 bg-neutral-900 shadow-2xl hover:border-primary/50 transition-all duration-500"
+                >
+                    <Image 
+                        src={item.url} 
+                        alt="Demo Item" 
+                        fill 
+                        className="object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                        data-ai-hint={item.hint}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+                    
+                    <div className="absolute top-4 left-4">
+                        <Badge className="bg-red-600 hover:bg-red-700 animate-pulse border-none px-3 py-1 font-black uppercase tracking-widest text-[9px]">
+                            <Radio className="mr-1.5 h-3 w-3" /> LIVE
+                        </Badge>
+                    </div>
+
+                    <div className="absolute bottom-6 left-6 right-6 space-y-3">
+                        <div className="flex items-center gap-2">
+                             <div className="h-2 w-2 rounded-full bg-primary" />
+                             <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Discovery Signal</span>
+                        </div>
+                        <div className="flex items-end justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest truncate">{item.hint}</p>
+                                <p className="text-3xl font-black text-white tracking-tighter leading-none mt-1">
+                                    ${(Math.random() * 500 + 20).toFixed(0)}
+                                </p>
+                            </div>
+                            <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-xl shadow-primary/20 group-hover:scale-110 transition-transform">
+                                <ShoppingBag className="h-6 w-6 text-white" />
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            ))}
+        </div>
+    );
+};
 
 const LiveTicker = () => {
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -69,8 +127,10 @@ export default function HomePage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') return;
 
@@ -85,7 +145,7 @@ export default function HomePage() {
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
-  if (isUserLoading || (user && isProfileLoading)) {
+  if (!isMounted || isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-black">
         <div className="relative mb-4">
@@ -167,161 +227,30 @@ export default function HomePage() {
                 className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-[0.2em] text-sm border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl group"
             >
                 <Link href="/buyer/dashboard">
-                  WATCH LIVE DEMOS <Play className="ml-3 h-5 w-5 fill-white group-hover:scale-125 transition-transform animate-pulse" />
+                  BROWSE MARKETPLACE <Play className="ml-3 h-5 w-5 fill-white group-hover:scale-125 transition-transform animate-pulse" />
                 </Link>
             </Button>
           </motion.div>
-          
-          {/* Real-time Performance HUD */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-20 max-w-5xl mx-auto">
-            {[
-                { label: 'Signal Quality', value: '4K ULTRA', icon: RadioTower, color: 'text-blue-500', bg: 'bg-blue-500/5' },
-                { label: 'Merchant Bonus', value: '+1000 PTS', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-500/5' },
-                { label: 'Merchant Trust', value: 'VERIFIED', icon: Shield, color: 'text-green-500', bg: 'bg-green-500/5' },
-                { label: 'Global Reach', value: 'UNLIMITED', icon: Globe, color: 'text-primary', bg: 'bg-primary/5' },
-            ].map((stat, i) => (
-                <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 + (i * 0.1) }}
-                    className={cn("p-6 rounded-[2rem] border border-white/5 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:border-primary/20 transition-all", stat.bg)}
-                >
-                    <stat.icon className={cn("h-5 w-5 mb-4 mx-auto", stat.color)} />
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-neutral-500 mb-2">{stat.label}</p>
-                    <p className="text-xl font-black font-cyber text-white tracking-tighter">{stat.value}</p>
-                    <div className="absolute -right-2 -bottom-2 opacity-10 group-hover:scale-150 transition-transform">
-                        <stat.icon className="h-16 w-16" />
-                    </div>
-                </motion.div>
-            ))}
-          </div>
         </div>
       </section>
 
-      {/* 3D Global Signal Hub Section */}
+      {/* Live Marketplace Demo Section */}
+      <section className="py-24 px-4 border-y border-white/5 bg-neutral-950/30">
+          <div className="container max-w-7xl mx-auto">
+              <div className="flex items-end justify-between mb-12">
+                  <div className="space-y-4">
+                      <Badge variant="outline" className="text-primary border-primary/30 font-black uppercase text-[10px] px-4">LIVE DISCOVERY</Badge>
+                      <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-white">READY FOR <span className="text-primary italic">YIELD</span></h2>
+                  </div>
+              </div>
+              <LiveMarketplaceDemo />
+          </div>
+      </section>
+
       <section className="py-24 px-4 overflow-hidden">
         <div className="container max-w-7xl mx-auto">
           <GlobalSignalHub />
         </div>
-      </section>
-
-      {/* Narrative Section: The Content Pipeline */}
-      <section className="py-40 px-4 relative overflow-hidden">
-        <div className="container max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-                <div className="space-y-12">
-                    <div className="space-y-6">
-                        <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 uppercase font-black tracking-[0.3em] text-[10px] px-4 py-1.5 rounded-full">System Architecture</Badge>
-                        <h2 className="font-cyber text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none text-white">
-                            Engineered for 
-                            <br />
-                            <span className="text-gradient">Maximum Yield</span>
-                        </h2>
-                        <p className="text-neutral-400 text-xl leading-relaxed max-w-xl">
-                            Static images don't sell. Authentic motion does. We've built a pipeline that removes friction from discovery to payout.
-                        </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                        {[
-                            { icon: PlayCircle, title: "Zero-Filter Policy", desc: "Show your products as they truly are. Build the deepest level of buyer trust." },
-                            { icon: Bot, title: "AI-Augmented Logic", desc: "Our neural network optimizes your tags and descriptions for global SEO." },
-                            { icon: CreditCard, title: "Hyper-Local Checkout", desc: "Integrated payment flows mean zero drop-offs at the payment stage." },
-                        ].map((item, i) => (
-                            <motion.div 
-                                key={i}
-                                whileHover={{ x: 10 }}
-                                className="flex gap-6 p-8 rounded-[2.5rem] bg-neutral-900/40 border border-white/5 hover:border-primary/30 transition-all group"
-                            >
-                                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 group-hover:bg-primary group-hover:text-white transition-all">
-                                    <item.icon className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="font-black uppercase tracking-tight text-white text-lg">{item.title}</h4>
-                                    <p className="text-sm text-neutral-500 font-medium leading-relaxed">{item.desc}</p>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="relative">
-                    <div className="absolute -inset-10 bg-primary/10 blur-[120px] rounded-full opacity-50 animate-pulse" />
-                    <div className="relative aspect-[4/5] rounded-[4rem] overflow-hidden border-2 border-white/10 shadow-[0_0_100px_rgba(255,107,0,0.1)] bg-neutral-900">
-                        <img 
-                            src="https://picsum.photos/seed/goearn-pro/800/1000" 
-                            alt="GoEarn Pro View" 
-                            className="w-full h-full object-cover opacity-50 transition-all duration-1000 group-hover:scale-105" 
-                            data-ai-hint="high fashion urban photography"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                        
-                        <div className="absolute bottom-8 left-8 right-8 p-10 rounded-[3rem] bg-black/60 backdrop-blur-3xl border border-white/10 shadow-2xl">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-14 w-14 rounded-full bg-red-600 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.5)] animate-pulse">
-                                        <Radio className="text-white h-7 w-7" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-500 leading-none mb-1">Signal Live</p>
-                                        <p className="font-cyber text-xl font-black text-white uppercase tracking-tighter">FLASH DEAL ACTIVE</p>
-                                    </div>
-                                </div>
-                                <Badge className="bg-primary/20 text-primary border-primary/30 font-black uppercase text-[10px] px-3 py-1">540 VIEWERS</Badge>
-                            </div>
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-neutral-400">
-                                    <span>CONVERSION FLOW</span>
-                                    <span className="text-white">92.4%</span>
-                                </div>
-                                <Progress value={92} className="h-2 bg-white/5" />
-                                <div className="pt-4 flex gap-4">
-                                    <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                                        <p className="text-[9px] font-black text-neutral-500 uppercase mb-1 tracking-widest">Revenue</p>
-                                        <p className="font-black text-white font-cyber">$4,250</p>
-                                    </div>
-                                    <div className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                                        <p className="text-[9px] font-black text-neutral-500 uppercase mb-1 tracking-widest">Growth</p>
-                                        <p className="font-black text-green-500 font-cyber">+12%</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-      </section>
-
-      {/* Scale Section */}
-      <section className="py-40 bg-neutral-950/50 border-y border-white/5">
-          <div className="container max-w-7xl mx-auto px-4">
-              <div className="text-center space-y-6 mb-24">
-                  <h3 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter text-white">
-                      Scalability is <span className="text-primary italic">Native</span>
-                  </h3>
-                  <p className="text-neutral-500 max-w-2xl mx-auto font-medium text-lg">
-                      Whether you are selling one unique piece or managing a global inventory, our architecture handles the load.
-                  </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {[
-                      { icon: Activity, title: "High-Traffic Ready", desc: "Our video CDN scales instantly during viral peaks and live events." },
-                      { icon: Shield, title: "Trust-Engine", desc: "Automated verification and fraud detection protect your brand integrity." },
-                      { icon: Target, title: "Precision Reach", desc: "AI maps your products to buyers who have already shown high intent." },
-                  ].map((item, i) => (
-                      <div key={i} className="p-10 rounded-[3rem] bg-neutral-900/30 border border-white/5 hover:border-primary/20 transition-all flex flex-col items-center text-center group">
-                          <div className="h-16 w-16 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary/10 transition-all">
-                            <item.icon className="h-8 w-8 text-primary" />
-                          </div>
-                          <h4 className="font-black uppercase tracking-widest text-white mb-3">{item.title}</h4>
-                          <p className="text-sm text-neutral-500 font-medium leading-relaxed">{item.desc}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
       </section>
 
       {/* Final CTA */}
