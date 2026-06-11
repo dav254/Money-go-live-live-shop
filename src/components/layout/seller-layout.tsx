@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -16,7 +15,6 @@ import { useUser } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { SellerHeader } from '../seller/seller-header';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -35,8 +33,7 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
-  // Blocking loading screen removed to open direct.
-  
+  // Instant Access: Removed blocking isLoading screen
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">

@@ -6,14 +6,14 @@ import NProgress from 'nprogress';
 
 /**
  * High-velocity Red Loading Bar (#ff0000).
- * Logic: Jumps to 70% instantly on click for perceived high performance.
+ * Logic: Jumps to 70% instantly on any internal click to provide extreme perceived performance.
  */
 export function PageProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Complete the progress bar when the route officially changes
+    // Complete the progress bar when the route change is confirmed
     NProgress.done();
   }, [pathname, searchParams]);
 
@@ -21,7 +21,7 @@ export function PageProgressBar() {
     NProgress.configure({ 
       showSpinner: false,
       trickleSpeed: 100,
-      minimum: 0.7, // Instant jump to 70%
+      minimum: 0.7, // Instant jump to 70% on start
       speed: 300,
     });
 
@@ -34,7 +34,7 @@ export function PageProgressBar() {
           const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
           
-          // Only trigger for internal links that change the path
+          // Only trigger for internal links that actually change the path
           if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
             NProgress.start();
           }

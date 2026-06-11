@@ -1,6 +1,6 @@
 'use client';
 
-import { Facebook, Twitter, Instagram, Youtube, Globe, Heart, Store } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Youtube, Globe, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../logo';
 
@@ -16,12 +16,12 @@ export function LandingFooter() {
     <footer className="relative bg-muted/30 border-t border-border pt-20 pb-10">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-            <div className="space-y-6">
+            <div className="space-y-6 text-left">
               <Link href="/" className="block">
                 <Logo className="h-12 w-auto" />
               </Link>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                The world's next-generation social earning platform. Where creative motion becomes financial yield.
+                The world's next-generation social commerce platform. Where creative motion becomes financial yield.
               </p>
               <div className="flex gap-3">
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
@@ -36,7 +36,7 @@ export function LandingFooter() {
               </div>
             </div>
 
-            <div>
+            <div className="text-left">
               <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Quick Links</h4>
               <ul className="space-y-4">
                 {quickLinks.map((link) => (
@@ -47,7 +47,7 @@ export function LandingFooter() {
               </ul>
             </div>
 
-            <div>
+            <div className="text-left">
               <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Support</h4>
               <ul className="space-y-4">
                 {[
@@ -75,7 +75,7 @@ export function LandingFooter() {
           </div>
 
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-center">
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 MoneyGo • High Velocity Social Earning</p>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 GoEarnvid • High Velocity Social Earning</p>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               <span>Made with</span>
               <Heart className="h-3 w-3 text-primary fill-primary" />

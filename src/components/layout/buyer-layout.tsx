@@ -1,4 +1,3 @@
-
 'use client';
 
 import { 
@@ -13,7 +12,6 @@ import { BuyerSidebar } from '@/components/buyer/buyer-sidebar';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
 import { useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { Logo } from '../logo';
 import Link from 'next/link';
@@ -30,9 +28,7 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
     }
   }, [user, isLoading, router]);
 
-  // We no longer return a blocking full-page loader here.
-  // Sub-components like BuyerHeader already handle skeletons.
-
+  // Instant Access: Removed blocking isLoading screen
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">

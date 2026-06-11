@@ -21,9 +21,9 @@ const markers = [
 
 export default function WorldMap() {
   return (
-    <div className="bg-neutral-950/50 border border-white/5 rounded-[3rem] overflow-hidden p-8 shadow-2xl relative">
+    <div className="bg-neutral-950/5 border border-white/5 rounded-[3rem] overflow-hidden p-8 shadow-inner relative w-full">
       <div className="absolute top-8 left-8 z-10 space-y-1">
-        <h3 className="font-cyber text-2xl font-black text-white uppercase tracking-tighter">Global Signal Hub</h3>
+        <h3 className="font-cyber text-2xl font-black text-foreground uppercase tracking-tighter">Global Signal Hub</h3>
         <p className="text-[10px] font-black uppercase text-primary tracking-[0.3em]">Monitoring live marketplace pings</p>
       </div>
 
@@ -41,13 +41,13 @@ export default function WorldMap() {
                 geography={geo}
                 style={{
                   default: {
-                    fill: "#111111",
-                    stroke: "#222222",
+                    fill: "#f5f5f5",
+                    stroke: "#e5e5e5",
                     strokeWidth: 0.5,
                     outline: "none"
                   },
                   hover: {
-                    fill: "#1a1a1a",
+                    fill: "#eeeeee",
                     stroke: "hsl(var(--primary))",
                     strokeWidth: 0.5,
                     outline: "none"
@@ -73,7 +73,7 @@ export default function WorldMap() {
               y={-12}
               style={{ 
                 fontFamily: "Orbitron", 
-                fill: "#FFFFFF", 
+                fill: "#111111", 
                 fontSize: "8px", 
                 fontWeight: "900", 
                 textTransform: "uppercase",

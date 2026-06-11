@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { 
   Video, Zap, Rocket, ChevronRight, Trophy, Sparkles, 
   MapPin, BrainCircuit, LayoutGrid, Store, Quote, 
-  ArrowRight, Activity, Play, Star
+  ArrowRight, Activity, Globe as GlobeIcon, Users, Play, Star,
+  TrendingUp, ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -12,19 +13,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
-// High-Fidelity Interactive Globe
+// High-Fidelity Interactive Globe (Hydration Safe)
 const GlobalCreatorGlobe = dynamic(() => import('@/components/home/global-creator-globe'), { 
     ssr: false,
-    loading: () => <div className="h-[400px] w-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest opacity-20">Re-linking Global Signal...</div>
+    loading: () => (
+        <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/5 rounded-[3rem]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-4">Establishing Grid Connection...</p>
+        </div>
+    )
+});
+
+// County & Country Activity Map
+const ActivityMap = dynamic(() => import('@/components/home/world-map'), {
+    ssr: false,
+    loading: () => <div className="aspect-[21/9] w-full bg-muted/10 rounded-[3rem] animate-pulse" />
 });
 
 const TRENDING_VIDEOS = [
-    { id: 1, title: 'Stealth Urban Series', creator: '@VoltStyle', price: '$85.00', img: 'https://picsum.photos/seed/v1/600/800' },
-    { id: 2, title: 'Minimalist Tech Hub', creator: '@SiliconHub', price: '$299.00', img: 'https://picsum.photos/seed/v2/600/800' },
-    { id: 3, title: 'Artisan Brew Kit', creator: '@BeanCode', price: '$12.50', img: 'https://picsum.photos/seed/v3/600/800' },
-    { id: 4, title: 'Velocity Runners', creator: '@SwiftStride', price: '$145.00', img: 'https://picsum.photos/seed/v4/600/800' },
+    { id: 1, title: 'Urban Tech Series', creator: '@VoltStyle', price: '$85.00', img: 'https://picsum.photos/seed/v1/600/800', hint: 'tech fashion' },
+    { id: 2, title: 'Minimalist Setup', creator: '@SiliconHub', price: '$299.00', img: 'https://picsum.photos/seed/v2/600/800', hint: 'clean office' },
+    { id: 3, title: 'Artisan Coffee', creator: '@BeanCode', price: '$12.50', img: 'https://picsum.photos/seed/v3/600/800', hint: 'coffee beans' },
+    { id: 4, title: 'Velocity Runners', creator: '@SwiftStride', price: '$145.00', img: 'https://picsum.photos/seed/v4/600/800', hint: 'running shoes' },
 ];
 
 const LEADERBOARD = [
@@ -33,30 +46,37 @@ const LEADERBOARD = [
     { name: 'Mike Ross', earnings: '$7,800', location: 'Lagos', avatar: 'https://picsum.photos/seed/u3/100/100' },
 ];
 
+const SUCCESS_STORIES = [
+    { name: 'Anita W.', role: 'Merchant', text: "GoEarnvid transformed my hobby into a regional brand. I post my process, people buy, and I earn instantly." },
+    { name: 'John D.', role: 'Reseller', text: "I earn a full-time income just by sharing links for products I love. No inventory, just yield." }
+];
+
+const Loader2 = ({ className }: { className?: string }) => <Activity className={cn("animate-pulse", className)} />;
+
 export default function GoEarnvidHomePage() {
   const [liveEarnings, setLiveEarnings] = useState(12450.80);
 
   useEffect(() => {
     const interval = setInterval(() => {
-        setLiveEarnings(prev => prev + Math.random() * 2);
-    }, 3000);
+        setLiveEarnings(prev => prev + Math.random() * 0.5);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <LandingLayout>
-      <div className="bg-background text-foreground overflow-x-hidden">
+      <div className="bg-background text-foreground overflow-x-hidden animate-in fade-in duration-500">
         
         {/* 1. Hero Banner: POST • EARN • REPEAT */}
         <section className="relative pt-12 pb-24 lg:pt-20 lg:pb-32 bg-gradient-to-b from-primary/5 via-transparent to-transparent">
           <div className="container max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="text-left space-y-8 animate-in fade-in slide-in-from-left-4 duration-700">
+            <div className="text-left space-y-8">
               <Badge variant="secondary" className="px-4 py-1.5 rounded-full bg-primary/10 text-primary border-none font-bold uppercase tracking-widest text-[10px]">
                 <Sparkles className="h-3 w-3 mr-2 inline" />
                 FOUNDING SELLER BONUS: +1,000 AI POINTS
               </Badge>
               
-              <h1 className="font-cyber text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85]">
+              <h1 className="font-cyber text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-foreground">
                 POST. <span className="text-primary italic">EARN.</span>
                 <br />
                 REPEAT.
@@ -79,12 +99,12 @@ export default function GoEarnvidHomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 group" asChild>
+                <Button size="lg" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 group border-none" asChild>
                   <Link href="/signup?role=seller">
                     START UPLOADING <Video className="ml-3 h-5 w-5 group-hover:scale-110 transition-transform" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs" asChild>
+                <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl font-black uppercase tracking-widest text-xs border-primary/20" asChild>
                     <Link href="/buyer/dashboard">EXPLORE FEED</Link>
                 </Button>
               </div>
@@ -103,10 +123,10 @@ export default function GoEarnvidHomePage() {
           <div className="container max-w-7xl mx-auto px-4">
               <div className="flex items-center justify-between mb-12">
                   <div className="space-y-1">
-                      <h2 className="font-cyber text-3xl font-black uppercase tracking-tighter">TRENDING MOTION</h2>
+                      <h2 className="font-cyber text-3xl font-black uppercase tracking-tighter text-foreground">TRENDING MOTION</h2>
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">High-velocity discovery signal</p>
                   </div>
-                  <Button variant="link" className="font-black uppercase tracking-widest text-[10px]" asChild>
+                  <Button variant="link" className="font-black uppercase tracking-widest text-[10px] text-primary" asChild>
                       <Link href="/buyer/dashboard">VIEW ALL <ChevronRight className="ml-1 h-3 w-3" /></Link>
                   </Button>
               </div>
@@ -114,10 +134,10 @@ export default function GoEarnvidHomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                   {TRENDING_VIDEOS.map((vid) => (
                       <div key={vid.id} className="group relative aspect-[3/4] rounded-[2.5rem] overflow-hidden bg-card border border-border shadow-lg hover:border-primary transition-all duration-500">
-                          <Image src={vid.img} alt={vid.title} fill className="object-cover opacity-90 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" />
+                          <Image src={vid.img} alt={vid.title} fill className="object-cover opacity-90 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" data-ai-hint={vid.hint} />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
                           <div className="absolute bottom-6 left-6 right-6 text-left space-y-2">
-                              <Badge className="bg-red-600 animate-pulse border-none text-[8px] font-black uppercase">LIVE</Badge>
+                              <Badge className="bg-red-600 animate-pulse border-none text-[8px] font-black uppercase text-white">LIVE</Badge>
                               <p className="text-white font-black uppercase text-lg tracking-tight leading-none truncate">{vid.title}</p>
                               <div className="flex items-center justify-between text-white/70">
                                   <span className="text-[9px] font-bold uppercase tracking-widest">{vid.creator}</span>
@@ -130,10 +150,10 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 5. How GoEarnvid Works */}
+        {/* 5. How Goearn Works */}
         <section className="py-24 bg-background">
           <div className="container max-w-7xl mx-auto px-4 text-center space-y-16">
-              <h2 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter">THE PROTOCOL</h2>
+              <h2 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground">THE PROTOCOL</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                   {[
                       { icon: Video, title: "1. POST", desc: "Share high-converting videos of your products or services." },
@@ -142,7 +162,7 @@ export default function GoEarnvidHomePage() {
                   ].map((step, i) => (
                       <div key={i} className="p-10 rounded-[3rem] bg-card border border-border hover:border-primary/20 transition-all shadow-sm">
                           <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto mb-8"><step.icon className="h-8 w-8" /></div>
-                          <h3 className="font-black text-xl uppercase mb-3">{step.title}</h3>
+                          <h3 className="font-black text-xl uppercase mb-3 text-foreground">{step.title}</h3>
                           <p className="text-[10px] text-muted-foreground font-bold leading-relaxed uppercase tracking-widest">{step.desc}</p>
                       </div>
                   ))}
@@ -155,7 +175,7 @@ export default function GoEarnvidHomePage() {
           <div className="container max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-20">
               
               <div className="space-y-8">
-                  <h3 className="font-cyber text-3xl font-black uppercase tracking-tighter flex items-center gap-4">
+                  <h3 className="font-cyber text-3xl font-black uppercase tracking-tighter flex items-center gap-4 text-foreground text-left">
                     <Trophy className="text-yellow-500" /> TOP EARNERS
                   </h3>
                   <div className="space-y-4">
@@ -166,8 +186,8 @@ export default function GoEarnvidHomePage() {
                                   <div className="relative h-14 w-14 shrink-0 rounded-2xl overflow-hidden border-2 border-primary/10">
                                       <Image src={c.avatar} alt={c.name} fill className="object-cover" />
                                   </div>
-                                  <div>
-                                      <p className="font-black text-sm uppercase tracking-tight">{c.name}</p>
+                                  <div className="text-left">
+                                      <p className="font-black text-sm uppercase tracking-tight text-foreground">{c.name}</p>
                                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{c.location}</p>
                                   </div>
                               </div>
@@ -181,21 +201,21 @@ export default function GoEarnvidHomePage() {
               </div>
 
               <div className="space-y-8">
-                  <h3 className="font-cyber text-3xl font-black uppercase tracking-tighter flex items-center gap-4">
+                  <h3 className="font-cyber text-3xl font-black uppercase tracking-tighter flex items-center gap-4 text-foreground text-left">
                       <Store className="text-blue-600" /> FEATURED SHOPS
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                       {[1, 2, 3, 4].map((i) => (
                           <div key={i} className="aspect-square relative rounded-[2rem] overflow-hidden border bg-card group cursor-pointer shadow-sm">
-                              <Image src={`https://picsum.photos/seed/s${i}/400/400`} alt="shop" fill className="object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" />
+                              <Image src={`https://picsum.photos/seed/s${i}/400/400`} alt="shop" fill className="object-cover opacity-80 group-hover:opacity-100 transition-all duration-700" data-ai-hint="luxury store" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                              <div className="absolute bottom-4 left-4 right-4">
+                              <div className="absolute bottom-4 left-4 right-4 text-left">
                                   <p className="text-white font-black text-[10px] uppercase tracking-widest">Merchant Node 00{i}</p>
                               </div>
                           </div>
                       ))}
                   </div>
-                  <Button variant="outline" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] border-border bg-card" asChild>
+                  <Button variant="outline" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] border-border bg-card text-foreground" asChild>
                       <Link href="/buyer/dashboard">DISCOVER ALL SHOPS</Link>
                   </Button>
               </div>
@@ -205,19 +225,12 @@ export default function GoEarnvidHomePage() {
         {/* 8. County and Country Activity Map */}
         <section className="py-24 bg-background">
             <div className="container max-w-7xl mx-auto px-4 text-center space-y-12">
-                <div className="space-y-2">
-                    <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter">NETWORK REACH</h2>
+                <div className="space-y-2 text-center">
+                    <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-foreground">NETWORK REACH</h2>
                     <p className="text-muted-foreground font-bold text-[10px] uppercase tracking-widest">Opportunity mapped by regional interaction</p>
                 </div>
-                <div className="aspect-[21/9] w-full bg-muted/10 rounded-[4rem] border border-border shadow-inner relative overflow-hidden flex items-center justify-center p-8">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 w-full">
-                        {['NAIROBI', 'MOMBASA', 'KISUMU', 'NAKURU', 'KIAMBU', 'UASIN GISHU'].map(county => (
-                            <div key={county} className="p-4 rounded-2xl bg-card border border-border flex flex-col items-center justify-center gap-2 shadow-sm hover:border-primary/30 transition-all">
-                                <MapPin className="h-4 w-4 text-primary" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">{county}</span>
-                            </div>
-                        ))}
-                    </div>
+                <div className="w-full bg-muted/10 rounded-[4rem] border border-border shadow-inner relative overflow-hidden flex items-center justify-center p-8">
+                    <ActivityMap />
                 </div>
             </div>
         </section>
@@ -225,18 +238,18 @@ export default function GoEarnvidHomePage() {
         {/* 9. User Success Stories */}
         <section className="py-24 bg-primary/5">
           <div className="container max-w-7xl mx-auto px-4">
-              <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-center mb-16">CREATOR STORIES</h2>
+              <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-center mb-16 text-foreground">CREATOR STORIES</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {['Anita W.', 'John D.'].map((name, i) => (
+                  {SUCCESS_STORIES.map((story, i) => (
                       <Card key={i} className="bg-card border-none rounded-[3rem] p-12 shadow-xl relative overflow-hidden text-left">
                           <div className="absolute top-0 right-0 p-8 opacity-5"><Quote className="h-20 w-20 text-primary" /></div>
                           <div className="space-y-6 relative z-10">
-                              <p className="text-xl font-medium leading-relaxed italic text-foreground/80">"GoEarnvid transformed my hobby into a regional brand. I post my process, people buy, and I earn instantly."</p>
+                              <p className="text-xl font-medium leading-relaxed italic text-foreground/80">"{story.text}"</p>
                               <div className="flex items-center gap-4">
                                   <div className="h-12 w-12 rounded-full bg-primary/10" />
                                   <div>
-                                      <p className="font-black text-sm uppercase tracking-tight">{name}</p>
-                                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{i === 0 ? 'Merchant' : 'Reseller'}</p>
+                                      <p className="font-black text-sm uppercase tracking-tight text-foreground">{story.name}</p>
+                                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{story.role}</p>
                                   </div>
                               </div>
                           </div>
@@ -246,14 +259,14 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 10. AI-Powered Content Recommendations */}
+        {/* 10. AI Powered Content Recommendations */}
         <section className="py-24 border-y border-border">
             <div className="container max-w-7xl mx-auto px-4">
                 <div className="flex items-center gap-3 mb-12">
                     <BrainCircuit className="h-6 w-6 text-primary animate-pulse" />
-                    <h3 className="font-cyber text-2xl font-black uppercase tracking-tighter">AI DISCOVERY LOOP</h3>
+                    <h3 className="font-cyber text-2xl font-black uppercase tracking-tighter text-foreground">AI DISCOVERY LOOP</h3>
                 </div>
-                <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide">
+                <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide text-left">
                     {['Summer Fashion', 'Tech Gadgets', 'Organic Food', 'Home Decor', 'Fitness Gear', 'Pet Care'].map(tag => (
                         <div key={tag} className="flex-shrink-0 px-8 py-10 rounded-[2.5rem] bg-card border border-border shadow-sm hover:border-primary transition-all flex flex-col items-center gap-4 group cursor-pointer min-w-[200px]">
                             <LayoutGrid className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -265,7 +278,7 @@ export default function GoEarnvidHomePage() {
         </section>
 
         {/* 11. Call-to-Action for Video Uploads and Promotions */}
-        <section className="py-32 bg-neutral-950 text-white relative overflow-hidden">
+        <section className="py-32 bg-neutral-900 text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-primary/5 opacity-40 animate-pulse" />
             <div className="container max-w-4xl mx-auto px-4 text-center relative z-10 space-y-12">
                 <h2 className="font-cyber text-4xl md:text-7xl font-black uppercase tracking-tighter leading-[0.85]">
@@ -282,6 +295,15 @@ export default function GoEarnvidHomePage() {
                     <Button size="lg" variant="outline" className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-widest text-sm border-white/20 bg-white/5 hover:bg-white/10 text-white" asChild>
                         <Link href="/features">LEARN MORE</Link>
                     </Button>
+                </div>
+                <div className="flex flex-col items-center gap-4 opacity-50 pt-12">
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">Integrated Intelligence Nodes</p>
+                    <div className="flex items-center gap-6">
+                        <Activity className="h-5 w-5" />
+                        <ShieldCheck className="h-5 w-5" />
+                        <BrainCircuit className="h-5 w-5" />
+                        <Zap className="h-5 w-5" />
+                    </div>
                 </div>
             </div>
         </section>
