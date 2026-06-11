@@ -21,16 +21,24 @@ async function verifyAdmin(request: NextRequest) {
     }
 }
 
+/**
+ * Refund handler updated for Next.js 15 Async Params.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const { orderId } = await params;
+  
   const adminVerification = await verifyAdmin(request);
-  if (adminVerification.error) {
-    return NextResponse.json({ message: adminVerification.error }, { status: 403 });
+  if ((adminVerification as any).error) {
+    return NextResponse.json({ message: (adminVerification as any).error }, { status: 403 });
   }
 
+<<<<<<< HEAD
   const { orderId } = await params;
+=======
+>>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
   if (!orderId) {
     return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
   }
@@ -52,7 +60,6 @@ export async function POST(
 
     const { sellerId, resellerId, buyerId, productPrice, shippingCost, totalAmount } = order;
 
-    // --- Define Split Rates ---
     const PLATFORM_FEE_RATE = 0.10;
     const RESELLER_COMMISSION_RATE = 0.10;
     
@@ -67,14 +74,12 @@ export async function POST(
     const batch = db.batch();
     const timestamp = FieldValue.serverTimestamp();
 
-    // 1. Update Order Status
     batch.update(orderRef, {
       orderStatus: 'refunded',
       disputeReason: `Refund issued by admin: ${reason || 'No reason provided.'}`,
       updatedAt: timestamp,
     });
 
-    // 2. Credit Buyer (Full Refund)
     const buyerRefundRef = db.collection('walletTransactions').doc();
     batch.set(buyerRefundRef, {
         userId: buyerId,
@@ -85,7 +90,6 @@ export async function POST(
         timestamp: timestamp,
     });
     
-    // 3. Debit Seller (Net Earnings + Shipping)
     const sellerDebitRef = db.collection('walletTransactions').doc();
     batch.set(sellerDebitRef, {
         userId: sellerId,
@@ -96,7 +100,6 @@ export async function POST(
         timestamp: timestamp,
     });
     
-    // 4. Debit Reseller (Commission)
     if (resellerId && resellerCommission > 0) {
         const resellerDebitRef = db.collection('walletTransactions').doc();
         batch.set(resellerDebitRef, {
@@ -109,7 +112,6 @@ export async function POST(
         });
     }
     
-    // 5. Debit Platform (Fee)
     const platformDebitRef = db.collection('walletTransactions').doc();
     batch.set(platformDebitRef, {
         userId: 'platform_revenue',

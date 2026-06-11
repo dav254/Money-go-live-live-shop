@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useRef, useState, useEffect } from 'react';
-import { useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, orderBy, limit } from 'firebase/firestore';
+import { useCallback, useRef, useState, useEffect, Suspense } from 'react';
+import { useCollection, useDoc, useMemoFirebase, useUserProfile } from '@/firebase';
+import { collection, doc, query, orderBy, limit, where, documentId } from 'firebase/firestore';
 import type { Product, Seller, SellerShop, UserProfile, VideoFeedItem, LiveSession } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -10,8 +10,8 @@ import { VideoCard } from '@/components/feed/video-card';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Search, ChevronLeft, Video, Heart, X, Loader2, Bookmark } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { Badge } from '@/components/ui/badge';
@@ -78,7 +78,7 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
         seller: seller,
         video: {
           id: product.id,
-          imageUrl: product.imageUrl || getPlaceholderImage('product'),
+          imageUrl: product.imageUrl || getPlaceholderImage(),
           description: product.name || 'product media',
           imageHint: 'product',
           mediaType: (product.videoUrl && product.videoUrl.trim() !== "") ? 'video' : 'image',
@@ -100,21 +100,40 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
     );
 }
 
-export default function SellerLiveFeedPage() {
+function LiveFeedContent() {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const firestore = useFirestore();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [intersectingCard, setIntersectingCard] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
+    const view = searchParams.get('view') || 'all';
+
     const productsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return query(collection(firestore, 'products'), orderBy('uploadDate', 'desc'), limit(10));
-    }, [firestore]);
+        
+        // This logic ensures only the items in the LOGGED IN user's wishlist are shown
+        if (view === 'saved' && userProfile) {
+            const wishlist = userProfile.wishlist || [];
+            if (wishlist.length === 0) return null;
+            return query(
+                collection(firestore, 'products'),
+                where(documentId(), 'in', wishlist.slice(0, 30))
+            );
+        }
+
+        return query(
+            collection(firestore, 'products'), 
+            orderBy('uploadDate', 'desc'), 
+            limit(10)
+        );
+    }, [firestore, view, userProfile]);
 
     const { data: products, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
-    const isLoading = isUserLoading || areProductsLoading;
+    const isLoading = isUserLoading || areProductsLoading || isProfileLoading;
 
     const handleScroll = useCallback((direction: 'up' | 'down') => {
         const container = scrollContainerRef.current;
@@ -169,65 +188,96 @@ export default function SellerLiveFeedPage() {
     if (isLoading) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-black">
-                <p className="text-white">Loading the live feed...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+                <p className="text-white font-black uppercase tracking-widest text-xs">Syncing Immersive Stream...</p>
             </div>
         );
     }
 
     return (
-        <SellerLayout fullWidth>
-            <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-white bg-black/20 hover:bg-black/40 rounded-full"
-                        onClick={() => router.push('/dashboard/seller')}
-                    >
-                        <ChevronLeft className="h-6 w-6" />
-                    </Button>
-                    <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md mx-auto">
-                        <div className="relative group">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70 group-focus-within:text-primary transition-colors" />
-                            <Input 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search products or sellers..." 
-                                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10 rounded-full focus:bg-white/20 focus:border-primary/50 backdrop-blur-md transition-all h-10 md:h-11"
-                            />
-                        </div>
-                    </form>
-                    <div className="w-10 md:hidden" />
-                </div>
-
-                <div 
-                    ref={scrollContainerRef}
-                    className={cn(
-                        "h-full w-full snap-y snap-mandatory overflow-y-scroll",
-                        "[&::-webkit-scrollbar]:hidden",
-                        "scrollbar-hide"
-                    )}
+        <div className="relative h-screen w-full bg-black overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center gap-2 bg-gradient-to-b from-black/80 to-transparent">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-white bg-black/20 hover:bg-black/40 rounded-full"
+                    onClick={() => router.push('/dashboard/seller')}
                 >
-                {products && products.length > 0 ? (
-                    products.map((product) => (
-                        <div key={product.id} data-product-id={product.id} className="h-full w-full snap-start flex-shrink-0">
-                            <RealtimeVideoCard 
-                                product={product} 
-                                isIntersecting={intersectingCard === product.id}
-                                onScroll={handleScroll}
-                            />
-                        </div>
-                    ))
-                ) : (
-                    <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-muted">
-                        <div className="text-center p-4">
-                            <h2 className="text-xl font-semibold text-white">The Live Feed is Currently Empty</h2>
-                            <p className="text-muted-foreground max-w-sm mx-auto">There are no videos or images to display at the moment.</p>
-                        </div>
+                    <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md mx-auto">
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70 group-focus-within:text-primary transition-colors" />
+                        <Input 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={view === 'saved' ? "Search your private collection..." : "Search global discovery..."} 
+                            className="bg-white/10 border-white/20 text-white placeholder:text-white/50 pl-10 rounded-full focus:bg-white/20 focus:border-primary/50 backdrop-blur-md transition-all h-10 md:h-11"
+                        />
                     </div>
-                )}
+                </form>
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="hidden md:flex border-white/10 bg-black/40 text-white font-black uppercase tracking-widest text-[9px] h-8 px-3">
+                        {view === 'saved' ? 'My Private Collection' : 'Global Discovery'}
+                    </Badge>
                 </div>
             </div>
-        </SellerLayout>
+
+            <div 
+                ref={scrollContainerRef}
+                className={cn(
+                    "h-full w-full snap-y snap-mandatory overflow-y-scroll",
+                    "[&::-webkit-scrollbar]:hidden",
+                    "scrollbar-hide"
+                )}
+            >
+            {products && products.length > 0 ? (
+                products.map((product) => (
+                    <div key={product.id} data-product-id={product.id} className="h-full w-full snap-start flex-shrink-0">
+                        <RealtimeVideoCard 
+                            product={product} 
+                            isIntersecting={intersectingCard === product.id}
+                            onScroll={handleScroll}
+                        />
+                    </div>
+                ))
+            ) : (
+                <div className="h-full w-full snap-start flex-shrink-0 flex items-center justify-center bg-neutral-950">
+                    <div className="text-center p-8 max-w-sm">
+                        <div className="p-4 bg-white/5 rounded-full w-fit mx-auto mb-6">
+                            {view === 'saved' ? <Bookmark className="h-10 w-10 text-neutral-500" /> : <Video className="h-10 w-10 text-neutral-500" />}
+                        </div>
+                        <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">
+                            {view === 'saved' ? 'My Saved Items are Empty' : 'Discovery Empty'}
+                        </h2>
+                        <p className="text-neutral-500 text-sm font-medium leading-relaxed mb-8">
+                            {view === 'saved' 
+                                ? "This collection is private to you. Heart some items in the Discovery Feed to see them here." 
+                                : "We couldn't find any media to show right now. Check back later!"}
+                        </p>
+                        {view === 'saved' && (
+                            <Button asChild className="font-black uppercase tracking-widest text-xs h-12 rounded-xl">
+                                <Link href="/dashboard/seller/live-feed">Explore Discovery Feed</Link>
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            )}
+            </div>
+        </div>
     );
+}
+
+export default function SellerLiveFeedPage() {
+  return (
+    <SellerLayout fullWidth>
+      <Suspense fallback={
+        <div className="flex h-screen w-full items-center justify-center bg-black">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        <LiveFeedContent />
+      </Suspense>
+    </SellerLayout>
+  );
 }

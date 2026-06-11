@@ -12,7 +12,11 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
+<<<<<<< HEAD
     --primary: 0 100% 50%; /* Pure Red #ff0000 */
+=======
+    --primary: 0 100% 50%;
+>>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -35,7 +39,11 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 20% 4%;
     --popover-foreground: 0 0% 98%;
+<<<<<<< HEAD
     --primary: 0 100% 50%; /* Pure Red #ff0000 */
+=======
+    --primary: 0 100% 50%;
+>>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
     --primary-foreground: 0 0% 100%;
     --secondary: 174 85% 40%;
     --secondary-foreground: 0 0% 100%;
@@ -43,7 +51,7 @@
     --muted-foreground: 0 0% 64.9%;
     --accent: 320 100% 60%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 15.9%;
     --input: 0 0% 15.9%;
@@ -65,7 +73,11 @@
     .font-sora { font-family: 'Sora', sans-serif; }
     
     .text-gradient {
+<<<<<<< HEAD
       background: linear-gradient(135deg, #ff0000 0%, #ff4d4d 50%, #9333ea 100%);
+=======
+      background: linear-gradient(135deg, #ff0000 0%, #ff4d4d 100%);
+>>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -96,6 +108,7 @@
     }
 }
 
+<<<<<<< HEAD
 /* Red High-Velocity Top Loading Bar */
 #nprogress .bar {
   background: linear-gradient(to right, #ff0000, #ff4d4d) !important;
@@ -106,4 +119,16 @@
 
 #nprogress .peg {
   box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000 !important;
+=======
+.loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 0;
+  background: linear-gradient(90deg, #ff0000, #ff4d4d);
+  z-index: 9999;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+>>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
 }

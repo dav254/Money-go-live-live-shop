@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Chat } from '@/lib/types';
+import type { Chat, LiveSession } from '@/lib/types';
 import { Logo } from '../logo';
 import { Badge } from '../ui/badge';
 
@@ -40,6 +40,15 @@ export function BuyerHeader() {
     if (!chats || !user) return 0;
     return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
   }, [chats, user]);
+
+  // Query for any active live sessions globally
+  const activeSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+  }, [firestore]);
+
+  const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
+  const liveCount = useMemo(() => activeSessions?.length || 0, [activeSessions]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -143,9 +152,14 @@ export function BuyerHeader() {
             )}
           </Link>
         </Button>
-        <Button variant="ghost" size="icon" className="hidden md:inline-flex" asChild title="Live Now">
+        <Button variant="ghost" size="icon" className="hidden md:inline-flex relative" asChild title="Live Now">
           <Link href="/buyer/live-now">
-            <Radio className="h-5 w-5 text-red-600" />
+            <Radio className={cn("h-5 w-5", liveCount > 0 ? "text-red-600" : "")} />
+            {liveCount > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-4 min-w-[1rem] px-1 bg-red-600 text-white border-none text-[8px] font-black flex items-center justify-center shadow-lg shadow-red-600/20">
+                {liveCount}
+              </Badge>
+            )}
           </Link>
         </Button>
         <UserNav />

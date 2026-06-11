@@ -30,6 +30,11 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
     const { toast } = useToast();
     const router = useRouter();
     const [quantity, setQuantity] = useState(1);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const productRef = useMemoFirebase(() => {
         return productId ? doc(firestore, 'products', productId) : null;
@@ -61,7 +66,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
         const media: { url: string, type: 'video' | 'image' }[] = [];
         
         if (product.videoUrl && product.videoUrl.trim() !== "") media.push({ url: product.videoUrl, type: 'video' });
-        if (product.videoUrls) {
+        if (Array.isArray(product.videoUrls)) {
             product.videoUrls.forEach(url => {
                 if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
                     media.push({ url, type: 'video' });
@@ -70,7 +75,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
         }
 
         if (product.imageUrl && product.imageUrl.trim() !== "") media.push({ url: product.imageUrl, type: 'image' });
-        if (product.imageUrls) {
+        if (Array.isArray(product.imageUrls)) {
             product.imageUrls.forEach(url => {
                 if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
                     media.push({ url, type: 'image' });
@@ -89,16 +94,16 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
 
     const handleAddToCart = () => {
         if (!user) { router.push('/login'); return; }
-        if (!product) return;
+        if (!product || !firestore) return;
         
         const cartItemRef = doc(firestore, 'userProfiles', user.uid, 'cart', product.id);
         const cartData = {
-            productId: product.id,
-            sellerId: product.sellerId,
+            productId: product.id || '',
+            sellerId: product.sellerId || '',
             buyerId: user.uid,
             quantity: increment(quantity),
-            price: product.price,
-            name: product.name,
+            price: product.price || 0,
+            name: product.name || 'Unnamed Product',
             imageUrl: product.imageUrl || getPlaceholderImage(),
             addedAt: serverTimestamp(),
         };
@@ -117,7 +122,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
 
     const handleBuyNow = () => {
         if (!user) { router.push('/login'); return; }
-        if (!product) return;
+        if (!product || !firestore) return;
 
         const ordersCollectionRef = collection(firestore, 'orders');
         const newOrderRef = doc(ordersCollectionRef);
@@ -127,17 +132,17 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
         const newOrderData = {
             id: newOrderRef.id,
             buyerId: user.uid,
-            sellerId: product.sellerId,
+            sellerId: product.sellerId || '',
             items: [{ 
-                productId: product.id, 
-                name: product.name, 
-                price: product.price, 
+                productId: product.id || '', 
+                name: product.name || 'Unnamed Product', 
+                price: product.price || 0, 
                 quantity, 
                 imageUrl: product.imageUrl || getPlaceholderImage() 
             }],
-            productName: product.name,
+            productName: product.name || 'Unnamed Product',
             productImage: product.imageUrl || getPlaceholderImage(),
-            productPrice: product.price,
+            productPrice: product.price || 0,
             shippingCost: shippingCost,
             totalAmount: subtotal + shippingCost,
             subtotal: subtotal,
@@ -162,7 +167,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
             });
     };
 
-    const isLoading = isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
+    const isLoading = !isMounted || isProductLoading || isSellerShopLoading || isSellerProfileLoading || isUserLoading || isProfileLoading;
     if (isLoading) return <MainLayout><div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></MainLayout>;
     if (!product) return <MainLayout><div className="flex h-96 items-center justify-center text-white font-bold">Product not found</div></MainLayout>;
     

@@ -35,6 +35,8 @@ export function ProductInfo({ product }: ProductInfoProps) {
     ? product.imageUrl 
     : getPlaceholderImage();
 
+  const mainPrice = product.localPrice || product.price || 0;
+
   return (
     <div className="bg-black/60 p-3 rounded-2xl shadow-2xl backdrop-blur-2xl max-w-sm w-full mx-auto relative overflow-hidden group border border-white/10 ring-1 ring-white/5">
         <div className="flex items-center gap-3">
@@ -54,14 +56,14 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
             {/* Info Section */}
             <div className="flex-1 min-w-0">
-                <h3 className="text-[11px] font-black text-white truncate uppercase tracking-tight mb-1">{product.name}</h3>
+                <h3 className="text-[11px] font-black text-white truncate uppercase tracking-tight mb-1">{product.name || 'Unnamed Item'}</h3>
                 
                 <div className="space-y-0.5">
                     {/* MAIN PRICE (Local Currency specified by Seller) */}
                     <div className="flex items-center gap-1.5">
                         <Tag className="h-3 w-3 text-primary" />
                         <p className="text-[14px] font-black text-primary tracking-tighter leading-none">
-                            {product.localCurrency || 'USD'} {(product.localPrice || product.price)?.toLocaleString()}
+                            {product.localCurrency || 'USD'} {mainPrice.toLocaleString()}
                         </p>
                     </div>
 
@@ -78,7 +80,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
                 {/* Metadata Footer */}
                 <div className="flex items-center gap-2 text-[8px] font-black text-neutral-500 uppercase tracking-widest mt-2">
-                    <span className="text-green-500/80">Net: ${product.price?.toFixed(2)}</span>
+                    <span className="text-green-500/80">Net: ${Number(product.price || 0).toFixed(2)}</span>
                 </div>
             </div>
 

@@ -6,6 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Endpoint to refresh the analytics of a specific boost campaign from TikTok.
+ * Updated for Next.js 15 Async Params.
  */
 export async function POST(
   request: NextRequest,
@@ -13,7 +14,6 @@ export async function POST(
 ) {
   const { boostId } = await params;
 
-  // 1. Verify the user is authenticated (can be an admin or the seller themselves)
   const authHeader = request.headers.get('Authorization');
   if (!authHeader) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -26,7 +26,6 @@ export async function POST(
     return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
   }
 
-  // 2. Fetch the boost request and seller's profile
   const boostRef = db.collection('boost_requests').doc(boostId);
   const boostSnap = await boostRef.get();
 
@@ -36,7 +35,6 @@ export async function POST(
 
   const boostData = boostSnap.data() as BoostRequest;
 
-  // 3. Authorization check: only the seller or an admin can refresh
   const userProfileSnap = await db.collection('userProfiles').doc(decodedToken.uid).get();
   const isSellerOwner = boostData.sellerId === decodedToken.uid;
   const isAdmin = userProfileSnap.data()?.userRole === 'admin';
@@ -45,12 +43,10 @@ export async function POST(
     return NextResponse.json({ message: 'Forbidden: You do not have permission to refresh this campaign.' }, { status: 403 });
   }
 
-  // 4. Ensure the boost is active and has a TikTok video ID
   if (boostData.status !== 'active' || !boostData.tiktokVideoId) {
     return NextResponse.json({ message: 'This boost is not active on TikTok or has no video ID.' }, { status: 400 });
   }
 
-  // 5. Fetch seller's TikTok access token
   const sellerProfileRef = db.collection('userProfiles').doc(boostData.sellerId);
   const sellerProfileSnap = await sellerProfileRef.get();
   const sellerProfile = sellerProfileSnap.data() as UserProfile;
@@ -61,7 +57,6 @@ export async function POST(
   }
 
   try {
-    // 6. Fetch new analytics from TikTok
     const videoAnalytics = await getTikTokVideoAnalytics(tiktokConnection.accessToken, [boostData.tiktokVideoId]);
     
     if (videoAnalytics.length === 0) {
@@ -70,12 +65,11 @@ export async function POST(
 
     const newStats = videoAnalytics[0];
 
-    // 7. Update the boost document in Firestore
     const updatedAnalytics = {
       views: newStats.view_count || boostData.analytics.views,
       likes: newStats.like_count || boostData.analytics.likes,
       shares: newStats.share_count || boostData.analytics.shares,
-      clicks: boostData.analytics.clicks, // Clicks are tracked separately, not from this API
+      clicks: boostData.analytics.clicks,
       conversions: boostData.analytics.conversions,
     };
     
