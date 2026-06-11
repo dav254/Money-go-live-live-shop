@@ -32,14 +32,16 @@ export function LandingHeader() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-4">
             <ThemeToggle />
-            <Button variant="ghost" asChild>
-              <Link href="/login">Log In</Link>
-            </Button>
-            <Button className="font-bold bg-primary text-white hover:bg-primary/90" asChild>
-              <Link href="/signup?role=seller">Start Selling</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" asChild>
+                <Link href="/login">Log In</Link>
+              </Button>
+              <Button className="font-bold bg-primary text-white hover:bg-primary/90 rounded-full px-6" asChild>
+                <Link href="/signup?role=seller">Start Selling</Link>
+              </Button>
+            </div>
           </div>
 
           <div className="md:hidden flex items-center gap-2">
@@ -60,8 +62,8 @@ export function LandingHeader() {
               </Link>
             ))}
             <div className="pt-4 border-t border-border flex flex-col gap-3">
-              <Button variant="ghost" className="w-full" asChild><Link href="/login">Log In</Link></Button>
-              <Button className="w-full font-bold bg-primary text-white" asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
+              <Button variant="ghost" className="w-full justify-start" asChild><Link href="/login">Log In</Link></Button>
+              <Button className="w-full font-bold bg-primary text-white rounded-xl" asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
             </div>
           </div>
         </div>
