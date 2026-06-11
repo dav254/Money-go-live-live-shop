@@ -4,7 +4,7 @@ import * as React from 'react';
 export const Logo = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 260 65"
+    viewBox="0 0 280 65"
     className={cn('text-primary', className)}
     {...props}
   >
@@ -19,20 +19,16 @@ export const Logo = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => 
       fill="#ff0000" 
     />
     
-    {/* White 'M' shape simplified within 'G' circle path */}
+    {/* White 'G' shape simplified */}
     <path 
       d="M42 32C42 38.6274 36.6274 44 30 42C23.3726 44 18 38.6274 18 32C18 25.3726 23.3726 20 30 20V26C26.6863 26 24 28.6863 24 32C24 35.3137 26.6863 38 30 38C33.3137 38 36 35.3137 36 32H30V26H42V32Z" 
       fill="white" 
     />
     
-    {/* Gold Coin with $ - The "Go" part */}
-    <circle cx="30" cy="32" r="7" fill="#FBBF24" />
-    <path d="M30 28V36M28 30H31.5C32.5 30 32.5 31.5 31.5 31.5H28.5C27.5 31.5 27.5 33 28.5 33H32" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round" />
-    
-    {/* MoneyGo Text */}
+    {/* GoEarnvid Text */}
     <text x="65" y="44" style={{ font: 'bold 38px Sora, sans-serif', letterSpacing: '-0.02em' }}>
-      <tspan fill="currentColor" className="dark:fill-white fill-black">Money</tspan>
-      <tspan fill="#ff0000">Go</tspan>
+      <tspan fill="currentColor" className="dark:fill-white fill-black">GoEarn</tspan>
+      <tspan fill="#ff0000">vid</tspan>
     </text>
     
     {/* Tagline System */}

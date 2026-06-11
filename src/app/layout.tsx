@@ -4,12 +4,12 @@ import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'MoneyGo: Post • Earn • Repeat',
-  description: 'The world\'s next-generation social earning platform. Where creative motion becomes financial yield.',
+  title: 'GoEarnvid: Post • Earn • Repeat',
+  description: 'The world\'s next-generation social commerce platform. Where creative motion becomes financial yield.',
   icons: {
     icon: '/favicon.ico',
   },
-  metadataBase: new URL('https://moneygo.shop'),
+  metadataBase: new URL('https://goearnvid.shop'),
 };
 
 export default function RootLayout({
