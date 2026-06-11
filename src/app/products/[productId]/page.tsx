@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/main-layout';
 import Image from 'next/image';
@@ -21,9 +21,9 @@ import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogD
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProductInfo } from '@/components/live/product-info';
 
-export default function BuyerProductPage() {
-    const params = useParams();
-    const productId = params.productId as string;
+export default function BuyerProductPage(props: { params: Promise<{ productId: string }> }) {
+    const params = use(props.params);
+    const productId = params.productId;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);

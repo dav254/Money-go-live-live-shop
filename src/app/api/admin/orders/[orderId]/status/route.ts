@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -10,9 +9,9 @@ import type { Order } from '@/lib/types';
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const orderId = params.orderId;
+  const { orderId } = await params;
   if (!orderId) {
     return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
   }
@@ -27,9 +26,10 @@ export async function PUT(
   let decodedToken;
   try {
     decodedToken = await auth.verifyIdToken(token);
-    // Check for admin custom claim
-    if (decodedToken.role !== 'admin') {
-      return NextResponse.json({ message: 'Forbidden: User is not an admin' }, { status: 403 });
+    // Fetch profile to verify role
+    const profileSnap = await db.doc(`userProfiles/${decodedToken.uid}`).get();
+    if (profileSnap.data()?.userRole !== 'admin') {
+        return NextResponse.json({ message: 'Forbidden: User is not an admin' }, { status: 403 });
     }
   } catch (error) {
     return NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 });
@@ -56,7 +56,7 @@ export async function PUT(
       timeline: FieldValue.arrayUnion({
         status: status,
         date: FieldValue.serverTimestamp(),
-        updatedBy: 'admin' // Optional: tag that an admin made this change
+        updatedBy: 'admin'
       }),
     });
 

@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -24,14 +23,14 @@ async function verifyAdmin(request: NextRequest) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   const adminVerification = await verifyAdmin(request);
   if (adminVerification.error) {
     return NextResponse.json({ message: adminVerification.error }, { status: 403 });
   }
 
-  const { orderId } = params;
+  const { orderId } = await params;
   if (!orderId) {
     return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
   }

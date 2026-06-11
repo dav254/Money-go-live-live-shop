@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth as adminAuth } from '@/firebase/server';
 import { getTikTokVideoAnalytics } from '@/lib/tiktok';
@@ -10,9 +9,9 @@ import { FieldValue } from 'firebase-admin/firestore';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { boostId: string } }
+  { params }: { params: Promise<{ boostId: string }> }
 ) {
-  const boostId = params.boostId;
+  const { boostId } = await params;
 
   // 1. Verify the user is authenticated (can be an admin or the seller themselves)
   const authHeader = request.headers.get('Authorization');

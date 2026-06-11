@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -16,9 +15,9 @@ import type { ChatMessage } from '@/lib/types';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 
-export default function ConversationPage() {
-  const params = useParams();
-  const conversationId = params.conversationId as string;
+export default function ConversationPage(props: { params: Promise<{ conversationId: string }> }) {
+  const params = use(props.params);
+  const conversationId = params.conversationId;
   const router = useRouter();
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
@@ -26,7 +25,7 @@ export default function ConversationPage() {
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const Layout = userProfile?.role === 'seller' ? SellerLayout : BuyerLayout;
+  const Layout = userProfile?.userRole === 'seller' ? SellerLayout : BuyerLayout;
 
   const messagesQuery = useMemoFirebase(() => {
     if (!firestore || !conversationId) return null;

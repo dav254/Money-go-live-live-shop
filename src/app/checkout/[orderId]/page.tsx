@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, use } from 'react';
 import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
@@ -59,9 +59,9 @@ const PaystackIcon = () => (
     </div>
 );
 
-export default function CheckoutPage() {
-    const params = useParams();
-    const orderId = params?.orderId as string;
+export default function CheckoutPage(props: { params: Promise<{ orderId: string }> }) {
+    const params = use(props.params);
+    const orderId = params.orderId;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
     const { toast } = useToast();
