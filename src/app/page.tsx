@@ -76,7 +76,7 @@ export default function HomePage() {
               <span className="text-gradient glow-text">REPEAT</span>
             </h1>
             <p className="max-w-2xl mx-auto text-base md:text-lg text-neutral-400 font-medium leading-relaxed animate-in fade-in slide-in-from-bottom-10 duration-1000 px-4">
-              The world's most performant video-first commerce protocol. Join as a Seller and receive <span className="text-red-600 font-black italic">1,000 Free AI Points</span> instantly to launch your viral store.
+              The world's most performant video-first commerce protocol. Join as a Seller and receive <span className="text-red-600 font-black italic">1,000 Free AI Points</span> instantly.
             </p>
           </div>
 
@@ -93,67 +93,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Lightweight Protocol Description Section */}
-      <section className="py-20 bg-neutral-900/10 border-y border-white/5">
-          <div className="container max-w-7xl mx-auto px-4">
-              <div className="text-center mb-16 space-y-2">
-                  <h2 className="font-cyber text-3xl font-black uppercase tracking-tighter text-white">THE ECOSYSTEM PROTOCOL</h2>
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em]">Autonomous Opportunity Loop</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/5 hover:border-primary/20 transition-all group">
-                      <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                          <Play className="h-6 w-6 text-primary fill-primary" />
-                      </div>
-                      <h3 className="text-white font-black uppercase text-xl mb-4 tracking-tight">Sellers: Post</h3>
-                      <p className="text-neutral-500 text-sm leading-relaxed font-medium">Upload high-conversion video catalogs. Use AI to generate descriptions and viral captions that close deals while you sleep.</p>
-                  </div>
-                  <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/5 hover:border-blue-500/20 transition-all group">
-                      <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                          <ZapIcon className="h-6 w-6 text-blue-500 fill-blue-500" />
-                      </div>
-                      <h3 className="text-white font-black uppercase text-xl mb-4 tracking-tight">Resellers: Earn</h3>
-                      <p className="text-neutral-500 text-sm leading-relaxed font-medium">No inventory needed. Pick products, generate unique smart links, and earn instant commissions for every verified referral.</p>
-                  </div>
-                  <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/5 hover:border-green-500/20 transition-all group">
-                      <div className="h-12 w-12 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                          <CheckCircle2 className="h-6 w-6 text-green-500" />
-                      </div>
-                      <h3 className="text-white font-black uppercase text-xl mb-4 tracking-tight">Buyers: Repeat</h3>
-                      <p className="text-neutral-500 text-sm leading-relaxed font-medium">Immersive, video-first shopping. Verified sellers, secure payouts via M-Pesa or PayPal, and ultra-fast local delivery.</p>
-                  </div>
-              </div>
-          </div>
-      </section>
-
-      {/* 3D Visual Section - Safely loaded below the fold */}
-      <section className="py-12 bg-black min-h-[600px] flex items-center justify-center relative">
-          <div className="container max-w-7xl mx-auto px-4">
-              <GlobalSignalHub />
-          </div>
-          {/* Decorative gradients */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      </section>
-
-      <section className="py-24 bg-black">
-          <div className="container max-w-7xl mx-auto px-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                  {[
-                      { icon: Activity, title: "Viral Velocity", desc: "Low-latency video pipelines for high-conversion discovery." },
-                      { icon: Shield, title: "Verified Nodes", desc: "Every merchant and transaction is secured by the protocol." },
-                      { icon: ZapIcon, title: "Neural Sync", desc: "AI-driven mapping between products and local demand." },
-                  ].map((item, i) => (
-                      <div key={i} className="flex flex-col items-center text-center space-y-4">
-                          <div className="h-12 w-12 rounded-xl bg-red-600/10 flex items-center justify-center mb-2">
-                            <item.icon className="h-6 w-6 text-red-600" />
-                          </div>
-                          <h4 className="font-black uppercase tracking-widest text-white text-xs">{item.title}</h4>
-                          <p className="text-xs text-neutral-500 font-medium leading-relaxed max-w-[240px]">{item.desc}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      </section>
+      {/* 3D Globe - Hydration Safe */}
+      {isMounted && (
+        <section className="py-12 bg-black min-h-[600px] flex items-center justify-center relative">
+            <div className="container max-w-7xl mx-auto px-4">
+                <GlobalSignalHub />
+            </div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+        </section>
+      )}
 
       <footer className="py-16 bg-black border-t border-white/5">
           <div className="container max-w-7xl mx-auto px-4 flex flex-col items-center gap-8">
@@ -166,25 +114,4 @@ export default function HomePage() {
       </footer>
     </LandingLayout>
   );
-}
-
-// Temporary internal component for the checkmark icon
-function CheckCircle2(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  )
 }
