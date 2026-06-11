@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 import { Logo } from '../logo';
+import { ThemeToggle } from '../theme-toggle';
 
 export function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -16,7 +17,7 @@ export function LandingHeader() {
   ];
 
   return (
-    <header className="sticky top-0 left-0 right-0 z-50 bg-dark-bg/60 backdrop-blur-xl border-b border-white/5">
+    <header className="sticky top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-white/5">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center">
@@ -32,15 +33,17 @@ export function LandingHeader() {
           </nav>
 
           <div className="hidden md:flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" asChild>
               <Link href="/login">Log In</Link>
             </Button>
-            <Button className="font-bold gradient-hero text-dark-bg" asChild>
+            <Button className="font-bold bg-primary text-white hover:bg-primary/90" asChild>
               <Link href="/signup?role=seller">Start Selling</Link>
             </Button>
           </div>
 
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </Button>
@@ -49,7 +52,7 @@ export function LandingHeader() {
       </div>
 
       {isMenuOpen && (
-        <div className="md:hidden animate-fade-in border-t border-white/5">
+        <div className="md:hidden animate-fade-in border-t border-white/5 bg-background/95 backdrop-blur-lg">
           <div className="container mx-auto px-4 py-6 flex flex-col gap-4">
             {navItems.map((item) => (
               <Link key={item.label} href={item.href} className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsMenuOpen(false)}>
@@ -58,7 +61,7 @@ export function LandingHeader() {
             ))}
             <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
               <Button variant="ghost" className="w-full" asChild><Link href="/login">Log In</Link></Button>
-              <Button className="w-full font-bold gradient-hero text-dark-bg" asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
+              <Button className="w-full font-bold bg-primary text-white" asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
             </div>
           </div>
         </div>
