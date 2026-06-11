@@ -43,8 +43,7 @@ export function PageProgressBar() {
         }
       } catch (err) {
         // Fallback for unexpected URL formats
-        NProgress.start();
-        NProgress.set(0.7);
+        console.warn("[Progress] Velocity tracking error:", err);
       }
     };
 
