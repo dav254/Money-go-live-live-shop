@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -27,11 +27,11 @@ const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer')
   ),
 });
 
-export default function BuyerLiveSessionPage() {
-  const params = useParams();
+export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionId: string }> }) {
+  const params = use(props.params);
   const router = useRouter();
   const { toast } = useToast();
-  const sessionId = params.sessionId as string;
+  const sessionId = params.sessionId;
   const firestore = useFirestore();
 
   const [activePanel, setActivePanel] = useState<'chat' | 'products' | null>(null);
@@ -81,7 +81,7 @@ export default function BuyerLiveSessionPage() {
     if (!isSessionLoading && (session?.status === 'ended' || (session?.status === 'live' && !session.videosdkMeetingId))) {
       const timer = setTimeout(() => {
           router.replace('/buyer/live-now');
-      }, 1000); // Conclude show faster
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [session, isSessionLoading, router]);
@@ -104,7 +104,6 @@ export default function BuyerLiveSessionPage() {
     );
   }
 
-  // Handle "Show Ended" state gracefully
   if (session?.status === 'ended') {
       return (
         <BuyerLayout fullWidth>
@@ -148,20 +147,17 @@ export default function BuyerLiveSessionPage() {
   return (
     <BuyerLayout fullWidth>
       <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex">
-        {/* Main Stream Area */}
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 z-0">
             <VideoSDKViewer meetingId={session.videosdkMeetingId} />
           </div>
 
-          {/* Top Deal Overlay */}
           {session.activeOffer && (
               <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4">
                   <LivePromoOverlay offer={session.activeOffer} />
               </div>
           )}
 
-          {/* Top Status & Title */}
           <div className="absolute top-6 left-6 right-6 z-10 flex items-start justify-between pointer-events-none">
             <div className="flex flex-col gap-2 pointer-events-auto">
                 <div className="flex items-center gap-2">
@@ -189,7 +185,6 @@ export default function BuyerLiveSessionPage() {
             </div>
           </div>
 
-          {/* Floating Chat Overlay (Always visible over video) */}
           <FloatingChatOverlay 
             streamId={session.sellerId} 
             className={cn(
@@ -198,14 +193,12 @@ export default function BuyerLiveSessionPage() {
             )}
           />
 
-          {/* Floating Pinned Product (Footer) */}
           {pinnedProduct && (
               <div className="absolute bottom-24 left-6 z-40 max-w-[calc(100%-120px)] animate-in slide-in-from-bottom-4">
                   <PinnedProduct product={pinnedProduct} />
               </div>
           )}
 
-          {/* Buyer Action Toggles (Right Side) */}
           <div className="absolute bottom-6 right-6 z-40 flex flex-col gap-3">
               <Button
                   size="icon"
@@ -238,13 +231,11 @@ export default function BuyerLiveSessionPage() {
           </div>
         </div>
 
-        {/* Side Panels */}
         <div className={cn(
             "shrink-0 bg-neutral-950 border-l border-white/5 transition-all duration-300 ease-in-out flex flex-col h-full",
             activePanel ? "w-full md:w-80 lg:w-96" : "w-0 opacity-0 overflow-hidden border-none"
         )}>
             <div className="w-full md:w-80 lg:w-96 h-full flex flex-col relative">
-                {/* Panel Header */}
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
                     <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
                         {activePanel === 'chat' ? 'Public Chat' : 'Seller Catalog'}
@@ -254,7 +245,6 @@ export default function BuyerLiveSessionPage() {
                     </Button>
                 </div>
 
-                {/* Panel Content */}
                 <div className="flex-1 overflow-hidden relative">
                     <div className={cn("absolute inset-0 transition-opacity duration-300", activePanel === 'chat' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                         <LiveChat streamId={session.sellerId} />

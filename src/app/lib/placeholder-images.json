@@ -1,0 +1,28 @@
+
+{
+  "demoItems": [
+    {
+      "id": "live-demo-1",
+      "url": "https://picsum.photos/seed/goearn-item-1/600/800",
+      "hint": "luxury smartwatch lifestyle"
+    },
+    {
+      "id": "live-demo-2",
+      "url": "https://picsum.photos/seed/goearn-item-2/600/800",
+      "hint": "professional studio headphones"
+    },
+    {
+      "id": "live-demo-3",
+      "url": "https://picsum.photos/seed/goearn-item-3/600/800",
+      "hint": "urban streetwear backpack"
+    },
+    {
+      "id": "live-demo-4",
+      "url": "https://picsum.photos/seed/goearn-item-4/600/800",
+      "hint": "futuristic running sneakers"
+    }
+  ],
+  "common": {
+    "placeholder": "https://placehold.co/600x400/111111/111111"
+  }
+}

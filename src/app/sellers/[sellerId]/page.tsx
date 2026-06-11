@@ -6,14 +6,14 @@ import { SellerTabs } from '@/components/seller/seller-tabs';
 import type { Seller, Product, SellerShop, UserProfile, LiveSession } from '@/lib/types';
 import { useUser, useUserProfile, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { BuyerHeader } from '@/components/buyer/buyer-header';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, use } from 'react';
 import { doc, query, collection, where } from 'firebase/firestore';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useParams } from 'next/navigation';
 
-export default function SellerShopPage() {
-  const params = useParams();
-  const sellerId = params.sellerId as string;
+export default function SellerShopPage(props: { params: Promise<{ sellerId: string }> }) {
+  const params = use(props.params);
+  const sellerId = params.sellerId;
 
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
@@ -27,7 +27,6 @@ export default function SellerShopPage() {
   const sellerProfileRef = useMemoFirebase(() => doc(firestore, 'userProfiles', sellerId), [firestore, sellerId]);
   const productsQuery = useMemoFirebase(() => query(collection(firestore, 'products'), where('sellerId', '==', sellerId)), [firestore, sellerId]);
   
-  // Fetch specifically the current/latest live session for this seller
   const liveSessionRef = useMemoFirebase(() => doc(firestore, 'liveSessions', sellerId), [firestore, sellerId]);
 
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
@@ -40,7 +39,6 @@ export default function SellerShopPage() {
   // --- Data Composition ---
   useEffect(() => {
     if (shopData && profileData) {
-      // Build location string from detailed fields if available
       const displayLocation = shopData.area && shopData.county 
         ? `${shopData.area}, ${shopData.county}`
         : (shopData.location || profileData.location || 'Not specified');

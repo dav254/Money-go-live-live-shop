@@ -1,4 +1,3 @@
-
 import { LandingLayout } from '@/components/layout/landing-layout';
 import {
   Accordion,
@@ -40,24 +39,7 @@ const faqs = [
             },
              {
                 q: "How can I increase my sales?",
-                a: "Uploading high-quality videos of your products is the best way to increase trust and sales. Also, enable the Reseller Program on your products to have others market them for you, and consider using our AI Tools to create better content."
-            }
-        ]
-    },
-    {
-        category: "For Resellers",
-        questions: [
-            {
-                q: "How do I earn as a reseller?",
-                a: "Find a product you like in the 'Products to Resell' tab and click the 'Share' button to get your unique link. Share this link on social media. When someone buys through your link, you earn a commission."
-            },
-            {
-                q: "When do I get my commission?",
-                a: "Commissions are marked as 'pending' when an order is placed. Once the order is successfully delivered to the customer, the commission is 'cleared' and added to your wallet for withdrawal."
-            },
-             {
-                q: "How do I track my performance?",
-                a: "Your Reseller Dashboard provides real-time analytics on your clicks, the number of sales you've generated, and your total commission earnings."
+                a: "Uploading high-quality videos of your products is the best way to increase trust and sales. Also, consider using our AI Tools to create better content."
             }
         ]
     }
