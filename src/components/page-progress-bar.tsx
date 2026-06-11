@@ -6,23 +6,23 @@ import NProgress from 'nprogress';
 
 /**
  * High-velocity Top Loading Bar.
- * Logic: Instantly jumps to 70% on click to provide immediate feedback.
- * Completes to 100% on page load.
+ * Logic: Smoothly handles navigation transitions with the requested Red (#ff0000) visual identity.
  */
 export function PageProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Finish on arrival
+    // Complete the progress bar when the route officially changes
     NProgress.done();
   }, [pathname, searchParams]);
 
   useEffect(() => {
     NProgress.configure({ 
       showSpinner: false,
-      trickleSpeed: 200,
-      minimum: 0.1
+      trickleSpeed: 150,
+      minimum: 0.1,
+      speed: 300,
     });
 
     const handleAnchorClick = (event: MouseEvent) => {
@@ -34,16 +34,14 @@ export function PageProgressBar() {
           const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
           
-          // Check if it's an internal navigation
+          // Only trigger for internal links that actually change the path
           if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
-            // High velocity jump to 70%
             NProgress.start();
-            NProgress.set(0.7); 
           }
         }
       } catch (err) {
-        // Fallback for unexpected URL formats
-        console.warn("[Progress] Velocity tracking error:", err);
+        // Silent catch for unexpected URL formats or cross-origin edge cases
+        console.warn("[Progress] Handshake error:", err);
       }
     };
 
@@ -51,6 +49,7 @@ export function PageProgressBar() {
 
     return () => {
         window.removeEventListener('click', handleAnchorClick);
+        NProgress.done();
     }
   }, []);
 

@@ -12,68 +12,61 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
 }
 
 /**
- * A fallback UI component that uses hooks but is wrapped by the class error boundary.
+ * A robust Error Boundary that handles runtime crashes without spiraling into infinite loops.
  */
-function ErrorFallback({ error, errorInfo, userId }: { error: Error, errorInfo: ErrorInfo, userId?: string }) {
-  // We initialize locally to avoid hook dependency issues during critical failures
-  const { firestore } = initializeFirebase();
-  
-  React.useEffect(() => {
-    if (firestore && error) {
-      logError(firestore, error, { 
-        userId,
-        context: { 
-          componentStack: errorInfo?.componentStack 
-        }
-      });
-    }
-  }, [firestore, error, errorInfo, userId]);
-
-  return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground p-6 text-center">
-      <h1 className="text-2xl font-black uppercase tracking-tighter text-destructive mb-2">Something went wrong</h1>
-      <p className="text-sm text-muted-foreground max-w-sm mb-6">An application error has been logged. Please try refreshing the page or contact support.</p>
-      <button 
-        onClick={() => window.location.reload()}
-        className="px-6 py-2 bg-primary text-white font-bold rounded-xl uppercase text-xs tracking-widest shadow-xl shadow-primary/20"
-      >
-        Refresh Page
-      </button>
-    </div>
-  );
-}
-
 export class GlobalErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
-    error: null,
-    errorInfo: null
+    error: null
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({ error, errorInfo });
+    // Log the error to console for development visibility
     console.error("Uncaught error caught by GlobalErrorBoundary:", error, errorInfo);
+    
+    // Attempt to log error to Firestore asynchronously
+    try {
+        const { firestore } = initializeFirebase();
+        if (firestore) {
+            logError(firestore, error, { 
+                userId: this.props.userId,
+                context: { 
+                    componentStack: errorInfo?.componentStack,
+                    type: 'boundary-catch'
+                }
+            });
+        }
+    } catch (e) {
+        // If logging fails (e.g. Firebase not ready), silent fail to avoid UI crash
+    }
   }
 
   public render() {
-    if (this.state.hasError && this.state.error && this.state.errorInfo) {
+    if (this.state.hasError) {
       return (
-        <ErrorFallback 
-          error={this.state.error} 
-          errorInfo={this.state.errorInfo} 
-          userId={this.props.userId} 
-        />
+        <div className="flex h-screen w-full flex-col items-center justify-center bg-background text-foreground p-6 text-center">
+            <h1 className="text-2xl font-black uppercase tracking-tighter text-primary mb-2">SYSTEM SIGNAL INTERRUPTED</h1>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest max-w-sm mb-8 leading-relaxed">
+                An unexpected application error has occurred. Our engineers have been alerted via the automated discovery protocol.
+            </p>
+            <button 
+                onClick={() => window.location.reload()}
+                className="h-12 px-8 bg-primary text-white font-black rounded-xl uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+            >
+                REBOOT SIGNAL
+            </button>
+        </div>
       );
     }
 
-    return <React.Fragment>{this.props.children}</React.Fragment>;
+    return this.props.children;
   }
 }
