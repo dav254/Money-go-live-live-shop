@@ -20,7 +20,10 @@ export default function HomePage() {
 
   useEffect(() => {
     setIsMounted(true);
-    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !isUserLoading && !isProfileLoading && user && userProfile) {
       const role = userProfile.userRole || userProfile.role;
       const target = role === 'seller' ? '/dashboard/seller' : 
                      role === 'admin' ? '/dashboard/admin' : 
@@ -28,7 +31,7 @@ export default function HomePage() {
                      '/buyer/dashboard';
       router.replace(target);
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+  }, [isMounted, user, userProfile, isUserLoading, isProfileLoading, router]);
 
   if (!isMounted || isUserLoading || (user && isProfileLoading)) {
     return (

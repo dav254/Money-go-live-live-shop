@@ -1,8 +1,8 @@
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { getDoc, collection, query, where, limit, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useParams, useSearchParams } from 'next/navigation';
+import { getDoc, doc } from 'firebase/firestore';
+import { useParams, useRouter } from 'next/navigation';
 import type { Order, Product } from '@/lib/types';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,14 +11,11 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, ShieldCheck, Smartphone, CreditCard, CheckCircle, SmartphoneNfc, ArrowRight, PackageCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 
 function CheckoutSkeleton() {
     return (
@@ -35,17 +32,7 @@ function CheckoutSkeleton() {
                         <Skeleton className="h-5 w-20" />
                         <Skeleton className="h-5 w-16" />
                     </div>
-                     <div className="flex justify-between">
-                        <Skeleton className="h-5 w-24" />
-                        <Skeleton className="h-5 w-16" />
-                    </div>
                 </CardContent>
-                <CardFooter>
-                     <div className="flex justify-between w-full font-bold">
-                        <Skeleton className="h-6 w-20" />
-                        <Skeleton className="h-6 w-24" />
-                    </div>
-                </CardFooter>
             </Card>
             <div className="space-y-6">
                 <Skeleton className="h-12 w-full" />
@@ -74,12 +61,16 @@ const PaystackIcon = () => (
 
 export default function CheckoutPage() {
     const params = useParams();
-    const orderId = params.orderId as string;
+    const orderId = params?.orderId as string;
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
-    const router = useRouter();
     const { toast } = useToast();
     const [isLoadingPayment, setIsLoadingPayment] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const orderRef = useMemoFirebase(() => {
         if (!orderId || !firestore) return null;
@@ -109,14 +100,13 @@ export default function CheckoutPage() {
                 setIsLoadingShipping(false);
             }
         };
-        fetchSellerShipping();
-    }, [order, firestore]);
+        if (isMounted) fetchSellerShipping();
+    }, [order, firestore, isMounted]);
     
     const subtotal = order?.subtotal ?? order?.productPrice ?? 0;
     const liveTotalAmount = subtotal + liveShippingCost;
     
-    const isLoading = isLoadingOrder || isUserLoading || isLoadingShipping;
-    const error = orderError;
+    const isLoading = !isMounted || isLoadingOrder || isUserLoading || isLoadingShipping;
 
     const orderItems = useMemo(() => {
         if (!order) return [];
@@ -133,19 +123,13 @@ export default function CheckoutPage() {
         return [];
     }, [order]);
 
-
     const handlePayment = async (gateway: 'paystack' | 'paypal') => {
         if (!order || !user?.email) {
-            toast({
-                variant: 'destructive',
-                title: 'Cannot initiate payment',
-                description: 'Order details or user email is missing.',
-            });
+            toast({ variant: 'destructive', title: 'Details missing' });
             return;
         }
 
         setIsLoadingPayment(gateway);
-
         try {
             const response = await fetch('/api/create-payment-intent', {
                 method: 'POST',
@@ -159,55 +143,26 @@ export default function CheckoutPage() {
             });
 
             const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.details || data.error || 'Failed to create payment intent.');
-            }
-            
-            if (data.checkoutUrl) {
-                window.location.href = data.checkoutUrl;
-            } else {
-                throw new Error('No checkout URL received.');
-            }
-
+            if (!response.ok) throw new Error(data.details || 'Payment setup failed');
+            if (data.checkoutUrl) window.location.href = data.checkoutUrl;
         } catch (err: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Payment Error',
-                description: err.message || 'Could not initiate payment. Please try again.',
-            });
+            toast({ variant: 'destructive', title: 'Payment Error', description: err.message });
             setIsLoadingPayment(null);
         }
     };
 
     if (isLoading) return <BuyerLayout><div className="container py-12"><CheckoutSkeleton /></div></BuyerLayout>;
-    if (error || !order) return <BuyerLayout><div className="container py-12 text-center"><h1 className="text-2xl font-bold">Order Not Found</h1></div></BuyerLayout>;
+    if (orderError || !order) return <BuyerLayout><div className="container py-12 text-center">Order not found.</div></BuyerLayout>;
     
     if (order.orderStatus !== 'pending') {
          return (
             <BuyerLayout>
-                <div className="container py-12 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-                    <div className="p-6 rounded-full bg-green-500/10 border border-green-500/20 shadow-2xl animate-in zoom-in duration-500">
+                <div className="container py-12 flex flex-col items-center justify-center text-center space-y-6">
+                    <div className="p-6 rounded-full bg-green-500/10 border border-green-500/20">
                         <PackageCheck className="h-20 w-20 text-green-500" />
                     </div>
-                    <div>
-                        <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Payment Received!</h1>
-                        <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2">Order #{order.id.substring(0, 8)} is now being prepared.</p>
-                    </div>
-                    <Card className="max-w-md w-full border-white/5 bg-neutral-900/50">
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-neutral-500 font-bold uppercase tracking-widest text-[10px]">Current Status</span>
-                                <Badge className="bg-green-600 font-black uppercase text-[10px]">{order.orderStatus}</Badge>
-                            </div>
-                            <Separator className="bg-white/5" />
-                            <p className="text-xs text-neutral-400 leading-relaxed">The seller has been notified and will start processing your delivery shortly.</p>
-                        </CardContent>
-                    </Card>
-                    <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-                        <Button asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs"><Link href="/buyer/my-orders">VIEW MY ORDERS</Link></Button>
-                        <Button variant="outline" asChild className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-white/10"><Link href="/buyer/dashboard">CONTINUE SHOPPING</Link></Button>
-                    </div>
+                    <h1 className="font-headline text-4xl font-black uppercase tracking-tighter text-white">Payment Received!</h1>
+                    <Button asChild className="h-14 px-10 rounded-2xl font-black uppercase tracking-widest text-xs"><Link href="/buyer/my-orders">VIEW MY ORDERS</Link></Button>
                 </div>
             </BuyerLayout>
         )
@@ -220,17 +175,16 @@ export default function CheckoutPage() {
                     <Card className="border-white/5 bg-card/50">
                         <CardHeader>
                             <CardTitle className="font-headline text-xl uppercase tracking-tight">Order Summary</CardTitle>
-                            <CardDescription className="text-xs uppercase tracking-widest font-bold">Review your order before payment.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {orderItems.map((item) => (
                                 <div key={item.productId} className="flex items-center gap-4">
-                                    <div className="relative h-16 w-16 rounded-xl overflow-hidden border border-white/10 shadow-lg bg-black">
+                                    <div className="relative h-16 w-16 rounded-xl overflow-hidden border">
                                         <Image src={item.imageUrl || getPlaceholderImage()} alt={item.name || 'Product'} fill className="object-cover" />
                                     </div>
                                     <div className="min-w-0">
                                         <p className="font-bold text-sm truncate uppercase tracking-tight">{item.name}</p>
-                                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Qty: {item.quantity}</p>
+                                        <p className="text-[10px] font-black uppercase text-muted-foreground">Qty: {item.quantity}</p>
                                     </div>
                                     <p className="ml-auto font-black text-sm text-primary">${(item.price * item.quantity).toLocaleString()}</p>
                                 </div>
@@ -242,40 +196,24 @@ export default function CheckoutPage() {
                             </div>
                         </CardContent>
                         <CardFooter className="bg-white/5 p-6 rounded-b-lg border-t border-white/5">
-                            <div className="flex justify-between w-full">
-                                <div className="space-y-0.5">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Total Amount</p>
-                                    <p className="text-2xl font-black tracking-tighter text-white">USD ${liveTotalAmount.toLocaleString()}</p>
-                                </div>
+                            <div className="flex justify-between w-full items-center">
+                                <p className="text-2xl font-black tracking-tighter text-white">USD ${liveTotalAmount.toLocaleString()}</p>
                                 <ShieldCheck className="h-8 w-8 text-primary/40" />
                             </div>
                         </CardFooter>
                     </Card>
 
                     <div className="space-y-6">
-                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50 ml-1">Payment Options</h2>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-white/50">Payment Method</h2>
                         <div className="grid gap-3">
-                            <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-white text-black hover:bg-neutral-200 transition-all border-none group" onClick={() => handlePayment('paystack')} disabled={!!isLoadingPayment}>
-                                <div className="h-14 w-14 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 group-hover:scale-105 transition-transform">
-                                    {isLoadingPayment === 'paystack' ? <Loader2 className="animate-spin text-black" /> : <PaystackIcon />}
-                                </div>
-                                <div className="text-left min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-black text-sm uppercase tracking-widest">Paystack</p>
-                                        <Badge className="bg-[#011b33] text-[8px] h-4 px-1 font-black border-none text-white">CARD / M-PESA</Badge>
-                                    </div>
-                                    <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">Fast M-Pesa, Card & Bank</p>
-                                </div>
+                            <Button size="lg" className="w-full justify-start gap-4 h-20 rounded-2xl bg-white text-black hover:bg-neutral-200 border-none group" onClick={() => handlePayment('paystack')} disabled={!!isLoadingPayment}>
+                                <div className="h-12 w-12 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border"><PaystackIcon /></div>
+                                <div className="text-left"><p className="font-black text-sm uppercase tracking-widest">Paystack</p><p className="text-[10px] font-bold text-neutral-500">M-PESA / CARD</p></div>
                             </Button>
 
-                            <Button size="lg" className="w-full justify-start gap-4 h-24 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white transition-all border-none group" onClick={() => handlePayment('paypal')} disabled={!!isLoadingPayment}>
-                                <div className="h-14 w-14 rounded-xl bg-white flex items-center justify-center shrink-0 border border-white/20 group-hover:scale-105 transition-transform">
-                                    {isLoadingPayment === 'paypal' ? <Loader2 className="animate-spin text-black" /> : <PayPalIcon />}
-                                </div>
-                                <div className="text-left min-w-0">
-                                    <p className="font-black text-sm uppercase tracking-widest">PayPal</p>
-                                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">Global Credit & Wallet</p>
-                                </div>
+                            <Button size="lg" className="w-full justify-start gap-4 h-20 rounded-2xl bg-[#0070BA] hover:bg-[#005ea6] text-white border-none group" onClick={() => handlePayment('paypal')} disabled={!!isLoadingPayment}>
+                                <div className="h-12 w-12 rounded-xl bg-white flex items-center justify-center shrink-0 border"><PayPalIcon /></div>
+                                <div className="text-left"><p className="font-black text-sm uppercase tracking-widest">PayPal</p><p className="text-[10px] font-bold text-white/60 uppercase">CREDIT & WALLET</p></div>
                             </Button>
                         </div>
                     </div>
