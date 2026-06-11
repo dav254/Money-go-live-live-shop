@@ -12,7 +12,7 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 24 100% 55%;
+    --primary: 0 100% 50%; /* Red #ff0000 */
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -24,7 +24,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 24 100% 55%;
+    --ring: 0 100% 50%;
     --radius: 1rem;
   }
 
@@ -35,7 +35,7 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 20% 4%;
     --popover-foreground: 0 0% 98%;
-    --primary: 24 100% 55%;
+    --primary: 0 100% 50%; /* Red #ff0000 */
     --primary-foreground: 0 0% 100%;
     --secondary: 174 85% 40%;
     --secondary-foreground: 0 0% 100%;
@@ -47,7 +47,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 15.9%;
     --input: 0 0% 15.9%;
-    --ring: 24 100% 55%;
+    --ring: 0 100% 50%;
     --radius: 1rem;
   }
 
@@ -65,7 +65,7 @@
     .font-sora { font-family: 'Sora', sans-serif; }
     
     .text-gradient {
-      background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, #9333ea 100%);
+      background: linear-gradient(135deg, #ff0000 0%, #ff4d4d 50%, #9333ea 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -73,42 +73,40 @@
     
     .cyber-grid {
       background-image: 
-        linear-gradient(rgba(255, 107, 0, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 107, 0, 0.05) 1px, transparent 1px);
+        linear-gradient(rgba(255, 0, 0, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.05) 1px, transparent 1px);
       background-size: 50px 50px;
     }
 
     .glow-primary {
-      box-shadow: 0 0 60px hsla(var(--primary), 0.3);
+      box-shadow: 0 0 60px rgba(255, 0, 0, 0.3);
     }
     
     .glow-text {
-      text-shadow: 0 0 40px hsla(var(--primary), 0.4);
+      text-shadow: 0 0 40px rgba(255, 0, 0, 0.4);
     }
 
     @keyframes aurora { 
-        0%, 100% { opacity: 0.3; transform: translateX(-5%) translateY(-5%) rotate(0deg) scale(1); } 
-        50% { opacity: 0.5; transform: translateX(5%) translateY(5%) rotate(10deg) scale(1.1); } 
+        0%, 100% { opacity: 0.3; transform: translateX(-2%) translateY(-2%) scale(1); } 
+        50% { opacity: 0.5; transform: translateX(2%) translateY(2%) scale(1.05); } 
     }
     
-    .animate-aurora { animation: aurora 20s ease-in-out infinite; }
+    .animate-aurora { animation: aurora 15s ease-in-out infinite; }
 
-    @keyframes slide-up { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-slide-up { animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
     
     @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-    .animate-fade-in { animation: fade-in 1.2s ease-out forwards; }
-    
-    @keyframes spin-slow {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    .animate-spin-slow {
-      animation: spin-slow 10s linear infinite;
-    }
+    .animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
 }
 
+/* Red Top Loading Bar */
 #nprogress .bar {
-  background: hsl(var(--primary)) !important;
+  background: linear-gradient(to right, #ff0000, #ff4d4d) !important;
   height: 3px !important;
+  box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000 !important;
+}
+
+#nprogress .peg {
+  box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000 !important;
 }
