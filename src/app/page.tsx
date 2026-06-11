@@ -9,7 +9,10 @@ import {
   Play, Tag, ShoppingBag, ShieldCheck, Users,
   Heart,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Monitor,
+  Flame,
+  Globe2
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -142,6 +145,56 @@ const EcosystemShowcase = () => (
                         </div>
                     </div>
                 </Card>
+            </div>
+        </div>
+    </div>
+);
+
+const PlatformMechanics = () => (
+    <div className="py-24 bg-black">
+        <div className="container max-w-7xl mx-auto px-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div className="space-y-8">
+                    <div className="space-y-4">
+                        <Badge className="bg-primary/10 text-primary border-primary/20 uppercase font-black tracking-widest text-[9px]">Deep Tech Protocol</Badge>
+                        <h2 className="font-cyber text-3xl md:text-5xl font-black uppercase text-white leading-tight">
+                            NEURAL COMMERCE <br />
+                            <span className="text-primary italic">ORCHESTRATION</span>
+                        </h2>
+                        <p className="text-neutral-400 font-medium leading-relaxed">GoEarn is not just a website; it's a decentralized hub of commerce signals. We've built an autonomous pipeline that handles the heavy lifting of modern entrepreneurship.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {[
+                            { icon: Monitor, title: "Cinematic Rendering", desc: "Our player optimizes 4K video delivery for instant conversion." },
+                            { icon: Flame, title: "Velocity Logic", desc: "Flash deals are triggered by real-time viewer sentiment." },
+                            { icon: Globe2, title: "Borderless Payouts", desc: "Instant settlement across M-Pesa, Bank, and Crypto rails." },
+                            { icon: ShieldCheck, title: "Escrow 2.0", desc: "Proprietary trust-lock system ensures buyer/seller safety." }
+                        ].map((m, i) => (
+                            <div key={i} className="space-y-2 p-4 rounded-2xl bg-white/5 border border-white/5">
+                                <m.icon className="h-5 w-5 text-primary" />
+                                <h4 className="font-bold text-sm text-white uppercase tracking-tighter">{m.title}</h4>
+                                <p className="text-[10px] text-neutral-500 font-bold uppercase leading-tight">{m.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="relative aspect-square lg:aspect-auto lg:h-[600px] rounded-[4rem] overflow-hidden border border-white/10 shadow-2xl">
+                    <Image 
+                        src="https://picsum.photos/seed/tech-comm/1200/1200" 
+                        alt="Mechanics" 
+                        fill 
+                        className="object-cover opacity-40"
+                        data-ai-hint="futuristic technology server"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black via-primary/5 to-transparent" />
+                    <div className="absolute bottom-12 left-12 right-12 bg-black/60 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 space-y-2">
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">SYSTEM STATUS</p>
+                        <p className="text-xl font-black text-white uppercase tracking-tighter">GLOBAL SIGNAL OPTIMAL</p>
+                        <p className="text-sm text-neutral-400 font-medium">99.9% Uptime on inter-continental commerce rails.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -310,6 +363,8 @@ export default function HomePage() {
       </section>
 
       <EcosystemShowcase />
+      
+      <PlatformMechanics />
 
       <section className="py-24 px-4 overflow-hidden">
         <div className="container max-w-7xl mx-auto">
