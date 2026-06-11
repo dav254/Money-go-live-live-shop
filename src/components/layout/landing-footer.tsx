@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Facebook, Twitter, Instagram, Youtube, Globe, Heart } from 'lucide-react';
@@ -13,39 +14,43 @@ export function LandingFooter() {
   ];
 
   return (
-    <footer style={{ position: 'relative', background: 'hsl(240, 20%, 4%)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '5rem', paddingBottom: '2.5rem' }}>
-        <div className="container" style={{ padding: '0 1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '3rem', marginBottom: '4rem' }}>
-            <div>
-              <Link href="/" className="block mb-6">
+    <footer className="relative bg-muted/30 border-t border-border pt-20 pb-10">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+            <div className="space-y-6">
+              <Link href="/" className="block">
                 <Logo className="h-12 w-auto" />
               </Link>
-              <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+              <p className="text-muted-foreground text-sm max-w-xs">
                 The world's next-generation social commerce platform. Where videos become income.
               </p>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div className="flex gap-3">
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
-                  <a key={index} href="#" style={{ width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', transition: 'all 0.3s' }}>
-                    <Icon style={{ width: '1.25rem', height: '1.25rem' }} />
+                  <a 
+                    key={index} 
+                    href="#" 
+                    className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-all duration-300"
+                  >
+                    <Icon className="w-5 h-5" />
                   </a>
                 ))}
               </div>
             </div>
 
             <div>
-              <h4 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Quick Links</h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <h4 className="font-cyber text-foreground font-bold mb-6">Quick Links</h4>
+              <ul className="space-y-4">
                 {quickLinks.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link.label}</Link>
+                    <Link href={link.href} className="text-muted-foreground hover:text-primary text-sm transition-colors">{link.label}</Link>
                   </li>
                 ))}
               </ul>
             </div>
 
             <div>
-              <h4 className="font-cyber" style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1.5rem' }}>Support</h4>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <h4 className="font-cyber text-foreground font-bold mb-6">Support</h4>
+              <ul className="space-y-4">
                 {[
                   { label: "Help Center", href: "#" },
                   { label: "FAQs", href: "/faq" },
@@ -53,20 +58,31 @@ export function LandingFooter() {
                   { label: "Terms of Service", href: "/terms" }
                 ].map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.3s' }}>{link.label}</Link>
+                    <Link href={link.href} className="text-muted-foreground hover:text-primary text-sm transition-colors">{link.label}</Link>
                   </li>
                 ))}
               </ul>
             </div>
+            
+            <div className="space-y-6">
+              <h4 className="font-cyber text-foreground font-bold">Commerce Protocol</h4>
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Live Status</p>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Global Nodes Active</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div style={{ paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>© 2026 GoEarn. All rights reserved.</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Made with</span>
-              <Heart style={{ width: '1rem', height: '1rem', color: 'hsl(270, 100%, 65%)', fill: 'hsl(270, 100%, 65%)' }} />
-              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>for the World</span>
-              <Globe className="animate-spin-slow" style={{ width: '1rem', height: '1rem', color: 'hsl(200, 100%, 55%)' }} />
+          <div className="pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-6">
+            <p className="text-muted-foreground text-sm">© 2026 GoEarn. All rights reserved.</p>
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground text-sm">Made with</span>
+              <Heart className="w-4 h-4 text-primary fill-primary" />
+              <span className="text-muted-foreground text-sm">for the World</span>
+              <Globe className="w-4 h-4 text-blue-500 animate-spin-slow" />
             </div>
           </div>
         </div>

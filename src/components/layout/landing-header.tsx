@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -17,7 +18,7 @@ export function LandingHeader() {
   ];
 
   return (
-    <header className="sticky top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-white/5">
+    <header className="sticky top-0 left-0 right-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center">
@@ -52,14 +53,14 @@ export function LandingHeader() {
       </div>
 
       {isMenuOpen && (
-        <div className="md:hidden animate-fade-in border-t border-white/5 bg-background/95 backdrop-blur-lg">
+        <div className="md:hidden animate-fade-in border-t border-border bg-background/95 backdrop-blur-lg">
           <div className="container mx-auto px-4 py-6 flex flex-col gap-4">
             {navItems.map((item) => (
               <Link key={item.label} href={item.href} className="text-muted-foreground hover:text-foreground transition-colors py-2" onClick={() => setIsMenuOpen(false)}>
                 {item.label}
               </Link>
             ))}
-            <div className="pt-4 border-t border-white/5 flex flex-col gap-3">
+            <div className="pt-4 border-t border-border flex flex-col gap-3">
               <Button variant="ghost" className="w-full" asChild><Link href="/login">Log In</Link></Button>
               <Button className="w-full font-bold bg-primary text-white" asChild><Link href="/signup?role=seller">Start Selling</Link></Button>
             </div>
