@@ -34,6 +34,7 @@ export function PageProgressBar() {
           const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
           
+          // Check if it's an internal navigation
           if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
             // High velocity jump to 70%
             NProgress.start();
@@ -41,23 +42,16 @@ export function PageProgressBar() {
           }
         }
       } catch (err) {
+        // Fallback for unexpected URL formats
         NProgress.start();
+        NProgress.set(0.7);
       }
     };
 
     window.addEventListener('click', handleAnchorClick);
 
-    // Patch router.push for programmatic navigation
-    const originalPushState = window.history.pushState;
-    window.history.pushState = (...args) => {
-      NProgress.start();
-      NProgress.set(0.7);
-      originalPushState.apply(window.history, args);
-    };
-
     return () => {
         window.removeEventListener('click', handleAnchorClick);
-        window.history.pushState = originalPushState;
     }
   }, []);
 

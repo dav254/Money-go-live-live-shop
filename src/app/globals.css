@@ -12,7 +12,7 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 0 100% 50%; /* Red #ff0000 */
+    --primary: 0 100% 50%; /* Pure Red #ff0000 */
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -35,7 +35,7 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 20% 4%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 100% 50%; /* Red #ff0000 */
+    --primary: 0 100% 50%; /* Pure Red #ff0000 */
     --primary-foreground: 0 0% 100%;
     --secondary: 174 85% 40%;
     --secondary-foreground: 0 0% 100%;
