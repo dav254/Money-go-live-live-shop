@@ -62,7 +62,7 @@ export function LandingFooter() {
               </ul>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 text-left">
                 <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Global Protocol</h4>
                 <div className="p-4 rounded-2xl bg-background border border-border shadow-sm">
                     <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">NETWORK STATUS</p>

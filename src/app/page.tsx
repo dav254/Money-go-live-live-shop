@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 
+// Optimized Dynamic Import for the Globe
 const Globe = dynamic(() => import('react-globe.gl'), { 
     ssr: false,
     loading: () => <div className="h-[400px] w-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest opacity-20">Syncing Global Signal...</div>
@@ -48,7 +49,7 @@ export default function HomePage() {
 
   return (
     <LandingLayout>
-      <div className="bg-background text-foreground">
+      <div className="bg-background text-foreground transition-colors duration-500">
         {/* Hero Section */}
         <section className="relative min-h-[70vh] flex flex-col items-center justify-center px-4 overflow-hidden border-b border-border">
           <div className="container max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10 py-12">
@@ -90,7 +91,7 @@ export default function HomePage() {
                       globeImageUrl="//unpkg.com/three-globe/example/img/earth-day.jpg"
                       bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
                       atmosphereColor="hsl(var(--primary))"
-                      atmosphereAltitude={0.1}
+                      atmosphereAltitude={0.15}
                   />
                )}
                <div className="absolute bottom-10 right-0 bg-background/80 backdrop-blur-md p-4 rounded-2xl border border-border shadow-2xl flex items-center gap-3">
@@ -110,7 +111,7 @@ export default function HomePage() {
                           <Radio className="h-4 w-4 text-red-600 animate-pulse" />
                           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">LIVE MARKET SIGNAL</span>
                       </div>
-                      <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter">DISCOVER NOW</h2>
+                      <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter">TRENDING DISCOVERY</h2>
                   </div>
               </div>
 
@@ -132,7 +133,7 @@ export default function HomePage() {
                               </Badge>
                           </div>
 
-                          <div className="absolute bottom-8 left-8 right-8 space-y-2">
+                          <div className="absolute bottom-8 left-8 right-8 space-y-2 text-left">
                               <h4 className="text-white font-black uppercase text-xl tracking-tighter leading-none">{product.name}</h4>
                               <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-1 text-primary">
@@ -180,7 +181,7 @@ export default function HomePage() {
                       </div>
                       <h3 className="font-black text-lg uppercase tracking-tight">Trust</h3>
                       <p className="text-[11px] text-muted-foreground font-bold leading-relaxed uppercase tracking-widest">
-                          Verified merchant nodes and secure payment rails ensure every transaction is final and safe.
+                          Verified merchant nodes and secure payment rails ensure every transaction is safe.
                       </p>
                   </div>
                   <div className="space-y-4 p-8 rounded-[3rem] bg-muted/30 border border-border hover:border-primary/20 transition-all group">
@@ -189,7 +190,7 @@ export default function HomePage() {
                       </div>
                       <h3 className="font-black text-lg uppercase tracking-tight">Yield</h3>
                       <p className="text-[11px] text-muted-foreground font-bold leading-relaxed uppercase tracking-widest">
-                          Resellers amplify your reach, earning verified commissions on every sale they generate.
+                          Resellers amplify your reach, earning verified commissions on every sale.
                       </p>
                   </div>
               </div>
