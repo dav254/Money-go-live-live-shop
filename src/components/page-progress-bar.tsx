@@ -22,7 +22,7 @@ export function PageProgressBar() {
     NProgress.configure({ 
       showSpinner: false,
       trickleSpeed: 200,
-      minimum: 0.7 // Start at 70% for "instant" feel
+      minimum: 0.1
     });
 
     const handleAnchorClick = (event: MouseEvent) => {
@@ -35,18 +35,16 @@ export function PageProgressBar() {
           const currentUrl = new URL(window.location.href);
           
           if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
-            // High velocity jump
+            // High velocity jump to 70%
             NProgress.start();
             NProgress.set(0.7); 
           }
         }
       } catch (err) {
-        // Fallback
         NProgress.start();
       }
     };
 
-    // Global listener for all link interactions
     window.addEventListener('click', handleAnchorClick);
 
     // Patch router.push for programmatic navigation

@@ -85,26 +85,13 @@
     .glow-text {
       text-shadow: 0 0 40px rgba(255, 0, 0, 0.4);
     }
-
-    @keyframes aurora { 
-        0%, 100% { opacity: 0.3; transform: translateX(-2%) translateY(-2%) scale(1); } 
-        50% { opacity: 0.5; transform: translateX(2%) translateY(2%) scale(1.05); } 
-    }
-    
-    .animate-aurora { animation: aurora 15s ease-in-out infinite; }
-
-    @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
-    
-    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-    .animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
 }
 
-/* Red Top Loading Bar */
+/* Red High-Velocity Top Loading Bar */
 #nprogress .bar {
   background: linear-gradient(to right, #ff0000, #ff4d4d) !important;
   height: 3px !important;
-  box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000 !important;
+  box-shadow: 0 0 15px #ff0000, 0 0 5px #ff0000 !important;
 }
 
 #nprogress .peg {
