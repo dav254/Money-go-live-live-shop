@@ -35,21 +35,8 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
-  const isLoading = isUserLoading || isProfileLoading;
+  // Blocking loading screen removed to open direct.
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center gap-2">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span>Loading Reseller Dashboard...</span>
-      </div>
-    );
-  }
-
-  if (!user || (userProfile && userProfile.userRole !== 'reseller')) {
-    return null;
-  }
-  
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
@@ -63,7 +50,7 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <ResellerHeader userProfile={userProfile} isLoading={isLoading} />
+        <ResellerHeader userProfile={userProfile} isLoading={isProfileLoading} />
         <main className="flex-1 overflow-y-auto">
           <FirebaseErrorListener />
           {children}

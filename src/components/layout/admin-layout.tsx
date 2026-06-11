@@ -34,44 +34,27 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
-  const isLoading = isUserLoading || isProfileLoading;
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center gap-2">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        <span>Verifying admin privileges...</span>
-      </div>
-    );
-  }
-
-  if (user && userProfile && userProfile.userRole === 'admin') {
-    return (
-        <SidebarProvider>
-            <Sidebar side="left" collapsible="icon">
-                <SidebarHeader className="border-b bg-card p-4">
-                    <Link href="/dashboard/admin">
-                      <Logo className="h-8 w-auto text-primary cursor-pointer" />
-                    </Link>
-                </SidebarHeader>
-                <SidebarContent>
-                    <AdminSidebar />
-                </SidebarContent>
-            </Sidebar>
-            <SidebarInset className="flex flex-col h-screen overflow-hidden">
-                <AdminHeader />
-                <main className="flex-1 overflow-y-auto">
-                  <FirebaseErrorListener />
-                  {children}
-                </main>
-            </SidebarInset>
-        </SidebarProvider>
-    );
-  }
+  // Blocking loading screen removed to open direct.
 
   return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <p>Redirecting to login...</p>
-      </div>
+      <SidebarProvider>
+          <Sidebar side="left" collapsible="icon">
+              <SidebarHeader className="border-b bg-card p-4">
+                  <Link href="/dashboard/admin">
+                    <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                  </Link>
+              </SidebarHeader>
+              <SidebarContent>
+                  <AdminSidebar />
+              </SidebarContent>
+          </Sidebar>
+          <SidebarInset className="flex flex-col h-screen overflow-hidden">
+              <AdminHeader />
+              <main className="flex-1 overflow-y-auto">
+                <FirebaseErrorListener />
+                {children}
+              </main>
+          </SidebarInset>
+      </SidebarProvider>
   );
 }

@@ -35,17 +35,8 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
-  const isLoading = isUserLoading || isProfileLoading;
-
-  if (isLoading || !user || (userProfile && userProfile.userRole !== 'seller')) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center gap-2">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p>Loading Seller Dashboard...</p>
-        </div>
-    );
-  }
-
+  // Blocking loading screen removed to open direct.
+  
   return (
     <SidebarProvider>
       <Sidebar side="left" collapsible="icon">
