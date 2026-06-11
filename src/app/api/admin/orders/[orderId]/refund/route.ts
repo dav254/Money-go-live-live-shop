@@ -31,7 +31,7 @@ export async function POST(
   const { orderId } = await params;
   
   const adminVerification = await verifyAdmin(request);
-  if (adminVerification.error) {
+  if ((adminVerification as any).error) {
     return NextResponse.json({ message: (adminVerification as any).error }, { status: 403 });
   }
 

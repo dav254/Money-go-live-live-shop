@@ -161,14 +161,14 @@ const PlatformMechanics = () => (
                             NEURAL COMMERCE <br />
                             <span className="text-primary italic">ORCHESTRATION</span>
                         </h2>
-                        <p className="text-neutral-400 font-medium leading-relaxed">GoEarn is not just a website; it's a decentralized hub of commerce signals. We've built an autonomous pipeline that handles the heavy lifting of modern entrepreneurship.</p>
+                        <p className="text-neutral-400 font-medium leading-relaxed">GoEarn is not just a website; it's a decentralized hub of commerce signals. We've built an autonomous pipeline that handles the heavy lifting of modern entrepreneurship. From AI content generation to borderless payment settlements, we orchestrate the entire value chain.</p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         {[
                             { icon: Monitor, title: "Cinematic Rendering", desc: "Our player optimizes 4K video delivery for instant conversion." },
                             { icon: Flame, title: "Velocity Logic", desc: "Flash deals are triggered by real-time viewer sentiment." },
-                            { icon: Globe2, title: "Borderless Payouts", desc: "Instant settlement across M-Pesa, Bank, and Crypto rails." },
+                            { icon: Globe2, title: "Borderless Payouts", desc: "Instant settlement across M-Pesa, Bank, and Global Card rails." },
                             { icon: ShieldCheck, title: "Escrow 2.0", desc: "Proprietary trust-lock system ensures buyer/seller safety." }
                         ].map((m, i) => (
                             <div key={i} className="space-y-2 p-4 rounded-2xl bg-white/5 border border-white/5">
@@ -192,7 +192,7 @@ const PlatformMechanics = () => (
                     <div className="absolute bottom-12 left-12 right-12 bg-black/60 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 space-y-2">
                         <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">SYSTEM STATUS</p>
                         <p className="text-xl font-black text-white uppercase tracking-tighter">GLOBAL SIGNAL OPTIMAL</p>
-                        <p className="text-sm text-neutral-400 font-medium">99.9% Uptime on inter-continental commerce rails.</p>
+                        <p className="text-sm text-neutral-400 font-medium">99.9% Uptime on inter-continental commerce rails. Our infrastructure is engineered for the highest velocity in digital trade.</p>
                     </div>
                 </div>
             </div>
@@ -317,7 +317,7 @@ export default function HomePage() {
               <span className="text-gradient glow-text">REPEAT</span>
             </h1>
             <p className="max-w-3xl mx-auto text-lg md:text-2xl text-neutral-400 font-medium leading-relaxed [text-wrap:balance]">
-              Static shops are ghosts of the past. GoEarn is the <span className="text-white font-bold">Content Engine</span> that transforms your authentic videos into a 24/7 revenue stream. 
+              Static shops are ghosts of the past. GoEarn is the <span className="text-white font-bold">Content Engine</span> that transforms your authentic videos into a 24/7 revenue stream. Our autonomous platform allows anyone to scale a brand with zero friction. 
               <span className="text-primary font-black italic ml-1 underline decoration-primary/30">Join as a Seller and get 1,000 Free AI Points.</span>
             </p>
           </motion.div>
@@ -384,7 +384,7 @@ export default function HomePage() {
               </h3>
               <p className="text-neutral-400 max-w-2xl mx-auto font-medium text-xl leading-relaxed">
                   GoEarn is now accepting a limited number of <span className="text-white font-bold underline decoration-primary/50 underline-offset-8">Founding Merchants.</span> 
-                  Receive priority discovery placement and exclusive performance bonuses for life.
+                  Receive priority discovery placement, zero processing fees for 90 days, and exclusive performance bonuses for life.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-6">
                 <Button size="lg" className="h-24 px-16 rounded-[2.5rem] font-black uppercase tracking-[0.3em] text-lg bg-white text-black hover:bg-neutral-200 shadow-[0_0_80px_rgba(255,255,255,0.1)] transition-all active:scale-95 group" asChild>
