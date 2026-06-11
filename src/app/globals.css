@@ -37,11 +37,11 @@
     --popover-foreground: 0 0% 98%;
     --primary: 0 100% 50%; /* Pure Red #ff0000 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 174 85% 40%;
+    --secondary: 240 15% 15.9%;
     --secondary-foreground: 0 0% 100%;
     --muted: 240 15% 15.9%;
     --muted-foreground: 0 0% 64.9%;
-    --accent: 320 100% 60%;
+    --accent: 0 100% 50%;
     --accent-foreground: 0 0% 98%;
     --border: 0 0% 15.9%;
     --input: 0 0% 15.9%;
@@ -61,10 +61,6 @@
 @layer utilities {
     .font-cyber { font-family: 'Orbitron', sans-serif; }
     .font-sora { font-family: 'Sora', sans-serif; }
-    
-    .glow-primary {
-      box-shadow: 0 0 20px hsla(0, 100%, 50%, 0.3);
-    }
 }
 
 /* High-Velocity Red Loading Bar */

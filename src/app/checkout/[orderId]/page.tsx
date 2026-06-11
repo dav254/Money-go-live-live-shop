@@ -15,7 +15,6 @@ import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck } from 'lu
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 
 function CheckoutSkeleton() {
     return (
