@@ -2,15 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { 
-  ArrowRight, Sparkles, Zap, 
-  Radio, Shield, PlayCircle, 
-  Activity, ZapIcon, Loader2
+  ArrowRight, Sparkles, Activity, Shield, ZapIcon, Loader2
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { useUser, useUserProfile } from '@/firebase';
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+
+// High-velocity dynamic import for the 3D Globe to prevent SSR crashes
+const GlobalSignalHub = dynamic(() => import('@/components/home/global-signal-hub'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[500px] w-full flex flex-col items-center justify-center bg-black/20 rounded-[3rem] border border-white/5">
+        <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20 mb-4" />
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/30">Calibrating Global Nodes...</p>
+    </div>
+  )
+});
 
 export default function HomePage() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -49,7 +59,7 @@ export default function HomePage() {
     <LandingLayout>
       <div className="fixed inset-0 pointer-events-none -z-10 bg-black">
         <div className="absolute inset-0 cyber-grid opacity-5" />
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,rgba(255,0,0,0.1),transparent_50%)]" />
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_-20%,rgba(255,0,0,0.15),transparent_50%)]" />
       </div>
 
       <section className="relative min-h-[85vh] flex flex-col items-center justify-center px-4">
@@ -81,6 +91,13 @@ export default function HomePage() {
             </Button>
           </div>
         </div>
+      </section>
+
+      {/* Global 3D Visual Section */}
+      <section className="py-12 bg-black">
+          <div className="container max-w-7xl mx-auto px-4">
+              <GlobalSignalHub />
+          </div>
       </section>
 
       <section className="py-24 bg-neutral-900/10 border-y border-white/5">
