@@ -25,7 +25,7 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 0 100% 50%;
-    --radius: 1rem;
+    --radius: 1.5rem;
   }
 
   .dark {
@@ -43,12 +43,10 @@
     --muted-foreground: 0 0% 64.9%;
     --accent: 320 100% 60%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
     --border: 0 0% 15.9%;
     --input: 0 0% 15.9%;
     --ring: 0 100% 50%;
-    --radius: 1rem;
+    --radius: 1.5rem;
   }
 
   * {
@@ -64,19 +62,16 @@
     .font-cyber { font-family: 'Orbitron', sans-serif; }
     .font-sora { font-family: 'Sora', sans-serif; }
     
-    .text-gradient {
-      background: linear-gradient(135deg, #ff0000 0%, #ff4d4d 50%, #9333ea 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+    .glow-primary {
+      box-shadow: 0 0 20px hsla(0, 100%, 50%, 0.3);
     }
 }
 
 /* High-Velocity Red Loading Bar */
 #nprogress .bar {
-  background: linear-gradient(to right, #ff0000, #ff4d4d) !important;
+  background: #ff0000 !important;
   height: 3px !important;
-  box-shadow: 0 0 15px #ff0000 !important;
+  box-shadow: 0 0 10px #ff0000 !important;
   z-index: 9999 !important;
 }
 

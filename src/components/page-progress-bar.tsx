@@ -5,8 +5,8 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import NProgress from 'nprogress';
 
 /**
- * High-velocity Top Loading Bar.
- * Logic: Smoothly handles navigation transitions with the requested Red (#ff0000) visual identity.
+ * High-velocity Red Loading Bar (#ff0000).
+ * Logic: Jumps to 70% instantly on click for perceived high performance.
  */
 export function PageProgressBar() {
   const pathname = usePathname();
@@ -20,8 +20,8 @@ export function PageProgressBar() {
   useEffect(() => {
     NProgress.configure({ 
       showSpinner: false,
-      trickleSpeed: 150,
-      minimum: 0.1,
+      trickleSpeed: 100,
+      minimum: 0.7, // Instant jump to 70%
       speed: 300,
     });
 
@@ -34,14 +34,13 @@ export function PageProgressBar() {
           const targetUrl = new URL(anchor.href);
           const currentUrl = new URL(window.location.href);
           
-          // Only trigger for internal links that actually change the path
+          // Only trigger for internal links that change the path
           if (targetUrl.origin === currentUrl.origin && targetUrl.pathname !== currentUrl.pathname) {
             NProgress.start();
           }
         }
       } catch (err) {
-        // Silent catch for unexpected URL formats or cross-origin edge cases
-        console.warn("[Progress] Handshake error:", err);
+        console.warn("[Progress] Signal interrupted:", err);
       }
     };
 
