@@ -29,8 +29,8 @@ import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
-import type { UserProfile } from '@/lib/types';
+import { collection, query, where } from 'firebase/firestore';
+import type { UserProfile, Product, Complaint } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -93,9 +93,20 @@ export function AdminSidebar() {
   const isActive = (path: string) => pathname.startsWith(path);
   const firestore = useFirestore();
 
-  // Fetch all user profiles for real-time counting
+  // --- Real-time User Counts ---
   const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
   const { data: allUsers } = useCollection<UserProfile>(usersQuery);
+
+  // --- Real-time Product Counts ---
+  const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  const { data: allProducts } = useCollection<Product>(productsQuery);
+
+  const reportedQuery = useMemoFirebase(() => query(
+    collection(firestore, 'complaints'), 
+    where('targetType', '==', 'product'),
+    where('status', '==', 'open')
+  ), [firestore]);
+  const { data: reportedProducts } = useCollection<Complaint>(reportedQuery);
 
   // Memoize counts for performance
   const userStats = useMemo(() => {
@@ -108,6 +119,11 @@ export function AdminSidebar() {
       suspended: allUsers.filter(u => u.status === 'suspended').length,
     };
   }, [allUsers]);
+
+  const productStats = useMemo(() => ({
+    total: allProducts?.length || 0,
+    reported: reportedProducts?.length || 0
+  }), [allProducts, reportedProducts]);
 
   return (
     <>
@@ -150,8 +166,8 @@ export function AdminSidebar() {
             icon={PackageSearch}
             basePath="products"
             items={[
-                { href: 'all', label: 'All Products' },
-                { href: 'reported', label: 'Reported' },
+                { href: 'all', label: 'All Products', badge: productStats.total },
+                { href: 'reported', label: 'Reported', badge: productStats.reported },
             ]}
         />
 
