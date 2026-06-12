@@ -11,10 +11,7 @@ export async function PUT(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const { orderId } = await params;
-<<<<<<< HEAD
-=======
   
->>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
   if (!orderId) {
     return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
   }
@@ -28,16 +25,9 @@ export async function PUT(
   let decodedToken;
   try {
     decodedToken = await auth.verifyIdToken(token);
-<<<<<<< HEAD
-    // Fetch profile to verify role
-    const profileSnap = await db.doc(`userProfiles/${decodedToken.uid}`).get();
-    if (profileSnap.data()?.userRole !== 'admin') {
-        return NextResponse.json({ message: 'Forbidden: User is not an admin' }, { status: 403 });
-=======
     const userProfile = await db.collection('userProfiles').doc(decodedToken.uid).get();
     if (userProfile.data()?.userRole !== 'admin') {
       return NextResponse.json({ message: 'Forbidden: User is not an admin' }, { status: 403 });
->>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
     }
   } catch (error) {
     return NextResponse.json({ message: 'Unauthorized: Invalid token' }, { status: 401 });

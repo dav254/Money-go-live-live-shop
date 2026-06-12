@@ -28,17 +28,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const { orderId } = await params;
-  
   const adminVerification = await verifyAdmin(request);
   if ((adminVerification as any).error) {
     return NextResponse.json({ message: (adminVerification as any).error }, { status: 403 });
   }
 
-<<<<<<< HEAD
   const { orderId } = await params;
-=======
->>>>>>> 45b2b0785b45919afcab9603bff9d1afe191a49f
   if (!orderId) {
     return NextResponse.json({ message: 'Order ID is required' }, { status: 400 });
   }
