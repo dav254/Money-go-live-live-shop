@@ -17,4 +17,12 @@ env:
   - variable: NEXT_PUBLIC_TIKTOK_CLIENT_KEY
     value: "YOUR_TIKTOK_CLIENT_KEY_HERE"
   - variable: ADMIN_WHATSAPP_API_URL
-    value: "YOUR_WHATSAPP_API_URL_HERE" # e.g. https://api.callmebot.com/whatsapp.php?phone=254xxx&apikey=xxx
+    value: "" # Generic Webhook URL (e.g. CallMeBot)
+  - variable: TWILIO_ACCOUNT_SID
+    value: "" # Your Twilio Account SID
+  - variable: TWILIO_AUTH_TOKEN
+    value: "" # Your Twilio Auth Token
+  - variable: TWILIO_FROM_WHATSAPP_NUMBER
+    value: "whatsapp:+14155238886" # Your Twilio WhatsApp Number
+  - variable: ADMIN_WHATSAPP_NUMBER
+    value: "" # Your Personal WhatsApp Number (e.g. whatsapp:+254...)

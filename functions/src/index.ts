@@ -429,23 +429,43 @@ export const notifyAdminOnOrder = functions.firestore
 
 /**
  * Internal helper to send a WhatsApp message to the admin.
- * Requires ADMIN_WHATSAPP_API_URL to be set in Firebase Config.
+ * Supports Twilio API and generic Webhooks.
  */
 async function sendWhatsAppToAdmin(message: string) {
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioFrom = process.env.TWILIO_FROM_WHATSAPP_NUMBER;
+    const adminTo = process.env.ADMIN_WHATSAPP_NUMBER;
+    
+    // 1. Prioritize Twilio SDK if credentials exist
+    if (twilioSid && twilioToken && twilioFrom && adminTo) {
+        try {
+            const client = require('twilio')(twilioSid, twilioToken);
+            await client.messages.create({
+                body: message,
+                from: twilioFrom.startsWith('whatsapp:') ? twilioFrom : `whatsapp:${twilioFrom}`,
+                to: adminTo.startsWith('whatsapp:') ? adminTo : `whatsapp:${adminTo}`,
+            });
+            functions.logger.info("Admin Twilio WhatsApp notification sent successfully.");
+            return null;
+        } catch (error: any) {
+            functions.logger.error("Twilio WhatsApp notification failed:", error.message);
+        }
+    }
+
+    // 2. Fallback to generic Webhook (e.g. CallMeBot)
     const apiUrl = process.env.ADMIN_WHATSAPP_API_URL;
-    if (!apiUrl) {
-        functions.logger.warn("ADMIN_WHATSAPP_API_URL not set. Enable this in App Hosting settings to receive live alerts. Msg:", message);
-        return null;
+    if (apiUrl) {
+        try {
+            const separator = apiUrl.includes('?') ? '&' : '?';
+            await axios.get(`${apiUrl}${separator}text=${encodeURIComponent(message)}`);
+            functions.logger.info("Admin Webhook WhatsApp notification sent successfully.");
+        } catch (error: any) {
+            functions.logger.error("Failed to send Webhook Admin WhatsApp notification:", error.message);
+        }
+    } else {
+        functions.logger.warn("No WhatsApp credentials (Twilio or API URL) configured. Msg:", message);
     }
     
-    try {
-        // Appends the encoded text to the user's provided API endpoint
-        // Supports services like CallMeBot or generic webhook bridges
-        const separator = apiUrl.includes('?') ? '&' : '?';
-        await axios.get(`${apiUrl}${separator}text=${encodeURIComponent(message)}`);
-        functions.logger.info("Admin WhatsApp notification sent successfully.");
-    } catch (error: any) {
-        functions.logger.error("Failed to send Admin WhatsApp notification:", error.message);
-    }
     return null;
 }
