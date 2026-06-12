@@ -39,13 +39,16 @@ export default function GlobalCreatorGlobe() {
 
     useEffect(() => {
         if (globeRef.current && isMounted) {
-            const controls = globeRef.current.controls();
-            if (controls) {
-                controls.autoRotate = true;
-                controls.autoRotateSpeed = 4.0;
-                controls.enableDamping = true;
-            }
-            globeRef.current.pointOfView({ lat: 5, lng: 25, altitude: 2.2 }, 1000);
+            const timer = setTimeout(() => {
+                const controls = globeRef.current.controls();
+                if (controls) {
+                    controls.autoRotate = true;
+                    controls.autoRotateSpeed = 4.0;
+                    controls.enableDamping = true;
+                }
+                globeRef.current.pointOfView({ lat: 5, lng: 25, altitude: 2.2 }, 1000);
+            }, 200);
+            return () => clearTimeout(timer);
         }
     }, [isMounted]);
 

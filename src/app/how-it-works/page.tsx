@@ -1,8 +1,8 @@
 'use client';
-import { cn } from "@/lib/utils"; // Adjust the path to match where your 'cn' helper lives
+import { cn } from "@/lib/utils";
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Video, 
   ShoppingBag, 
@@ -18,7 +18,6 @@ import {
   Globe
 } from 'lucide-react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 
 const buyerSteps = [
   {
@@ -68,7 +67,7 @@ export default function HowItWorksPage() {
               The Protocol of <span className="text-primary italic">Yield</span>
             </h1>
             <p className="text-neutral-400 text-lg md:text-xl font-medium max-w-2xl mx-auto">
-              GoEarn is a three-sided marketplace where creators, amplifiers, and shoppers thrive in a video-first ecosystem.
+              GoEarnvid is a three-sided marketplace where creators, amplifiers, and shoppers thrive in a video-first ecosystem.
             </p>
           </div>
         </section>
@@ -78,9 +77,9 @@ export default function HowItWorksPage() {
           <div className="container max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row items-center gap-12 mb-16">
               <div className="flex-1 space-y-4">
-                <Badge variant="outline" className="text-blue-500 border-blue-500/30 bg-blue-500/10 font-black px-4">FOR SHOPPERS</Badge>
+                <div className="inline-flex items-center rounded-full border px-4 py-1 text-xs font-black uppercase tracking-widest text-blue-500 border-blue-500/30 bg-blue-500/10">FOR SHOPPERS</div>
                 <h2 className="font-cyber text-4xl font-black uppercase tracking-tight">Shopping Re-imagined</h2>
-                <p className="text-neutral-400">Authentic discovery. Real-time trust. Seamless delivery.</p>
+                <p className="text-neutral-400 font-medium">Authentic discovery. Real-time trust. Seamless delivery.</p>
               </div>
             </div>
 
@@ -94,7 +93,7 @@ export default function HowItWorksPage() {
                     <CardTitle className="font-black uppercase tracking-tight text-white">{step.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-neutral-500 leading-relaxed">{step.description}</p>
+                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">{step.description}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -107,9 +106,9 @@ export default function HowItWorksPage() {
           <div className="container max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row-reverse items-center gap-12 mb-16">
               <div className="flex-1 space-y-4 text-left md:text-right">
-                <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 font-black px-4">FOR MERCHANTS</Badge>
+                <div className="inline-flex items-center rounded-full border px-4 py-1 text-xs font-black uppercase tracking-widest text-primary border-primary/30 bg-primary/10">FOR MERCHANTS</div>
                 <h2 className="font-cyber text-4xl font-black uppercase tracking-tight">The Merchant Engine</h2>
-                <p className="text-neutral-400">Transform your inventory into high-velocity viral content.</p>
+                <p className="text-neutral-400 font-medium">Transform your inventory into high-velocity viral content.</p>
               </div>
             </div>
 
@@ -123,7 +122,7 @@ export default function HowItWorksPage() {
                     <CardTitle className="font-black uppercase tracking-tight text-white">{step.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-neutral-500 leading-relaxed">{step.description}</p>
+                    <p className="text-sm text-neutral-500 leading-relaxed font-medium">{step.description}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -141,14 +140,14 @@ export default function HowItWorksPage() {
                   <CheckCircle2 className="h-5 w-5" />
                   <h4 className="font-black uppercase text-sm tracking-widest">Trust Protocol</h4>
                 </div>
-                <p className="text-sm text-neutral-500 font-medium">Every seller is verified. Every payment is held in escrow until delivery is confirmed. We eliminate the 'What I Ordered vs What I Got' risk.</p>
+                <p className="text-sm text-neutral-500 font-medium leading-relaxed">Every seller is verified. Every payment is held in escrow until delivery is confirmed. We eliminate the 'What I Ordered vs What I Got' risk.</p>
               </div>
               <div className="p-8 rounded-[3rem] bg-neutral-900 border border-white/5 space-y-4">
                 <div className="flex items-center gap-3 text-purple-500">
                   <Sparkles className="h-5 w-5" />
                   <h4 className="font-black uppercase text-sm tracking-widest">AI Optimization</h4>
                 </div>
-                <p className="text-sm text-neutral-500 font-medium">Use our neural toolkit to generate descriptions, scripts, and social captions that are engineered to convert viewers into paying customers.</p>
+                <p className="text-sm text-neutral-500 font-medium leading-relaxed">Use our neural toolkit to generate descriptions, scripts, and social captions that are engineered to convert viewers into paying customers.</p>
               </div>
             </div>
           </div>
