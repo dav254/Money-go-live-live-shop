@@ -9,7 +9,7 @@ serviceAccount: firebase-adminsdk-fbsvc@studio-1725493862-5cb95.iam.gserviceacco
 # Environment variables.
 env:
   - variable: GEMINI_API_KEY
-    value: "YOUR_GEMINI_API_KEY_HERE" # Set this in Firebase Console App Hosting Settings
+    value: "AIzaSyDZexIJJoWRI_0HnWk1Ga4V_6n1kt9PoFc" # Updated with user provided key
   - variable: NEXT_PUBLIC_BASE_URL
     value: "https://goearnvid.shop"
   - variable: PAYPAL_ENVIRONMENT
