@@ -51,10 +51,10 @@ type Reseller = {
   name: string;
   email: string;
   phone?: string;
-  totalCommissions: number; // Placeholder
-  payoutsCompleted: number; // Placeholder
-  referralLink: string; // Placeholder
-  status: 'active' | 'suspended' | 'pending'; // Placeholder
+  totalCommissions: number;
+  payoutsCompleted: number;
+  referralLink: string;
+  status: 'active' | 'suspended' | 'pending';
   avatarUrl?: string;
 };
 
@@ -76,7 +76,6 @@ const DataTableSkeleton = () => (
         </Table>
     </div>
 );
-
 
 export const columns: ColumnDef<Reseller>[] = [
   {
@@ -186,14 +185,13 @@ export default function AdminResellersPage() {
       name: profile.fullName,
       email: profile.email,
       phone: profile.phoneNumber,
-      totalCommissions: 0, // Placeholder
-      payoutsCompleted: 0, // Placeholder
-      referralLink: `/ref/${profile.username}`, // Placeholder
-      status: 'active', // Placeholder
+      totalCommissions: 0,
+      payoutsCompleted: 0,
+      referralLink: `/ref/${profile.username}`,
+      status: profile.status || 'active',
       avatarUrl: profile.profilePictureUrl,
     }));
   }, [resellersData]);
-
 
   const table = useReactTable({
     data,
@@ -213,7 +211,7 @@ export default function AdminResellersPage() {
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          User Management: Resellers
+          User Management: Resellers ({data.length})
         </h1>
         <div className="w-full">
           <div className="flex items-center py-4">
@@ -266,22 +264,24 @@ export default function AdminResellersPage() {
              <div className="flex-1 text-sm text-muted-foreground">
                 {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
+            <div className="space-x-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                >
+                    Previous
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                >
+                    Next
+                </Button>
+            </div>
           </div>
         </div>
       </div>

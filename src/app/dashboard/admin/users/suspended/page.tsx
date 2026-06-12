@@ -1,4 +1,3 @@
-
 'use client';
 
 import { AdminLayout } from '@/components/layout/admin-layout';
@@ -36,11 +35,10 @@ import { collection, query, where } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Combine UserProfile with suspension-specific data if needed in the future
 type SuspendedUser = UserProfile & {
-  reason?: string; // Placeholder for future use
-  suspendedDate?: string; // Placeholder for future use
-  admin?: string; // Placeholder for future use
+  reason?: string;
+  suspendedDate?: string;
+  admin?: string;
 };
 
 export const columns: ColumnDef<SuspendedUser>[] = [
@@ -105,13 +103,13 @@ const SuspendedTable = ({
             <Table>
                  <TableHeader>
                     <TableRow>
-                        {columns.map((col) => <TableHead key={col.id || col.accessorKey}><Skeleton className="h-5 w-full" /></TableHead>)}
+                        {columns.map((col) => <TableHead key={col.id || (col as any).accessorKey}><Skeleton className="h-5 w-full" /></TableHead>)}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {[...Array(3)].map((_, i) => (
                         <TableRow key={i}>
-                             {columns.map((col) => <TableCell key={col.id || col.accessorKey}><Skeleton className="h-6 w-full" /></TableCell>)}
+                             {columns.map((col) => <TableCell key={col.id || (col as any).accessorKey}><Skeleton className="h-6 w-full" /></TableCell>)}
                         </TableRow>
                     ))}
                 </TableBody>
@@ -197,9 +195,9 @@ export default function AdminSuspendedPage() {
         </h1>
         <Tabs defaultValue="buyers">
           <TabsList>
-            <TabsTrigger value="buyers">Buyers</TabsTrigger>
-            <TabsTrigger value="sellers">Sellers</TabsTrigger>
-            <TabsTrigger value="resellers">Resellers</TabsTrigger>
+            <TabsTrigger value="buyers">Buyers ({suspendedBuyers.length})</TabsTrigger>
+            <TabsTrigger value="sellers">Sellers ({suspendedSellers.length})</TabsTrigger>
+            <TabsTrigger value="resellers">Resellers ({suspendedResellers.length})</TabsTrigger>
           </TabsList>
           <TabsContent value="buyers" className="mt-4">
             <Card>

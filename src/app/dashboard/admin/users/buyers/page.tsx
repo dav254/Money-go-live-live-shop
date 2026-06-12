@@ -51,10 +51,10 @@ type Buyer = {
   name: string;
   email: string;
   phone?: string;
-  ordersCount: number; // Placeholder
-  walletBalance: number; // Placeholder
+  ordersCount: number;
+  walletBalance: number;
   joinedDate: string;
-  status: 'active' | 'suspended'; // Placeholder
+  status: 'active' | 'suspended';
   avatarUrl?: string;
 };
 
@@ -76,7 +76,6 @@ const DataTableSkeleton = () => (
         </Table>
     </div>
 );
-
 
 export const columns: ColumnDef<Buyer>[] = [
   {
@@ -195,11 +194,11 @@ export default function AdminBuyersPage() {
       id: profile.id,
       name: profile.fullName,
       email: profile.email,
-      phone: profile.phoneNumber, // Assuming phoneNumber exists on UserProfile
-      ordersCount: 0, // Placeholder
-      walletBalance: 0.00, // Placeholder
+      phone: profile.phoneNumber,
+      ordersCount: 0,
+      walletBalance: 0.00,
       joinedDate: profile.joinDate,
-      status: 'active', // Placeholder
+      status: profile.status || 'active',
       avatarUrl: profile.profilePictureUrl,
     }));
   }, [buyersData]);
@@ -227,12 +226,12 @@ export default function AdminBuyersPage() {
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          User Management: Buyers
+          User Management: Buyers ({data.length})
         </h1>
          <div className="w-full">
             <div className="flex items-center py-4">
                 <Input
-                placeholder="Filter by name, email, or phone..."
+                placeholder="Filter by name..."
                 value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
                 onChange={(event) =>
                     table.getColumn('name')?.setFilterValue(event.target.value)

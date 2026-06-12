@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -88,7 +87,6 @@ const DataTableSkeleton = () => (
         </Table>
     </div>
 );
-
 
 const ManagePointsDialog = ({ user, isOpen, onOpenChange }: { user: SellerRow | null, isOpen: boolean, onOpenChange: (open: boolean) => void }) => {
     const { toast } = useToast();
@@ -227,7 +225,6 @@ const SendNotificationDialog = ({ user, isOpen, onOpenChange }: { user: SellerRo
     );
 };
 
-
 export default function AdminSellersPage() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -263,7 +260,6 @@ export default function AdminSellersPage() {
       }));
     }
   };
-
 
   const handleStatusUpdate = async (userId: string, newStatus: 'active' | 'suspended') => {
     if (!firestore) return;
@@ -310,7 +306,6 @@ export default function AdminSellersPage() {
       aiPoints: profile.aiPoints || 0,
     }));
   }, [sellersData]);
-  
   
     const columns: ColumnDef<SellerRow>[] = React.useMemo(() => [
     {
@@ -464,7 +459,6 @@ export default function AdminSellersPage() {
     },
     ], [handleDeleteSeller, handleStatusUpdate, handleVerificationUpdate]);
 
-
   const table = useReactTable({
     data,
     columns,
@@ -482,12 +476,12 @@ export default function AdminSellersPage() {
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          User Management: Sellers
+          User Management: Sellers ({data.length})
         </h1>
         <div className="w-full">
           <div className="flex items-center py-4">
             <Input
-              placeholder="Filter by store, owner, or email..."
+              placeholder="Filter stores..."
               value={(table.getColumn('businessName')?.getFilterValue() as string) ?? ''}
               onChange={(event) => table.getColumn('businessName')?.setFilterValue(event.target.value)}
               className="max-w-sm"

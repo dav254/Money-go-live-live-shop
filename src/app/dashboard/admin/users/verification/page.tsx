@@ -53,7 +53,7 @@ const DataTableSkeleton = () => (
             <TableBody>
                 {Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
-                        {Array.from({ length: 6 }).map((_, j) => <TableCell key={j}><Skeleton className="h-6 w-full" /></TableCell>)}
+                        {Array.from({ length: 6 }).map((_, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}
                     </TableRow>
                 ))}
             </TableBody>
@@ -122,7 +122,6 @@ export default function AdminVerificationPage() {
       header: 'Documents Uploaded',
       cell: ({ row }) => (
           <div className="flex flex-wrap gap-1">
-              {/* Placeholder for documents */}
               <Badge variant="secondary">National ID</Badge>
               <Badge variant="secondary">Business Permit</Badge>
           </div>
@@ -182,7 +181,7 @@ export default function AdminVerificationPage() {
     <AdminLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">
-          User Management: Verification Requests
+          User Management: Verification Requests ({requests?.length || 0})
         </h1>
         {isLoading ? <DataTableSkeleton /> : (
         <div className="rounded-md border">
