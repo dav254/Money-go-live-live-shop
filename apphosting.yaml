@@ -16,3 +16,5 @@ env:
     value: "live"
   - variable: NEXT_PUBLIC_TIKTOK_CLIENT_KEY
     value: "YOUR_TIKTOK_CLIENT_KEY_HERE"
+  - variable: ADMIN_WHATSAPP_API_URL
+    value: "YOUR_WHATSAPP_API_URL_HERE" # e.g. https://api.callmebot.com/whatsapp.php?phone=254xxx&apikey=xxx

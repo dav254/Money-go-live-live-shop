@@ -1,7 +1,6 @@
-
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import type { UserProfile, PayoutMethod } from "@/lib/types";
+import type { UserProfile, PayoutMethod } from "./types";
 import axios from 'axios';
 
 admin.initializeApp();
@@ -377,7 +376,7 @@ export const processPayout = functions.firestore
               userId: sellerId,
               orderId: payoutId, // Use payoutId as the source reference
               type: "PAYOUT_COMPLETED",
-              amount: -amount, // Negative amount as it's a debit from their wallet
+              amount: -amount, // Negative amount as it's a delete from their wallet
               description: `Payout to ${payoutMethodInfo}`,
               timestamp: admin.firestore.FieldValue.serverTimestamp(),
             });
@@ -395,3 +394,58 @@ export const processPayout = functions.firestore
         }
     });
 
+/**
+ * Triggers a notification to the administrator via WhatsApp when a new user registers.
+ */
+export const notifyAdminOnSignup = functions.firestore
+    .document("userProfiles/{userId}")
+    .onCreate(async (snap, context) => {
+        const userData = snap.data();
+        const role = userData.userRole || userData.role || 'buyer';
+        const name = userData.fullName || 'New User';
+        
+        const dashboardLink = `https://goearnvid.shop/dashboard/admin/users/${role}s`;
+        const message = `🚀 NEW REGISTRATION!\nName: ${name}\nRole: ${role.toUpperCase()}\nDashboard: ${dashboardLink}`;
+        
+        return await sendWhatsAppToAdmin(message);
+    });
+
+/**
+ * Triggers a notification to the administrator via WhatsApp when a new order is created.
+ * This ensures the admin can verify payment and coordinate logistics immediately.
+ */
+export const notifyAdminOnOrder = functions.firestore
+    .document("orders/{orderId}")
+    .onCreate(async (snap, context) => {
+        const orderData = snap.data();
+        const amount = orderData.totalAmount;
+        const product = orderData.productName || 'Product';
+        
+        const orderLink = `https://goearnvid.shop/dashboard/admin/orders/all?orderId=${context.params.orderId}`;
+        const message = `💰 NEW ORDER RECEIVED!\nOrder ID: #${context.params.orderId.substring(0, 6)}\nItem: ${product}\nTotal: $${amount.toFixed(2)}\nAdmin Panel: ${orderLink}`;
+        
+        return await sendWhatsAppToAdmin(message);
+    });
+
+/**
+ * Internal helper to send a WhatsApp message to the admin.
+ * Requires ADMIN_WHATSAPP_API_URL to be set in Firebase Config.
+ */
+async function sendWhatsAppToAdmin(message: string) {
+    const apiUrl = process.env.ADMIN_WHATSAPP_API_URL;
+    if (!apiUrl) {
+        functions.logger.warn("ADMIN_WHATSAPP_API_URL not set. Enable this in App Hosting settings to receive live alerts. Msg:", message);
+        return null;
+    }
+    
+    try {
+        // Appends the encoded text to the user's provided API endpoint
+        // Supports services like CallMeBot or generic webhook bridges
+        const separator = apiUrl.includes('?') ? '&' : '?';
+        await axios.get(`${apiUrl}${separator}text=${encodeURIComponent(message)}`);
+        functions.logger.info("Admin WhatsApp notification sent successfully.");
+    } catch (error: any) {
+        functions.logger.error("Failed to send Admin WhatsApp notification:", error.message);
+    }
+    return null;
+}
