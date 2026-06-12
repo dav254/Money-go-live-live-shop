@@ -28,29 +28,33 @@ export function BuyerLayout({ children, fullWidth = false }: { children: React.R
     }
   }, [user, isLoading, router]);
 
-  // Instant Access: Removed blocking isLoading screen
   return (
     <SidebarProvider>
-      <Sidebar side="left" collapsible="icon">
-        <SidebarHeader className="border-b bg-card p-4">
-          <Link href="/buyer/dashboard">
-            <Logo className="h-8 w-auto text-primary cursor-pointer" />
-          </Link>
-        </SidebarHeader>
-        <SidebarContent>
-          <BuyerSidebar />
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <BuyerHeader />
-        <main className={cn("flex-1 overflow-y-auto", !fullWidth && "p-4 sm:p-6 lg:p-8")}>
-          <div className={cn("mx-auto h-full relative", !fullWidth && "max-w-7xl")}>
-            <FirebaseErrorListener />
-            {children}
-          </div>
-        </main>
-        <Toaster />
-      </SidebarInset>
+      <div className="w-full max-w-full overflow-x-hidden flex min-h-screen">
+        <Sidebar side="left" collapsible="icon">
+          <SidebarHeader className="border-b bg-card p-4">
+            <Link href="/buyer/dashboard">
+              <Logo className="h-8 w-auto text-primary cursor-pointer" />
+            </Link>
+          </SidebarHeader>
+          <SidebarContent>
+            <BuyerSidebar />
+          </SidebarContent>
+        </Sidebar>
+        <SidebarInset className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+          <BuyerHeader />
+          <main className={cn(
+            "flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full",
+            fullWidth ? "p-0" : "p-4 md:p-6 lg:p-8"
+          )}>
+            <div className={cn("h-full relative w-full", !fullWidth && "max-w-7xl mx-auto")}>
+              <FirebaseErrorListener />
+              {children}
+            </div>
+          </main>
+          <Toaster />
+        </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }

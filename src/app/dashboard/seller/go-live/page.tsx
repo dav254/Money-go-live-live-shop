@@ -63,14 +63,12 @@ export default function SellerGoLivePage() {
     setIsStarting(true);
     setIsHardwareReleased(false);
     
-    // Cleanup local preview stream
     if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
         videoRef.current.srcObject = null;
     }
 
     try {
-      // Start as 'live' immediately
       const response = await fetch('/api/live-session', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${await user.getIdToken()}`, 'Content-Type': 'application/json' },
@@ -154,7 +152,7 @@ export default function SellerGoLivePage() {
   if (isConfigMissing) {
     return (
       <SellerLayout>
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] p-8">
+        <div className="flex flex-col items-center justify-center h-full w-full p-4 md:p-8">
           <Card className="max-w-md w-full border-yellow-500/20 bg-yellow-500/5">
             <CardHeader className="text-center">
               <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
@@ -171,13 +169,10 @@ export default function SellerGoLivePage() {
   if (isStarting && !wantsToSetup) {
       return (
           <SellerLayout>
-              <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)]">
-                <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                    <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
-                </div>
+              <div className="flex flex-col items-center justify-center h-full w-full p-4">
+                <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
                 <h2 className="font-cyber text-xl font-black uppercase tracking-tighter">Initializing Broadcast...</h2>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-2">Connecting to global discovery pipe</p>
+                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-2">Connecting to global discovery pipe</p>
               </div>
           </SellerLayout>
       )
@@ -186,61 +181,61 @@ export default function SellerGoLivePage() {
   if (!wantsToSetup || !meetingId) {
       return (
           <SellerLayout fullWidth>
-              <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex flex-col">
+              <div className="relative h-full min-h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex flex-col max-w-full">
                   <div className="absolute inset-0 z-0">
                     <video ref={videoRef} autoPlay muted playsInline className={cn("h-full w-full object-cover transition-all duration-700", isHardwareReleased ? "opacity-20 grayscale blur-xl" : "opacity-60")} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                   </div>
 
-                  <div className="absolute top-6 left-6 z-10 flex items-center gap-4 pointer-events-auto">
+                  <div className="absolute top-4 left-4 md:top-6 md:left-6 z-30 flex flex-wrap items-center gap-2 md:gap-4 pointer-events-auto">
                      <div className={cn(
-                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
+                        "px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-[8px] md:text-[10px] font-black tracking-widest flex items-center gap-2 md:gap-3 backdrop-blur-xl border border-white/10",
                         "bg-neutral-800 text-neutral-400"
                      )}>
-                        <div className={cn("h-2 w-2 rounded-full bg-neutral-600")} />
+                        <div className={cn("h-1.5 w-1.5 md:h-2 md:w-2 rounded-full bg-neutral-600")} />
                         PREVIEW MODE
                      </div>
                      
-                     <Badge variant="outline" className="h-10 px-4 rounded-xl border-white/10 bg-black/40 backdrop-blur-md text-white font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
-                        <BadgeCent className="h-4 w-4 text-primary" />
+                     <Badge variant="outline" className="h-8 md:h-10 px-3 md:px-4 rounded-xl border-white/10 bg-black/40 backdrop-blur-md text-white font-black uppercase tracking-widest text-[8px] md:text-[10px] flex items-center gap-2">
+                        <BadgeCent className="h-3 w-3 md:h-4 md:w-4 text-primary" />
                         Balance: {(userProfile?.aiPoints || 0).toLocaleString()}
                      </Badge>
                   </div>
 
-                  <div className="flex-1 flex flex-col items-center justify-center relative z-20 p-6 text-center">
+                  <div className="flex-1 flex flex-col items-center justify-center relative z-20 p-4 md:p-6 text-center w-full max-w-full">
                       <div className="max-w-md w-full animate-in fade-in zoom-in-95 duration-500 space-y-6">
                           {isHardwareReleased ? (
-                              <div className="mb-4 p-6 rounded-full bg-neutral-900 border border-white/10 w-fit mx-auto shadow-2xl">
-                                <PowerOff className="h-16 w-16 text-neutral-600" />
+                              <div className="mb-4 p-4 md:p-6 rounded-full bg-neutral-900 border border-white/10 w-fit mx-auto shadow-2xl">
+                                <PowerOff className="h-10 w-10 md:h-16 md:w-16 text-neutral-600" />
                               </div>
                           ) : (
-                              <div className="mb-4 p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
-                                <Video className="h-16 w-16 text-primary" />
+                              <div className="mb-4 p-4 md:p-6 rounded-full bg-primary/10 border border-primary/20 w-fit mx-auto shadow-2xl shadow-primary/20">
+                                <Video className="h-10 w-10 md:h-16 md:w-16 text-primary" />
                               </div>
                           )}
 
                           {!isHardwareReleased && (
-                              <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
+                              <div className="space-y-4 animate-in fade-in slide-in-from-top-4 w-full">
                                   <div className="text-left space-y-2">
-                                      <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Show Title (What viewers see)</Label>
+                                      <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-primary ml-1">Show Title</Label>
                                       <div className="relative">
                                           <Type className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                                           <Input 
                                               value={streamTitle}
                                               onChange={(e) => setStreamTitle(e.target.value)}
-                                              placeholder="E.g. FLASH DEALS & NEW STOCK!"
-                                              className="h-14 bg-black/40 border-white/10 rounded-2xl pl-12 font-bold text-white uppercase tracking-tight"
+                                              placeholder="E.g. FLASH DEALS!"
+                                              className="h-12 md:h-14 bg-black/40 border-white/10 rounded-2xl pl-12 font-bold text-white uppercase tracking-tight text-xs md:text-base"
                                           />
                                       </div>
                                   </div>
                                   
                                   <Button 
                                     size="lg" 
-                                    className="w-full h-20 rounded-[2rem] font-black text-2xl bg-red-600 hover:bg-red-700 text-white shadow-2xl shadow-red-600/40 group transition-all" 
+                                    className="w-full h-16 md:h-20 rounded-[2rem] font-black text-xl md:text-2xl bg-red-600 hover:bg-red-700 text-white shadow-2xl shadow-red-600/40 group transition-all" 
                                     onClick={handleStartBroadcastDirect} 
                                     disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !currentToken}
                                   >
-                                      {isStarting ? <Loader2 className="animate-spin mr-3 h-8 w-8" /> : <Rocket className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />} 
+                                      {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6 md:h-8 md:w-8" /> : <Rocket className="mr-3 h-6 w-6 md:h-8 md:w-8 group-hover:scale-110 transition-transform" />} 
                                       START BROADCAST
                                   </Button>
                               </div>
@@ -249,34 +244,34 @@ export default function SellerGoLivePage() {
                           {isHardwareReleased && (
                               <Button 
                                 size="lg" 
-                                className="w-full h-20 rounded-[2rem] font-black text-xl bg-white text-black hover:bg-neutral-200 shadow-2xl transition-all" 
+                                className="w-full h-16 md:h-20 rounded-[2rem] font-black text-lg md:text-xl bg-white text-black hover:bg-neutral-200 shadow-2xl transition-all" 
                                 onClick={handleReactivateCamera}
                               >
-                                  <Camera className="mr-3 h-8 w-8" /> 
+                                  <Camera className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 
                                   PREPARE STUDIO
                               </Button>
                           )}
                           
-                          <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
-                             {isHardwareReleased ? "Hardware Disconnected for Privacy" : "100 Points per 70-minute session"}
+                          <p className="mt-4 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+                             {isHardwareReleased ? "Hardware Offline" : "100 Points per session"}
                           </p>
 
                           {hasPermissions === false && (
-                              <Alert variant="destructive" className="mt-8 bg-red-950/50 border-red-500/50">
+                              <Alert variant="destructive" className="mt-8 bg-red-950/50 border-red-500/50 text-left">
                                   <AlertCircle className="h-4 w-4" />
-                                  <AlertTitle className="font-black uppercase text-[10px] tracking-widest">Camera Denied</AlertTitle>
-                                  <AlertDescription className="text-xs font-medium">Please enable your camera and microphone in browser settings to start broadcasting.</AlertDescription>
+                                  <AlertTitle className="font-black uppercase text-[10px] tracking-widest">Access Denied</AlertTitle>
+                                  <AlertDescription className="text-xs font-medium">Enable camera and microphone in settings to start.</AlertDescription>
                               </Alert>
                           )}
                       </div>
                   </div>
 
-                  <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end pointer-events-none opacity-40">
+                  <div className="absolute bottom-4 left-4 right-4 md:bottom-8 md:left-8 md:right-8 z-20 flex justify-between items-end pointer-events-none opacity-40">
                       <div className="space-y-1">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-primary">System</p>
-                          <p className="text-[10px] font-bold text-white max-w-[200px]">{isHardwareReleased ? 'Cam/Mic: Offline' : 'Cam/Mic: Active'}</p>
+                          <p className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-primary">Status</p>
+                          <p className="text-[9px] md:text-[10px] font-bold text-white uppercase">{isHardwareReleased ? 'Cam: Off' : 'Cam: Active'}</p>
                       </div>
-                      <Zap className="h-8 w-8 text-primary" />
+                      <Zap className="h-6 w-6 md:h-8 md:w-8 text-primary" />
                   </div>
               </div>
           </SellerLayout>
@@ -285,7 +280,7 @@ export default function SellerGoLivePage() {
 
   return (
     <SellerLayout fullWidth>
-      <div className="flex-1 relative bg-black h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex-1 relative bg-black h-full overflow-hidden w-full max-w-full">
         {currentToken && (
             <VideoSDKStudio 
               meetingId={meetingId} 

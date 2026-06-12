@@ -45,6 +45,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import type { Product } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 const MAX_IMAGES = 5;
 
@@ -221,28 +222,28 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full max-w-full overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           
-          <div className="lg:col-span-2 space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
-                <CardDescription>Give your product a clear name and detailed description.</CardDescription>
+          <div className="lg:col-span-2 space-y-6 md:space-y-8">
+            <Card className="w-full max-w-full overflow-hidden">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-xl md:text-2xl">Basic Information</CardTitle>
+                <CardDescription className="text-xs md:text-sm">Give your product a clear name and detailed description.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 md:p-6 pt-0 space-y-4">
                 <FormField control={form.control} name="productName" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
-                    <FormControl><Input placeholder="e.g. Vintage Leather Jacket" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g. Leather Jacket" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="brand" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Brand</FormLabel>
-                      <FormControl><Input placeholder="e.g. Nike, Apple, or Handmade" {...field} /></FormControl>
+                      <FormControl><Input placeholder="e.g. Nike" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -259,7 +260,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     </FormItem>
                   )} />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="condition" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Condition</FormLabel>
@@ -267,7 +268,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="new">Brand New</SelectItem>
-                          <SelectItem value="used">Pre-owned / Used</SelectItem>
+                          <SelectItem value="used">Used</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -276,8 +277,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                    <FormField control={form.control} name="tags" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Search Tags</FormLabel>
-                      <FormControl><Input placeholder="summer, leather, vintage" {...field} /></FormControl>
-                      <FormDescription>Comma-separated keywords for search.</FormDescription>
+                      <FormControl><Input placeholder="summer, leather" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -285,22 +285,22 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Full Description</FormLabel>
-                    <FormControl><Textarea rows={6} placeholder="Describe features, size, material, etc." {...field} /></FormControl>
+                    <FormControl><Textarea rows={6} placeholder="Describe features..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ImageIcon className="text-primary" /> Product Media</CardTitle>
-                <CardDescription>Upload exactly 5 high-quality images and optional videos.</CardDescription>
+            <Card className="w-full max-w-full overflow-hidden">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><ImageIcon className="text-primary h-5 w-5" /> Product Media</CardTitle>
+                <CardDescription className="text-xs md:text-sm">Upload exactly 5 high-quality images and optional videos.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-4 md:p-6 pt-0 space-y-6">
                 <div>
-                  <Label className="mb-4 block">Product Images (5 Required)</Label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <Label className="mb-4 block text-sm">Product Images (5 Slots)</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3">
                     {imageFiles.map((file, i) => (
                       <div key={i} className="relative aspect-square rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted/50 group">
                         {file ? (
@@ -315,7 +315,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                               type="button" 
                               variant="destructive" 
                               size="icon" 
-                              className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" 
+                              className="absolute top-1 right-1 h-6 w-6" 
                               onClick={() => removeImage(i)}
                             >
                               <X className="h-3 w-3" />
@@ -324,11 +324,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         ) : (
                           <button 
                             type="button" 
-                            className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors"
+                            className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors p-1"
                             onClick={() => imageInputRefs.current[i]?.click()}
                           >
-                            <UploadCloud className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Slot {i + 1}</span>
+                            <UploadCloud className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-[8px] font-black uppercase text-muted-foreground">Slot {i + 1}</span>
                           </button>
                         )}
                         <input 
@@ -343,15 +343,15 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="bg-white/5" />
 
                 <div>
-                  <Label className="mb-4 block">Product Videos (Optional)</Label>
+                  <Label className="mb-4 block text-sm">Videos (Optional)</Label>
                   <div className="space-y-4">
-                    <Input type="file" accept="video/*" multiple onChange={handleVideoChange} />
-                    <div className="grid grid-cols-3 gap-4">
+                    <Input type="file" accept="video/*" multiple onChange={handleVideoChange} className="text-xs" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
                       {existingVideoUrls.map((url, i) => (
-                        <div key={`ex-${i}`} className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
+                        <div key={`ex-${i}`} className="relative aspect-video rounded-lg overflow-hidden border bg-black">
                           <video src={url} className="w-full h-full object-cover" muted />
                           <Button 
                             type="button" 
@@ -368,7 +368,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         <div key={`new-${i}`} className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
                           <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" muted />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="text-[10px] font-black text-white">{Math.round(uploadProgress[file.name] || 0)}%</span>
+                            <span className="text-[8px] font-black text-white">{Math.round(uploadProgress[file.name] || 0)}%</span>
                           </div>
                           <Button 
                             type="button" 
@@ -388,84 +388,82 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
             </Card>
           </div>
 
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Percent className="text-primary" /> Pricing & Discount</CardTitle>
-                <CardDescription>Set your selling price and an optional "Was Price" to show a discount.</CardDescription>
+          <div className="space-y-6 md:space-y-8">
+            <Card className="w-full max-w-full overflow-hidden">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Percent className="text-primary h-5 w-5" /> Pricing</CardTitle>
+                <CardDescription className="text-xs md:text-sm">Set your selling price and discounts.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="p-4 md:p-6 pt-0 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField control={form.control} name="currency" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="text-xs"><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code} ({curr.symbol})</SelectItem>)}
+                          {SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code} className="text-xs">{curr.code}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sale Price ({form.watch('currency')})</FormLabel>
-                      <FormControl><Input type="number" {...field} /></FormControl>
+                      <FormLabel>Price ({form.watch('currency')})</FormLabel>
+                      <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="price" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Market Price (USD Equiv.)</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
-                    <FormDescription>Calculated price for global buyers.</FormDescription>
+                    <FormLabel>Global Price (USD)</FormLabel>
+                    <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="wasPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Was Price (USD) - <span className="text-destructive font-bold">Optional Discount</span></FormLabel>
-                      <FormControl><Input type="number" placeholder="e.g. 100" {...field} value={field.value ?? ''} /></FormControl>
-                      <FormDescription>The original price before the current sale price.</FormDescription>
+                      <FormLabel>Original Price (USD)</FormLabel>
+                      <FormControl><Input type="number" {...field} value={field.value ?? ''} className="text-xs" /></FormControl>
                       <FormMessage />
                     </FormItem>
                 )} />
                 <FormField control={form.control} name="stock" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stock Quantity</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormLabel>Units Available</FormLabel>
+                    <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Truck className="text-primary" /> Fulfillment</CardTitle>
+            <Card className="w-full max-w-full overflow-hidden">
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Truck className="text-primary h-5 w-5" /> Logistics</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-4 md:p-6 pt-0 space-y-4">
                 <FormField control={form.control} name="shippingCost" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Shipping Fee (USD)</FormLabel>
-                    <FormControl><Input type="number" {...field} /></FormControl>
+                    <FormLabel>Shipping (USD)</FormLabel>
+                    <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Delivery Method Description</FormLabel>
-                    <FormControl><Textarea rows={2} placeholder="e.g. Same day via Boda, 2 days via G4S" {...field} /></FormControl>
+                    <FormLabel>Instructions</FormLabel>
+                    <FormControl><Textarea rows={2} placeholder="Dispatch terms..." {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Button type="submit" className="w-full h-14 font-black uppercase tracking-widest text-lg shadow-xl shadow-primary/20" disabled={isUploading}>
-              {isUploading ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" />}
-              {productToEdit ? 'Update Product' : 'Publish to Marketplace'}
+            <Button type="submit" className="w-full h-14 md:h-16 font-black uppercase tracking-widest text-base md:text-lg shadow-xl shadow-primary/20" disabled={isUploading}>
+              {isUploading ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
+              {productToEdit ? 'UPDATE' : 'PUBLISH'}
             </Button>
           </div>
         </div>

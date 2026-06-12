@@ -33,26 +33,40 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router]);
 
-  // Instant Access: Removed blocking isLoading screen
+  if (isUserLoading || isProfileLoading || !user || (userProfile && userProfile.userRole !== 'seller')) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+            <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Syncing Merchant Node...</p>
+        </div>
+    );
+  }
+
   return (
     <SidebarProvider>
-      <Sidebar side="left" collapsible="icon">
-        <SidebarHeader className="border-b bg-card p-4">
-          <Link href="/dashboard/seller">
-            <Logo className="h-8 w-auto text-primary cursor-pointer" />
-          </Link>
-        </SidebarHeader>
-        <SidebarContent>
-          <SellerSidebar />
-        </SidebarContent>
-      </Sidebar>
-      <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <SellerHeader />
-        <main className={cn("flex-1 overflow-y-auto", fullWidth && "p-0")}>
-          <FirebaseErrorListener />
-          {children}
-        </main>
-      </SidebarInset>
+      <div className="w-full max-w-full overflow-x-hidden flex min-h-screen">
+        <Sidebar side="left" collapsible="icon">
+          <SidebarHeader className="border-b bg-card p-4">
+            <Link href="/dashboard/seller">
+              <Logo className="h-8 w-auto text-primary cursor-pointer" />
+            </Link>
+          </SidebarHeader>
+          <SidebarContent>
+            <SellerSidebar />
+          </SidebarContent>
+        </Sidebar>
+        <SidebarInset className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
+          <SellerHeader />
+          <main className={cn(
+            "flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full",
+            fullWidth ? "p-0" : "p-4 md:p-8"
+          )}>
+            <div className={cn("w-full h-full", !fullWidth && "max-w-7xl mx-auto")}>
+              <FirebaseErrorListener />
+              {children}
+            </div>
+          </main>
+        </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }

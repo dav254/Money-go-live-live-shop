@@ -15,10 +15,6 @@ import { LivePromoPanel } from './LivePromoPanel';
 import { LiveViewersList } from './LiveViewersList';
 import type { LiveSession } from '@/lib/types';
 
-/**
- * Optimized ParticipantView for the Seller Studio.
- * Video fits screen with object-cover for immersive feel.
- */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream } = useParticipant(participantId);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -79,14 +75,14 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50 w-[95%] max-w-fit">
       
       <Button
         size="icon"
         variant="ghost"
         onClick={() => onTogglePanel('chat')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all relative",
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all relative shrink-0",
             activePanel === 'chat' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -104,7 +100,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('viewers')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
             activePanel === 'viewers' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -116,7 +112,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('products')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
             activePanel === 'products' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -128,19 +124,19 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('promos')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all",
+            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
             activePanel === 'promos' ? "bg-yellow-500 text-black scale-110 shadow-lg shadow-yellow-500/20" : "text-white/70 hover:bg-white/10"
         )}
       >
         <Zap className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
 
-      <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
+      <div className="w-px h-8 bg-white/10 mx-1 md:mx-2 hidden sm:block" />
 
       {!isLive ? (
         <Button
           onClick={onBroadcast}
-          className="rounded-xl font-black px-6 md:px-10 h-10 md:h-12 text-xs md:sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none"
+          className="rounded-xl font-black px-4 md:px-10 h-10 md:h-12 text-[10px] md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none shrink-0"
         >
           START BROADCAST
         </Button>
@@ -148,7 +144,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         <Button
           variant="destructive"
           onClick={handleEndClick}
-          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-xs md:sm text-white"
+          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-[10px] md:text-sm text-white shrink-0"
         >
           <StopCircle className="mr-2 h-4 w-4" /> END SHOW
         </Button>
@@ -272,23 +268,21 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   };
 
   return (
-    <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
-      <div className="flex-1 relative flex flex-col transition-all duration-500 ease-in-out">
-          <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
-              <div className="pointer-events-auto flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
-                        isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
-                    )}>
-                        <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
-                        {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
-                    </div>
+    <div className="flex flex-col md:flex-row h-full w-full bg-neutral-950 overflow-hidden">
+      <div className="flex-1 relative flex flex-col transition-all duration-500 ease-in-out min-w-0">
+          <div className="absolute top-6 left-6 right-6 md:top-10 md:left-10 md:right-10 z-30 flex items-center justify-between pointer-events-none">
+              <div className="pointer-events-auto flex items-center gap-2 md:gap-3 flex-wrap">
+                  <div className={cn(
+                      "px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-[9px] md:text-[10px] font-black tracking-widest flex items-center gap-2 md:gap-3 backdrop-blur-xl border border-white/10",
+                      isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
+                  )}>
+                      <div className={cn("h-1.5 w-1.5 md:h-2 md:w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
+                      {isLive ? "LIVE" : "PREVIEW"}
                   </div>
 
                   {isLive && (
                     <div className={cn(
-                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-2 backdrop-blur-xl border border-white/10",
+                        "px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-[9px] md:text-[10px] font-black tracking-widest flex items-center gap-2 backdrop-blur-xl border border-white/10",
                         isLowTime ? "bg-orange-600/20 border-orange-500/50 text-orange-500" : "bg-black/40 text-white/70"
                     )}>
                         <Clock className={cn("h-3 w-3", isLowTime && "animate-spin-slow")} />
@@ -298,7 +292,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
               </div>
           </div>
 
-          <div className="flex-1 relative">
+          <div className="flex-1 relative min-h-0">
             <MeetingConsumer>
               {({ participants }) => {
                 const localParticipant = Array.from(participants.values()).find(p => p.local);
@@ -307,15 +301,12 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                     <ParticipantView participantId={localParticipant.id} />
                     <FloatingChatOverlay 
                       streamId={user?.uid || ''} 
-                      className="absolute bottom-20 left-4 z-40"
+                      className="absolute bottom-20 left-4 z-40 max-w-[80%]"
                     />
                   </div>
                 ) : (
                   <div className="h-full w-full flex flex-col items-center justify-center bg-black">
-                    <div className="relative mb-6">
-                        <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-                        <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />
-                    </div>
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
                   </div>
                 );
               }}
@@ -333,13 +324,13 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
       </div>
 
       <div className={cn(
-          "shrink-0 border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden h-full",
+          "shrink-0 border-t md:border-t-0 md:border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden h-full",
           activePanel ? "w-full md:w-80 lg:w-96" : "w-0 opacity-0 border-none"
       )}>
-          <div className="flex flex-col h-full w-full md:w-80 lg:w-96">
+          <div className="flex flex-col h-full w-full md:w-80 lg:w-96 max-w-full">
               <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
                   <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
-                    {activePanel === 'chat' ? 'Public Chat' : activePanel === 'products' ? 'Catalog Tools' : activePanel === 'viewers' ? 'Active Viewers' : 'Live Promos'}
+                    {activePanel === 'chat' ? 'Chat' : activePanel === 'products' ? 'Catalog' : activePanel === 'viewers' ? 'Viewers' : 'Promos'}
                   </p>
                   <Button 
                     variant="ghost" 
