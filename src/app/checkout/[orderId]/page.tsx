@@ -14,6 +14,7 @@ import { Loader2, ShieldCheck, CreditCard, ChevronRight, PackageCheck, Tag } fro
 import { useToast } from '@/hooks/use-toast';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Link from 'next/link';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { getLocationFromStorage, type UserLocation } from '@/lib/location-detection';
 
