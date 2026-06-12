@@ -18,20 +18,21 @@ const GenerateEnhancedVideoOutputSchema = z.object({
 export type GenerateEnhancedVideoOutput = z.infer<typeof GenerateEnhancedVideoOutputSchema>;
 
 export async function generateEnhancedVideo(input: GenerateEnhancedVideoInput): Promise<GenerateEnhancedVideoOutput> {
-  // 1. Generate video using Veo 3.0 with an image prompt for animation and sound
+  // 1. Generate video using stable Veo 2.0 with an image prompt for animation
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.0-generate-preview'),
+    model: googleAI.model('veo-2.0-generate-001'),
     prompt: [
         { media: { url: input.imageDataUri, contentType: input.imageDataUri.split(';')[0].split(':')[1] } },
-        { text: `${input.prompt}. Animate this image and generate immersive cinematic sound and environmental audio to match the motion.` },
+        { text: `${input.prompt}. Animate this image with professional cinematic motion.` },
     ],
     config: {
+      durationSeconds: 8,
       aspectRatio: '16:9',
     },
   });
 
   if (!operation) {
-    throw new Error('Expected the model to return an operation.');
+    throw new Error('Expected the model to return a long-running operation.');
   }
 
   // 2. Poll for video generation completion
@@ -41,7 +42,7 @@ export async function generateEnhancedVideo(input: GenerateEnhancedVideoInput): 
   }
 
   if (operation.error) {
-    throw new Error(`Video generation failed: ${operation.error.message}`);
+    throw new Error(`Video enhancement failed: ${operation.error.message}`);
   }
 
   const generatedVideoPart = operation.output?.message?.content.find((p) => !!p.media);
