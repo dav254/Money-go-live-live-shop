@@ -8,6 +8,7 @@ import { useUser, useUserProfile } from '@/firebase';
 /**
  * Optimized Viewer for Buyers.
  * Streams start playing the second the first packet is received.
+ * Video fits screen with object-cover for immersive feel.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream, micStream } = useParticipant(participantId);
@@ -41,7 +42,7 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
         autoPlay 
         playsInline 
         muted={false} 
-        className="h-full w-full object-contain md:object-cover"
+        className="h-full w-full object-cover"
       />
       <audio ref={audioRef} autoPlay playsInline />
       
@@ -82,7 +83,7 @@ const ViewerMeetingView = () => {
                 <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                 <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
            </div>
-           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em]">Negotiating Signal...</p>
+           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center px-8">Negotiating Global Signal...</p>
         </div>
       )}
     </div>

@@ -17,6 +17,7 @@ import type { LiveSession } from '@/lib/types';
 
 /**
  * Optimized ParticipantView for the Seller Studio.
+ * Video fits screen with object-cover for immersive feel.
  */
 const ParticipantView = ({ participantId }: { participantId: string }) => {
   const { webcamStream } = useParticipant(participantId);
@@ -34,13 +35,13 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
   }, [webcamStream]);
 
   return (
-    <div className="relative h-full w-full bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/5">
+    <div className="relative h-full w-full bg-black overflow-hidden shadow-2xl">
       <video 
         ref={videoRef} 
         autoPlay 
         playsInline 
         muted={true} 
-        className="h-full w-full object-contain md:object-cover" 
+        className="h-full w-full object-cover" 
       />
       
       {!webcamStream && (
@@ -48,11 +49,11 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-4 shadow-2xl">
             <Radio className="h-12 md:h-16 md:w-16 text-primary animate-pulse" />
           </div>
-          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight">
-            Connecting Studio...
+          <p className="text-white text-lg md:text-xl font-black font-headline uppercase tracking-widest leading-tight text-center px-6">
+            Initializing 4K Signal...
           </p>
           <p className="text-neutral-500 mt-2 text-[10px] font-black uppercase tracking-widest">
-            Locking HD Data Signal
+            Locking High Fidelity Node
           </p>
         </div>
       )}
@@ -272,7 +273,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
   return (
     <div className="flex h-full w-full bg-neutral-950 overflow-hidden">
-      <div className="flex-1 relative flex flex-col p-4 md:p-6 transition-all duration-500 ease-in-out">
+      <div className="flex-1 relative flex flex-col transition-all duration-500 ease-in-out">
           <div className="absolute top-10 left-10 right-10 z-30 flex items-center justify-between pointer-events-none">
               <div className="pointer-events-auto flex items-center gap-3">
                   <div className="flex items-center gap-2">
@@ -310,7 +311,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                     />
                   </div>
                 ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center bg-black rounded-3xl">
+                  <div className="h-full w-full flex flex-col items-center justify-center bg-black">
                     <div className="relative mb-6">
                         <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                         <Loader2 className="h-12 w-12 animate-spin text-primary relative z-10" />

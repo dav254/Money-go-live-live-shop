@@ -38,6 +38,7 @@ function getInternalToken() {
 
 /**
  * POST handler to create a fresh live session.
+ * This ensures a completely fresh start by resetting all counters and state.
  */
 export async function POST(request: Request) {
   const verification = await verifyUser(request);
@@ -94,21 +95,21 @@ export async function POST(request: Request) {
         aiPoints: FieldValue.increment(-GO_LIVE_COST)
     });
 
-    // 2. Initialize new session document
+    // 2. Initialize new session document with FRESH START
     batch.set(sessionRef, {
       id: sellerId,
       sellerId: sellerId,
       title: title || `${sellerName}'s Live Show`,
       status: status, 
       productIds: [],
-      viewerCount: 0,
+      viewerCount: 0, // Reset viewers
       initialStartTime: Timestamp.now(),
-      startTime: Timestamp.now(), 
+      startTime: Timestamp.now(), // New Start Time clears chat history
       pointsCharged: GO_LIVE_COST,
       timeRemainingMs: SESSION_LIMIT_MS,
-      activeOffer: null,
+      activeOffer: null, // Clear old offers
       videosdkMeetingId: videosdkMeetingId,
-      pinnedProductId: null,
+      pinnedProductId: null, // Clear pinned products
     });
 
     await batch.commit();
