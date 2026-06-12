@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -213,6 +212,7 @@ export function AdminSidebar() {
           items={[
             { href: 'about', label: 'About Go-AI' },
             { href: 'chat', label: 'AI Chat' },
+            { href: 'video-generator', label: 'AI Video Studio' },
             { href: 'recommendations', label: 'Recommendation Engine' },
             { href: 'fraud-detection', label: 'Fraud Detection' },
             { href: 'content-moderation', label: 'Content Moderation' },
