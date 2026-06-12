@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -152,7 +151,7 @@ export default function AdminBannersPage() {
       header: 'Banner',
       cell: ({ row }) => (
         <div className="flex items-center gap-4">
-          <Image src={row.original.imageUrl} alt={row.original.title} width={80} height={45} className="rounded-md object-cover" />
+          <Image src={row.original.imageUrl} alt={row.original.title || 'Marketing Banner'} width={80} height={45} className="rounded-md object-cover" />
           <div className="font-medium">{row.original.title}</div>
         </div>
       ),

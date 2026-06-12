@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -136,7 +135,7 @@ export default function AdminAdsPage() {
         header: 'Product',
         cell: ({ row }) => (
             <div className="flex items-center gap-3">
-                <Image src={row.original.productImageUrl || 'https://picsum.photos/seed/ad-product/40'} alt={row.original.productName} width={40} height={40} className="rounded-md object-cover" />
+                <Image src={row.original.productImageUrl || 'https://picsum.photos/seed/ad-product/40'} alt={row.original.productName || 'Product Ad'} width={40} height={40} className="rounded-md object-cover" />
                 <div>
                     <div className="font-medium">{row.original.productName}</div>
                     <div className="text-xs text-muted-foreground">Seller: {row.original.sellerId.substring(0, 8)}...</div>
@@ -208,7 +207,9 @@ export default function AdminAdsPage() {
                  <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>{editingCampaign ? 'Edit Ad Campaign' : 'Create New Ad Campaign'}</DialogTitle>
-                        <DialogDescription>Set up a new promotional campaign for a seller's product.</DialogDescription>
+                        <DialogHeader>
+                            <DialogDescription>Set up a new promotional campaign for a seller's product.</DialogDescription>
+                        </DialogHeader>
                     </DialogHeader>
                     <CampaignForm campaign={editingCampaign} onSave={handleSave} onCancel={() => setIsFormOpen(false)} />
                 </DialogContent>

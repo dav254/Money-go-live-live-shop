@@ -86,7 +86,7 @@ const StreamCard = ({ session }: { session: LiveSession }) => {
             <div className="absolute inset-0">
                 <Image
                     src={`https://picsum.photos/seed/${session.id}/600/400`}
-                    alt={session.title}
+                    alt={session.title || 'Live Stream Preview'}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-110 opacity-60"
                 />
