@@ -2,9 +2,8 @@
 'use server';
 
 /**
- * @fileOverview An AI flow to generate a video from a text prompt.
- * This flow now ONLY generates the video and returns a temporary URL.
- * It does not interact with the database.
+ * @fileOverview An AI flow to generate a video from a text prompt using Veo 3.0.
+ * This model supports sound generation and optimized motion.
  *
  * - generateVideoFromText - Generates a video and returns its data URI.
  * - GenerateVideoFromTextInput - Input type for the flow.
@@ -17,7 +16,7 @@ import { googleAI } from '@genkit-ai/google-genai';
 import fetch from 'node-fetch';
 
 const GenerateVideoFromTextInputSchema = z.object({
-  prompt: z.string().describe('A text prompt describing the desired video content.'),
+  prompt: z.string().describe('A text prompt describing the desired video content. Include details about sound and motion.'),
 });
 export type GenerateVideoFromTextInput = z.infer<typeof GenerateVideoFromTextInputSchema>;
 
@@ -28,13 +27,12 @@ export type GenerateVideoFromTextOutput = z.infer<typeof GenerateVideoFromTextOu
 
 
 export async function generateVideoFromText(input: GenerateVideoFromTextInput): Promise<GenerateVideoFromTextOutput> {
-  // 1. Generate video using Veo
+  // 1. Generate video using Veo 3.0 (Supports sound)
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-2.0-generate-001'),
-    prompt: input.prompt,
+    model: googleAI.model('veo-3.0-generate-preview'),
+    prompt: `${input.prompt}. Ensure the video includes high-fidelity, immersive cinematic sound and music matched to the visuals. Make the sequence as long and detailed as possible.`,
     config: {
-      durationSeconds: 5,
-      aspectRatio: '16:9', // Standard video format
+      aspectRatio: '16:9', // Standard cinematic format
     },
   });
 

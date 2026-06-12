@@ -18,17 +18,15 @@ const GenerateEnhancedVideoOutputSchema = z.object({
 export type GenerateEnhancedVideoOutput = z.infer<typeof GenerateEnhancedVideoOutputSchema>;
 
 export async function generateEnhancedVideo(input: GenerateEnhancedVideoInput): Promise<GenerateEnhancedVideoOutput> {
-  // 1. Generate video using Veo with an image prompt
+  // 1. Generate video using Veo 3.0 with an image prompt for animation and sound
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-2.0-generate-001'),
+    model: googleAI.model('veo-3.0-generate-preview'),
     prompt: [
         { media: { url: input.imageDataUri, contentType: input.imageDataUri.split(';')[0].split(':')[1] } },
-        { text: input.prompt },
+        { text: `${input.prompt}. Animate this image and generate immersive cinematic sound and environmental audio to match the motion.` },
     ],
     config: {
-      durationSeconds: 5,
-      aspectRatio: '16:9', // Or derive from image aspect ratio
-      personGeneration: 'allow_adult',
+      aspectRatio: '16:9',
     },
   });
 
