@@ -1,1 +1,1 @@
-export const dynamic = 'force-dynamic';
+// DELETED to resolve build conflict with page.tsx

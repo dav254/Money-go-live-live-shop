@@ -39,22 +39,26 @@ export default function GlobalCreatorGlobe() {
 
     useEffect(() => {
         if (globeRef.current && isMounted) {
-            // Initiate Auto-Rotation instantly to show movement
             const controls = globeRef.current.controls();
             if (controls) {
                 controls.autoRotate = true;
-                controls.autoRotateSpeed = 2.4;
+                controls.autoRotateSpeed = 3.5; // Increased speed for better motion
                 controls.enableDamping = true;
             }
-            // Transition to primary viewing angle
-            globeRef.current.pointOfView({ lat: 5, lng: 25, altitude: 2.2 }, 1500);
+            // Rapidly transition to viewing angle to break the "Syncing" state visually
+            globeRef.current.pointOfView({ lat: 5, lng: 25, altitude: 2.0 }, 1000);
         }
     }, [isMounted]);
 
-    if (!isMounted) return <div className="h-[400px] w-full" />;
+    if (!isMounted) return (
+        <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/5 rounded-[3rem]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-4">Establishing Grid Connection...</p>
+        </div>
+    );
 
     return (
-        <div className="relative w-full h-[400px] flex items-center justify-center cursor-grab active:cursor-grabbing animate-in fade-in duration-1000">
+        <div className="relative w-full h-[400px] flex items-center justify-center cursor-grab active:cursor-grabbing animate-in fade-in duration-500">
             <Globe
                 ref={globeRef}
                 width={700}
@@ -80,7 +84,6 @@ export default function GlobalCreatorGlobe() {
                 atmosphereAltitude={0.15}
             />
             
-            {/* Real-time Telemetry Overlay */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-background/80 backdrop-blur-md px-6 py-2 rounded-full border border-border/50 pointer-events-none shadow-2xl">
                 <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />

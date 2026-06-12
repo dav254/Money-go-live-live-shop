@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { 
   Video, Zap, Rocket, ChevronRight, Trophy, Sparkles, 
   MapPin, BrainCircuit, LayoutGrid, Store, Quote, 
-  ArrowRight, Activity, Globe as GlobeIcon, Users, Play, Star,
-  TrendingUp, ShieldCheck
+  Activity, Globe as GlobeIcon, Users, Star,
+  TrendingUp, ShieldCheck, ArrowRight
 } from "lucide-react";
 import Link from "next/link";
 import { LandingLayout } from '@/components/layout/landing-layout';
@@ -16,18 +16,16 @@ import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-// High-Fidelity Interactive Globe (Hydration Safe)
 const GlobalCreatorGlobe = dynamic(() => import('@/components/home/global-creator-globe'), { 
     ssr: false,
     loading: () => (
         <div className="h-[400px] w-full flex flex-col items-center justify-center bg-muted/5 rounded-[3rem]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+            <Activity className="h-8 w-8 animate-pulse text-primary opacity-20" />
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-4">Establishing Grid Connection...</p>
         </div>
     )
 });
 
-// County & Country Activity Map
 const ActivityMap = dynamic(() => import('@/components/home/world-map'), {
     ssr: false,
     loading: () => <div className="aspect-[21/9] w-full bg-muted/10 rounded-[3rem] animate-pulse" />
@@ -51,8 +49,6 @@ const SUCCESS_STORIES = [
     { name: 'John D.', role: 'Reseller', text: "I earn a full-time income just by sharing links for products I love. No inventory, just yield." }
 ];
 
-const Loader2 = ({ className }: { className?: string }) => <Activity className={cn("animate-pulse", className)} />;
-
 export default function GoEarnvidHomePage() {
   const [liveEarnings, setLiveEarnings] = useState(12450.80);
 
@@ -67,7 +63,6 @@ export default function GoEarnvidHomePage() {
     <LandingLayout>
       <div className="bg-background text-foreground overflow-x-hidden animate-in fade-in duration-500">
         
-        {/* 1. Hero Banner: POST • EARN • REPEAT */}
         <section className="relative pt-12 pb-24 lg:pt-20 lg:pb-32 bg-gradient-to-b from-primary/5 via-transparent to-transparent">
           <div className="container max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="text-left space-y-8">
@@ -76,7 +71,7 @@ export default function GoEarnvidHomePage() {
                 FOUNDING SELLER BONUS: +1,000 AI POINTS
               </Badge>
               
-              <h1 className="font-cyber text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-foreground">
+              <h1 className="font-headline text-5xl md:text-8xl font-black uppercase tracking-tighter leading-[0.85] text-foreground">
                 POST. <span className="text-primary italic">EARN.</span>
                 <br />
                 REPEAT.
@@ -86,7 +81,6 @@ export default function GoEarnvidHomePage() {
                 GoEarnvid is the global protocol for social commerce. We reward engagement and automate the bridge between your content and verified financial yield. 
               </p>
 
-              {/* 2. Live Earnings and Activity Counters */}
               <div className="flex flex-wrap gap-4">
                   <div className="p-5 rounded-3xl bg-card border shadow-sm flex flex-col gap-1 min-w-[200px]">
                       <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">NETWORK YIELD</p>
@@ -110,7 +104,6 @@ export default function GoEarnvidHomePage() {
               </div>
             </div>
 
-            {/* 3. Interactive Global Creator Network Globe */}
             <div className="relative h-[400px] lg:h-[600px] flex items-center justify-center">
                 <div className="absolute inset-0 bg-primary/5 rounded-full blur-[120px] scale-75 opacity-30" />
                 <GlobalCreatorGlobe />
@@ -118,7 +111,6 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 4. Trending Videos Feed */}
         <section className="py-24 border-y border-border bg-muted/5">
           <div className="container max-w-7xl mx-auto px-4">
               <div className="flex items-center justify-between mb-12">
@@ -150,7 +142,6 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 5. How Goearn Works */}
         <section className="py-24 bg-background">
           <div className="container max-w-7xl mx-auto px-4 text-center space-y-16">
               <h2 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground">THE PROTOCOL</h2>
@@ -170,10 +161,8 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 6. Featured Businesses & 7. Top Creators Leaderboard */}
         <section className="py-24 bg-muted/10 border-y border-border">
           <div className="container max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-2 gap-20">
-              
               <div className="space-y-8">
                   <h3 className="font-cyber text-3xl font-black uppercase tracking-tighter flex items-center gap-4 text-foreground text-left">
                     <Trophy className="text-yellow-500" /> TOP EARNERS
@@ -222,7 +211,6 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 8. County and Country Activity Map */}
         <section className="py-24 bg-background">
             <div className="container max-w-7xl mx-auto px-4 text-center space-y-12">
                 <div className="space-y-2 text-center">
@@ -235,7 +223,6 @@ export default function GoEarnvidHomePage() {
             </div>
         </section>
 
-        {/* 9. User Success Stories */}
         <section className="py-24 bg-primary/5">
           <div className="container max-w-7xl mx-auto px-4">
               <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-center mb-16 text-foreground">CREATOR STORIES</h2>
@@ -259,7 +246,6 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 10. AI Powered Content Recommendations */}
         <section className="py-24 border-y border-border">
             <div className="container max-w-7xl mx-auto px-4">
                 <div className="flex items-center gap-3 mb-12">
@@ -277,11 +263,10 @@ export default function GoEarnvidHomePage() {
             </div>
         </section>
 
-        {/* 11. Call-to-Action for Video Uploads and Promotions */}
         <section className="py-32 bg-neutral-900 text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-primary/5 opacity-40 animate-pulse" />
             <div className="container max-w-4xl mx-auto px-4 text-center relative z-10 space-y-12">
-                <h2 className="font-cyber text-4xl md:text-7xl font-black uppercase tracking-tighter leading-[0.85]">
+                <h2 className="font-headline text-4xl md:text-7xl font-black uppercase tracking-tighter leading-[0.85]">
                     READY TO SCALE
                     <br />
                     YOUR REVENUE?
@@ -295,15 +280,6 @@ export default function GoEarnvidHomePage() {
                     <Button size="lg" variant="outline" className="h-20 px-12 rounded-[2rem] font-black uppercase tracking-widest text-sm border-white/20 bg-white/5 hover:bg-white/10 text-white" asChild>
                         <Link href="/features">LEARN MORE</Link>
                     </Button>
-                </div>
-                <div className="flex flex-col items-center gap-4 opacity-50 pt-12">
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">Integrated Intelligence Nodes</p>
-                    <div className="flex items-center gap-6">
-                        <Activity className="h-5 w-5" />
-                        <ShieldCheck className="h-5 w-5" />
-                        <BrainCircuit className="h-5 w-5" />
-                        <Zap className="h-5 w-5" />
-                    </div>
                 </div>
             </div>
         </section>
