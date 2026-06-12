@@ -1,5 +1,5 @@
 'use client';
-
+import { cn } from "@/lib/utils"; // Adjust the path to match where your 'cn' helper lives
 import { LandingLayout } from '@/components/layout/landing-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

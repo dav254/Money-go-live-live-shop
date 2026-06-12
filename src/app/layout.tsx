@@ -5,7 +5,7 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'GoEarnvid: Post • Earn • Repeat',
-  description: 'The world\'s next-generation social commerce platform. Where creative motion becomes financial yield.',
+  description: 'The world\'s next-generation social earning platform. Where creative motion becomes financial yield.',
   icons: {
     icon: '/favicon.ico',
   },

@@ -42,11 +42,10 @@ export default function GlobalCreatorGlobe() {
             const controls = globeRef.current.controls();
             if (controls) {
                 controls.autoRotate = true;
-                controls.autoRotateSpeed = 3.5; // Increased speed for better motion
+                controls.autoRotateSpeed = 4.0;
                 controls.enableDamping = true;
             }
-            // Rapidly transition to viewing angle to break the "Syncing" state visually
-            globeRef.current.pointOfView({ lat: 5, lng: 25, altitude: 2.0 }, 1000);
+            globeRef.current.pointOfView({ lat: 5, lng: 25, altitude: 2.2 }, 1000);
         }
     }, [isMounted]);
 
@@ -58,7 +57,7 @@ export default function GlobalCreatorGlobe() {
     );
 
     return (
-        <div className="relative w-full h-[400px] flex items-center justify-center cursor-grab active:cursor-grabbing animate-in fade-in duration-500">
+        <div className="relative w-full h-[400px] lg:h-[500px] flex items-center justify-center cursor-grab active:cursor-grabbing animate-in fade-in duration-700">
             <Globe
                 ref={globeRef}
                 width={700}
@@ -85,14 +84,14 @@ export default function GlobalCreatorGlobe() {
             />
             
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-background/80 backdrop-blur-md px-6 py-2 rounded-full border border-border/50 pointer-events-none shadow-2xl">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-black text-foreground">
                     <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Grid: ACTIVE</span>
+                    GRID: ACTIVE
                 </div>
                 <div className="h-3 w-px bg-border" />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-black text-foreground">
                     <Users className="h-3 w-3 text-primary" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Sync: GLOBAL</span>
+                    SYNC: GLOBAL
                 </div>
             </div>
         </div>
