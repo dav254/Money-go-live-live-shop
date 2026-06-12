@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint } from '@/lib/types';
+import type { UserProfile, Product, Complaint, Order } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -108,6 +108,10 @@ export function AdminSidebar() {
   ), [firestore]);
   const { data: reportedProducts } = useCollection<Complaint>(reportedQuery);
 
+  // --- Real-time Order Counts ---
+  const ordersQuery = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
+  const { data: allOrders } = useCollection<Order>(ordersQuery);
+
   // Memoize counts for performance
   const userStats = useMemo(() => {
     if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
@@ -124,6 +128,16 @@ export function AdminSidebar() {
     total: allProducts?.length || 0,
     reported: reportedProducts?.length || 0
   }), [allProducts, reportedProducts]);
+
+  const orderStats = useMemo(() => {
+    if (!allOrders) return { total: 0, reseller: 0, disputes: 0, tracking: 0 };
+    return {
+      total: allOrders.length,
+      reseller: allOrders.filter(o => !!o.resellerId).length,
+      disputes: allOrders.filter(o => o.orderStatus === 'disputed').length,
+      tracking: allOrders.filter(o => o.orderStatus === 'shipped' || o.orderStatus === 'delivery').length,
+    };
+  }, [allOrders]);
 
   return (
     <>
@@ -176,11 +190,11 @@ export function AdminSidebar() {
           icon={Receipt}
           basePath="orders"
           items={[
-            { href: 'all', label: 'All Orders' },
+            { href: 'all', label: 'All Orders', badge: orderStats.total },
             { href: 'seller-orders', label: 'Seller Orders' },
-            { href: 'reseller-orders', label: 'Reseller Orders' },
-            { href: 'disputes', label: 'Refunds & Disputes' },
-            { href: 'tracking', label: 'Delivery Tracking' },
+            { href: 'reseller-orders', label: 'Reseller Orders', badge: orderStats.reseller },
+            { href: 'disputes', label: 'Refunds & Disputes', badge: orderStats.disputes },
+            { href: 'tracking', label: 'Delivery Tracking', badge: orderStats.tracking },
           ]}
         />
         
