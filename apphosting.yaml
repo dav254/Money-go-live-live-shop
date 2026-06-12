@@ -19,7 +19,7 @@ env:
   - variable: ADMIN_WHATSAPP_API_URL
     value: "" # Generic Webhook URL (e.g. CallMeBot)
   - variable: TWILIO_ACCOUNT_SID
-    value: "" # Your Twilio Account SID
+    value: "AC0a8d67bfb7e75c7f6dfb1a6df4d6be9e"
   - variable: TWILIO_AUTH_TOKEN
     value: "" # Your Twilio Auth Token
   - variable: TWILIO_FROM_WHATSAPP_NUMBER
