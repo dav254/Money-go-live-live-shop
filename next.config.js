@@ -17,12 +17,24 @@ const nextConfig = {
         source: '/:path*',
         headers: [
           {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
             key: 'Permissions-Policy',
-            value: 'clipboard-write=(self "https://goearnvid.shop")',
+            value: 'camera=(self), microphone=(self), geolocation=(self), clipboard-write=(self "https://goearnvid.shop")',
           },
           {
             key: 'Content-Security-Policy',
-            value: "connect-src *; img-src * data: blob:; media-src * data: blob:; font-src 'self' data: fonts.gstatic.com;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.videosdk.live https://apis.google.com; connect-src 'self' *; img-src 'self' * data: blob:; media-src 'self' * data: blob:; font-src 'self' data: fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; frame-src 'self' https://*.paypal.com https://*.paystack.com;",
           },
         ],
       },

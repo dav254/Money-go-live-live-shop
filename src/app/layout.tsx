@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
+import { SecurityShield } from '@/components/SecurityShield';
 
 export const metadata: Metadata = {
   title: 'GoEarnvid: Post • Earn • Repeat',
@@ -24,6 +25,7 @@ export default function RootLayout({
           'min-h-screen bg-background antialiased'
         )}
       >
+        <SecurityShield />
         <Providers>{children}</Providers>
       </body>
     </html>
