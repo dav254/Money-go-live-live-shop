@@ -27,7 +27,11 @@ import { usePathname } from 'next/navigation';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
+import type { UserProfile } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 
 const NavCollapsible = ({
@@ -38,7 +42,7 @@ const NavCollapsible = ({
 }: {
   title: string;
   icon: React.ElementType;
-  items: { href: string; label: string }[];
+  items: { href: string; label: string; badge?: string | number }[];
   basePath: string;
 }) => {
   const pathname = usePathname();
@@ -65,11 +69,16 @@ const NavCollapsible = ({
               key={item.href}
               href={`/dashboard/admin/${basePath}/${item.href}`}
               className={cn(
-                'rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                'flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 pathname === `/dashboard/admin/${basePath}/${item.href}` && 'bg-accent font-semibold text-accent-foreground'
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.badge !== undefined && item.badge !== 0 && (
+                <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-black border-none bg-primary/10 text-primary">
+                  {item.badge}
+                </Badge>
+              )}
             </Link>
           ))}
         </div>
@@ -82,6 +91,23 @@ const NavCollapsible = ({
 export function AdminSidebar() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
+  const firestore = useFirestore();
+
+  // Fetch all user profiles for real-time counting
+  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
+  const { data: allUsers } = useCollection<UserProfile>(usersQuery);
+
+  // Memoize counts for performance
+  const userStats = useMemo(() => {
+    if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
+    return {
+      buyers: allUsers.filter(u => (u.userRole || u.role) === 'buyer').length,
+      sellers: allUsers.filter(u => (u.userRole || u.role) === 'seller').length,
+      resellers: allUsers.filter(u => (u.userRole || u.role) === 'reseller').length,
+      verification: allUsers.filter(u => u.verificationStatus === 'pending').length,
+      suspended: allUsers.filter(u => u.status === 'suspended').length,
+    };
+  }, [allUsers]);
 
   return (
     <>
@@ -110,12 +136,12 @@ export function AdminSidebar() {
             icon={Users2}
             basePath="users"
             items={[
-                { href: 'buyers', label: 'Buyers' },
-                { href: 'sellers', label: 'Sellers' },
-                { href: 'resellers', label: 'Resellers' },
+                { href: 'buyers', label: 'Buyers', badge: userStats.buyers },
+                { href: 'sellers', label: 'Sellers', badge: userStats.sellers },
+                { href: 'resellers', label: 'Resellers', badge: userStats.resellers },
                 { href: 'referrals', label: 'Referrals' },
-                { href: 'suspended', label: 'Suspended' },
-                { href: 'verification', label: 'Verification' },
+                { href: 'suspended', label: 'Suspended', badge: userStats.suspended },
+                { href: 'verification', label: 'Verification', badge: userStats.verification },
             ]}
         />
 
