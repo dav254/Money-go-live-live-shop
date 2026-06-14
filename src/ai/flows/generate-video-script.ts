@@ -38,11 +38,11 @@ const prompt = ai.definePrompt({
 Your task is to write a high-fidelity cinematic prompt for an AI video model (Veo 2.0).
 The prompt should be 1-2 sentences, highly descriptive, and optimized for professional advertising.
 
-{{#if (eq contextType 'product')}}
+{{#if data.name}}
 [PRODUCT CONTEXT]
 Name: {{{data.name}}}
 Category: {{{data.category}}}
-Price: ${{{data.price}}}
+Price: \${{{data.price}}}
 Description: {{{data.description}}}
 
 Objective: Create a script that showcases this specific product in a luxury or high-energy commercial setting. Focus on textures, lighting, and "Post-Earn-Repeat" energy.
