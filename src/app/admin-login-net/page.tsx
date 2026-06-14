@@ -22,11 +22,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useAuth, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -55,7 +55,6 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
-      // Correctly check the user's profile for the admin role.
       const userProfileRef = doc(firestore, 'userProfiles', user.uid);
       
       try {
@@ -63,49 +62,34 @@ export default function AdminLoginPage() {
 
         if (userProfileSnap.exists() && userProfileSnap.data().userRole === 'admin') {
             toast({
-            title: 'Admin Login Successful!',
-            description: 'Welcome back, Admin.',
+              title: 'Admin Session Started',
+              description: 'Redirecting to control room...',
             });
             router.replace('/dashboard/admin');
         } else {
-            // If the user is not an admin, sign them out.
-            await auth.signOut();
+            await signOut(auth);
             toast({
-            variant: 'destructive',
-            title: 'Access Denied',
-            description: 'You do not have admin privileges.',
+              variant: 'destructive',
+              title: 'Invalid Access',
+              description: 'The provided account does not have admin clearance.',
             });
         }
       } catch (firestoreError: any) {
-        // This handles potential Firestore errors when fetching the user profile.
-        // For example, if the security rules for userProfiles were to change and deny access.
-        console.error('Firestore Error checking admin status:', firestoreError);
-
-        // Create a more specific error for logging/debugging if needed
-        const permissionError = new FirestorePermissionError({
-          path: userProfileRef.path,
-          operation: 'get',
-        });
-        
-        errorEmitter.emit('permission-error', permissionError);
-
-        // Sign the user out as their role cannot be verified.
-        await auth.signOut();
-        
+        // Graceful exit for role verification failures
+        await signOut(auth);
         toast({
           variant: 'destructive',
-          title: 'Error Verifying Role',
-          description: 'Could not verify your user role. Please contact support.',
+          title: 'Verification Failed',
+          description: 'Invalid admin credentials or session error.',
         });
       }
 
     } catch (error: any) {
-      // This block handles Firebase Auth errors (e.g., wrong password)
-      console.error('Admin Auth Error:', error);
-      let description = 'Could not sign you in. Please try again.';
-
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = 'Invalid email or password.';
+      // Simplified auth errors
+      let description = 'Invalid email or password.';
+      
+      if (error.code === 'auth/too-many-requests') {
+        description = 'Too many failed attempts. Please try again later.';
       }
       
       toast({
@@ -119,31 +103,31 @@ export default function AdminLoginPage() {
 
   return (
     <AuthLayout>
-      <div className="flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md border-primary/50">
-          <CardHeader className="space-y-2 text-center">
+      <div className="flex items-center justify-center py-12 px-4 w-full">
+        <Card className="w-full max-w-md border-primary/50 shadow-2xl bg-card/50 backdrop-blur-xl rounded-[2rem] overflow-hidden">
+          <CardHeader className="space-y-2 text-center bg-white/5 border-b border-white/5 p-8">
              <div className="flex justify-center">
-                <div className="p-3 bg-primary/10 rounded-full">
+                <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
                     <KeyRound className="h-8 w-8 text-primary" />
                 </div>
             </div>
-            <CardTitle className="font-headline text-2xl">Admin Access</CardTitle>
-            <CardDescription>
-              This is the secure login portal for site administrators.
+            <CardTitle className="font-headline text-2xl uppercase tracking-tighter text-white">Admin Access</CardTitle>
+            <CardDescription className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+              Secure Gateway Protocol • Phase 2 Verified
             </CardDescription>
           </CardHeader>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="grid gap-4">
+              <CardContent className="grid gap-6 p-8">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Admin Email</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Admin Identifier</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@goearn.com" {...field} />
+                        <Input type="email" placeholder="admin@goearnvid.shop" className="h-12 bg-black/40 border-white/5 rounded-xl px-4" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -154,22 +138,24 @@ export default function AdminLoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Security Token</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Enter your password" {...field} />
+                        <Input type="password" placeholder="••••••••" className="h-12 bg-black/40 border-white/5 rounded-xl px-4" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Authenticating...' : 'Secure Login'}
+              <CardFooter className="flex flex-col gap-4 p-8 pt-0">
+                <Button type="submit" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Authenticating...</>
+                  ) : 'Initialize Session'}
                 </Button>
                 
-                <p className="text-sm text-center text-muted-foreground">
-                    Not an admin? <Link href="/login" className="text-primary hover:underline">Go to regular login.</Link>
+                <p className="text-[10px] font-bold text-center text-neutral-600 uppercase tracking-widest">
+                    Unauthorized access attempts are logged and tracked.
                 </p>
                 
               </CardFooter>
