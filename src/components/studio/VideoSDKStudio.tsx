@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { MeetingProvider, MeetingConsumer, useMeeting, useParticipant } from '@videosdk.live/react-sdk';
 import { Button } from '@/components/ui/button';
-import { StopCircle, Loader2, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio } from 'lucide-react';
+import { StopCircle, Loader2, MessageSquare, ShoppingBag, ShieldCheck, X, Zap, Sparkles, Users, Clock, Share2, Radio, Pin, PinOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
 import { LiveProductShelf } from '@/components/studio/LiveProductShelf';
@@ -75,14 +75,14 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 md:gap-3 p-2 bg-black/70 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl z-50 w-[95%] sm:w-auto">
+    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 md:gap-3 p-2 bg-black/80 backdrop-blur-3xl rounded-[2rem] border border-white/10 shadow-2xl z-[60] w-[95%] sm:w-auto">
       
       <Button
         size="icon"
         variant="ghost"
         onClick={() => onTogglePanel('chat')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all relative shrink-0",
+            "rounded-2xl h-10 w-10 md:h-12 md:w-12 transition-all relative shrink-0",
             activePanel === 'chat' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -100,7 +100,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('viewers')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
+            "rounded-2xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
             activePanel === 'viewers' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -112,7 +112,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('products')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
+            "rounded-2xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
             activePanel === 'products' ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -124,7 +124,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         variant="ghost"
         onClick={() => onTogglePanel('promos')}
         className={cn(
-            "rounded-xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
+            "rounded-2xl h-10 w-10 md:h-12 md:w-12 transition-all shrink-0",
             activePanel === 'promos' ? "bg-yellow-500 text-black scale-110 shadow-lg shadow-yellow-500/20" : "text-white/70 hover:bg-white/10"
         )}
       >
@@ -136,7 +136,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
       {!isLive ? (
         <Button
           onClick={onBroadcast}
-          className="rounded-xl font-black px-4 md:px-8 h-10 md:h-12 text-[10px] md:text-xs bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none shrink-0"
+          className="rounded-2xl font-black px-4 md:px-8 h-10 md:h-12 text-[10px] md:text-xs bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none shrink-0"
         >
           GO LIVE
         </Button>
@@ -144,7 +144,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         <Button
           variant="destructive"
           onClick={handleEndClick}
-          className="rounded-xl font-bold px-3 md:px-6 h-10 md:h-12 text-[9px] md:text-xs text-white shrink-0"
+          className="rounded-2xl font-bold px-3 md:px-6 h-10 md:h-12 text-[9px] md:text-xs text-white shrink-0 shadow-xl shadow-destructive/20"
         >
           <StopCircle className="mr-1.5 h-3.5 w-3.5 md:mr-2 md:h-4 md:w-4" /> END SHOW
         </Button>
@@ -268,51 +268,55 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full w-full bg-neutral-950 overflow-hidden">
-      <div className="flex-1 relative flex flex-col transition-all duration-500 ease-in-out min-w-0 h-full">
-          <div className="absolute top-6 left-6 right-6 md:top-10 md:left-10 md:right-10 z-30 flex items-center justify-between pointer-events-none">
-              <div className="pointer-events-auto flex items-center gap-2 md:gap-3 flex-wrap">
+    <div className="flex h-full w-full bg-neutral-950 overflow-hidden relative">
+      {/* Main Broadcaster Screen - Fills Edge to Edge */}
+      <div className="flex-1 relative h-full min-w-0">
+          <div className="absolute top-6 left-6 z-30 flex items-center gap-3 pointer-events-none">
+              <div className="pointer-events-auto flex items-center gap-2">
                   <div className={cn(
-                      "px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-[9px] md:text-[10px] font-black tracking-widest flex items-center gap-2 md:gap-3 backdrop-blur-xl border border-white/10",
-                      isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400"
+                      "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-3 backdrop-blur-xl border border-white/10",
+                      isLive ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-400 shadow-2xl"
                   )}>
-                      <div className={cn("h-1.5 w-1.5 md:h-2 md:w-2 rounded-full", isLive ? "bg-white animate-pulse" : "bg-neutral-600")} />
-                      {isLive ? "LIVE" : "PREVIEW"}
+                      <div className={cn("h-2 w-2 rounded-full", isLive ? "bg-white animate-pulse shadow-[0_0_8px_white]" : "bg-neutral-600")} />
+                      {isLive ? "LIVE BROADCAST" : "PREVIEW MODE"}
                   </div>
 
                   {isLive && (
                     <div className={cn(
-                        "px-3 py-1.5 md:px-4 md:py-2 rounded-2xl text-[9px] md:text-[10px] font-black tracking-widest flex items-center gap-2 backdrop-blur-xl border border-white/10",
+                        "px-4 py-2 rounded-2xl text-[10px] font-black tracking-widest flex items-center gap-2 backdrop-blur-xl border border-white/10 shadow-2xl",
                         isLowTime ? "bg-orange-600/20 border-orange-500/50 text-orange-500" : "bg-black/40 text-white/70"
                     )}>
-                        <Clock className={cn("h-3 w-3", isLowTime && "animate-spin-slow")} />
+                        <Clock className={cn("h-3.5 w-3.5", isLowTime && "animate-spin-slow")} />
                         <span className="font-mono">{timeRemaining}</span>
                     </div>
                   )}
               </div>
           </div>
 
-          <div className="flex-1 relative h-full">
+          <div className="h-full w-full relative z-0">
             <MeetingConsumer>
               {({ participants }) => {
                 const localParticipant = Array.from(participants.values()).find(p => p.local);
                 return localParticipant ? (
-                  <div className="relative h-full w-full">
+                  <div className="h-full w-full">
                     <ParticipantView participantId={localParticipant.id} />
+                    {/* Chat Overlay on top of video */}
                     <FloatingChatOverlay 
                       streamId={user?.uid || ''} 
-                      className="absolute bottom-24 left-4 z-40 max-w-[80%]"
+                      className="absolute bottom-28 left-4 z-40 max-w-[80%]"
                     />
                   </div>
                 ) : (
                   <div className="h-full w-full flex flex-col items-center justify-center bg-black">
                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="text-[10px] font-black uppercase text-neutral-600 tracking-widest mt-4">Establishing Local Signal...</p>
                   </div>
                 );
               }}
             </MeetingConsumer>
           </div>
 
+          {/* Bottom Docked Controls */}
           <StudioControls 
             onEnd={onEnd} 
             onBroadcast={handleBroadcastWithUpdate} 
@@ -323,22 +327,31 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
           />
       </div>
 
+      {/* Floating Side Panel - Right Aligned Overlay */}
       <div className={cn(
-          "shrink-0 border-t md:border-t-0 md:border-l border-white/5 bg-neutral-950 flex flex-col shadow-2xl transition-all duration-500 ease-in-out overflow-hidden h-full",
-          activePanel ? "w-full md:w-80 lg:w-96" : "w-0 opacity-0 border-none"
+          "absolute md:relative right-0 top-0 bottom-0 z-50 md:z-auto h-full flex flex-col transition-all duration-500 ease-in-out overflow-hidden shadow-[-20px_0_40px_rgba(0,0,0,0.5)] border-l border-white/10",
+          activePanel 
+            ? "w-[320px] sm:w-[360px] lg:w-[420px] bg-neutral-950/90 backdrop-blur-3xl opacity-100" 
+            : "w-0 opacity-0 border-none pointer-events-none"
       )}>
-          <div className="flex flex-col h-full w-full md:w-80 lg:w-96 max-w-full">
-              <div className="p-4 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
-                  <p className="font-black text-[10px] uppercase tracking-[0.2em] text-white/40">
-                    {activePanel === 'chat' ? 'Chat' : activePanel === 'products' ? 'Catalog' : activePanel === 'viewers' ? 'Viewers' : 'Promos'}
-                  </p>
+          <div className="flex flex-col h-full w-full max-w-full">
+              <div className="p-6 border-b border-white/5 bg-neutral-900/50 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <p className="font-black text-[11px] uppercase tracking-[0.3em] text-white">
+                        {activePanel === 'chat' ? 'PUBLIC CHAT' : 
+                         activePanel === 'products' ? 'PRODUCT SHELF' : 
+                         activePanel === 'viewers' ? 'LIVE AUDIENCE' : 
+                         'GROWTH TOOLS'}
+                    </p>
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 rounded-full hover:bg-white/5" 
+                    className="h-9 w-9 rounded-full bg-white/5 hover:bg-white/10" 
                     onClick={() => setActivePanel(null)}
                   >
-                    <X className="h-4 w-4 text-white/40" />
+                    <X className="h-4 w-4 text-white/60" />
                   </Button>
               </div>
 
@@ -352,7 +365,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'products' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       <div className="flex flex-col h-full overflow-hidden">
                           <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
-                              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">My Catalog</p>
+                              <p className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">ACTIVE CATALOG</p>
                               <ShieldCheck className="h-4 w-4 text-green-500" />
                           </div>
                           <div className="flex-1 overflow-hidden">
@@ -370,7 +383,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                   <div className={cn("absolute inset-0 flex flex-col transition-opacity duration-300", activePanel === 'promos' ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
                       <div className="flex flex-col h-full overflow-hidden">
                           <div className="p-4 border-b border-white/5 flex items-center justify-between bg-neutral-900/20 shrink-0">
-                              <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Growth Tools</p>
+                              <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">FLASH DEALS</p>
                               <Sparkles className="h-4 w-4 text-yellow-500" />
                           </div>
                           <div className="flex-1 overflow-hidden">

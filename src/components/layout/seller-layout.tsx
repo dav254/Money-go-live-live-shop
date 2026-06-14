@@ -60,9 +60,9 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
           <SellerHeader />
           <main className={cn(
             "flex-1 flex flex-col w-full max-w-full overflow-hidden",
-            fullWidth ? "p-0" : "p-4 md:p-8 overflow-y-auto"
+            fullWidth ? "p-0" : "p-4 md:p-8 overflow-y-auto h-full"
           )}>
-            <div className={cn("flex-1 w-full relative", !fullWidth && "max-w-7xl mx-auto")}>
+            <div className={cn("flex-1 w-full relative h-full", !fullWidth && "max-w-7xl mx-auto")}>
               <FirebaseErrorListener />
               {children}
             </div>
