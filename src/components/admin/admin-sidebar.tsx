@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession } from '@/lib/types';
+import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession, SupportTicket } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -133,6 +133,19 @@ export function AdminSidebar() {
   ), [firestore]);
   const { data: flaggedStreams } = useCollection<Complaint>(flaggedStreamsQuery);
 
+  // --- Real-time Support Counts ---
+  const openTicketsQuery = useMemoFirebase(() => query(
+    collection(firestore, 'supportTickets'),
+    where('status', '!=', 'closed')
+  ), [firestore]);
+  const { data: openTickets } = useCollection<SupportTicket>(openTicketsQuery);
+
+  const unresolvedComplaintsQuery = useMemoFirebase(() => query(
+    collection(firestore, 'complaints'),
+    where('status', '==', 'open')
+  ), [firestore]);
+  const { data: unresolvedComplaints } = useCollection<Complaint>(unresolvedComplaintsQuery);
+
   // Memoize counts for performance
   const userStats = useMemo(() => {
     if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
@@ -172,6 +185,11 @@ export function AdminSidebar() {
     active: activeSessions?.length || 0,
     flagged: flaggedStreams?.length || 0
   }), [activeSessions, flaggedStreams]);
+
+  const supportStats = useMemo(() => ({
+    tickets: openTickets?.length || 0,
+    complaints: unresolvedComplaints?.length || 0
+  }), [openTickets, unresolvedComplaints]);
 
   return (
     <>
@@ -277,9 +295,9 @@ export function AdminSidebar() {
           basePath="support"
           items={[
             { href: 'help-center', label: 'Help Center Manager' },
-            { href: 'tickets', label: 'Support Tickets' },
+            { href: 'tickets', label: 'Support Tickets', badge: supportStats.tickets },
             { href: 'chat-logs', label: 'Chat Logs' },
-            { href: 'complaints', label: 'Resolve Complaints' },
+            { href: 'complaints', label: 'Resolve Complaints', badge: supportStats.complaints },
           ]}
         />
 
