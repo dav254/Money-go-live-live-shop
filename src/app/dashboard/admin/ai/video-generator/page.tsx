@@ -73,17 +73,22 @@ export default function AdminVideoGeneratorPage() {
 
         try {
             const result = await generateVideoFromText({ prompt });
-            setGeneratedVideoUrl(result.videoUrl);
-            toast({ 
-                title: '✅ Scene Completed!', 
-                description: '4K Cinematic Scene with Audio is ready for download.' 
-            });
+            if (result && result.videoUrl) {
+                setGeneratedVideoUrl(result.videoUrl);
+                toast({ 
+                    title: '✅ Scene Completed!', 
+                    description: '4K Cinematic Scene with Audio is ready for download.' 
+                });
+            } else {
+                throw new Error("The AI signal returned an empty payload.");
+            }
         } catch (error: any) {
             console.error("AI Error:", error);
+            const errorMessage = error.message || 'The AI cluster is under heavy load. Please try again.';
             toast({ 
                 variant: 'destructive', 
                 title: 'Generation Failed', 
-                description: error.message || 'The AI cluster is under heavy load. Please try again.' 
+                description: errorMessage 
             });
         } finally {
             setIsGenerating(false);
