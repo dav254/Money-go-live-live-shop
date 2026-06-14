@@ -75,7 +75,7 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
   };
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-2 md:gap-4 p-2 bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50 w-[95%] max-w-fit">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 md:gap-3 p-2 bg-black/70 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl z-50 w-[95%] sm:w-auto">
       
       <Button
         size="icon"
@@ -131,22 +131,22 @@ const StudioControls = ({ onEnd, onBroadcast, isLive, activePanel, onTogglePanel
         <Zap className="h-4 w-4 md:h-5 md:w-5" />
       </Button>
 
-      <div className="w-px h-8 bg-white/10 mx-1 md:mx-2 hidden sm:block" />
+      <div className="w-px h-8 bg-white/10 mx-1 md:mx-2" />
 
       {!isLive ? (
         <Button
           onClick={onBroadcast}
-          className="rounded-xl font-black px-4 md:px-10 h-10 md:h-12 text-[10px] md:text-sm bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none shrink-0"
+          className="rounded-xl font-black px-4 md:px-8 h-10 md:h-12 text-[10px] md:text-xs bg-red-600 hover:bg-red-700 animate-pulse shadow-lg shadow-red-600/40 text-white border-none shrink-0"
         >
-          START BROADCAST
+          GO LIVE
         </Button>
       ) : (
         <Button
           variant="destructive"
           onClick={handleEndClick}
-          className="rounded-xl font-bold px-4 md:px-8 h-10 md:h-12 text-[10px] md:text-sm text-white shrink-0"
+          className="rounded-xl font-bold px-3 md:px-6 h-10 md:h-12 text-[9px] md:text-xs text-white shrink-0"
         >
-          <StopCircle className="mr-2 h-4 w-4" /> END SHOW
+          <StopCircle className="mr-1.5 h-3.5 w-3.5 md:mr-2 md:h-4 md:w-4" /> END SHOW
         </Button>
       )}
     </div>
@@ -269,7 +269,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-neutral-950 overflow-hidden">
-      <div className="flex-1 relative flex flex-col transition-all duration-500 ease-in-out min-w-0">
+      <div className="flex-1 relative flex flex-col transition-all duration-500 ease-in-out min-w-0 h-full">
           <div className="absolute top-6 left-6 right-6 md:top-10 md:left-10 md:right-10 z-30 flex items-center justify-between pointer-events-none">
               <div className="pointer-events-auto flex items-center gap-2 md:gap-3 flex-wrap">
                   <div className={cn(
@@ -292,7 +292,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
               </div>
           </div>
 
-          <div className="flex-1 relative min-h-0">
+          <div className="flex-1 relative h-full">
             <MeetingConsumer>
               {({ participants }) => {
                 const localParticipant = Array.from(participants.values()).find(p => p.local);
@@ -301,7 +301,7 @@ const MeetingView = ({ onEnd, onBroadcast, isLive }: { onEnd: () => void, onBroa
                     <ParticipantView participantId={localParticipant.id} />
                     <FloatingChatOverlay 
                       streamId={user?.uid || ''} 
-                      className="absolute bottom-20 left-4 z-40 max-w-[80%]"
+                      className="absolute bottom-24 left-4 z-40 max-w-[80%]"
                     />
                   </div>
                 ) : (

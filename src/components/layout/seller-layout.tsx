@@ -26,8 +26,10 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading) {
       if (!user) {
+        // Not logged in, redirect to login page
         router.replace('/login');
       } else if (userProfile && userProfile.userRole !== 'seller') {
+        // Logged in, but not a seller, redirect to homepage for role-based routing
         router.replace('/');
       }
     }
@@ -57,10 +59,10 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
         <SidebarInset className="flex flex-col flex-1 min-w-0 h-screen overflow-hidden">
           <SellerHeader />
           <main className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full",
-            fullWidth ? "p-0" : "p-4 md:p-8"
+            "flex-1 flex flex-col w-full max-w-full overflow-hidden",
+            fullWidth ? "p-0" : "p-4 md:p-8 overflow-y-auto"
           )}>
-            <div className={cn("w-full h-full", !fullWidth && "max-w-7xl mx-auto")}>
+            <div className={cn("flex-1 w-full relative", !fullWidth && "max-w-7xl mx-auto")}>
               <FirebaseErrorListener />
               {children}
             </div>
