@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Video, Download, UploadCloud, Radio, Type, ShieldCheck, RefreshCw, Volume2, Music, Megaphone, Zap, Layers, Scissors } from 'lucide-react';
+import { Loader2, Sparkles, Video, Download, UploadCloud, Radio, Type, ShieldCheck, RefreshCw, Volume2, Music, Megaphone, Zap, Layers, Scissors, BrainCircuit } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
+import { generateVideoScript } from '@/ai/flows/generate-video-script';
 import { useUser } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
 const AD_PRESETS = [
@@ -39,7 +39,24 @@ export default function AdminVideoGeneratorPage() {
     const [prompt, setPrompt] = useState(AD_PRESETS[0].prompt);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isScripting, setIsScripting] = useState(false);
     const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+
+    const handleGenerateScript = async () => {
+        setIsScripting(true);
+        try {
+            const { script } = await generateVideoScript({
+                contextType: 'platform',
+                data: {}
+            });
+            setPrompt(script);
+            toast({ title: 'AI Script Ready', description: 'Generated based on platform identity.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Scripting Failed' });
+        } finally {
+            setIsScripting(false);
+        }
+    };
 
     const handleGenerateVideo = async () => {
         if (!prompt.trim()) {
@@ -124,9 +141,15 @@ export default function AdminVideoGeneratorPage() {
                             Neural Audio Synthesis Enabled • Assemble 4 Scenes for 30s Ads
                         </p>
                     </div>
-                    <Badge variant="outline" className="h-10 px-6 rounded-xl border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
-                        ADMIN MASTER CONSOLE
-                    </Badge>
+                    <Button 
+                        variant="outline" 
+                        onClick={handleGenerateScript}
+                        disabled={isScripting}
+                        className="h-10 px-6 rounded-xl border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]"
+                    >
+                        {isScripting ? <Loader2 className="animate-spin mr-2 h-3.5 w-3.5" /> : <BrainCircuit className="mr-2 h-3.5 w-3.5" />}
+                        Neural Context Scan
+                    </Button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
