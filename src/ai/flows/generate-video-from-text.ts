@@ -2,7 +2,7 @@
 
 /**
  * @fileOverview An AI flow to generate high-fidelity cinematic video with synchronized audio.
- * Uses the stable Veo 2.0 engine maximized for temporal consistency and sound.
+ * Optimized for professional advertising and commercial production.
  */
 
 import { ai } from '@/ai/genkit';
@@ -26,7 +26,9 @@ export async function generateVideoFromText(input: GenerateVideoFromTextInput): 
   // We request 'audio' via the prompt as the model supports multi-modal synthesis.
   let { operation } = await ai.generate({
     model: googleAI.model('veo-2.0-generate-001'),
-    prompt: `${input.prompt}. This generation MUST include a synchronized, high-fidelity cinematic audio track. The visual must feature smooth professional camera motion, 4K textures, and perfect temporal consistency throughout the sequence.`,
+    prompt: `[ADVERTISING MASTER SCENE]: ${input.prompt}. 
+    This generation MUST include a synchronized, high-fidelity professional stereo audio track including ambient textures and a cinematic rhythm. 
+    The visual MUST feature ultra-smooth professional camera motion (e.g. cinematic drone, crane, or slow-motion dolly), 4K textures, perfect temporal consistency, and vibrant color grading suitable for a premium marketplace commercial.`,
     config: {
       durationSeconds: 8, // MAX PHYSICAL LIMIT for the current stable API
       aspectRatio: '16:9',
