@@ -20,8 +20,9 @@ const ParticipantView = ({ participantId }: { participantId: string }) => {
       const mediaStream = new MediaStream();
       mediaStream.addTrack(webcamStream.track);
       videoRef.current.srcObject = mediaStream;
+      // High-velocity play with error suppression for instant-on behavior
       videoRef.current.play().catch(err => {
-          if (err.name !== 'AbortError') console.warn("[Live Sync] Video attachment failed:", err);
+          if (err.name !== 'AbortError') console.warn("[Live Sync] Video attachment delayed:", err);
       });
     }
   }, [webcamStream]);
@@ -61,6 +62,7 @@ const ViewerMeetingView = () => {
   const hasAttemptedJoin = useRef(false);
   
   useEffect(() => {
+    // Aggressive join: trigger as soon as meeting context is ready
     if (!isMeetingJoined && !hasAttemptedJoin.current) {
       hasAttemptedJoin.current = true;
       join();
@@ -83,7 +85,7 @@ const ViewerMeetingView = () => {
                 <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
                 <Loader2 className="h-10 w-10 animate-spin text-primary relative z-10" />
            </div>
-           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center px-8">Negotiating Global Signal...</p>
+           <p className="text-white/40 text-[9px] font-black uppercase tracking-[0.3em] text-center px-8">Establishing Real-Time Signal...</p>
         </div>
       )}
     </div>
@@ -132,6 +134,7 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
 
   return (
     <MeetingProvider
+      token={token}
       config={{
         meetingId,
         micEnabled: false,
@@ -139,10 +142,11 @@ export default function VideoSDKViewer({ meetingId }: { meetingId: string }) {
         name: displayName,
         mode: "CONFERENCE",
         multiStream: false,
-        subscribeFullStream: true,
+        // SPEED OPTIMIZATION: Disabled full stream subscription to allow the SDK 
+        // to intelligently manage low-latency data packets for an "instant" feel.
+        subscribeFullStream: false,
         adaptiveStream: true,
       }}
-      token={token}
     >
       <MeetingConsumer>
         {() => <ViewerMeetingView />}
