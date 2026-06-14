@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Rocket } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Camera, BadgeCent, Zap, PowerOff, Type, Rocket, Share2, Copy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +57,17 @@ export default function SellerGoLivePage() {
       console.error("Error fetching VideoSDK token:", err);
     }
   }, []);
+
+  const handleCopyShareLink = () => {
+    if (!user) return;
+    const shareUrl = `https://goearnvid.shop/buyer/live/${user.uid}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+        toast({
+            title: "LINK COPIED!",
+            description: "Promote this link on WhatsApp or TikTok to build your audience."
+        });
+    });
+  };
 
   const handleStartBroadcastDirect = useCallback(async () => {
     if (!user || !currentToken) return;
@@ -229,15 +240,27 @@ export default function SellerGoLivePage() {
                                       </div>
                                   </div>
                                   
-                                  <Button 
-                                    size="lg" 
-                                    className="w-full h-16 md:h-20 rounded-[2rem] font-black text-xl md:text-2xl bg-red-600 hover:bg-red-700 text-white shadow-2xl shadow-red-600/40 group transition-all" 
-                                    onClick={handleStartBroadcastDirect} 
-                                    disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !currentToken}
-                                  >
-                                      {isStarting ? <Loader2 className="animate-spin mr-3 h-6 w-6 md:h-8 md:w-8" /> : <Rocket className="mr-3 h-6 w-6 md:h-8 md:w-8 group-hover:scale-110 transition-transform" />} 
-                                      START BROADCAST
-                                  </Button>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <Button 
+                                        size="lg" 
+                                        className="w-full h-16 rounded-2xl font-black text-xs md:text-sm bg-red-600 hover:bg-red-700 text-white shadow-2xl shadow-red-600/40 group transition-all border-none" 
+                                        onClick={handleStartBroadcastDirect} 
+                                        disabled={isStarting || (userProfile?.aiPoints || 0) < 100 || !currentToken}
+                                      >
+                                          {isStarting ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <Rocket className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />} 
+                                          GO LIVE NOW
+                                      </Button>
+                                      
+                                      <Button 
+                                        size="lg" 
+                                        variant="outline"
+                                        className="w-full h-16 rounded-2xl font-black text-xs md:text-sm border-white/10 bg-white/5 text-white hover:bg-white/10"
+                                        onClick={handleCopyShareLink}
+                                      >
+                                          <Share2 className="mr-2 h-5 w-5" /> 
+                                          COPY LINK
+                                      </Button>
+                                  </div>
                               </div>
                           )}
 

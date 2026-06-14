@@ -6,7 +6,7 @@ import { BuyerLayout } from '@/components/layout/buyer-layout';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { LiveSession, Product } from '@/lib/types';
-import { Loader2, MessageSquare, ShoppingBag, X, Radio, VideoOff, Share2 } from 'lucide-react';
+import { Loader2, MessageSquare, ShoppingBag, X, Radio, VideoOff, Share2, LogIn } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import { LiveChat } from '@/components/buyer/LiveChat';
@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { FloatingChatOverlay } from '@/components/live/FloatingChatOverlay';
 import { LivePromoOverlay } from '@/components/live/LivePromoOverlay';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
+import Link from 'next/link';
 
 const VideoSDKViewer = dynamic(() => import('@/components/buyer/VideoSDKViewer'), {
   ssr: false,
@@ -31,6 +33,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
   const params = use(props.params);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useUser();
   const sessionId = params.sessionId;
   const firestore = useFirestore();
 
@@ -87,7 +90,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
   }, [session, isSessionLoading, router]);
 
   const handleShare = () => {
-      const url = window.location.href;
+      const url = `https://goearnvid.shop/buyer/live/${sessionId}`;
       navigator.clipboard.writeText(url).then(() => {
           toast({ title: 'Link Copied!', description: 'Invite friends to shop live together.' });
       });
@@ -95,7 +98,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
 
   if (isSessionLoading) {
     return (
-      <BuyerLayout fullWidth>
+      <BuyerLayout fullWidth isGuestAllowed>
         <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="text-neutral-500 font-black uppercase tracking-widest text-[10px] mt-4">Pinging Host Studio...</p>
@@ -106,7 +109,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
 
   if (session?.status === 'ended') {
       return (
-        <BuyerLayout fullWidth>
+        <BuyerLayout fullWidth isGuestAllowed>
             <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black text-center p-8">
                 <div className="p-8 rounded-full bg-red-600/10 border border-red-600/20 mb-8 animate-in zoom-in-95 duration-500">
                     <VideoOff className="h-16 w-16 text-red-600" />
@@ -127,7 +130,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
 
   if (!session || session.status !== 'live' || !session.videosdkMeetingId) {
     return (
-      <BuyerLayout fullWidth>
+      <BuyerLayout fullWidth isGuestAllowed>
         <div className="h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-black text-center p-8">
           <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-6">
             <Radio className="h-12 w-12 text-neutral-700" />
@@ -145,7 +148,7 @@ export default function BuyerLiveSessionPage(props: { params: Promise<{ sessionI
   }
 
   return (
-    <BuyerLayout fullWidth>
+    <BuyerLayout fullWidth isGuestAllowed>
       <div className="relative h-[calc(100vh-4rem)] w-full bg-black overflow-hidden flex">
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 z-0">

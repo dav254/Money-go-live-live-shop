@@ -18,15 +18,16 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export function BuyerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
+export function BuyerLayout({ children, fullWidth = false, isGuestAllowed = false }: { children: React.ReactNode, fullWidth?: boolean, isGuestAllowed?: boolean }) {
   const { user, isLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    // Only redirect to login if user is not logged in AND guest access is NOT allowed
+    if (!isLoading && !user && !isGuestAllowed) {
       router.replace('/login');
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, isGuestAllowed]);
 
   return (
     <SidebarProvider>

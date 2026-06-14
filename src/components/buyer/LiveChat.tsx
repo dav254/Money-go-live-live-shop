@@ -4,13 +4,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, MessageSquare, ShieldCheck, User, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, ShieldCheck, User, Loader2, LogIn } from 'lucide-react';
 import { useCollection, useFirestore, useUser, useDoc } from '@/firebase';
 import { collection, query, orderBy, addDoc, serverTimestamp, doc, where } from 'firebase/firestore';
 import type { ChatMessage, UserProfile, LiveSession } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface LiveChatProps {
   streamId: string;
@@ -106,6 +107,7 @@ export function LiveChat({ streamId }: LiveChatProps) {
   };
 
   const handleReply = (userName: string) => {
+    if (!user) return;
     setNewMessage(prev => `@${userName} ${prev}`);
   };
 
@@ -185,18 +187,26 @@ export function LiveChat({ streamId }: LiveChatProps) {
         </ScrollArea>
 
         <div className="p-2 sm:p-3 border-t border-white/5 bg-neutral-950">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-1.5">
-                <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={user ? "Type..." : "Login to chat"}
-                    className="bg-neutral-900 border-white/5 text-white rounded-lg h-9 text-xs focus-visible:ring-primary px-3"
-                    disabled={!user || session?.status !== 'live'}
-                />
-                <Button type="submit" size="icon" className="bg-primary rounded-lg h-9 w-9 shrink-0 border-none" disabled={!user || !newMessage.trim() || session?.status !== 'live'}>
-                    <Send className="h-3.5 w-3.5" />
+            {user ? (
+                <form onSubmit={handleSendMessage} className="flex items-center gap-1.5">
+                    <Input
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type..."
+                        className="bg-neutral-900 border-white/5 text-white rounded-lg h-9 text-xs focus-visible:ring-primary px-3"
+                        disabled={session?.status !== 'live'}
+                    />
+                    <Button type="submit" size="icon" className="bg-primary rounded-lg h-9 w-9 shrink-0 border-none" disabled={!newMessage.trim() || session?.status !== 'live'}>
+                        <Send className="h-3.5 w-3.5" />
+                    </Button>
+                </form>
+            ) : (
+                <Button asChild className="w-full h-10 rounded-xl bg-primary text-white font-black uppercase text-[9px] tracking-[0.2em] shadow-lg shadow-primary/20">
+                    <Link href="/login">
+                        <LogIn className="h-3.5 w-3.5 mr-2" /> SIGN IN TO CHAT
+                    </Link>
                 </Button>
-            </form>
+            )}
         </div>
       </div>
   );
