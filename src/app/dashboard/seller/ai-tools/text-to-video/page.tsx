@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Type, UploadCloud, Radio, Video } from 'lucide-react';
+import { Loader2, Sparkles, Type, UploadCloud, Radio, Video, Download, RefreshCw } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useUser, useUserProfile } from '@/firebase';
@@ -43,6 +43,17 @@ export default function TextToVideoPage() {
             setIsGenerating(false);
         }
     };
+
+    const handleDownload = () => {
+        if (!generatedVideoUrl) return;
+        const link = document.createElement('a');
+        link.href = generatedVideoUrl;
+        link.download = `goearnvid-ai-showcase-${Date.now()}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Download Started', description: 'Your video is saving to your device.' });
+    };
     
     const handleDirectPublish = async () => {
         if (!generatedVideoUrl || !user) return;
@@ -51,7 +62,6 @@ export default function TextToVideoPage() {
         toast({ title: 'Publishing to Live Feed...', description: 'Your video is being transcoded for global discovery.' });
 
         try {
-            // DIRECT PUBLISH: No product ID means it goes straight to the global live feed as a generic showcase
             await publishVideoToProduct({
                 productId: 'global_showcase', 
                 videoUrl: generatedVideoUrl
@@ -118,7 +128,7 @@ export default function TextToVideoPage() {
                         <CardHeader>
                             <CardTitle className="text-lg font-black uppercase tracking-widest">2. Preview & Global Publish</CardTitle>
                              <CardDescription>
-                                Once generated, publish your video to the main feed to reach potential buyers instantly.
+                                Once generated, you can download the video or publish it to the main feed.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-1 flex flex-col justify-center gap-6">
@@ -144,11 +154,26 @@ export default function TextToVideoPage() {
                             
                             {generatedVideoUrl && (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                     <Alert className="bg-green-500/10 border-green-500/30 text-green-400">
-                                        <Radio className="h-4 w-4 animate-pulse" />
-                                        <AlertTitle className="font-black uppercase text-[10px] tracking-widest">Global Discovery Ready</AlertTitle>
-                                        <AlertDescription className="text-xs font-medium">Publishing now will place this video in the main discover feed for all Go Earn users.</AlertDescription>
-                                     </Alert>
+                                     <div className="grid grid-cols-2 gap-4">
+                                        <Button 
+                                            size="lg"
+                                            variant="secondary"
+                                            className="h-14 rounded-xl font-black text-xs uppercase tracking-widest" 
+                                            onClick={handleDownload}
+                                        >
+                                            <Download className="mr-2 h-4 w-4" /> DOWNLOAD MP4
+                                        </Button>
+                                        <Button 
+                                            size="lg"
+                                            variant="outline"
+                                            className="h-14 rounded-xl font-black text-xs uppercase tracking-widest border-white/10 hover:bg-white/5" 
+                                            onClick={handleGenerateVideo} 
+                                            disabled={isGenerating}
+                                        >
+                                            <RefreshCw className="mr-2 h-4 w-4" /> RETAKE
+                                        </Button>
+                                     </div>
+
                                      <Button 
                                         size="lg"
                                         className="w-full h-16 rounded-2xl font-black text-xl bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-600/30" 

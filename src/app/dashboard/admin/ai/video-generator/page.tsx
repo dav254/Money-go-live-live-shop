@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Video, Download, UploadCloud, Radio, Type, ShieldCheck, RefreshCw, Volume2, Music, Megaphone, Zap, Layers } from 'lucide-react';
+import { Loader2, Sparkles, Video, Download, UploadCloud, Radio, Type, ShieldCheck, RefreshCw, Volume2, Music, Megaphone, Zap, Layers, Scissors } from 'lucide-react';
 import { generateVideoFromText } from '@/ai/flows/generate-video-from-text';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useUser } from '@/firebase';
@@ -58,7 +58,7 @@ export default function AdminVideoGeneratorPage() {
             const result = await generateVideoFromText({ prompt });
             setGeneratedVideoUrl(result.videoUrl);
             toast({ 
-                title: '✅ Signal Locked!', 
+                title: '✅ Scene Completed!', 
                 description: '4K Cinematic Scene with Audio is ready for download.' 
             });
         } catch (error: any) {
@@ -81,7 +81,7 @@ export default function AdminVideoGeneratorPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast({ title: 'Exporting...', description: 'Commercial-grade MP4 is saving to your local node.' });
+        toast({ title: 'Exporting...', description: 'MP4 is saving to your local node.' });
     };
 
     const handleGlobalPublish = async () => {
@@ -121,7 +121,7 @@ export default function AdminVideoGeneratorPage() {
                         </h1>
                         <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 ml-1 flex items-center gap-2">
                             <Music className="h-3 w-3 text-green-500" />
-                            Neural Audio Synthesis Enabled • Generate Scenes for 30s Campaigns
+                            Neural Audio Synthesis Enabled • Assemble 4 Scenes for 30s Ads
                         </p>
                     </div>
                     <Badge variant="outline" className="h-10 px-6 rounded-xl border-primary/20 bg-primary/5 text-primary font-black uppercase tracking-widest text-[10px]">
@@ -130,14 +130,38 @@ export default function AdminVideoGeneratorPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-                    {/* Input Panel */}
                     <div className="lg:col-span-2 space-y-6">
+                        {/* Assembly Guide */}
+                        <Card className="border-primary/20 bg-primary/5 overflow-hidden rounded-[2rem]">
+                            <CardHeader className="p-6 pb-2">
+                                <CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                    <Scissors className="h-4 w-4" /> 30s AD WORKFLOW
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6 pt-0">
+                                <p className="text-[11px] font-medium leading-relaxed text-muted-foreground">
+                                    AI video is currently limited to <span className="text-white font-bold">8-second</span> high-fidelity clips. To create a 30-second ad:
+                                </p>
+                                <ul className="mt-3 space-y-2">
+                                    {[
+                                        "Generate 4 distinct scenes using presets.",
+                                        "Download each scene using the EXPORT button.",
+                                        "Assemble them in any video editor."
+                                    ].map((step, i) => (
+                                        <li key={i} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-tight">
+                                            <div className="h-4 w-4 rounded-full bg-primary text-white flex items-center justify-center text-[8px]">{i+1}</div>
+                                            {step}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardContent>
+                        </Card>
+
                         <Card className="shadow-2xl border-white/5 bg-neutral-900/50 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
                             <CardHeader className="p-8 bg-white/5 border-b border-white/5">
                                 <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                                    <Zap className="h-4 w-4" /> AD PRESETS
+                                    <Zap className="h-4 w-4" /> SCENE PRESETS
                                 </CardTitle>
-                                <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Optimized prompts for brand commercials</CardDescription>
                             </CardHeader>
                             <CardContent className="p-4 grid grid-cols-2 gap-2">
                                 {AD_PRESETS.map((preset) => (
@@ -159,7 +183,7 @@ export default function AdminVideoGeneratorPage() {
                         <Card className="shadow-2xl border-white/5 bg-neutral-900/50 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
                             <CardHeader className="p-8 bg-white/5">
                                 <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                                    <Type className="h-4 w-4" /> CUSTOM SCRIPT
+                                    <Type className="h-4 w-4" /> SCENE SCRIPT
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="p-8 space-y-6">
@@ -181,15 +205,9 @@ export default function AdminVideoGeneratorPage() {
                                     GENERATE 8s SCENE
                                 </Button>
                             </CardContent>
-                            <CardFooter className="p-4 bg-white/5 text-center">
-                                <p className="text-[8px] font-bold text-neutral-500 uppercase tracking-widest w-full flex items-center justify-center gap-2">
-                                    <Layers className="h-3 w-3" /> Tip: Generate 4 scenes to create a 30s ad
-                                </p>
-                            </CardFooter>
                         </Card>
                     </div>
 
-                    {/* Preview Panel */}
                     <Card className="lg:col-span-3 shadow-2xl border-white/5 bg-neutral-900/50 backdrop-blur-xl min-h-[500px] flex flex-col rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 bg-white/5 border-b border-white/5">
                             <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center justify-between">
@@ -209,7 +227,7 @@ export default function AdminVideoGeneratorPage() {
                                         </div>
                                         <h3 className="text-white text-xl font-black uppercase tracking-tighter">Neural Mastering...</h3>
                                         <p className="text-white/30 text-[9px] mt-3 max-w-[280px] uppercase font-bold tracking-[0.3em] leading-relaxed">
-                                            Synthesizing 4K frames and audio textures
+                                            Synthesizing 8s 4K visuals and audio textures
                                         </p>
                                     </div>
                                 ) : generatedVideoUrl ? (
@@ -222,7 +240,7 @@ export default function AdminVideoGeneratorPage() {
                                     />
                                 ) : (
                                     <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 text-center p-12">
-                                        <div className="p-6 rounded-full bg-white/5 border border-white/5 mb-6">
+                                        <div className="p-6 rounded-full bg-white/5 border border-white/10 mb-6">
                                             <Video className="h-16 w-16 opacity-10" />
                                         </div>
                                         <p className="font-black uppercase tracking-[0.3em] text-[10px]">Ready for Signal Injection</p>
@@ -238,7 +256,7 @@ export default function AdminVideoGeneratorPage() {
                                             className="h-16 rounded-2xl font-black text-xs uppercase tracking-widest bg-white text-black hover:bg-neutral-200 shadow-xl" 
                                             onClick={handleDownload}
                                         >
-                                            <Download className="mr-2 h-5 w-5" /> EXPORT FULL MP4
+                                            <Download className="mr-2 h-5 w-5" /> DOWNLOAD MP4
                                         </Button>
                                         <Button 
                                             size="lg"
@@ -266,7 +284,7 @@ export default function AdminVideoGeneratorPage() {
                         <CardFooter className="bg-white/5 p-6 border-t border-white/5 flex items-center justify-center gap-3">
                             <ShieldCheck className="h-4 w-4 text-green-500" />
                             <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">
-                                Secure Signal Generation • Verified 4K Audio-Visual Output
+                                High Fidelity Protocol • Audio-Visual Signal Locked
                             </p>
                         </CardFooter>
                     </Card>

@@ -6,7 +6,7 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,12 +14,11 @@ import Image from 'next/image';
 import { generateEnhancedVideo } from '@/ai/flows/generate-enhanced-video';
 import { publishVideoToProduct } from '@/ai/flows/publish-video';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, ChevronLeft, Film, UploadCloud } from 'lucide-react';
+import { Loader2, Sparkles, ChevronLeft, Film, UploadCloud, Download, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
-// Page Skeleton
 const PageSkeleton = () => (
     <div className="flex-1 space-y-4 p-8 pt-6">
         <Skeleton className="h-8 w-48" />
@@ -52,7 +51,7 @@ export default function EnhanceVideoPage() {
 
     const productImages = useMemo(() => {
         if (!product) return [];
-        const images = product.imageUrls || [];
+        const images = [...(product.imageUrls || [])];
         if (product.imageUrl && !images.includes(product.imageUrl)) {
             images.unshift(product.imageUrl);
         }
@@ -81,6 +80,17 @@ export default function EnhanceVideoPage() {
         } finally {
             setIsGenerating(false);
         }
+    };
+
+    const handleDownload = () => {
+        if (!generatedVideoUrl) return;
+        const link = document.createElement('a');
+        link.href = generatedVideoUrl;
+        link.download = `goearnvid-enhanced-${product?.name || 'video'}-${Date.now()}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Download Started' });
     };
     
     const handlePublishVideo = async () => {
@@ -177,10 +187,20 @@ export default function EnhanceVideoPage() {
                                     )}
                                 </div>
                                  {generatedVideoUrl && (
-                                     <Button className="w-full mt-4" onClick={handlePublishVideo} disabled={isPublishing}>
-                                        {isPublishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                                        Publish to Product
-                                    </Button>
+                                     <div className="space-y-3 mt-4">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <Button variant="secondary" onClick={handleDownload}>
+                                                <Download className="mr-2 h-4 w-4" /> Download MP4
+                                            </Button>
+                                            <Button variant="outline" onClick={handleGenerateVideo}>
+                                                <RefreshCw className="mr-2 h-4 w-4" /> Retake
+                                            </Button>
+                                        </div>
+                                        <Button className="w-full" onClick={handlePublishVideo} disabled={isPublishing}>
+                                            {isPublishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                                            Publish to Product
+                                        </Button>
+                                     </div>
                                  )}
                             </CardContent>
                         </Card>
