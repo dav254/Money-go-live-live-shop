@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint, Order, Payout, Payment } from '@/lib/types';
+import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -119,6 +119,20 @@ export function AdminSidebar() {
   const paymentsQuery = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
   const { data: allPayments } = useCollection<Payment>(paymentsQuery);
 
+  // --- Real-time Live Shopping Counts ---
+  const activeSessionsQuery = useMemoFirebase(() => query(
+    collection(firestore, 'liveSessions'),
+    where('status', '==', 'live')
+  ), [firestore]);
+  const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
+
+  const flaggedStreamsQuery = useMemoFirebase(() => query(
+    collection(firestore, 'complaints'),
+    where('targetType', '==', 'user'),
+    where('status', '==', 'open')
+  ), [firestore]);
+  const { data: flaggedStreams } = useCollection<Complaint>(flaggedStreamsQuery);
+
   // Memoize counts for performance
   const userStats = useMemo(() => {
     if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
@@ -153,6 +167,11 @@ export function AdminSidebar() {
         totalPayments: allPayments?.length || 0,
     };
   }, [allPayouts, allPayments]);
+
+  const liveStats = useMemo(() => ({
+    active: activeSessions?.length || 0,
+    flagged: flaggedStreams?.length || 0
+  }), [activeSessions, flaggedStreams]);
 
   return (
     <>
@@ -218,9 +237,9 @@ export function AdminSidebar() {
           icon={ScreenShare}
           basePath="live-shopping"
           items={[
-            { href: 'sessions', label: 'Live Sessions' },
+            { href: 'sessions', label: 'Live Sessions', badge: liveStats.active },
             { href: 'approved', label: 'Approved Streams' },
-            { href: 'flagged', label: 'Flagged Streams' },
+            { href: 'flagged', label: 'Flagged Streams', badge: liveStats.flagged },
             { href: 'analytics', label: 'Live Analytics' },
           ]}
         />
