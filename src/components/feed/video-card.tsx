@@ -24,10 +24,12 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
+  // Consolidate all available media into a single array for cycling
   const allMedia = useMemo(() => {
     const media: {url: string, type: 'video' | 'image'}[] = [];
     
     if (item.product) {
+        // 1. Add Videos
         if (item.product.videoUrl && item.product.videoUrl.trim() !== "") {
           media.push({ url: item.product.videoUrl, type: 'video' });
         }
@@ -39,6 +41,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
           });
         }
         
+        // 2. Add Images
         if (item.product.imageUrl && item.product.imageUrl.trim() !== "") {
           if (!media.some(m => m.url === item.product.imageUrl)) {
             media.push({ url: item.product.imageUrl, type: 'image' });
@@ -53,23 +56,13 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
         }
     }
     
-    // FALLBACK: If no product media found, show seller's profile image instead of a placeholder text
+    // FALLBACK: If no media found, use neutral placeholder
     if (media.length === 0) {
-        const sellerAvatar = item.seller?.avatar?.imageUrl;
-        const sellerBanner = item.seller?.banner?.imageUrl;
-        
-        // Prioritize actual user/seller images as backgrounds for "empty" products
-        if (sellerAvatar && sellerAvatar.trim() !== "" && !sellerAvatar.includes('text=')) {
-            media.push({ url: sellerAvatar, type: 'image' });
-        } else if (sellerBanner && sellerBanner.trim() !== "" && !sellerBanner.includes('text=')) {
-            media.push({ url: sellerBanner, type: 'image' });
-        } else {
-            media.push({ url: getPlaceholderImage(), type: 'image' });
-        }
+        media.push({ url: getPlaceholderImage(), type: 'image' });
     }
 
     return media;
-  }, [item.product, item.seller]);
+  }, [item.product]);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -81,6 +74,18 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   
   const currentMedia = allMedia[currentMediaIndex];
 
+  // Auto-play / Cycling Logic
+  useEffect(() => {
+    if (!isIntersecting || allMedia.length <= 1) return;
+
+    const interval = setInterval(() => {
+        setCurrentMediaIndex((prev) => (prev + 1) % allMedia.length);
+    }, 5000); // Cycle every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [isIntersecting, allMedia.length]);
+
+  // Video Autoplay control
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || currentMedia?.type !== 'video') return;
@@ -100,6 +105,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
     }
   }, [isIntersecting, currentMedia]);
   
+  // Reset index when product changes
   useEffect(() => {
     setCurrentMediaIndex(0);
   }, [item.product.id]);
@@ -146,7 +152,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
 
   return (
     <div className="relative h-full w-full bg-black overflow-hidden">
-      {/* Dismiss/X Button */}
+      {/* Dismiss Button */}
       <Button 
         onClick={handleDismiss}
         variant="ghost" 
@@ -156,6 +162,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
         <X className="h-5 w-5" />
       </Button>
 
+      {/* Background Media with AnimatePresence for cross-fading */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentMedia?.url}
@@ -163,7 +170,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.4 }}
         >
           {currentMedia?.type === 'video' ? (
             <video 
@@ -192,41 +199,35 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
         </motion.div>
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/40 pointer-events-none" />
 
+      {/* Manual Navigation Chevrons */}
       {allMedia.length > 1 && (
         <>
-          <Button 
+          <button 
             onClick={() => handleHorizontalScroll('left')} 
-            size="icon" 
-            variant="ghost" 
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/10 hover:bg-black/40 text-white border border-white/5 h-12 w-12"
-          >
-            <ChevronLeft className="h-8 w-8 opacity-50" />
-          </Button>
-          <Button 
+            className="absolute left-0 top-0 bottom-0 w-1/4 z-20 cursor-w-resize"
+            aria-label="Previous image"
+          />
+          <button 
             onClick={() => handleHorizontalScroll('right')} 
-            size="icon" 
-            variant="ghost" 
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 rounded-full bg-black/10 hover:bg-black/40 text-white border border-white/5 h-12 w-12"
-          >
-            <ChevronRight className="h-8 w-8 opacity-50" />
-          </Button>
+            className="absolute right-0 top-0 bottom-0 w-1/4 z-20 cursor-e-resize"
+            aria-label="Next image"
+          />
         </>
       )}
       
       <VideoInfo seller={item.seller} />
 
-      {/* Horizontal Navigation Line (Segmented Progress Bar) */}
+      {/* Segmented Progress Bar (Instagram style) */}
       {allMedia.length > 1 && (
         <div className="absolute bottom-[104px] left-4 right-16 z-20 flex gap-1 px-1">
           {allMedia.map((_, i) => (
             <div 
               key={i} 
-              onClick={() => setCurrentMediaIndex(i)}
               className={cn(
-                "h-0.5 flex-1 rounded-full transition-all duration-300 cursor-pointer shadow-sm",
-                i === currentMediaIndex ? "bg-primary glow-primary" : "bg-white/30"
+                "h-0.5 flex-1 rounded-full transition-all duration-500",
+                i === currentMediaIndex ? "bg-primary glow-primary" : "bg-white/20"
               )}
             />
           ))}
