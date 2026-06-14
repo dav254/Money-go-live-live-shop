@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession, SupportTicket } from '@/lib/types';
+import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession, SupportTicket, ActivityLog, ErrorLog } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -146,6 +146,16 @@ export function AdminSidebar() {
   ), [firestore]);
   const { data: unresolvedComplaints } = useCollection<Complaint>(unresolvedComplaintsQuery);
 
+  // --- Real-time Logs & Analytics Counts ---
+  const activityLogsQuery = useMemoFirebase(() => collection(firestore, 'activityLogs'), [firestore]);
+  const { data: allActivityLogs } = useCollection<ActivityLog>(activityLogsQuery);
+
+  const newErrorLogsQuery = useMemoFirebase(() => query(
+    collection(firestore, 'errorLogs'),
+    where('status', '==', 'new')
+  ), [firestore]);
+  const { data: newErrorLogs } = useCollection<ErrorLog>(newErrorLogsQuery);
+
   // Memoize counts for performance
   const userStats = useMemo(() => {
     if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
@@ -190,6 +200,11 @@ export function AdminSidebar() {
     tickets: openTickets?.length || 0,
     complaints: unresolvedComplaints?.length || 0
   }), [openTickets, unresolvedComplaints]);
+
+  const logStats = useMemo(() => ({
+    activity: allActivityLogs?.length || 0,
+    errors: newErrorLogs?.length || 0
+  }), [allActivityLogs, newErrorLogs]);
 
   return (
     <>
@@ -333,9 +348,9 @@ export function AdminSidebar() {
           basePath="analytics"
           items={[
             { href: 'revenue', label: 'Sales Analytics' },
-            { href: 'users', label: 'User Analytics' },
-            { href: 'activity', label: 'User Activity Logs' },
-            { href: 'errors', label: 'Frontend' },
+            { href: 'users', label: 'User Analytics', badge: userStats.buyers + userStats.sellers + userStats.resellers },
+            { href: 'activity', label: 'User Activity Logs', badge: logStats.activity },
+            { href: 'errors', label: 'Frontend', badge: logStats.errors },
           ]}
         />
       </SidebarMenu>
