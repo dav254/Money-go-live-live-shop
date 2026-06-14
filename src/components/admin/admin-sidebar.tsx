@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint, Order } from '@/lib/types';
+import type { UserProfile, Product, Complaint, Order, Payout, Payment } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -112,6 +112,13 @@ export function AdminSidebar() {
   const ordersQuery = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
   const { data: allOrders } = useCollection<Order>(ordersQuery);
 
+  // --- Real-time Finance Counts ---
+  const payoutsQuery = useMemoFirebase(() => collection(firestore, 'payouts'), [firestore]);
+  const { data: allPayouts } = useCollection<Payout>(payoutsQuery);
+
+  const paymentsQuery = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
+  const { data: allPayments } = useCollection<Payment>(paymentsQuery);
+
   // Memoize counts for performance
   const userStats = useMemo(() => {
     if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
@@ -138,6 +145,14 @@ export function AdminSidebar() {
       tracking: allOrders.filter(o => o.orderStatus === 'shipped' || o.orderStatus === 'delivery').length,
     };
   }, [allOrders]);
+
+  const financeStats = useMemo(() => {
+    if (!allPayouts) return { pendingPayouts: 0, totalPayments: 0 };
+    return {
+        pendingPayouts: allPayouts.filter(p => p.status === 'pending').length,
+        totalPayments: allPayments?.length || 0,
+    };
+  }, [allPayouts, allPayments]);
 
   return (
     <>
@@ -216,10 +231,10 @@ export function AdminSidebar() {
           basePath="finance"
           items={[
             { href: 'analytics', label: 'Financial Analytics' },
-            { href: 'payments', label: 'All Payments' },
+            { href: 'payments', label: 'All Payments', badge: financeStats.totalPayments },
             { href: 'invoices', label: 'Invoice Generator' },
             { href: 'commissions', label: 'Commissions' },
-            { href: 'payouts', label: 'Payout Requests' },
+            { href: 'payouts', label: 'Payout Requests', badge: financeStats.pendingPayouts },
             { href: 'tax', label: 'Tax Center' },
           ]}
         />
