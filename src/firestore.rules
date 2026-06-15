@@ -43,7 +43,9 @@ service cloud.firestore {
     match /products/{productId} {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
-      allow update: if (isSignedIn() && resource.data.sellerId == request.auth.uid);
+      // Broad update rule for owners: they can change anything except the sellerId itself
+      allow update: if isSignedIn() && resource.data.sellerId == request.auth.uid && 
+                   (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['sellerId']));
       allow delete: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || isAdmin();
 
       match /reviews/{reviewId} {

@@ -65,6 +65,11 @@ const formSchema = z.object({
   wasPrice: z.coerce.number().optional(),
 });
 
+interface ProductUploadFormProps {
+  productToEdit?: Product;
+  onFormSubmit?: () => void;
+}
+
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -103,7 +108,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     },
   });
 
-  // Manage Previews lifecycle to avoid crashes and leaks
+  // Manage Previews lifecycle to avoid memory leaks and broken icons
   useEffect(() => {
     const newPreviews = imageFiles.map((file) => {
       if (file instanceof File) return URL.createObjectURL(file);
@@ -199,6 +204,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setIsUploading(true);
 
     try {
+      // 1. Upload Images
       const finalImageUrls: string[] = [];
       for (let i = 0; i < imageFiles.length; i++) {
         const item = imageFiles[i];
@@ -211,6 +217,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         }
       }
 
+      // 2. Upload Videos
       const finalVideoUrls: string[] = [...existingVideoUrls];
       for (let i = 0; i < videoFiles.length; i++) {
         const file = videoFiles[i];
@@ -252,7 +259,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           variant: 'destructive', 
           title: 'Upload Failed', 
           description: error.code === 'permission-denied' 
-            ? "Access Denied: Check your account status or media format." 
+            ? "Permission Denied: Ensure you are logged in and account is active." 
             : error.message 
       });
     } finally {
@@ -269,13 +276,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
             <Card className="w-full max-w-full overflow-hidden">
               <CardHeader className="p-4 md:p-6">
                 <CardTitle className="text-xl md:text-2xl">Basic Information</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Give your product a clear name and detailed description.</CardDescription>
+                <CardDescription className="text-xs md:text-sm">Describe your item in detail to help buyers find it.</CardDescription>
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0 space-y-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
-                    <FormControl><Input placeholder="e.g. Leather Jacket" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g. Classic Leather Belt" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -317,15 +324,15 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                    <FormField control={form.control} name="tags" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Search Tags</FormLabel>
-                      <FormControl><Input placeholder="summer, leather" {...field} /></FormControl>
+                      <FormControl><Input placeholder="fashion, leather, accessories" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Full Description</FormLabel>
-                    <FormControl><Textarea rows={6} placeholder="Describe features..." {...field} /></FormControl>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl><Textarea rows={6} placeholder="What makes this product special?" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -334,12 +341,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
             <Card className="w-full max-w-full overflow-hidden">
               <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><ImageIcon className="text-primary h-5 w-5" /> Product Media</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Upload exactly 5 high-quality images and optional videos.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><ImageIcon className="text-primary h-5 w-5" /> Media Assets</CardTitle>
+                <CardDescription className="text-xs md:text-sm">Upload images and videos at once to bring your listing to life.</CardDescription>
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0 space-y-6">
                 <div>
-                  <Label className="mb-4 block text-sm">Product Images (5 Slots)</Label>
+                  <Label className="mb-4 block text-sm">Images (up to 5)</Label>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3">
                     {imagePreviews.map((preview, i) => (
                       <div key={i} className="relative aspect-square rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted/50 group">
@@ -386,7 +393,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <Separator className="bg-white/5" />
 
                 <div>
-                  <Label className="mb-4 block text-sm">Videos (Optional)</Label>
+                  <Label className="mb-4 block text-sm">Promotional Videos</Label>
                   <div className="space-y-4">
                     <Input type="file" accept="video/*" multiple onChange={handleVideoChange} className="text-xs" />
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
@@ -431,8 +438,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           <div className="space-y-6 md:space-y-8">
             <Card className="w-full max-w-full overflow-hidden">
               <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Percent className="text-primary h-5 w-5" /> Pricing</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Set your selling price and discounts.</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Percent className="text-primary h-5 w-5" /> Financials</CardTitle>
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -466,12 +472,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <FormItem>
                       <FormLabel>Original Price (USD)</FormLabel>
                       <FormControl><Input type="number" {...field} value={field.value ?? ''} className="text-xs" /></FormControl>
+                      <FormDescription className="text-[10px]">Show a discount badge if lower than sale price.</FormDescription>
                       <FormMessage />
                     </FormItem>
                 )} />
                 <FormField control={form.control} name="stock" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Units Available</FormLabel>
+                    <FormLabel>Stock Count</FormLabel>
                     <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -481,20 +488,20 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
             <Card className="w-full max-w-full overflow-hidden">
               <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Truck className="text-primary h-5 w-5" /> Logistics</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Truck className="text-primary h-5 w-5" /> Fulfillment</CardTitle>
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0 space-y-4">
                 <FormField control={form.control} name="shippingCost" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Shipping (USD)</FormLabel>
+                    <FormLabel>Delivery Fee (USD)</FormLabel>
                     <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Instructions</FormLabel>
-                    <FormControl><Textarea rows={2} placeholder="Dispatch terms..." {...field} className="text-xs" /></FormControl>
+                    <FormLabel>Shipping Terms</FormLabel>
+                    <FormControl><Textarea rows={2} placeholder="e.g. Ships via Sendy within 2 days." {...field} className="text-xs" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -503,16 +510,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
             <Button type="submit" className="w-full h-14 md:h-16 font-black uppercase tracking-widest text-base md:text-lg shadow-xl shadow-primary/20" disabled={isUploading}>
               {isUploading ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
-              {productToEdit ? 'UPDATE' : 'PUBLISH'}
+              {productToEdit ? 'SAVE CHANGES' : 'PUBLISH NOW'}
             </Button>
           </div>
         </div>
       </form>
     </Form>
   );
-}
-
-interface ProductUploadFormProps {
-  productToEdit?: Product;
-  onFormSubmit?: () => void;
 }
