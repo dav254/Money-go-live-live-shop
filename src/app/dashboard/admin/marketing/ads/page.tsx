@@ -28,7 +28,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Pencil, Trash2, Zap, CheckCircle, XCircle } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Zap, CheckCircle, XCircle, Rocket } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -134,11 +134,9 @@ export default function AdminAdsPage() {
 
   const handleSave = (data: Partial<AdCampaign>) => {
       if (data.id) {
-          // Update existing local state
           setCampaigns(prev => prev.map(c => c.id === data.id ? { ...c, ...data } as AdCampaign : c));
           toast({ title: 'SIGNAL UPDATED', description: `Campaign sequence ${data.id} has been modified.` });
       } else {
-          // Create new local entry
           const newCampaign: AdCampaign = {
               ...data,
               id: `ad_${Math.random().toString(36).substr(2, 9)}`,
