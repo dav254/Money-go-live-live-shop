@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -44,11 +45,11 @@ service cloud.firestore {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
       
-      // BROAD OWNER PERMISSION: Correctly allowing all metadata updates for the merchant
-      allow update: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || 
-                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
+      // MERCHANT AUTONOMY: Streamlined owner permission allows all inventory metadata updates.
+      allow update: if (isOwner(resource.data.sellerId) && request.resource.data.sellerId == resource.data.sellerId) || 
+                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount', 'salesCount']));
                       
-      allow delete: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || isAdmin();
+      allow delete: if isOwner(resource.data.sellerId) || isAdmin();
 
       match /reviews/{reviewId} {
         allow read: if true;
@@ -83,7 +84,7 @@ service cloud.firestore {
        allow list, read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid || isAdmin());
        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
        allow update: if isSignedIn();
-       allow delete: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || isAdmin();
+       allow delete: if isOwner(resource.data.sellerId) || isAdmin();
     }
     
     match /payouts/{payoutId} {

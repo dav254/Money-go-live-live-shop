@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -22,13 +23,20 @@ interface VideoCardProps {
   isIntersecting: boolean;
 }
 
+/**
+ * Discovery Feed Hub: High-fidelity media cycling node.
+ * Automatically rotates through all product media (images + videos) to maximize engagement.
+ */
 export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
+  // Intelligent Media Aggregator: Unifies all product assets into a single discoverable stream.
   const allMedia = useMemo(() => {
     const media: {url: string, type: 'video' | 'image'}[] = [];
     if (item.product) {
+        // 1. Gather primary video
         if (item.product.videoUrl && item.product.videoUrl.trim() !== "") {
           media.push({ url: item.product.videoUrl, type: 'video' });
         }
+        // 2. Gather video array
         if (item.product.videoUrls && Array.isArray(item.product.videoUrls)) {
           item.product.videoUrls.forEach(url => {
             if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
@@ -36,11 +44,13 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
             }
           });
         }
+        // 3. Gather primary image
         if (item.product.imageUrl && item.product.imageUrl.trim() !== "") {
           if (!media.some(m => m.url === item.product.imageUrl)) {
             media.push({ url: item.product.imageUrl, type: 'image' });
           }
         }
+        // 4. Gather image gallery
         if (item.product.imageUrls && Array.isArray(item.product.imageUrls)) {
           item.product.imageUrls.forEach(url => {
             if (url && url.trim() !== "" && !media.some(m => m.url === url)) {
@@ -49,6 +59,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
           });
         }
     }
+    // Fallback if no media exists
     if (media.length === 0) media.push({ url: getPlaceholderImage(), type: 'image' });
     return media;
   }, [item.product]);
@@ -63,6 +74,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   
   const currentMedia = allMedia[currentMediaIndex];
 
+  // Automated Cycling Engine: Rotates through media stack every 6 seconds when visible.
   useEffect(() => {
     if (!isIntersecting || allMedia.length <= 1) return;
     const interval = setInterval(() => {
@@ -71,6 +83,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
     return () => clearInterval(interval);
   }, [isIntersecting, allMedia.length]);
 
+  // Real-time Video Playback Sync
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || currentMedia?.type !== 'video') return;
@@ -101,7 +114,7 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
   };
 
   return (
-    <div className="relative h-full w-full bg-black overflow-hidden">
+    <div className="relative h-full w-full bg-black overflow-hidden group">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentMedia?.url}
@@ -131,8 +144,9 @@ export function VideoCard({ item, onScroll, isIntersecting }: VideoCardProps) {
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/40 pointer-events-none" />
 
+      {/* Progress Bars for Media Stack */}
       {allMedia.length > 1 && (
-        <div className="absolute bottom-[104px] left-4 right-16 z-20 flex gap-1 px-1">
+        <div className="absolute bottom-[114px] left-4 right-16 z-20 flex gap-1 px-1">
           {allMedia.map((_, i) => (
             <div key={i} className={cn("h-0.5 flex-1 rounded-full transition-all duration-500", i === currentMediaIndex ? "bg-primary glow-primary" : "bg-white/20")} />
           ))}
