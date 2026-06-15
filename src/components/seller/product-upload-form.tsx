@@ -60,7 +60,7 @@ const formSchema = z.object({
   description: z.string().min(10, { message: 'Please provide a detailed description (min 10 chars).' }),
   tags: z.string().optional(),
   deliveryOptions: z.string().min(5, { message: 'Describe your delivery process.' }),
-  wasPrice: z.union([z.coerce.number(), z.string(), z.null()]).optional(),
+  wasPrice: z.coerce.number().optional().nullable(),
 });
 
 interface ProductUploadFormProps {
@@ -121,17 +121,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         description: productToEdit.description || '',
         tags: productToEdit.tags || '',
         deliveryOptions: productToEdit.deliveryOptions || '',
-        wasPrice: productToEdit.wasPrice || undefined,
+        wasPrice: productToEdit.wasPrice || null,
       });
     }
   }, [productToEdit, form]);
-
-  useEffect(() => {
-    return () => {
-        imagePreviews.forEach(p => { if (p?.startsWith('blob:')) URL.revokeObjectURL(p); });
-        videoPreviews.forEach(p => { if (p?.startsWith('blob:')) URL.revokeObjectURL(p); });
-    };
-  }, []);
 
   const handleImageChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -232,7 +225,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       const productData: any = {
         ...values,
-        wasPrice: (values.wasPrice && Number(values.wasPrice) > 0) ? Number(values.wasPrice) : null,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
         videoUrl: finalVideoUrls[0] || '',
@@ -265,11 +257,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   }
 
   const onInvalid = (errors: any) => {
-    console.warn("Form Validation Failed:", errors);
+    console.warn("Validation Sequence Error:", errors);
     toast({
         variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Please complete all required fields correctly.'
+        title: 'PROTOCOL HALTED',
+        description: 'Ensure all required fields (Name, Price, Category) are specified correctly.'
     });
   };
 

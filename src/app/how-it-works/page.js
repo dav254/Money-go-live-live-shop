@@ -1,2 +1,2 @@
-// This file was moved to page.tsx to comply with Next.js 15 App Router conventions.
-// It is intentionally empty to resolve build collisions.
+// This file has been decommissioned to resolve a route collision with page.tsx.
+// The active logic for this route is now located in src/app/how-it-works/page.tsx.
