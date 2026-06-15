@@ -46,7 +46,8 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
       
       // MERCHANT AUTONOMY: Streamlined owner permission allows all inventory metadata updates.
-      allow update: if (isOwner(resource.data.sellerId) && request.resource.data.sellerId == resource.data.sellerId) || 
+      // Crucial: We only block unauthorized sellerId changes.
+      allow update: if (isOwner(resource.data.sellerId) && (!('sellerId' in request.resource.data) || request.resource.data.sellerId == resource.data.sellerId)) || 
                       (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount', 'salesCount']));
                       
       allow delete: if isOwner(resource.data.sellerId) || isAdmin();

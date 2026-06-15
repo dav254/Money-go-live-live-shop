@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Tag as TagIcon,
   Video,
+  AlertCircle,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -52,14 +53,14 @@ const formSchema = z.object({
   category: z.string().min(1, { message: 'Please select a category.' }),
   condition: z.enum(['new', 'used'], { required_error: 'Please select item condition.' }),
   localCurrency: z.string().default('KES'),
-  localPrice: z.coerce.number().min(0),
-  price: z.coerce.number().min(0, { message: 'USD Price is required for global node sync.' }),
+  localPrice: z.coerce.number().min(0, { message: 'Sale price must be 0 or higher.' }),
+  price: z.coerce.number().min(0.01, { message: 'USD Protocol value must be greater than 0.' }),
   shippingCost: z.coerce.number().min(0).default(0),
-  stock: z.coerce.number().int().min(0),
-  description: z.string().min(10, { message: 'Please provide a detailed description.' }),
+  stock: z.coerce.number().int().min(0, { message: 'Stock cannot be negative.' }),
+  description: z.string().min(10, { message: 'Please provide a detailed description (min 10 chars).' }),
   tags: z.string().optional(),
   deliveryOptions: z.string().min(5, { message: 'Describe your delivery process.' }),
-  wasPrice: z.coerce.number().optional(),
+  wasPrice: z.union([z.coerce.number(), z.string(), z.null()]).optional(),
 });
 
 interface ProductUploadFormProps {
@@ -93,7 +94,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       localPrice: 0,
       price: 0,
       shippingCost: 0,
-      stock: 0,
+      stock: 1,
       description: '',
       tags: '',
       deliveryOptions: '',
@@ -125,7 +126,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     }
   }, [productToEdit, form]);
 
-  // Clean up blob URLs to prevent memory leaks and crashes
   useEffect(() => {
     return () => {
         imagePreviews.forEach(p => { if (p?.startsWith('blob:')) URL.revokeObjectURL(p); });
@@ -210,7 +210,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
     try {
       const finalImageUrls: string[] = [];
-      // Sequential upload to prevent browser memory exhaustion
       for (let i = 0; i < MAX_IMAGES; i++) {
         const preview = imagePreviews[i];
         const file = imageFiles[i];
@@ -233,7 +232,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       const productData: any = {
         ...values,
-        wasPrice: values.wasPrice && values.wasPrice > 0 ? values.wasPrice : null,
+        wasPrice: (values.wasPrice && Number(values.wasPrice) > 0) ? Number(values.wasPrice) : null,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
         videoUrl: finalVideoUrls[0] || '',
@@ -244,7 +243,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       if (productToEdit) {
         await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
-        toast({ title: 'SIGNAL UPDATED', description: 'Changes have been synchronized with the global node.' });
+        toast({ title: 'SIGNAL UPDATED', description: 'Inventory synchronized successfully.' });
       } else {
         await addDoc(collection(firestore, 'products'), {
           ...productData,
@@ -254,20 +253,29 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           viewCount: 0,
           inCartCount: 0,
         });
-        toast({ title: 'SIGNAL PUBLISHED', description: 'Your item is now live in the global discovery feed.' });
+        toast({ title: 'SIGNAL PUBLISHED', description: 'Item is now live in the global feed.' });
       }
       onFormSubmit?.();
     } catch (error: any) {
       console.error("Submission crash:", error);
-      toast({ variant: 'destructive', title: 'Upload Failed', description: error.message || 'The data bus was interrupted. Please check your network and try again.' });
+      toast({ variant: 'destructive', title: 'Protocol Error', description: error.message || 'The data bus was interrupted.' });
     } finally {
       setIsUploading(false);
     }
   }
 
+  const onInvalid = (errors: any) => {
+    console.warn("Form Validation Failed:", errors);
+    toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please complete all required fields correctly.'
+    });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
@@ -338,10 +346,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 )} />
                 <div className="grid grid-cols-2 gap-6">
                   <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Sector</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent>{PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Sector</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent>{PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select></FormItem>
                   )} />
                   <FormField control={form.control} name="condition" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset State</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">Brand New</SelectItem><SelectItem value="used">Pre-Owned</SelectItem></SelectContent></Select></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset State</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">Brand New</SelectItem><SelectItem value="used">Pre-Owned</SelectItem></SelectContent></Select></FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
@@ -359,7 +367,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               <CardContent className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="localCurrency" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Unit</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/5 h-10 rounded-lg"><SelectValue /></SelectTrigger></FormControl><SelectContent>{SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code}</SelectItem>)}</SelectContent></Select></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Unit</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/5 h-10 rounded-lg"><SelectValue /></SelectTrigger></FormControl><SelectContent>{SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code}</SelectItem>)}</SelectContent></Select></FormItem>
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Sale Price</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/5 h-10 rounded-lg" {...field} /></FormControl></FormItem>
@@ -370,6 +378,20 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 )} />
                 <FormField control={form.control} name="stock" render={({ field }) => (
                   <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Node Inventory (Units)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-12 font-black rounded-xl" {...field} /></FormControl></FormItem>
+                )} />
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 overflow-hidden shadow-2xl">
+              <CardHeader className="p-6 border-b border-white/5 bg-white/5">
+                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">LOGISTICS</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <FormField control={form.control} name="shippingCost" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Shipping Fee (USD)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-10 rounded-lg" {...field} /></FormControl></FormItem>
+                )} />
+                <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
+                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Method</FormLabel><FormControl><Input placeholder="E.g. Wells Fargo Delivery" className="bg-black/40 border-white/10 h-10 rounded-lg" {...field} /></FormControl></FormItem>
                 )} />
               </CardContent>
             </Card>
