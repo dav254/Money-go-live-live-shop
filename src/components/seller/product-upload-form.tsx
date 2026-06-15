@@ -202,23 +202,27 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         finalVideoUrls.push(url);
       }
 
-      const productData = {
+      const baseProductData = {
         ...values,
-        wasPrice: values.wasPrice || null,
-        sellerId: user.uid,
+        wasPrice: values.wasPrice && values.wasPrice > 0 ? values.wasPrice : null,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
         videoUrl: finalVideoUrls[0] || '',
         videoUrls: finalVideoUrls,
+        hasVideo: finalVideoUrls.length > 0,
         updatedAt: serverTimestamp(),
       };
 
       if (productToEdit) {
-        await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
+        // When updating, explicitly OMIT sellerId to satisfy diff rules if necessary
+        const { ...updateData } = baseProductData;
+        await updateDoc(doc(firestore, 'products', productToEdit.id), updateData);
         toast({ title: 'Product Updated!' });
       } else {
+        // When creating, we MUST include the sellerId
         await addDoc(collection(firestore, 'products'), {
-          ...productData,
+          ...baseProductData,
+          sellerId: user.uid,
           uploadDate: serverTimestamp(),
           likes: 0,
           viewCount: 0,
@@ -230,7 +234,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       onFormSubmit?.();
     } catch (error: any) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'Upload Failed', description: error.message });
+      toast({ 
+          variant: 'destructive', 
+          title: 'Upload Failed', 
+          description: error.code === 'permission-denied' 
+            ? "Access Denied: Check your account status or media format." 
+            : error.message 
+      });
     } finally {
       setIsUploading(false);
     }

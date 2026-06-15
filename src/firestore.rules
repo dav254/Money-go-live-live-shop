@@ -45,8 +45,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
       allow update: if 
         (isSignedIn() && resource.data.sellerId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys()
-           .hasAny(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt', 'brand', 'condition', 'localPrice', 'localCurrency']))
+         request.resource.data.sellerId == resource.data.sellerId) // Owner can update everything EXCEPT the owner ID
         ||
         (isSignedIn() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
