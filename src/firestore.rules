@@ -43,12 +43,7 @@ service cloud.firestore {
     match /products/{productId} {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
-      allow update: if 
-        (isSignedIn() && resource.data.sellerId == request.auth.uid &&
-         request.resource.data.sellerId == resource.data.sellerId) // Owner can update everything EXCEPT the owner ID
-        ||
-        (isSignedIn() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
+      allow update: if (isSignedIn() && resource.data.sellerId == request.auth.uid);
       allow delete: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || isAdmin();
 
       match /reviews/{reviewId} {
@@ -95,7 +90,7 @@ service cloud.firestore {
 
     match /walletTransactions/{transactionId} {
         allow create: if false; 
-        allow read, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow read, list: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
     }
 
     // =========================
@@ -139,7 +134,6 @@ service cloud.firestore {
     }
 
     match /errorLogs/{errorId} {
-      // CRITICAL: Allow public creation of error logs to prevent crashes during guest session errors
       allow create: if true;
       allow read, list: if isAdmin();
     }

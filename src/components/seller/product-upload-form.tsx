@@ -65,11 +65,6 @@ const formSchema = z.object({
   wasPrice: z.coerce.number().optional(),
 });
 
-interface ProductUploadFormProps {
-  productToEdit?: Product;
-  onFormSubmit?: () => void;
-}
-
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -78,8 +73,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const { toast } = useToast();
 
   const [imageFiles, setImageFiles] = useState<(File | string | null)[]>(new Array(MAX_IMAGES).fill(null));
+  const [imagePreviews, setImagePreviews] = useState<(string | null)[]>(new Array(MAX_IMAGES).fill(null));
+  
   const [videoFiles, setVideoFiles] = useState<File[]>([]);
+  const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
   const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>(productToEdit?.videoUrls || []);
+  
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
 
@@ -103,6 +102,24 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       wasPrice: productToEdit?.wasPrice || undefined,
     },
   });
+
+  // Manage Previews lifecycle to avoid crashes and leaks
+  useEffect(() => {
+    const newPreviews = imageFiles.map((file) => {
+      if (file instanceof File) return URL.createObjectURL(file);
+      if (typeof file === 'string') return file;
+      return null;
+    });
+    setImagePreviews(newPreviews);
+
+    const newVideoPreviews = videoFiles.map(file => URL.createObjectURL(file));
+    setVideoPreviews(newVideoPreviews);
+
+    return () => {
+      newPreviews.forEach(p => { if (p && p.startsWith('blob:')) URL.revokeObjectURL(p); });
+      newVideoPreviews.forEach(p => URL.revokeObjectURL(p));
+    };
+  }, [imageFiles, videoFiles]);
 
   useEffect(() => {
     if (productToEdit) {
@@ -214,12 +231,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       };
 
       if (productToEdit) {
-        // When updating, explicitly OMIT sellerId to satisfy diff rules if necessary
-        const { ...updateData } = baseProductData;
-        await updateDoc(doc(firestore, 'products', productToEdit.id), updateData);
+        await updateDoc(doc(firestore, 'products', productToEdit.id), baseProductData);
         toast({ title: 'Product Updated!' });
       } else {
-        // When creating, we MUST include the sellerId
         await addDoc(collection(firestore, 'products'), {
           ...baseProductData,
           sellerId: user.uid,
@@ -327,12 +341,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <div>
                   <Label className="mb-4 block text-sm">Product Images (5 Slots)</Label>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3">
-                    {imageFiles.map((file, i) => (
+                    {imagePreviews.map((preview, i) => (
                       <div key={i} className="relative aspect-square rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted/50 group">
-                        {file ? (
+                        {preview ? (
                           <>
                             <Image 
-                              src={typeof file === 'string' ? file : URL.createObjectURL(file)} 
+                              src={preview} 
                               alt={`Product ${i + 1}`} 
                               fill 
                               className="object-cover" 
@@ -390,11 +404,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                           </Button>
                         </div>
                       ))}
-                      {videoFiles.map((file, i) => (
+                      {videoPreviews.map((preview, i) => (
                         <div key={`new-${i}`} className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
-                          <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" muted />
+                          <video src={preview} className="w-full h-full object-cover" muted />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="text-[8px] font-black text-white">{Math.round(uploadProgress[file.name] || 0)}%</span>
+                            <span className="text-[8px] font-black text-white">{Math.round(uploadProgress[videoFiles[i]?.name] || 0)}%</span>
                           </div>
                           <Button 
                             type="button" 
@@ -496,4 +510,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       </form>
     </Form>
   );
+}
+
+interface ProductUploadFormProps {
+  productToEdit?: Product;
+  onFormSubmit?: () => void;
 }
