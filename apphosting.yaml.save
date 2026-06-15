@@ -1,0 +1,50 @@
+runtime: "nodejs20"
+# Settings for 
+# Backend (on Cloud 
+# Run).
+env:runConfig: 
+  minInstances: 0 - 
+  variable: 
+  TWILIO_ACCOUNT_SID
+    value: 
+"AC0a8d67bfb7e75c7f6dfb1a6df4d6be9e"# 
+Set the service 
+account for the 
+backend. 
+serviceAccount: 
+firebase-adminsdk-fbsvc@studio-1725493862-5cb95.iam.gserviceaccount.com
+
+# Environment 
+# variables.
+  - variable: 
+  TWILIO_AUTH_TOKENenv: 
+  - variable: 
+  GEMINI_API_KEY
+    value: 
+  "38a1eed2fd36205790ed46bfdc7a0ab6" 
+  value: 
+  "AIzaSyDZexIJJoWRI_0HnWk1Ga4V_6n1kt9PoFc" 
+  # Updated with user 
+  provided key - 
+  variable: 
+  NEXT_PUBLIC_BASE_URL
+    value: 
+  "https://goearnvid.shop" 
+  - variable: 
+  PAYPAL_ENVIRONMENT 
+  - variable: 
+  TWILIO_FROM_WHATSAPP_NUMBER 
+  value: "live" - 
+  variable: 
+  NEXT_PUBLIC_TIKTOK_CLIENT_KEY
+    value: 
+  "whatsapp:+14155238886" 
+  value: 
+  "YOUR_TIKTOK_CLIENT_KEY_HERE" 
+  - variable: 
+  ADMIN_WHATSAPP_API_URL
+    value: "" # 
+  Generic Webhook URL 
+  (e.g. CallMeBot) - 
+  variable: 
+  TWIL    value: "whatsapp:+15863256592" # Your Personal WhatsApp Number
