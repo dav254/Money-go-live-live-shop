@@ -43,9 +43,11 @@ service cloud.firestore {
     match /products/{productId} {
       allow read, list: if true;
       allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
-      // Broad update rule for owners: they can change anything except the sellerId itself
-      allow update: if isSignedIn() && resource.data.sellerId == request.auth.uid && 
-                   (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['sellerId']));
+      
+      // BROAD OWNER PERMISSION: Correctly allowing all metadata updates for the merchant
+      allow update: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || 
+                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
+                      
       allow delete: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || isAdmin();
 
       match /reviews/{reviewId} {

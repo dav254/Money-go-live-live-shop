@@ -26,13 +26,13 @@ import { Button } from '@/components/ui/button';
 import {
   UploadCloud,
   X,
-  DollarSign,
-  Truck,
   Loader2,
   ImageIcon,
   CheckCircle2,
   Tag as TagIcon,
   Percent,
+  Truck,
+  Video,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -77,12 +77,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const storage = getStorage(firebaseApp);
   const { toast } = useToast();
 
-  const [imageFiles, setImageFiles] = useState<(File | string | null)[]>(new Array(MAX_IMAGES).fill(null));
+  // Local files state (Files or null)
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>(new Array(MAX_IMAGES).fill(null));
+  // Previews state (Cloud URLs or Blob URLs)
   const [imagePreviews, setImagePreviews] = useState<(string | null)[]>(new Array(MAX_IMAGES).fill(null));
   
   const [videoFiles, setVideoFiles] = useState<File[]>([]);
   const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
-  const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>(productToEdit?.videoUrls || []);
+  const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
   
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -92,46 +94,31 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: productToEdit?.name || '',
-      brand: productToEdit?.brand || '',
-      category: productToEdit?.category || 'Other',
-      condition: productToEdit?.condition || 'new',
-      localCurrency: productToEdit?.localCurrency || 'KES',
-      localPrice: productToEdit?.localPrice || 0,
-      price: productToEdit?.price || 0,
-      shippingCost: productToEdit?.shippingCost || 0,
-      stock: productToEdit?.stock || 0,
-      description: productToEdit?.description || '',
-      tags: productToEdit?.tags || '',
-      deliveryOptions: productToEdit?.deliveryOptions || '',
-      wasPrice: productToEdit?.wasPrice || undefined,
+      name: '',
+      brand: '',
+      category: 'Other',
+      condition: 'new',
+      localCurrency: 'KES',
+      localPrice: 0,
+      price: 0,
+      shippingCost: 0,
+      stock: 0,
+      description: '',
+      tags: '',
+      deliveryOptions: '',
+      wasPrice: undefined,
     },
   });
 
-  // Manage Previews lifecycle to avoid memory leaks and broken icons
-  useEffect(() => {
-    const newPreviews = imageFiles.map((file) => {
-      if (file instanceof File) return URL.createObjectURL(file);
-      if (typeof file === 'string') return file;
-      return null;
-    });
-    setImagePreviews(newPreviews);
-
-    const newVideoPreviews = videoFiles.map(file => URL.createObjectURL(file));
-    setVideoPreviews(newVideoPreviews);
-
-    return () => {
-      newPreviews.forEach(p => { if (p && p.startsWith('blob:')) URL.revokeObjectURL(p); });
-      newVideoPreviews.forEach(p => URL.revokeObjectURL(p));
-    };
-  }, [imageFiles, videoFiles]);
-
+  // Handle initialization when editing
   useEffect(() => {
     if (productToEdit) {
-      const images = [...(productToEdit.imageUrls || [])];
-      while (images.length < MAX_IMAGES) images.push(null);
-      setImageFiles(images.slice(0, MAX_IMAGES));
-      setExistingVideoUrls(productToEdit.videoUrls || []);
+      const urls = productToEdit.imageUrls || (productToEdit.imageUrl ? [productToEdit.imageUrl] : []);
+      const initialPreviews = new Array(MAX_IMAGES).fill(null);
+      urls.forEach((url, i) => { if (i < MAX_IMAGES) initialPreviews[i] = url; });
+      setImagePreviews(initialPreviews);
+      
+      setExistingVideoUrls(productToEdit.videoUrls || (productToEdit.videoUrl ? [productToEdit.videoUrl] : []));
       
       form.reset({
         name: productToEdit.name || '',
@@ -154,29 +141,56 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const handleImageChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // 1. Update files array
       const newFiles = [...imageFiles];
       newFiles[index] = file;
       setImageFiles(newFiles);
-    }
-  };
 
-  const handleVideoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setVideoFiles(prev => [...prev, ...Array.from(event.target.files!)]);
+      // 2. Create preview and update previews array
+      const objectUrl = URL.createObjectURL(file);
+      const newPreviews = [...imagePreviews];
+      // Cleanup old blob if it exists
+      if (newPreviews[index]?.startsWith('blob:')) {
+        URL.revokeObjectURL(newPreviews[index]!);
+      }
+      newPreviews[index] = objectUrl;
+      setImagePreviews(newPreviews);
     }
   };
 
   const removeImage = (index: number) => {
+    // 1. Cleanup preview if it's a blob
+    if (imagePreviews[index]?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreviews[index]!);
+    }
+
+    // 2. Reset arrays
     const newFiles = [...imageFiles];
     newFiles[index] = null;
     setImageFiles(newFiles);
+
+    const newPreviews = [...imagePreviews];
+    newPreviews[index] = null;
+    setImagePreviews(newPreviews);
+  };
+
+  const handleVideoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      setVideoFiles(prev => [...prev, ...newFiles]);
+      const newPreviews = newFiles.map(f => URL.createObjectURL(f));
+      setVideoPreviews(prev => [...prev, ...newPreviews]);
+    }
   };
 
   const removeVideo = (index: number, isExisting: boolean) => {
     if (isExisting) {
       setExistingVideoUrls(prev => prev.filter((_, i) => i !== index));
     } else {
+      URL.revokeObjectURL(videoPreviews[index]);
       setVideoFiles(prev => prev.filter((_, i) => i !== index));
+      setVideoPreviews(prev => prev.filter((_, i) => i !== index));
     }
   };
 
@@ -204,20 +218,24 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setIsUploading(true);
 
     try {
-      // 1. Upload Images
+      // 1. Process Images: Combine existing cloud URLs with new uploads
       const finalImageUrls: string[] = [];
-      for (let i = 0; i < imageFiles.length; i++) {
-        const item = imageFiles[i];
-        if (typeof item === 'string') {
-          finalImageUrls.push(item);
-        } else if (item instanceof File) {
-          const path = `products/${user.uid}/${Date.now()}_img_${i}_${item.name}`;
-          const url = await uploadFile(item, path);
+      for (let i = 0; i < MAX_IMAGES; i++) {
+        const preview = imagePreviews[i];
+        const file = imageFiles[i];
+
+        if (preview && !preview.startsWith('blob:')) {
+          // It's an existing cloud URL
+          finalImageUrls.push(preview);
+        } else if (file instanceof File) {
+          // It's a new file that needs uploading
+          const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
+          const url = await uploadFile(file, path);
           finalImageUrls.push(url);
         }
       }
 
-      // 2. Upload Videos
+      // 2. Process Videos: Combine existing with new uploads
       const finalVideoUrls: string[] = [...existingVideoUrls];
       for (let i = 0; i < videoFiles.length; i++) {
         const file = videoFiles[i];
@@ -226,7 +244,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         finalVideoUrls.push(url);
       }
 
-      const baseProductData = {
+      const productData = {
         ...values,
         wasPrice: values.wasPrice && values.wasPrice > 0 ? values.wasPrice : null,
         imageUrl: finalImageUrls[0] || '',
@@ -238,29 +256,27 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       };
 
       if (productToEdit) {
-        await updateDoc(doc(firestore, 'products', productToEdit.id), baseProductData);
-        toast({ title: 'Product Updated!' });
+        await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
+        toast({ title: 'Success', description: 'Product metadata updated.' });
       } else {
         await addDoc(collection(firestore, 'products'), {
-          ...baseProductData,
+          ...productData,
           sellerId: user.uid,
           uploadDate: serverTimestamp(),
           likes: 0,
           viewCount: 0,
           inCartCount: 0,
         });
-        toast({ title: 'Product Published!' });
+        toast({ title: 'Live!', description: 'Your product is now discoverable.' });
       }
 
       onFormSubmit?.();
     } catch (error: any) {
-      console.error(error);
+      console.error("Upload Node Error:", error);
       toast({ 
           variant: 'destructive', 
-          title: 'Upload Failed', 
-          description: error.code === 'permission-denied' 
-            ? "Permission Denied: Ensure you are logged in and account is active." 
-            : error.message 
+          title: 'Signal Error', 
+          description: error.message || 'Failed to process media assets.' 
       });
     } finally {
       setIsUploading(false);
@@ -269,113 +285,45 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full max-w-full overflow-hidden">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full max-w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          <div className="lg:col-span-2 space-y-6 md:space-y-8">
-            <Card className="w-full max-w-full overflow-hidden">
-              <CardHeader className="p-4 md:p-6">
-                <CardTitle className="text-xl md:text-2xl">Basic Information</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Describe your item in detail to help buyers find it.</CardDescription>
+          <div className="lg:col-span-2 space-y-8">
+            {/* Media Section */}
+            <Card className="rounded-[2rem] overflow-hidden border-white/5 bg-neutral-900/50 shadow-2xl">
+              <CardHeader className="p-8 bg-white/5 border-b border-white/5">
+                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                    <ImageIcon className="text-primary h-5 w-5" /> MEDIA ASSETS
+                </CardTitle>
+                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Upload images and videos (max 5 slots)</CardDescription>
               </CardHeader>
-              <CardContent className="p-4 md:p-6 pt-0 space-y-4">
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product Name</FormLabel>
-                    <FormControl><Input placeholder="e.g. Classic Leather Belt" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="brand" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Brand</FormLabel>
-                      <FormControl><Input placeholder="e.g. Nike" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="condition" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Condition</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="new">Brand New</SelectItem>
-                          <SelectItem value="used">Used</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                   <FormField control={form.control} name="tags" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Search Tags</FormLabel>
-                      <FormControl><Input placeholder="fashion, leather, accessories" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl><Textarea rows={6} placeholder="What makes this product special?" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </CardContent>
-            </Card>
-
-            <Card className="w-full max-w-full overflow-hidden">
-              <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><ImageIcon className="text-primary h-5 w-5" /> Media Assets</CardTitle>
-                <CardDescription className="text-xs md:text-sm">Upload images and videos at once to bring your listing to life.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 md:p-6 pt-0 space-y-6">
-                <div>
-                  <Label className="mb-4 block text-sm">Images (up to 5)</Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3">
+              <CardContent className="p-8 space-y-8">
+                <div className="space-y-4">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Photos Gallery</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                     {imagePreviews.map((preview, i) => (
-                      <div key={i} className="relative aspect-square rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center overflow-hidden bg-muted/50 group">
+                      <div key={i} className="relative aspect-square rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden bg-black/40 group hover:border-primary/40 transition-all">
                         {preview ? (
                           <>
-                            <Image 
-                              src={preview} 
-                              alt={`Product ${i + 1}`} 
-                              fill 
-                              className="object-cover" 
-                            />
+                            <Image src={preview} alt="preview" fill className="object-cover" />
                             <Button 
                               type="button" 
                               variant="destructive" 
                               size="icon" 
-                              className="absolute top-1 right-1 h-6 w-6" 
+                              className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full shadow-lg" 
                               onClick={() => removeImage(i)}
                             >
-                              <X className="h-3 w-3" />
+                              <X className="h-3.5 w-3.5" />
                             </Button>
                           </>
                         ) : (
                           <button 
                             type="button" 
-                            className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors p-1"
+                            className="w-full h-full flex flex-col items-center justify-center gap-1.5"
                             onClick={() => imageInputRefs.current[i]?.click()}
                           >
-                            <UploadCloud className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-[8px] font-black uppercase text-muted-foreground">Slot {i + 1}</span>
+                            <UploadCloud className="h-5 w-5 text-neutral-700 group-hover:text-primary transition-colors" />
+                            <span className="text-[8px] font-black text-neutral-700 uppercase">Slot {i+1}</span>
                           </button>
                         )}
                         <input 
@@ -392,39 +340,52 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
                 <Separator className="bg-white/5" />
 
-                <div>
-                  <Label className="mb-4 block text-sm">Promotional Videos</Label>
-                  <div className="space-y-4">
-                    <Input type="file" accept="video/*" multiple onChange={handleVideoChange} className="text-xs" />
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
+                <div className="space-y-4">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Short-Form Videos</Label>
+                  <div className="flex flex-col gap-4">
+                    <Input 
+                        type="file" 
+                        accept="video/*" 
+                        multiple 
+                        onChange={handleVideoChange} 
+                        className="bg-black/40 border-white/10 h-12 rounded-xl text-xs pt-3" 
+                    />
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {existingVideoUrls.map((url, i) => (
-                        <div key={`ex-${i}`} className="relative aspect-video rounded-lg overflow-hidden border bg-black">
+                        <div key={`ex-${i}`} className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black group">
                           <video src={url} className="w-full h-full object-cover" muted />
-                          <Button 
-                            type="button" 
-                            variant="destructive" 
-                            size="icon" 
-                            className="absolute top-1 right-1 h-6 w-6" 
-                            onClick={() => removeVideo(i, true)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      {videoPreviews.map((preview, i) => (
-                        <div key={`new-${i}`} className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
-                          <video src={preview} className="w-full h-full object-cover" muted />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="text-[8px] font-black text-white">{Math.round(uploadProgress[videoFiles[i]?.name] || 0)}%</span>
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Badge className="bg-primary text-white text-[8px] font-black">CLOUD</Badge>
                           </div>
                           <Button 
                             type="button" 
                             variant="destructive" 
                             size="icon" 
-                            className="absolute top-1 right-1 h-6 w-6" 
+                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full" 
+                            onClick={() => removeVideo(i, true)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      {videoFiles.map((file, i) => (
+                        <div key={`new-${i}`} className="relative aspect-video rounded-2xl overflow-hidden border border-primary/20 bg-black group">
+                          <video src={videoPreviews[i]} className="w-full h-full object-cover" muted />
+                          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1">
+                            <span className="text-[9px] font-black text-white uppercase tracking-widest">PENDING</span>
+                            {uploadProgress[file.name] !== undefined && (
+                                <Progress value={uploadProgress[file.name]} className="h-0.5 w-12 bg-white/10" />
+                            )}
+                          </div>
+                          <Button 
+                            type="button" 
+                            variant="destructive" 
+                            size="icon" 
+                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full" 
                             onClick={() => removeVideo(i, false)}
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       ))}
@@ -433,85 +394,147 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </div>
               </CardContent>
             </Card>
+
+            {/* Content Section */}
+            <Card className="rounded-[2rem] overflow-hidden border-white/5 bg-neutral-900/50 shadow-2xl">
+              <CardHeader className="p-8 bg-white/5 border-b border-white/5">
+                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                    <TagIcon className="text-primary h-5 w-5" /> LISTING DETAILS
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Product Designation</FormLabel>
+                    <FormControl><Input placeholder="e.g. Vintage Leather Jacket" className="h-12 bg-black/40 border-white/10 rounded-xl" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <FormField control={form.control} name="category" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Inventory Category</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                   <FormField control={form.control} name="condition" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Item Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger className="h-12 bg-black/40 border-white/10 rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="new">Brand New</SelectItem>
+                          <SelectItem value="used">Pre-Owned</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                </div>
+
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Marketing Bio</FormLabel>
+                    <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none p-4" placeholder="Detail the features and benefits..." {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="space-y-6 md:space-y-8">
-            <Card className="w-full max-w-full overflow-hidden">
-              <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Percent className="text-primary h-5 w-5" /> Financials</CardTitle>
+          <div className="space-y-8">
+            {/* Financial Deck */}
+            <Card className="rounded-[2rem] overflow-hidden border-white/5 bg-neutral-900/50 shadow-2xl">
+              <CardHeader className="p-6 bg-white/5 border-b border-white/5">
+                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">YIELD & PRICING</CardTitle>
               </CardHeader>
-              <CardContent className="p-4 md:p-6 pt-0 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="localCurrency" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Currency</FormLabel>
+                      <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Currency</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger className="text-xs"><SelectValue /></SelectTrigger></FormControl>
+                        <FormControl><SelectTrigger className="h-10 bg-black/40 border-white/5 rounded-lg text-xs"><SelectValue /></SelectTrigger></FormControl>
                         <SelectContent>
-                          {SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code} className="text-xs">{curr.code}</SelectItem>)}
+                          {SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price ({form.watch('localCurrency')})</FormLabel>
-                      <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
-                      <FormMessage />
+                      <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Sale Price</FormLabel>
+                      <FormControl><Input type="number" className="h-10 bg-black/40 border-white/5 rounded-lg text-xs font-black" {...field} /></FormControl>
                     </FormItem>
                   )} />
                 </div>
+
                 <FormField control={form.control} name="price" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Global Price (USD)</FormLabel>
-                    <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
-                    <FormMessage />
+                    <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Global Equiv (USD)</FormLabel>
+                    <FormControl>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-primary font-black">$</span>
+                            <Input type="number" className="h-12 bg-black/40 border-white/10 rounded-xl pl-8 font-black text-base" {...field} />
+                        </div>
+                    </FormControl>
                   </FormItem>
                 )} />
+
                 <FormField control={form.control} name="wasPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Original Price (USD)</FormLabel>
-                      <FormControl><Input type="number" {...field} value={field.value ?? ''} className="text-xs" /></FormControl>
-                      <FormDescription className="text-[10px]">Show a discount badge if lower than sale price.</FormDescription>
-                      <FormMessage />
+                      <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Market Price (USD)</FormLabel>
+                      <FormControl><Input type="number" className="h-10 bg-black/40 border-white/5 rounded-lg text-xs text-neutral-500" {...field} value={field.value ?? ''} /></FormControl>
+                      <FormDescription className="text-[8px] font-bold uppercase text-neutral-600">Triggers 'Sale' badge if higher than price.</FormDescription>
                     </FormItem>
                 )} />
+
                 <FormField control={form.control} name="stock" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stock Count</FormLabel>
-                    <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
-                    <FormMessage />
+                    <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Units Available</FormLabel>
+                    <FormControl><Input type="number" className="h-12 bg-black/40 border-white/10 rounded-xl font-black text-center" {...field} /></FormControl>
                   </FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Card className="w-full max-w-full overflow-hidden">
-              <CardHeader className="p-4 md:p-6">
-                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Truck className="text-primary h-5 w-5" /> Fulfillment</CardTitle>
+            {/* Logistics Deck */}
+            <Card className="rounded-[2rem] overflow-hidden border-white/5 bg-neutral-900/50 shadow-2xl">
+              <CardHeader className="p-6 bg-white/5 border-b border-white/5">
+                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">LOGISTICS</CardTitle>
               </CardHeader>
-              <CardContent className="p-4 md:p-6 pt-0 space-y-4">
+              <CardContent className="p-6 space-y-4">
                 <FormField control={form.control} name="shippingCost" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Delivery Fee (USD)</FormLabel>
-                    <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
-                    <FormMessage />
+                    <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Delivery Fee (USD)</FormLabel>
+                    <FormControl><Input type="number" className="h-10 bg-black/40 border-white/5 rounded-lg text-xs" {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Shipping Terms</FormLabel>
-                    <FormControl><Textarea rows={2} placeholder="e.g. Ships via Sendy within 2 days." {...field} className="text-xs" /></FormControl>
-                    <FormMessage />
+                    <FormLabel className="text-[9px] font-black uppercase text-neutral-500">Courier Info</FormLabel>
+                    <FormControl><Textarea rows={2} className="bg-black/40 border-white/5 rounded-xl text-xs resize-none" placeholder="e.g. Same-day Nairobi via Boda" {...field} /></FormControl>
                   </FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Button type="submit" className="w-full h-14 md:h-16 font-black uppercase tracking-widest text-base md:text-lg shadow-xl shadow-primary/20" disabled={isUploading}>
-              {isUploading ? <Loader2 className="animate-spin mr-2 h-5 w-5" /> : <CheckCircle2 className="mr-2 h-5 w-5" />}
-              {productToEdit ? 'SAVE CHANGES' : 'PUBLISH NOW'}
+            <Button 
+                type="submit" 
+                className="w-full h-20 rounded-[2rem] font-black uppercase tracking-widest text-lg bg-primary hover:bg-primary/90 text-white shadow-2xl shadow-primary/30 group transition-all" 
+                disabled={isUploading}
+            >
+              {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <CheckCircle2 className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />}
+              {productToEdit ? 'SAVE CHANGES' : 'PUBLISH SIGNAL'}
             </Button>
+            
+            <p className="text-[8px] font-black text-neutral-600 uppercase tracking-[0.4em] text-center w-full">Verified merchant protocol active</p>
           </div>
         </div>
       </form>
