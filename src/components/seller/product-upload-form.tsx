@@ -37,7 +37,7 @@ import {
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useFirebaseApp } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -50,11 +50,11 @@ import { cn } from '@/lib/utils';
 const MAX_IMAGES = 5;
 
 const formSchema = z.object({
-  productName: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
+  name: z.string().min(2, { message: 'Product name must be at least 2 characters.' }),
   brand: z.string().optional(),
   category: z.string().min(1, { message: 'Please select a category.' }),
   condition: z.enum(['new', 'used'], { required_error: 'Please select item condition.' }),
-  currency: z.string().default('KES'),
+  localCurrency: z.string().default('KES'),
   localPrice: z.coerce.number().min(0, { message: 'Local price must be a positive number.' }),
   price: z.coerce.number().min(0, { message: 'USD Price must be a positive number.' }),
   shippingCost: z.coerce.number().min(0, { message: 'Shipping cost must be a non-negative number.' }).default(0),
@@ -73,7 +73,8 @@ interface ProductUploadFormProps {
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const storage = getStorage();
+  const firebaseApp = useFirebaseApp();
+  const storage = getStorage(firebaseApp);
   const { toast } = useToast();
 
   const [imageFiles, setImageFiles] = useState<(File | string | null)[]>(new Array(MAX_IMAGES).fill(null));
@@ -87,11 +88,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      productName: productToEdit?.name || '',
+      name: productToEdit?.name || '',
       brand: productToEdit?.brand || '',
       category: productToEdit?.category || 'Other',
       condition: productToEdit?.condition || 'new',
-      currency: productToEdit?.localCurrency || 'KES',
+      localCurrency: productToEdit?.localCurrency || 'KES',
       localPrice: productToEdit?.localPrice || 0,
       price: productToEdit?.price || 0,
       shippingCost: productToEdit?.shippingCost || 0,
@@ -109,8 +110,24 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       while (images.length < MAX_IMAGES) images.push(null);
       setImageFiles(images.slice(0, MAX_IMAGES));
       setExistingVideoUrls(productToEdit.videoUrls || []);
+      
+      form.reset({
+        name: productToEdit.name || '',
+        brand: productToEdit.brand || '',
+        category: productToEdit.category || 'Other',
+        condition: productToEdit.condition || 'new',
+        localCurrency: productToEdit.localCurrency || 'KES',
+        localPrice: productToEdit.localPrice || 0,
+        price: productToEdit.price || 0,
+        shippingCost: productToEdit.shippingCost || 0,
+        stock: productToEdit.stock || 0,
+        description: productToEdit.description || '',
+        tags: productToEdit.tags || '',
+        deliveryOptions: productToEdit.deliveryOptions || '',
+        wasPrice: productToEdit.wasPrice || undefined,
+      });
     }
-  }, [productToEdit]);
+  }, [productToEdit, form]);
 
   const handleImageChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -193,7 +210,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         imageUrls: finalImageUrls,
         videoUrl: finalVideoUrls[0] || '',
         videoUrls: finalVideoUrls,
-        localCurrency: values.currency,
         updatedAt: serverTimestamp(),
       };
 
@@ -232,7 +248,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <CardDescription className="text-xs md:text-sm">Give your product a clear name and detailed description.</CardDescription>
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0 space-y-4">
-                <FormField control={form.control} name="productName" render={({ field }) => (
+                <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
                     <FormControl><Input placeholder="e.g. Leather Jacket" {...field} /></FormControl>
@@ -396,7 +412,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </CardHeader>
               <CardContent className="p-4 md:p-6 pt-0 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="currency" render={({ field }) => (
+                  <FormField control={form.control} name="localCurrency" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -409,7 +425,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price ({form.watch('currency')})</FormLabel>
+                      <FormLabel>Price ({form.watch('localCurrency')})</FormLabel>
                       <FormControl><Input type="number" {...field} className="text-xs" /></FormControl>
                       <FormMessage />
                     </FormItem>
