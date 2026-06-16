@@ -2,30 +2,28 @@
 import { NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 
-// Health check function for this API endpoint
+// Configure Cloudinary for the server node
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/**
+ * Health check node for Cloudinary connectivity.
+ */
 export async function healthCheck() {
-    // Configure Cloudinary inside the health check to validate credentials
-    cloudinary.config({
-        cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
     const config = cloudinary.config();
     if (config.cloud_name && config.api_key && config.api_secret) {
-        // You could add a ping to Cloudinary API here for a more robust check
         return { status: 'operational' };
     }
-    return { status: 'outage', message: 'Cloudinary credentials are not configured.' };
+    return { status: 'outage', message: 'Cloudinary credentials missing.' };
 }
 
+/**
+ * Generates a secure signature for client-side uploads.
+ */
 export async function POST(request: Request) {
-  // Configure Cloudinary with your credentials inside the handler
-  cloudinary.config({
-    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-
   try {
     const { paramsToSign } = await request.json();
 
@@ -34,14 +32,15 @@ export async function POST(request: Request) {
       throw new Error('Cloudinary API secret is not configured.');
     }
 
+    // Sign the request parameters using the secure API secret
     const signature = cloudinary.utils.api_sign_request(paramsToSign, apiSecret);
 
     return NextResponse.json({ signature });
 
   } catch (error) {
-    console.error('Error generating Cloudinary signature:', error);
+    console.error('Signature Node Failure:', error);
     return NextResponse.json(
-      { error: 'Error generating signature.', details: (error as Error).message }, 
+      { error: 'Failed to generate signature.', details: (error as Error).message }, 
       { status: 500 }
     );
   }

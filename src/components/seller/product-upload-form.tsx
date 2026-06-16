@@ -30,15 +30,13 @@ import {
   Loader2,
   ImageIcon,
   CheckCircle2,
-  Tag as TagIcon,
   Video,
-  AlertCircle,
+  BadgeCent,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useUser, useFirebaseApp } from '@/firebase';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -71,8 +69,6 @@ interface ProductUploadFormProps {
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const firebaseApp = useFirebaseApp();
-  const storage = getStorage(firebaseApp);
   const { toast } = useToast();
 
   const [imageFiles, setImageFiles] = useState<(File | null)[]>(new Array(MAX_IMAGES).fill(null));
@@ -171,30 +167,50 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     }
   };
 
-  const uploadFile = (file: File, path: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const storageRef = ref(storage, path);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-        },
-        (error) => {
-            console.error("Upload error:", error);
-            reject(error);
-        },
-        async () => {
-          const url = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve(url);
-        }
-      );
+  /**
+   * Uploads a file to Cloudinary using a signed request from the server.
+   */
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const paramsToSign = {
+        timestamp,
+        folder: `products/${user?.uid}`,
+    };
+
+    // 1. Get secure signature from local API node
+    const sigRes = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paramsToSign }),
     });
+    const { signature } = await sigRes.json();
+
+    // 2. Prepare multipart upload data
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+    uploadFormData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY!);
+    uploadFormData.append('timestamp', timestamp.toString());
+    uploadFormData.append('signature', signature);
+    uploadFormData.append('folder', `products/${user?.uid}`);
+
+    const resourceType = file.type.startsWith('video') ? 'video' : 'image';
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+    // 3. Post directly to Cloudinary edge node
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+        method: 'POST',
+        body: uploadFormData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Cloudinary handshaking failed.');
+    
+    return data.secure_url;
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
-        toast({ variant: 'destructive', title: 'Unauthorized', description: 'Please sign in to upload products.' });
+        toast({ variant: 'destructive', title: 'Session Expired', description: 'Please sign in to continue.' });
         return;
     }
 
@@ -202,6 +218,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setUploadProgress({});
 
     try {
+      // Process images sequentially for stability
       const finalImageUrls: string[] = [];
       for (let i = 0; i < MAX_IMAGES; i++) {
         const preview = imagePreviews[i];
@@ -209,17 +226,16 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         if (preview && !preview.startsWith('blob:')) {
           finalImageUrls.push(preview);
         } else if (file instanceof File) {
-          const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
-          const url = await uploadFile(file, path);
+          const url = await uploadToCloudinary(file);
           finalImageUrls.push(url);
         }
       }
 
+      // Process videos sequentially
       const finalVideoUrls: string[] = [...existingVideoUrls];
       for (let i = 0; i < videoFiles.length; i++) {
         const file = videoFiles[i];
-        const path = `products/${user.uid}/${Date.now()}_vid_${i}_${file.name}`;
-        const url = await uploadFile(file, path);
+        const url = await uploadToCloudinary(file);
         finalVideoUrls.push(url);
       }
 
@@ -235,7 +251,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       if (productToEdit) {
         await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
-        toast({ title: 'SIGNAL UPDATED', description: 'Inventory synchronized successfully.' });
+        toast({ title: 'INVENTORY SYNCED', description: 'Changes have been pushed to Cloudinary nodes.' });
       } else {
         await addDoc(collection(firestore, 'products'), {
           ...productData,
@@ -244,24 +260,25 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           likes: 0,
           viewCount: 0,
           inCartCount: 0,
+          salesCount: 0
         });
-        toast({ title: 'SIGNAL PUBLISHED', description: 'Item is now live in the global feed.' });
+        toast({ title: 'SIGNAL PUBLISHED', description: 'Asset is now active in global discovery.' });
       }
       onFormSubmit?.();
     } catch (error: any) {
-      console.error("Submission crash:", error);
-      toast({ variant: 'destructive', title: 'Protocol Error', description: error.message || 'The data bus was interrupted.' });
+      console.error("Cloudinary Pipeline Crash:", error);
+      toast({ variant: 'destructive', title: 'PROTOCOL ERROR', description: error.message || 'The data bus was interrupted during upload.' });
     } finally {
       setIsUploading(false);
     }
   }
 
   const onInvalid = (errors: any) => {
-    console.warn("Validation Sequence Error:", errors);
+    const firstError = Object.values(errors)[0] as any;
     toast({
         variant: 'destructive',
-        title: 'PROTOCOL HALTED',
-        description: 'Ensure all required fields (Name, Price, Category) are specified correctly.'
+        title: 'VALIDATION FAILED',
+        description: firstError?.message || 'Check required fields.'
     });
   };
 
@@ -273,14 +290,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
               <CardHeader className="p-8 border-b border-white/5 bg-white/5">
                 <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
-                    <UploadCloud className="text-primary h-5 w-5" /> MEDIA PIPELINE
+                    <UploadCloud className="text-primary h-5 w-5" /> MEDIA PIPELINE (CLOUDINARY)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-8 space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Imagery (Max 5)</Label>
-                    <span className="text-[8px] font-bold text-primary uppercase">Primary at Slot 1</span>
+                    <span className="text-[8px] font-bold text-primary uppercase">CDN Handshake: Enabled</span>
                   </div>
                   <div className="grid grid-cols-5 gap-3">
                     {imagePreviews.map((preview, i) => (
@@ -300,7 +317,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </div>
                 <Separator className="bg-white/5" />
                 <div className="space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Product Videos (Vertical Preferred)</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Product Videos (MP4/WebM)</Label>
                   <div className="flex gap-4 items-center">
                     <Input type="file" accept="video/*" multiple onChange={handleVideoChange} className="bg-black/40 border-white/10 h-12 rounded-xl flex-1" />
                   </div>
@@ -317,7 +334,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         <div key={`new-${i}`} className="relative aspect-video rounded-2xl overflow-hidden border border-primary/20 bg-black">
                             <video src={videoPreviews[i]} className="w-full h-full object-cover" muted />
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <span className="text-[8px] font-black text-white uppercase">{Math.round(uploadProgress[file.name] || 0)}%</span>
+                                <Loader2 className="h-5 w-5 animate-spin text-white" />
                             </div>
                             <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full shadow-lg" onClick={() => removeVideo(i, false)}><X className="h-3.5 w-3.5" /></Button>
                         </div>
@@ -386,15 +403,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Method</FormLabel><FormControl><Input placeholder="E.g. Wells Fargo Delivery" className="bg-black/40 border-white/10 h-10 rounded-lg" {...field} /></FormControl></FormItem>
                 )} />
               </CardContent>
-            </Card>
 
-            <div className="space-y-4">
+            <div className="p-6 pt-0 space-y-4">
                 <Button type="submit" className="w-full h-20 rounded-[2.5rem] font-black uppercase text-lg shadow-2xl group relative overflow-hidden" disabled={isUploading}>
                     {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <CheckCircle2 className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />}
-                    {productToEdit ? 'SYNC CHANGES' : 'PUBLISH SIGNAL'}
-                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10 overflow-hidden">
-                        {isUploading && <div className="h-full bg-white animate-[loading-scan_1.5s_infinite_linear]" />}
-                    </div>
+                    {productToEdit ? 'SYNC TO CDN' : 'PUBLISH SIGNAL'}
                 </Button>
                 {productToEdit && (
                     <Button type="button" variant="ghost" className="w-full h-12 font-black uppercase text-[10px] tracking-widest text-neutral-500" onClick={onFormSubmit}>
@@ -402,6 +415,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     </Button>
                 )}
             </div>
+            </Card>
           </div>
         </div>
       </form>
