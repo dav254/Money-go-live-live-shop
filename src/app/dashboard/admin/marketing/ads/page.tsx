@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -34,8 +33,22 @@ import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import type { AdCampaign } from '@/lib/types';
+import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
+
+// Define the AdCampaign type locally for the mock node
+interface AdCampaign {
+    id: string;
+    sellerId: string;
+    productName: string;
+    productImageUrl: string;
+    budget: number;
+    spend: number;
+    clicks: number;
+    conversions: number;
+    status: 'active' | 'paused' | 'completed' | 'draft';
+    startDate: string;
+}
 
 const MOCK_CAMPAIGNS: AdCampaign[] = [
     {
