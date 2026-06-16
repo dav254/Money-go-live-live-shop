@@ -22,6 +22,7 @@ export async function healthCheck() {
 
 /**
  * Generates a secure signature for client-side uploads.
+ * This route acts as a secure proxy to authorize uploads to the ddfzqsglm node.
  */
 export async function POST(request: Request) {
   try {

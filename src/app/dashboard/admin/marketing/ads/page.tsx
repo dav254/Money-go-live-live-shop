@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -23,9 +24,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
   DialogClose,
   DialogDescription,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Pencil, Trash2, Zap, CheckCircle, XCircle, Rocket } from 'lucide-react';
@@ -33,7 +34,6 @@ import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import type { Order } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 // Define the AdCampaign type locally for the mock node
@@ -96,7 +96,6 @@ const statusConfig = {
     draft: { variant: 'outline' as const, icon: XCircle, className: '' },
 };
 
-
 const CampaignForm = ({ campaign, onSave, onCancel }: { campaign?: AdCampaign | null, onSave: (data: Partial<AdCampaign>) => void, onCancel: () => void }) => {
     const [sellerId, setSellerId] = React.useState(campaign?.sellerId || '');
     const [productName, setProductName] = React.useState(campaign?.productName || '');
@@ -119,7 +118,7 @@ const CampaignForm = ({ campaign, onSave, onCancel }: { campaign?: AdCampaign | 
     };
 
     return (
-         <form onSubmit={handleSubmit} className="space-y-6 py-4">
+         <form onSubmit={handleSubmit} className="space-y-6 py-4 text-left">
             <div className="space-y-2">
                 <Label htmlFor="seller-id" className="text-[10px] font-black uppercase tracking-widest text-neutral-500">Merchant Node Identifier</Label>
                 <Input id="seller-id" value={sellerId} onChange={e => setSellerId(e.target.value)} placeholder="e.g. node_delta_88" className="bg-black/40 border-white/5 h-12" />
@@ -176,7 +175,6 @@ export default function AdminAdsPage() {
     setEditingCampaign(campaign);
     setIsFormOpen(true);
   };
-
 
   const columns: ColumnDef<AdCampaign>[] = [
     {
@@ -262,7 +260,6 @@ export default function AdminAdsPage() {
         )
     }
 ];
-
 
   const table = useReactTable({
     data: campaigns,
