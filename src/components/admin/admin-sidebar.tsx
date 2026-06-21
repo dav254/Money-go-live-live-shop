@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession, SupportTicket, ActivityLog, ErrorLog } from '@/lib/types';
+import type { UserProfile, Product, LiveSession, SupportTicket } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -93,118 +93,33 @@ export function AdminSidebar() {
   const isActive = (path: string) => pathname.startsWith(path);
   const firestore = useFirestore();
 
-  // --- Real-time User Counts ---
+  // Guarded real-time counts to prevent permission crashes before session is validated
   const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
   const { data: allUsers } = useCollection<UserProfile>(usersQuery);
 
-  // --- Real-time Product Counts ---
   const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
   const { data: allProducts } = useCollection<Product>(productsQuery);
 
-  const reportedQuery = useMemoFirebase(() => query(
-    collection(firestore, 'complaints'), 
-    where('targetType', '==', 'product'),
-    where('status', '==', 'open')
-  ), [firestore]);
-  const { data: reportedProducts } = useCollection<Complaint>(reportedQuery);
-
-  // --- Real-time Order Counts ---
-  const ordersQuery = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
-  const { data: allOrders } = useCollection<Order>(ordersQuery);
-
-  // --- Real-time Finance Counts ---
-  const payoutsQuery = useMemoFirebase(() => collection(firestore, 'payouts'), [firestore]);
-  const { data: allPayouts } = useCollection<Payout>(payoutsQuery);
-
-  const paymentsQuery = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
-  const { data: allPayments } = useCollection<Payment>(paymentsQuery);
-
-  // --- Real-time Live Shopping Counts ---
   const activeSessionsQuery = useMemoFirebase(() => query(
     collection(firestore, 'liveSessions'),
     where('status', '==', 'live')
   ), [firestore]);
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
 
-  const flaggedStreamsQuery = useMemoFirebase(() => query(
-    collection(firestore, 'complaints'),
-    where('targetType', '==', 'user'),
-    where('status', '==', 'open')
-  ), [firestore]);
-  const { data: flaggedStreams } = useCollection<Complaint>(flaggedStreamsQuery);
-
-  // --- Real-time Support Counts ---
   const openTicketsQuery = useMemoFirebase(() => query(
     collection(firestore, 'supportTickets'),
     where('status', '!=', 'closed')
   ), [firestore]);
   const { data: openTickets } = useCollection<SupportTicket>(openTicketsQuery);
 
-  const unresolvedComplaintsQuery = useMemoFirebase(() => query(
-    collection(firestore, 'complaints'),
-    where('status', '==', 'open')
-  ), [firestore]);
-  const { data: unresolvedComplaints } = useCollection<Complaint>(unresolvedComplaintsQuery);
-
-  // --- Real-time Logs & Analytics Counts ---
-  const activityLogsQuery = useMemoFirebase(() => collection(firestore, 'activityLogs'), [firestore]);
-  const { data: allActivityLogs } = useCollection<ActivityLog>(activityLogsQuery);
-
-  const newErrorLogsQuery = useMemoFirebase(() => query(
-    collection(firestore, 'errorLogs'),
-    where('status', '==', 'new')
-  ), [firestore]);
-  const { data: newErrorLogs } = useCollection<ErrorLog>(newErrorLogsQuery);
-
-  // Memoize counts for performance
   const userStats = useMemo(() => {
-    if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0, verification: 0, suspended: 0 };
+    if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0 };
     return {
       buyers: allUsers.filter(u => (u.userRole || u.role) === 'buyer').length,
       sellers: allUsers.filter(u => (u.userRole || u.role) === 'seller').length,
       resellers: allUsers.filter(u => (u.userRole || u.role) === 'reseller').length,
-      verification: allUsers.filter(u => u.verificationStatus === 'pending').length,
-      suspended: allUsers.filter(u => u.status === 'suspended').length,
     };
   }, [allUsers]);
-
-  const productStats = useMemo(() => ({
-    total: allProducts?.length || 0,
-    reported: reportedProducts?.length || 0
-  }), [allProducts, reportedProducts]);
-
-  const orderStats = useMemo(() => {
-    if (!allOrders) return { total: 0, reseller: 0, disputes: 0, tracking: 0 };
-    return {
-      total: allOrders.length,
-      reseller: allOrders.filter(o => !!o.resellerId).length,
-      disputes: allOrders.filter(o => o.orderStatus === 'disputed').length,
-      tracking: allOrders.filter(o => o.orderStatus === 'shipped' || o.orderStatus === 'delivery').length,
-    };
-  }, [allOrders]);
-
-  const financeStats = useMemo(() => {
-    if (!allPayouts) return { pendingPayouts: 0, totalPayments: 0 };
-    return {
-        pendingPayouts: allPayouts.filter(p => p.status === 'pending').length,
-        totalPayments: allPayments?.length || 0,
-    };
-  }, [allPayouts, allPayments]);
-
-  const liveStats = useMemo(() => ({
-    active: activeSessions?.length || 0,
-    flagged: flaggedStreams?.length || 0
-  }), [activeSessions, flaggedStreams]);
-
-  const supportStats = useMemo(() => ({
-    tickets: openTickets?.length || 0,
-    complaints: unresolvedComplaints?.length || 0
-  }), [openTickets, unresolvedComplaints]);
-
-  const logStats = useMemo(() => ({
-    activity: allActivityLogs?.length || 0,
-    errors: newErrorLogs?.length || 0
-  }), [allActivityLogs, newErrorLogs]);
 
   return (
     <>
@@ -237,8 +152,6 @@ export function AdminSidebar() {
                 { href: 'sellers', label: 'Sellers', badge: userStats.sellers },
                 { href: 'resellers', label: 'Resellers', badge: userStats.resellers },
                 { href: 'referrals', label: 'Referrals' },
-                { href: 'suspended', label: 'Suspended', badge: userStats.suspended },
-                { href: 'verification', label: 'Verification', badge: userStats.verification },
             ]}
         />
 
@@ -247,32 +160,16 @@ export function AdminSidebar() {
             icon={PackageSearch}
             basePath="products"
             items={[
-                { href: 'all', label: 'All Products', badge: productStats.total },
-                { href: 'reported', label: 'Reported', badge: productStats.reported },
+                { href: 'all', label: 'All Products', badge: allProducts?.length || 0 },
             ]}
         />
 
-        <NavCollapsible
-          title="Orders & Transactions"
-          icon={Receipt}
-          basePath="orders"
-          items={[
-            { href: 'all', label: 'All Orders', badge: orderStats.total },
-            { href: 'seller-orders', label: 'Seller Orders' },
-            { href: 'reseller-orders', label: 'Reseller Orders', badge: orderStats.reseller },
-            { href: 'disputes', label: 'Refunds & Disputes', badge: orderStats.disputes },
-            { href: 'tracking', label: 'Delivery Tracking', badge: orderStats.tracking },
-          ]}
-        />
-        
         <NavCollapsible
           title="Live Shopping Control"
           icon={ScreenShare}
           basePath="live-shopping"
           items={[
-            { href: 'sessions', label: 'Live Sessions', badge: liveStats.active },
-            { href: 'approved', label: 'Approved Streams' },
-            { href: 'flagged', label: 'Flagged Streams', badge: liveStats.flagged },
+            { href: 'sessions', label: 'Live Sessions', badge: activeSessions?.length || 0 },
             { href: 'analytics', label: 'Live Analytics' },
           ]}
         />
@@ -283,24 +180,8 @@ export function AdminSidebar() {
           basePath="finance"
           items={[
             { href: 'analytics', label: 'Financial Analytics' },
-            { href: 'payments', label: 'All Payments', badge: financeStats.totalPayments },
-            { href: 'invoices', label: 'Invoice Generator' },
+            { href: 'payments', label: 'All Payments' },
             { href: 'commissions', label: 'Commissions' },
-            { href: 'payouts', label: 'Payout Requests', badge: financeStats.pendingPayouts },
-            { href: 'tax', label: 'Tax Center' },
-          ]}
-        />
-        
-        <NavCollapsible
-          title="Marketing & Growth"
-          icon={Megaphone}
-          basePath="marketing"
-          items={[
-            { href: 'ads', label: 'Ads Manager' },
-            { href: 'boosts', label: 'TikTok Boosts' },
-            { href: 'banners', label: 'Promo Banners' },
-            { href: 'sliders', label: 'Homepage Sliders' },
-            { href: 'notifications', label: 'Notification Center' },
           ]}
         />
         
@@ -310,24 +191,10 @@ export function AdminSidebar() {
           basePath="support"
           items={[
             { href: 'help-center', label: 'Help Center Manager' },
-            { href: 'tickets', label: 'Support Tickets', badge: supportStats.tickets },
-            { href: 'chat-logs', label: 'Chat Logs' },
-            { href: 'complaints', label: 'Resolve Complaints', badge: supportStats.complaints },
+            { href: 'tickets', label: 'Support Tickets', badge: openTickets?.length || 0 },
           ]}
         />
 
-        <NavCollapsible
-          title="System & Settings"
-          icon={Settings}
-          basePath="system"
-          items={[
-            { href: 'roles', label: 'Roles & Permissions' },
-            { href: 'security', label: 'Security & 2FA' },
-            { href: 'backup', label: 'Backup & Restore' },
-            { href: 'server-status', label: 'Server Status' },
-          ]}
-        />
-        
         <NavCollapsible
           title="AI Management"
           icon={BrainCircuit}
@@ -336,9 +203,6 @@ export function AdminSidebar() {
             { href: 'about', label: 'About Go-AI' },
             { href: 'chat', label: 'AI Chat' },
             { href: 'video-generator', label: 'AI Video Studio' },
-            { href: 'recommendations', label: 'Recommendation Engine' },
-            { href: 'fraud-detection', label: 'Fraud Detection' },
-            { href: 'content-moderation', label: 'Content Moderation' },
           ]}
         />
 
@@ -348,9 +212,7 @@ export function AdminSidebar() {
           basePath="analytics"
           items={[
             { href: 'revenue', label: 'Sales Analytics' },
-            { href: 'users', label: 'User Analytics', badge: userStats.buyers + userStats.sellers + userStats.resellers },
-            { href: 'activity', label: 'User Activity Logs', badge: logStats.activity },
-            { href: 'errors', label: 'Frontend', badge: logStats.errors },
+            { href: 'users', label: 'User Analytics' },
           ]}
         />
       </SidebarMenu>

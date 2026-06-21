@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -30,9 +29,9 @@ import {
   Loader2,
   ImageIcon,
   CheckCircle2,
-  Tag as TagIcon,
   Video,
   AlertCircle,
+  Zap,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -45,6 +44,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import type { Product } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 const MAX_IMAGES = 5;
 
@@ -135,14 +135,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       
       const objectUrl = URL.createObjectURL(file);
       const newPreviews = [...imagePreviews];
-      if (newPreviews[index]?.startsWith('blob:')) URL.revokeObjectURL(newPreviews[index]!);
       newPreviews[index] = objectUrl;
       setImagePreviews(newPreviews);
     }
   };
 
   const removeImage = (index: number) => {
-    if (imagePreviews[index]?.startsWith('blob:')) URL.revokeObjectURL(imagePreviews[index]!);
     const newFiles = [...imageFiles];
     newFiles[index] = null;
     setImageFiles(newFiles);
@@ -165,7 +163,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     if (isExisting) {
       setExistingVideoUrls(prev => prev.filter((_, i) => i !== index));
     } else {
-      if (videoPreviews[index]?.startsWith('blob:')) URL.revokeObjectURL(videoPreviews[index]);
       setVideoFiles(prev => prev.filter((_, i) => i !== index));
       setVideoPreviews(prev => prev.filter((_, i) => i !== index));
     }
@@ -180,10 +177,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
         },
-        (error) => {
-            console.error("Upload error:", error);
-            reject(error);
-        },
+        (error) => reject(error),
         async () => {
           const url = await getDownloadURL(uploadTask.snapshot.ref);
           resolve(url);
@@ -194,7 +188,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
-        toast({ variant: 'destructive', title: 'Unauthorized', description: 'Please sign in to upload products.' });
+        toast({ variant: 'destructive', title: 'Session Error', description: 'Authenticate to publish.' });
         return;
     }
 
@@ -202,28 +196,29 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setUploadProgress({});
 
     try {
-      const finalImageUrls: string[] = [];
-      for (let i = 0; i < MAX_IMAGES; i++) {
-        const preview = imagePreviews[i];
-        const file = imageFiles[i];
-        if (preview && !preview.startsWith('blob:')) {
-          finalImageUrls.push(preview);
-        } else if (file instanceof File) {
-          const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
-          const url = await uploadFile(file, path);
-          finalImageUrls.push(url);
-        }
-      }
+      const imageUploadPromises = imageFiles.map((file, i) => {
+          if (file) {
+              const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
+              return uploadFile(file, path);
+          }
+          if (imagePreviews[i] && !imagePreviews[i]?.startsWith('blob:')) {
+              return Promise.resolve(imagePreviews[i]!);
+          }
+          return Promise.resolve(null);
+      });
 
-      const finalVideoUrls: string[] = [...existingVideoUrls];
-      for (let i = 0; i < videoFiles.length; i++) {
-        const file = videoFiles[i];
-        const path = `products/${user.uid}/${Date.now()}_vid_${i}_${file.name}`;
-        const url = await uploadFile(file, path);
-        finalVideoUrls.push(url);
-      }
+      const videoUploadPromises = videoFiles.map((file, i) => {
+          const path = `products/${user.uid}/${Date.now()}_vid_${i}_${file.name}`;
+          return uploadFile(file, path);
+      });
 
-      const productData: any = {
+      const uploadedImages = await Promise.all(imageUploadPromises);
+      const uploadedVideos = await Promise.all(videoUploadPromises);
+
+      const finalImageUrls = uploadedImages.filter((url): url is string => !!url);
+      const finalVideoUrls = [...existingVideoUrls, ...uploadedVideos];
+
+      const productData = {
         ...values,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
@@ -235,7 +230,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       if (productToEdit) {
         await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
-        toast({ title: 'SIGNAL UPDATED', description: 'Inventory synchronized successfully.' });
+        toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
       } else {
         await addDoc(collection(firestore, 'products'), {
           ...productData,
@@ -245,23 +240,22 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           viewCount: 0,
           inCartCount: 0,
         });
-        toast({ title: 'SIGNAL PUBLISHED', description: 'Item is now live in the global feed.' });
+        toast({ title: 'SIGNAL PUBLISHED', description: 'Merchant asset is now live.' });
       }
       onFormSubmit?.();
     } catch (error: any) {
-      console.error("Submission crash:", error);
-      toast({ variant: 'destructive', title: 'Protocol Error', description: error.message || 'The data bus was interrupted.' });
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Pipeline Error', description: 'Media synchronization failed.' });
     } finally {
       setIsUploading(false);
     }
   }
 
-  const onInvalid = (errors: any) => {
-    console.warn("Validation Sequence Error:", errors);
+  const onInvalid = () => {
     toast({
         variant: 'destructive',
         title: 'PROTOCOL HALTED',
-        description: 'Ensure all required fields (Name, Price, Category) are specified correctly.'
+        description: 'Asset Name, Category, and Valuation are mandatory.'
     });
   };
 
@@ -280,7 +274,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Imagery (Max 5)</Label>
-                    <span className="text-[8px] font-bold text-primary uppercase">Primary at Slot 1</span>
+                    <span className="text-[8px] font-bold text-primary uppercase">Parallel Upload Active</span>
                   </div>
                   <div className="grid grid-cols-5 gap-3">
                     {imagePreviews.map((preview, i) => (
@@ -300,10 +294,8 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 </div>
                 <Separator className="bg-white/5" />
                 <div className="space-y-4">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Product Videos (Vertical Preferred)</Label>
-                  <div className="flex gap-4 items-center">
-                    <Input type="file" accept="video/*" multiple onChange={handleVideoChange} className="bg-black/40 border-white/10 h-12 rounded-xl flex-1" />
-                  </div>
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Product Videos</Label>
+                  <Input type="file" accept="video/*" multiple onChange={handleVideoChange} className="bg-black/40 border-white/10 h-12 rounded-xl" />
                   
                   {(videoFiles.length > 0 || existingVideoUrls.length > 0) && (
                     <div className="grid grid-cols-3 gap-4">
@@ -334,18 +326,18 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset Designation</FormLabel><FormControl><Input placeholder="E.g. Urban Tech Streetwear V1" className="bg-black/40 border-white/10 h-12 rounded-xl" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset Designation</FormLabel><FormControl><Input placeholder="E.g. Urban Tech Streetwear" className="bg-black/40 border-white/10 h-12 rounded-xl" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <div className="grid grid-cols-2 gap-6">
                   <FormField control={form.control} name="category" render={({ field }) => (
                     <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Sector</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent>{PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select></FormItem>
                   )} />
                   <FormField control={form.control} name="condition" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset State</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">Brand New</SelectItem><SelectItem value="used">Pre-Owned</SelectItem></SelectContent></Select></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">State</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="used">Used</SelectItem></SelectContent></Select></FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Marketing Signal</FormLabel><FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none" placeholder="Elaborate on the value proposition..." {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Marketing Signal</FormLabel><FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </CardContent>
             </Card>
@@ -366,45 +358,30 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                   )} />
                 </div>
                 <FormField control={form.control} name="price" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-bold text-primary uppercase tracking-widest">Protocol Value (USD)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-primary/20 h-14 font-black text-xl rounded-xl text-primary" {...field} /></FormControl><FormDescription className="text-[8px] uppercase font-bold text-neutral-600">Locked value for global settlement</FormDescription></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-bold text-primary uppercase tracking-widest">Protocol Value (USD)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-primary/20 h-14 font-black text-xl rounded-xl text-primary" {...field} /></FormControl></FormItem>
                 )} />
                 <FormField control={form.control} name="stock" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Node Inventory (Units)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-12 font-black rounded-xl" {...field} /></FormControl></FormItem>
-                )} />
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 overflow-hidden shadow-2xl">
-              <CardHeader className="p-6 border-b border-white/5 bg-white/5">
-                <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">LOGISTICS</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <FormField control={form.control} name="shippingCost" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Shipping Fee (USD)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-10 rounded-lg" {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Method</FormLabel><FormControl><Input placeholder="E.g. Wells Fargo Delivery" className="bg-black/40 border-white/10 h-10 rounded-lg" {...field} /></FormControl></FormItem>
+                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Node Inventory</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-12 font-black rounded-xl" {...field} /></FormControl></FormItem>
                 )} />
               </CardContent>
             </Card>
 
             <div className="space-y-4">
                 <Button type="submit" className="w-full h-20 rounded-[2.5rem] font-black uppercase text-lg shadow-2xl group relative overflow-hidden" disabled={isUploading}>
-                    {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <CheckCircle2 className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />}
+                    {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <Zap className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />}
                     {productToEdit ? 'SYNC CHANGES' : 'PUBLISH SIGNAL'}
-                    <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10 overflow-hidden">
-                        {isUploading && <div className="h-full bg-white animate-[loading-scan_1.5s_infinite_linear]" />}
-                    </div>
                 </Button>
-                {productToEdit && (
-                    <Button type="button" variant="ghost" className="w-full h-12 font-black uppercase text-[10px] tracking-widest text-neutral-500" onClick={onFormSubmit}>
-                        Abort Sequence
-                    </Button>
-                )}
             </div>
           </div>
         </div>
       </form>
+      {isUploading && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md text-white animate-in fade-in duration-500">
+            <Loader2 className="h-16 w-16 animate-spin text-primary mb-8" />
+            <h3 className="text-2xl font-black uppercase tracking-tighter">Syncing Media Pipeline</h3>
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.3em] mt-3">Leveraging full network velocity</p>
+        </div>
+      )}
     </Form>
   );
 }
