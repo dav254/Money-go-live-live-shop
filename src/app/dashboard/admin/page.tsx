@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
   Card,
@@ -8,15 +8,10 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from '@/components/ui/card';
 import {
-  DollarSign,
   Users,
   ShoppingBag,
-  CircleDollarSign,
-  Package,
-  ArrowRight,
   Eye,
   ScreenShare,
   Megaphone,
@@ -58,10 +53,8 @@ const StatCard = ({
 );
 
 export default function AdminDashboardPage() {
-  const { user } = useUser();
   const firestore = useFirestore();
 
-  // Guarded queries to ensure valid admin session and prevent permission denied crashes
   const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
   const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(usersQuery);
 

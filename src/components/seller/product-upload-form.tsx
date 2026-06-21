@@ -28,9 +28,7 @@ import {
   X,
   Loader2,
   ImageIcon,
-  CheckCircle2,
   Video,
-  AlertCircle,
   Zap,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -132,7 +130,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       const newFiles = [...imageFiles];
       newFiles[index] = file;
       setImageFiles(newFiles);
-      
       const objectUrl = URL.createObjectURL(file);
       const newPreviews = [...imagePreviews];
       newPreviews[index] = objectUrl;
@@ -188,14 +185,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
-        toast({ variant: 'destructive', title: 'Session Error', description: 'Authenticate to publish.' });
+        toast({ variant: 'destructive', title: 'Session Error', description: 'Please log in to publish products.' });
         return;
     }
 
     setIsUploading(true);
-    setUploadProgress({});
 
     try {
+      // Initiate all media handshakes in PARALLEL for maximum network utilization
       const imageUploadPromises = imageFiles.map((file, i) => {
           if (file) {
               const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
@@ -239,6 +236,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           likes: 0,
           viewCount: 0,
           inCartCount: 0,
+          salesCount: 0
         });
         toast({ title: 'SIGNAL PUBLISHED', description: 'Merchant asset is now live.' });
       }
@@ -248,6 +246,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       toast({ variant: 'destructive', title: 'Pipeline Error', description: 'Media synchronization failed.' });
     } finally {
       setIsUploading(false);
+      setUploadProgress({});
     }
   }
 
@@ -255,7 +254,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     toast({
         variant: 'destructive',
         title: 'PROTOCOL HALTED',
-        description: 'Asset Name, Category, and Valuation are mandatory.'
+        description: 'Please complete all required fields (Name, Category, and Valuation).'
     });
   };
 
@@ -274,7 +273,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Imagery (Max 5)</Label>
-                    <span className="text-[8px] font-bold text-primary uppercase">Parallel Upload Active</span>
+                    <span className="text-[8px] font-bold text-primary uppercase">Parallel Upload Enabled</span>
                   </div>
                   <div className="grid grid-cols-5 gap-3">
                     {imagePreviews.map((preview, i) => (
@@ -326,18 +325,40 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </CardHeader>
               <CardContent className="p-8 space-y-6">
                 <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset Designation</FormLabel><FormControl><Input placeholder="E.g. Urban Tech Streetwear" className="bg-black/40 border-white/10 h-12 rounded-xl" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Asset Designation</FormLabel>
+                    <FormControl><Input placeholder="E.g. Urban Tech Streetwear" className="bg-black/40 border-white/10 h-12 rounded-xl" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <div className="grid grid-cols-2 gap-6">
                   <FormField control={form.control} name="category" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Sector</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent>{PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select></FormItem>
+                    <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Sector</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>{PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
                   )} />
                   <FormField control={form.control} name="condition" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">State</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="used">Used</SelectItem></SelectContent></Select></FormItem>
+                    <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase text-neutral-500">State</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl"><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="used">Used</SelectItem></SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-black uppercase text-neutral-500">Marketing Signal</FormLabel><FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Marketing Signal</FormLabel>
+                    <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
               </CardContent>
             </Card>
@@ -351,14 +372,24 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               <CardContent className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="localCurrency" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Unit</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger className="bg-black/40 border-white/5 h-10 rounded-lg"><SelectValue /></SelectTrigger></FormControl><SelectContent>{SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code}</SelectItem>)}</SelectContent></Select></FormItem>
+                    <FormItem>
+                        <FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Unit</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="bg-black/40 border-white/5 h-10 rounded-lg"><SelectValue /></SelectTrigger></FormControl>
+                            <SelectContent>{SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </FormItem>
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Sale Price</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/5 h-10 rounded-lg" {...field} /></FormControl></FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="price" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-bold text-primary uppercase tracking-widest">Protocol Value (USD)</FormLabel><FormControl><Input type="number" className="bg-black/40 border-primary/20 h-14 font-black text-xl rounded-xl text-primary" {...field} /></FormControl></FormItem>
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold text-primary uppercase tracking-widest">Protocol Value (USD)</FormLabel>
+                    <FormControl><Input type="number" className="bg-black/40 border-primary/20 h-14 font-black text-xl rounded-xl text-primary" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )} />
                 <FormField control={form.control} name="stock" render={({ field }) => (
                   <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Node Inventory</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-12 font-black rounded-xl" {...field} /></FormControl></FormItem>
