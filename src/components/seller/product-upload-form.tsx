@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -192,7 +193,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setIsUploading(true);
 
     try {
-      // Initiate all media handshakes in PARALLEL for maximum network utilization
       const imageUploadPromises = imageFiles.map((file, i) => {
           if (file) {
               const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
@@ -209,8 +209,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           return uploadFile(file, path);
       });
 
-      const uploadedImages = await Promise.all(imageUploadPromises);
-      const uploadedVideos = await Promise.all(videoUploadPromises);
+      const [uploadedImages, uploadedVideos] = await Promise.all([
+          Promise.all(imageUploadPromises),
+          Promise.all(videoUploadPromises)
+      ]);
 
       const finalImageUrls = uploadedImages.filter((url): url is string => !!url);
       const finalVideoUrls = [...existingVideoUrls, ...uploadedVideos];
@@ -286,7 +288,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                         ) : (
                           <button type="button" className="w-full h-full flex flex-col items-center justify-center gap-1 opacity-20 hover:opacity-100 transition-opacity" onClick={() => imageInputRefs.current[i]?.click()}><ImageIcon className="h-5 w-5" /></button>
                         )}
-                        <input type="file" className="hidden" ref={el => { imageInputRefs.current[i] = el; }} accept="image/*" onChange={(e) => handleImageChange(i, e)} />
+                        <input type="file" className="hidden" ref={el => { imageInputRefs.current[index] = el; }} accept="image/*" onChange={(e) => handleImageChange(i, e)} />
                       </div>
                     ))}
                   </div>

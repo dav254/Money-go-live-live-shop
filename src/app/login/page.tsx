@@ -63,7 +63,8 @@ export default function LoginPage() {
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
-        router.replace('/buyer/dashboard');
+        // Redirect Buyers to the Immersive Video Feed for a professional experience
+        router.replace('/buyer/live');
       }
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast]);
@@ -103,7 +104,7 @@ export default function LoginPage() {
         await setDoc(userDocRef, profile);
       }
       
-      toast({ title: 'Login Successful!', description: "Welcome to GoEarn." });
+      toast({ title: 'Login Successful!', description: "Welcome to GoEarnvid." });
     } catch (error: any) {
       console.error('Google Auth Error:', error);
       toast({
@@ -131,7 +132,7 @@ export default function LoginPage() {
             toast({ variant: 'destructive', title: 'Account Suspended', description: 'Your account has been suspended.' });
             return;
         }
-        toast({ title: 'Login Successful!', description: "Welcome back to GoEarn." });
+        toast({ title: 'Login Successful!', description: "Welcome back to GoEarnvid." });
       }
     } catch (error: any) {
       console.error('Login Error:', error);
@@ -148,8 +149,8 @@ export default function LoginPage() {
       <div className="flex items-center justify-center py-12 px-4 w-full">
         <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
-            <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
-            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your GoEarn account</CardDescription>
+            <CardTitle className="font-headline text-2xl uppercase tracking-tighter text-foreground">Welcome Back</CardTitle>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your GoEarnvid account</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <Button 
