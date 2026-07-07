@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -91,7 +90,7 @@ export function AdminSidebar() {
   const isActive = (path: string) => pathname.startsWith(path);
   const firestore = useFirestore();
 
-  // Guarded real-time counts to prevent permission crashes before session is validated
+  // Guarded real-time counts: Restricted collections (orders, logs) are removed to prevent permission crashes.
   const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
   const { data: allUsers } = useCollection<UserProfile>(usersQuery);
 
