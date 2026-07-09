@@ -7,12 +7,12 @@ import { CookieConsentBanner } from '@/components/cookie-consent-banner';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'GoEarnvid: Post • Earn • Repeat',
+  title: 'Vidnov: Post • Earn • Repeat',
   description: 'The world\'s next-generation social earning platform. Where creative motion becomes financial yield.',
   icons: {
     icon: '/favicon.ico',
   },
-  metadataBase: new URL('https://goearnvid.shop'),
+  metadataBase: new URL('https://vidnov.com'),
 };
 
 export default function RootLayout({

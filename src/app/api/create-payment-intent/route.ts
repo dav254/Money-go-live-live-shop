@@ -32,9 +32,7 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Paystack is not configured on the server.' }, { status: 500 });
             }
 
-            // Paystack requires KES for M-Pesa support.
-            // We convert the USD amount to KES (using 130 as a standard rate)
-            const kesAmount = Math.round(amount * 130 * 100); // Amount in cents (shillings)
+            const kesAmount = Math.round(amount * 130 * 100);
 
             const response = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
@@ -71,6 +69,8 @@ export async function POST(request: Request) {
 
             const paypalRequest = new paypal.orders.OrdersCreateRequest();
             paypalRequest.prefer("return=representation");
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://vidnov.com';
+            
             paypalRequest.requestBody({
                 intent: 'CAPTURE',
                 purchase_units: [{
@@ -86,8 +86,8 @@ export async function POST(request: Request) {
                     }),
                 }],
                 application_context: {
-                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || 'points'}?status=success`,
-                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || 'points'}?status=cancelled`,
+                    return_url: `${baseUrl}/checkout/${orderId || 'points'}?status=success`,
+                    cancel_url: `${baseUrl}/checkout/${orderId || 'points'}?status=cancelled`,
                 },
             });
             

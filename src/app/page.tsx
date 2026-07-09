@@ -44,7 +44,7 @@ const LEADERBOARD = [
     { name: 'Mike Ross', earnings: '$7,800', location: 'Lagos', avatar: 'https://picsum.photos/seed/u3/100/100' },
 ];
 
-export default function GoEarnvidHomePage() {
+export default function VidnovHomePage() {
   const [liveYield, setLiveYield] = useState(12450.80);
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function GoEarnvidHomePage() {
               </h1>
               
               <p className="max-w-xl text-lg text-muted-foreground font-medium leading-relaxed">
-                GoEarnvid is the global protocol for social commerce. We transform creative motion into verified financial yield. 
+                Vidnov is the global protocol for social commerce. We transform creative motion into verified financial yield. 
               </p>
 
               {/* 2. Live Earnings and Activity Counters */}
@@ -141,7 +141,7 @@ export default function GoEarnvidHomePage() {
           </div>
         </section>
 
-        {/* 5. How Goearn Works */}
+        {/* 5. How Vidnov Works */}
         <section className="py-24 bg-background">
           <div className="container max-w-7xl mx-auto px-4 text-center space-y-16">
               <h2 className="font-cyber text-4xl md:text-6xl font-black uppercase tracking-tighter text-foreground">THE PROTOCOL</h2>
@@ -228,7 +228,7 @@ export default function GoEarnvidHomePage() {
               <h2 className="font-cyber text-4xl font-black uppercase tracking-tighter text-center mb-16 text-foreground">SUCCESS PROTOCOLS</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
                   {[
-                      { name: 'Anita W.', role: 'Merchant', text: "GoEarnvid scaled my boutique from local to regional in 3 weeks. The video feed drives traffic 24/7 while I sleep." },
+                      { name: 'Anita W.', role: 'Merchant', text: "Vidnov scaled my boutique from local to regional in 3 weeks. The video feed drives traffic 24/7 while I sleep." },
                       { name: 'John D.', role: 'Reseller', text: "I simply share links to high-quality tech gear. The commission logic is flawless and my payouts are instant." }
                   ].map((story, i) => (
                       <Card key={i} className="bg-card border-none rounded-[3rem] p-12 shadow-xl relative overflow-hidden">

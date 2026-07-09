@@ -59,7 +59,7 @@ const prompt = ai.definePrompt({
   name: 'generateMarketingEmailPrompt',
   input: { schema: GenerateEmailInputSchema },
   output: { schema: GenerateEmailOutputSchema },
-  prompt: `You are a high-conversion email marketing expert for the "Go Earn" e-commerce platform. Your task is to write a professional marketing email for a seller named {{sellerName}}.
+  prompt: `You are a high-conversion email marketing expert for the "Vidnov" social commerce platform. Your task is to write a professional marketing email for a seller named {{sellerName}}.
 
 Goal: {{goal}}
 Tone: {{tone}}
