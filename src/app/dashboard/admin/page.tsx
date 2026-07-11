@@ -15,9 +15,10 @@ import {
   Eye,
   ScreenShare,
   Megaphone,
+  ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -53,15 +54,31 @@ const StatCard = ({
 );
 
 export default function AdminDashboardPage() {
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
 
-  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
+  const isAdmin = userProfile?.userRole === 'admin';
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(firestore, 'userProfiles'));
+  }, [firestore, isAdmin]);
+
   const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(usersQuery);
 
-  const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  const productsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return collection(firestore, 'products');
+  }, [firestore, isAdmin]);
+
   const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
-  const liveSessionsQuery = useMemoFirebase(() => query(collection(firestore, 'liveSessions'), where('status', '==', 'live')), [firestore]);
+  const liveSessionsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
+  }, [firestore, isAdmin]);
+
   const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
   
   const stats = [
@@ -89,8 +106,8 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <h1 className="font-headline text-3xl font-bold tracking-tight">
-          Admin Dashboard
+        <h1 className="font-headline text-3xl font-bold tracking-tight uppercase">
+          Vidnov Controller
         </h1>
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {stats.map((stat) => (
@@ -104,7 +121,7 @@ export default function AdminDashboardPage() {
                     <ScreenShare className="text-primary"/>
                     Live Shopping Control Room
                 </CardTitle>
-                <CardDescription>Monitor and manage all live streams on the platform.</CardDescription>
+                <CardDescription>Monitor and manage all live signals on the platform.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
                 <Button asChild variant="outline" className="w-full justify-start">
@@ -122,7 +139,7 @@ export default function AdminDashboardPage() {
                     <Megaphone className="text-primary"/>
                     Marketing & Growth
                 </CardTitle>
-                <CardDescription>Manage promotional content and send platform-wide announcements.</CardDescription>
+                <CardDescription>Manage promotional nodes and global announcements.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
                  <Button asChild variant="outline" className="w-full justify-start">
@@ -137,6 +154,20 @@ export default function AdminDashboardPage() {
             </CardContent>
            </Card>
         </div>
+
+        <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                    <ShieldAlert className="h-4 w-4" /> System Health Node
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-xs font-bold text-neutral-500 uppercase leading-relaxed">
+                    All restricted logging and legacy order nodes have been decommissioned for session safety. 
+                    Real-time signal validation is active for authorized administrators only.
+                </p>
+            </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

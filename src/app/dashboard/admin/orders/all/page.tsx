@@ -7,7 +7,7 @@ export default function RemovedPage() {
     <AdminLayout>
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <h1 className="text-2xl font-bold uppercase tracking-tighter">Feature Removed</h1>
-        <p className="text-muted-foreground mt-2 font-medium">The marketplace orders section has been decommissioned.</p>
+        <p className="text-muted-foreground mt-2 font-medium">The marketplace orders section has been decommissioned for session safety.</p>
       </div>
     </AdminLayout>
   );

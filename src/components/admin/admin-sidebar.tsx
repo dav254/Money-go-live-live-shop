@@ -25,7 +25,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { UserProfile, Product, LiveSession, SupportTicket } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -89,24 +89,44 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const isActive = (path: string) => pathname.startsWith(path);
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
+
+  const isAdmin = userProfile?.userRole === 'admin';
 
   // Guarded real-time counts: Restricted collections (orders, logs) are removed to prevent permission crashes.
-  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(collection(firestore, 'userProfiles'));
+  }, [firestore, isAdmin]);
+
   const { data: allUsers } = useCollection<UserProfile>(usersQuery);
 
-  const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  const productsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return collection(firestore, 'products');
+  }, [firestore, isAdmin]);
+
   const { data: allProducts } = useCollection<Product>(productsQuery);
 
-  const activeSessionsQuery = useMemoFirebase(() => query(
-    collection(firestore, 'liveSessions'),
-    where('status', '==', 'live')
-  ), [firestore]);
+  const activeSessionsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(
+      collection(firestore, 'liveSessions'),
+      where('status', '==', 'live')
+    );
+  }, [firestore, isAdmin]);
+
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
 
-  const openTicketsQuery = useMemoFirebase(() => query(
-    collection(firestore, 'supportTickets'),
-    where('status', '!=', 'closed')
-  ), [firestore]);
+  const openTicketsQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(
+      collection(firestore, 'supportTickets'),
+      where('status', '!=', 'closed')
+    );
+  }, [firestore, isAdmin]);
+
   const { data: openTickets } = useCollection<SupportTicket>(openTicketsQuery);
 
   const userStats = useMemo(() => {
@@ -121,7 +141,7 @@ export function AdminSidebar() {
   return (
     <>
     <SidebarGroup>
-      <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
+      <SidebarGroupLabel>Vidnov Admin</SidebarGroupLabel>
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={pathname === '/dashboard/admin'}>
@@ -153,63 +173,63 @@ export function AdminSidebar() {
         />
 
         <NavCollapsible 
-            title="Product Management"
+            title="Asset Management"
             icon={PackageSearch}
             basePath="products"
             items={[
-                { href: 'all', label: 'All Products', badge: allProducts?.length || 0 },
+                { href: 'all', label: 'Global Catalog', badge: allProducts?.length || 0 },
             ]}
         />
 
         <NavCollapsible
-          title="Live Shopping Control"
+          title="Signal Control"
           icon={ScreenShare}
           basePath="live-shopping"
           items={[
             { href: 'sessions', label: 'Live Sessions', badge: activeSessions?.length || 0 },
-            { href: 'analytics', label: 'Live Analytics' },
+            { href: 'analytics', label: 'Signal Stats' },
           ]}
         />
 
         <NavCollapsible
-          title="Finance Management"
+          title="Yield Management"
           icon={CircleDollarSign}
           basePath="finance"
           items={[
-            { href: 'analytics', label: 'Financial Analytics' },
-            { href: 'payments', label: 'All Payments' },
-            { href: 'commissions', label: 'Commissions' },
+            { href: 'analytics', label: 'Financial Data' },
+            { href: 'payments', label: 'All Transactions' },
+            { href: 'commissions', label: 'Yield Splits' },
           ]}
         />
         
         <NavCollapsible
-          title="Support & Moderation"
+          title="Support & Safety"
           icon={LifeBuoy}
           basePath="support"
           items={[
-            { href: 'help-center', label: 'Help Center Manager' },
-            { href: 'tickets', label: 'Support Tickets', badge: openTickets?.length || 0 },
+            { href: 'help-center', label: 'Academy Manager' },
+            { href: 'tickets', label: 'Open Signals', badge: openTickets?.length || 0 },
           ]}
         />
 
         <NavCollapsible
-          title="AI Management"
+          title="Neural Control"
           icon={BrainCircuit}
           basePath="ai"
           items={[
-            { href: 'about', label: 'About Go-AI' },
-            { href: 'chat', label: 'AI Chat' },
-            { href: 'video-generator', label: 'AI Video Studio' },
+            { href: 'about', label: 'AI Status' },
+            { href: 'chat', label: 'AI Interface' },
+            { href: 'video-generator', label: 'Neural Studio' },
           ]}
         />
 
         <NavCollapsible
-          title="Logs & Analytics"
+          title="Telemetry"
           icon={BarChart}
           basePath="analytics"
           items={[
-            { href: 'revenue', label: 'Sales Analytics' },
-            { href: 'users', label: 'User Analytics' },
+            { href: 'revenue', label: 'Yield Velocity' },
+            { href: 'users', label: 'Network Growth' },
           ]}
         />
       </SidebarMenu>
@@ -219,7 +239,7 @@ export function AdminSidebar() {
           <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/account')}>
             <Link href="/dashboard/admin/account">
               <User />
-              <span>Account</span>
+              <span>Admin Profile</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

@@ -233,7 +233,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     setIsUploading(true);
 
     try {
-      // 1. Prepare image uploads (Parallel)
       const imageUploadPromises = imageFiles.map((file, i) => {
           if (file) {
               const path = `products/${user.uid}/${Date.now()}_img_${i}_${file.name}`;
@@ -245,17 +244,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           return Promise.resolve(null);
       });
 
-      // 2. Prepare video uploads (Parallel)
       const videoUploadPromises = videoFiles.map((file, i) => {
           const path = `products/${user.uid}/${Date.now()}_vid_${i}_${file.name}`;
           return uploadFile(file, path);
       });
 
-      // 3. Execute all uploads concurrently for maximum network utilization
-      const [uploadedImages, uploadedVideos] = await Promise.all([
-          Promise.all(imageUploadPromises),
-          Promise.all(videoUploadPromises)
-      ]);
+      const uploadedImages = await Promise.all(imageUploadPromises);
+      const uploadedVideos = await Promise.all(videoUploadPromises);
 
       const finalImageUrls = uploadedImages.filter((url): url is string => !!url);
       const finalVideoUrls = [...existingVideoUrls, ...uploadedVideos];
@@ -465,9 +460,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
             </div>
             <h3 className="text-2xl font-black uppercase tracking-tighter">Syncing Media Pipeline</h3>
-            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.3em] mt-3">Leveraging full network velocity</p>
+            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.3em] mt-3 text-center">Leveraging full network velocity</p>
         </div>
       )}
     </Form>
   );
 }
+
+const OpenTextarea = Textarea as any;
