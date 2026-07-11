@@ -30,8 +30,7 @@ import {
   ImageIcon,
   Video,
   Zap,
-  AlertCircle,
-  FileVideo,
+  ShieldCheck,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -44,7 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import type { Product } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 50;

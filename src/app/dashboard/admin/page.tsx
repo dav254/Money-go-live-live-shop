@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
   Card,
@@ -61,21 +61,21 @@ export default function AdminDashboardPage() {
   const isAdmin = userProfile?.userRole === 'admin';
 
   const usersQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return query(collection(firestore, 'userProfiles'));
   }, [firestore, isAdmin]);
 
   const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(usersQuery);
 
   const productsQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return collection(firestore, 'products');
   }, [firestore, isAdmin]);
 
   const { data: allProducts, isLoading: areProductsLoading } = useCollection<Product>(productsQuery);
 
   const liveSessionsQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
   }, [firestore, isAdmin]);
 
