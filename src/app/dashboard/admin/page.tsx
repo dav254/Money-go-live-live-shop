@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
                 <p className="text-xs font-bold text-neutral-500 uppercase leading-relaxed">
-                    All restricted logging and legacy order nodes have been decommissioned for session safety. 
+                    All legacy data pipelines have been decommissioned for session safety. 
                     Real-time signal validation is active for authorized administrators only.
                 </p>
             </CardContent>

@@ -4,46 +4,46 @@ import * as React from 'react';
 export const Logo = ({ className, ...props }: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 400 160"
+    viewBox="0 0 400 200"
     className={cn('text-foreground', className)}
     {...props}
   >
     <defs>
-      <linearGradient id="vidnovGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="vGradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#00A3FF" />
         <stop offset="50%" stopColor="#7000FF" />
         <stop offset="100%" stopColor="#FF005C" />
       </linearGradient>
     </defs>
     
-    {/* Stylized 'V' Symbol with Play Button */}
-    <g transform="translate(135, 10)">
-      {/* The main V shape */}
+    {/* Stylized Ribbon V with Play Signal */}
+    <g transform="translate(140, 20)">
       <path
-        d="M0 10 L35 0 L55 65 L115 10 L135 25 L65 95 L50 95 L0 10Z"
-        fill="url(#vidnovGradient)"
+        d="M20 0 L50 0 L70 80 L110 20 L130 40 L80 110 L40 110 L10 20 Z"
+        fill="url(#vGradient)"
       />
-      {/* The inner play triangle */}
+      {/* Inner Play Triangle */}
       <path
-        d="M72 38 L72 65 L98 51.5 Z"
+        d="M85 55 L85 85 L110 70 Z"
         fill="#FF005C"
       />
     </g>
 
-    {/* VIDNOV Text */}
-    <text x="50%" y="118" textAnchor="middle" style={{ font: '900 68px Sora, sans-serif', letterSpacing: '-0.02em' }}>
+    {/* VIDNOV Text styling: White then Red V */}
+    <text x="50%" y="155" textAnchor="middle" style={{ font: '900 64px Sora, sans-serif', letterSpacing: '-0.02em' }}>
       <tspan fill="currentColor" className="dark:fill-white fill-black">VIDNO</tspan>
       <tspan fill="#FF005C">V</tspan>
     </text>
     
-    {/* Tagline */}
-    <g transform="translate(200, 148)">
-      <text textAnchor="middle" style={{ font: 'bold 16px Orbitron, sans-serif', letterSpacing: '0.45em' }} fill="currentColor" className="opacity-90 uppercase">
+    {/* Tagline and Decorative Lines */}
+    <g transform="translate(200, 185)">
+      <text textAnchor="middle" style={{ font: 'bold 14px Orbitron, sans-serif', letterSpacing: '0.4em' }} fill="currentColor" className="opacity-90 uppercase">
         POST • EARN • REPEAT
       </text>
-      {/* Decorative accent lines */}
-      <rect x="-165" y="-6" width="35" height="2" fill="#00A3FF" />
-      <rect x="130" y="-6" width="35" height="2" fill="#FF005C" />
+      {/* Blue Line Left */}
+      <rect x="-170" y="-6" width="40" height="2" fill="#00A3FF" />
+      {/* Pink Line Right */}
+      <rect x="130" y="-6" width="40" height="2" fill="#FF005C" />
     </g>
   </svg>
 );

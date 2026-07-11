@@ -94,7 +94,7 @@ export function AdminSidebar() {
 
   const isAdmin = userProfile?.userRole === 'admin';
 
-  // Guarded real-time counts: Restricted collections (orders, logs) are removed to prevent permission crashes.
+  // Guarded real-time counts: Restricted collections (logs) are removed to prevent permission crashes.
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(firestore, 'userProfiles'));

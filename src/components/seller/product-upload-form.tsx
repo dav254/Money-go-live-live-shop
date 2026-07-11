@@ -64,11 +64,6 @@ const formSchema = z.object({
   wasPrice: z.coerce.number().optional().nullable(),
 });
 
-interface ProductUploadFormProps {
-  productToEdit?: Product;
-  onFormSubmit?: () => void;
-}
-
 export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUploadFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -223,7 +218,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     });
   };
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
         toast({ variant: 'destructive', title: 'Session Error', description: 'Please log in to publish products.' });
         return;
@@ -288,7 +283,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       setIsUploading(false);
       setUploadProgress({});
     }
-  }
+  };
 
   const onInvalid = () => {
     toast({
