@@ -466,5 +466,3 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     </Form>
   );
 }
-
-const OpenTextarea = Textarea as any;
