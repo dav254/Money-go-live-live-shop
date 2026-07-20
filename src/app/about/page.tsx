@@ -34,7 +34,7 @@ export default function AboutUsPage() {
             <div className="bg-dark-bg text-foreground">
                 {/* Hero Section */}
                 <section className="py-20 text-center">
-                    <h1 className="font-cyber text-4xl md:text-5xl font-extrabold text-primary">About Go Earn</h1>
+                    <h1 className="font-cyber text-4xl md:text-5xl font-extrabold text-primary">About Vidnov</h1>
                     <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
                         We are building the engine for the next generation of social commerce.
                     </p>

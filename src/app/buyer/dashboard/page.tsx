@@ -259,7 +259,7 @@ export default function BuyerDashboardPage() {
                         <div>
                             <AlertTitle className="font-black uppercase tracking-tighter text-white">Payment Awaiting</AlertTitle>
                             <AlertDescription className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mt-1">
-                                You have a pending order for <span className="text-white">"{pendingOrders[0].productName}"</span>. Complete payment to start delivery.
+                                You have a pending order for <span className="text-white">"{pendingOrders[0].productName}"</span>. Complete payment at vidnov.com to start delivery.
                             </AlertDescription>
                         </div>
                     </div>
@@ -419,7 +419,7 @@ export default function BuyerDashboardPage() {
                     </Carousel>
                 ) : (
                     <div className="text-center p-12 bg-neutral-900/20 rounded-3xl">
-                        <p className="font-black uppercase tracking-widest text-[10px] text-neutral-500">Discoveries coming soon</p>
+                        <p className="font-black uppercase tracking-widest text-[10px] text-neutral-500">Vidnov Discoveries coming soon</p>
                     </div>
                 )}
             </div>

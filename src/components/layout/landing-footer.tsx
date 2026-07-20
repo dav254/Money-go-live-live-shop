@@ -75,7 +75,7 @@ export function LandingFooter() {
           </div>
 
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-center">
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 GoEarnvid • High Velocity Social Earning</p>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 Vidnov • High Velocity Social Earning</p>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               <span>Made with</span>
               <Heart className="h-3 w-3 text-primary fill-primary" />

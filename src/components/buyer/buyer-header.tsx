@@ -107,7 +107,7 @@ export function BuyerHeader() {
             ) : (
               <Link href="/buyer/dashboard">
                  <h1 className="text-sm font-black uppercase tracking-tight truncate hover:text-primary transition-colors">
-                    Shop GoEarn<span className="text-[10px] lowercase align-top opacity-80">vid</span>
+                    Shop Vidnov<span className="text-[10px] lowercase align-top opacity-80">.com</span>
                 </h1>
               </Link>
             )}

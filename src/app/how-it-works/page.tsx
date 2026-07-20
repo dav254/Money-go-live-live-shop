@@ -67,7 +67,7 @@ export default function HowItWorksPage() {
               The Protocol of <span className="text-primary italic">Yield</span>
             </h1>
             <p className="text-neutral-400 text-lg md:text-xl font-medium max-w-2xl mx-auto">
-              GoEarnvid is a three-sided marketplace where creators, amplifiers, and shoppers thrive in a video-first ecosystem.
+              Vidnov is a three-sided marketplace where creators, amplifiers, and shoppers thrive in a video-first ecosystem.
             </p>
           </div>
         </section>
