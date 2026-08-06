@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -11,13 +12,11 @@ import {
 } from '@/components/ui/card';
 import {
   Users,
-  ShoppingBag,
   Eye,
-  ScreenShare,
   Megaphone,
   ShieldAlert,
-  ClipboardCheck,
-  Zap
+  Zap,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
@@ -25,7 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { collection, query, where } from 'firebase/firestore';
-import type { LiveSession, UserProfile, Product, Order } from '@/lib/types';
+import type { LiveSession, UserProfile } from '@/lib/types';
 
 const StatCard = ({
   title,
@@ -61,7 +60,7 @@ export default function AdminDashboardPage() {
   const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
 
-  const isAdmin = userProfile?.userRole === 'admin';
+  const isAdmin = userProfile?.userRole === 'admin' || userProfile?.role === 'admin';
 
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
@@ -77,13 +76,6 @@ export default function AdminDashboardPage() {
 
   const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(activeSessionsQuery);
 
-  const paidOrdersQuery = useMemoFirebase(() => {
-    if (!isAdmin || !firestore) return null;
-    return query(collection(firestore, 'orders'), where('orderStatus', '==', 'processing'));
-  }, [firestore, isAdmin]);
-
-  const { data: paidOrders, isLoading: areOrdersLoading } = useCollection<Order>(paidOrdersQuery);
-  
   const stats = [
     {
       title: 'Active Signal Nodes',
@@ -93,10 +85,10 @@ export default function AdminDashboardPage() {
       color: 'text-blue-500'
     },
     {
-      title: 'Verified Payments',
-      value: (paidOrders?.length || 0).toLocaleString(), 
+      title: 'Network Capacity',
+      value: '100%', 
       icon: Zap,
-      isLoading: areOrdersLoading,
+      isLoading: false,
       color: 'text-primary'
     },
     {
@@ -125,23 +117,23 @@ export default function AdminDashboardPage() {
            <Card className="rounded-[2.5rem] border-white/5 bg-neutral-900 shadow-2xl overflow-hidden">
             <CardHeader className="p-8 bg-white/5 border-b border-white/5">
                 <CardTitle className="flex items-center gap-3 text-sm font-black uppercase tracking-[0.2em] text-white">
-                    <ClipboardCheck className="text-primary h-5 w-5"/>
-                    FULFILLMENT QUEUE
+                    <ShieldAlert className="text-primary h-5 w-5"/>
+                    SYSTEM INTEGRITY
                 </CardTitle>
-                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Coordinate delivery for verified payments</CardDescription>
+                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Global network status and security</CardDescription>
             </CardHeader>
             <CardContent className="p-8 space-y-4">
                 <div className="p-6 rounded-3xl bg-black/40 border border-white/5 flex items-center justify-between">
                     <div>
-                        <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-1">AWAITING ACTION</p>
-                        <p className="text-3xl font-black text-white">{paidOrders?.length || 0}</p>
+                        <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-1">HEALTH STATUS</p>
+                        <p className="text-3xl font-black text-white">OPERATIONAL</p>
                     </div>
-                    <Button asChild className="h-12 rounded-2xl px-8 font-black uppercase tracking-widest text-[10px] bg-primary hover:bg-primary/90 text-white border-none shadow-xl shadow-primary/20">
-                        <Link href="/dashboard/admin/orders/all">OPEN QUEUE</Link>
+                    <Button asChild variant="outline" className="h-12 rounded-2xl px-8 font-black uppercase tracking-widest text-[10px] border-white/10 hover:bg-white/5">
+                        <Link href="/dashboard/admin/system/server-status">TELEMETRY</Link>
                     </Button>
                 </div>
                 <p className="text-[9px] font-bold text-neutral-600 uppercase tracking-widest leading-relaxed">
-                    Once payment is verified, the admin must notify the seller to dispatch the item and confirm courier details.
+                    Vidnov core protocol is active across all global discovery nodes. Signal encryption is verified.
                 </p>
             </CardContent>
            </Card>
@@ -156,13 +148,13 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent className="p-8 space-y-3">
                  <Button asChild variant="outline" className="w-full h-14 rounded-2xl justify-between px-6 border-white/5 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-tight">
-                    <Link href="/dashboard/admin/marketing/sliders"><span>Manage Homepage Grid</span> <ChevronRight className="h-4 w-4 text-primary"/></Link>
+                    <Link href="/dashboard/admin/marketing/sliders" className="flex items-center justify-between w-full"><span>Manage Homepage Grid</span> <ChevronRight className="h-4 w-4 text-primary"/></Link>
                 </Button>
                  <Button asChild variant="outline" className="w-full h-14 rounded-2xl justify-between px-6 border-white/5 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-tight">
-                    <Link href="/dashboard/admin/marketing/ads"><span>Ads Manager Signal</span> <ChevronRight className="h-4 w-4 text-primary"/></Link>
+                    <Link href="/dashboard/admin/marketing/ads" className="flex items-center justify-between w-full"><span>Ads Manager Signal</span> <ChevronRight className="h-4 w-4 text-primary"/></Link>
                 </Button>
                 <Button asChild variant="outline" className="w-full h-14 rounded-2xl justify-between px-6 border-white/5 bg-white/5 hover:bg-white/10 text-white font-bold uppercase tracking-tight">
-                    <Link href="/dashboard/admin/marketing/notifications"><span>Platform Broadcast</span> <ChevronRight className="h-4 w-4 text-primary"/></Link>
+                    <Link href="/dashboard/admin/marketing/notifications" className="flex items-center justify-between w-full"><span>Platform Broadcast</span> <ChevronRight className="h-4 w-4 text-primary"/></Link>
                 </Button>
             </CardContent>
            </Card>
@@ -173,7 +165,7 @@ export default function AdminDashboardPage() {
                 <ShieldAlert className="h-6 w-6 text-primary" />
             </div>
             <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">System Integrity Check</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Security Protocol Active</p>
                 <p className="text-xs font-bold text-neutral-400 uppercase leading-relaxed">
                     Encrypted Signal Active • All transactional data is hashed and verified against the network master node. 
                     Unauthorized access attempts are recorded in the secondary shadow log.

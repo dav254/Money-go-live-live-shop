@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -93,24 +94,24 @@ export function AdminSidebar() {
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
 
-  const isAdmin = userProfile?.userRole === 'admin';
+  const isAdmin = userProfile?.userRole === 'admin' || userProfile?.role === 'admin';
 
   const usersQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return query(collection(firestore, 'userProfiles'));
   }, [firestore, isAdmin]);
 
   const { data: allUsers } = useCollection<UserProfile>(usersQuery);
 
   const productsQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return collection(firestore, 'products');
   }, [firestore, isAdmin]);
 
   const { data: allProducts } = useCollection<Product>(productsQuery);
 
   const activeSessionsQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return query(
       collection(firestore, 'liveSessions'),
       where('status', '==', 'live')
@@ -119,18 +120,8 @@ export function AdminSidebar() {
 
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
 
-  const paidOrdersQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
-    return query(
-      collection(firestore, 'orders'),
-      where('orderStatus', '==', 'processing')
-    );
-  }, [firestore, isAdmin]);
-
-  const { data: paidOrders } = useCollection<Order>(paidOrdersQuery);
-
   const openTicketsQuery = useMemoFirebase(() => {
-    if (!isAdmin) return null;
+    if (!isAdmin || !firestore) return null;
     return query(
       collection(firestore, 'supportTickets'),
       where('status', '!=', 'closed')
@@ -183,16 +174,6 @@ export function AdminSidebar() {
         />
 
         <NavCollapsible 
-            title="Fulfillment"
-            icon={ClipboardCheck}
-            basePath="orders"
-            items={[
-                { href: 'all', label: 'Paid Orders', badge: paidOrders?.length || 0 },
-                { href: 'tracking', label: 'In Transit' },
-            ]}
-        />
-
-        <NavCollapsible 
             title="Asset Management"
             icon={PackageSearch}
             basePath="products"
@@ -216,9 +197,7 @@ export function AdminSidebar() {
           icon={CircleDollarSign}
           basePath="finance"
           items={[
-            { href: 'analytics', label: 'Financial Data' },
             { href: 'payments', label: 'All Transactions' },
-            { href: 'commissions', label: 'Yield Splits' },
           ]}
         />
         
@@ -248,7 +227,6 @@ export function AdminSidebar() {
           icon={BarChart}
           basePath="analytics"
           items={[
-            { href: 'revenue', label: 'Yield Velocity' },
             { href: 'users', label: 'Network Growth' },
           ]}
         />
