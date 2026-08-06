@@ -18,6 +18,7 @@ import {
   BarChart,
   User,
   Bell,
+  ClipboardCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -27,7 +28,7 @@ import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { UserProfile, Product, LiveSession, SupportTicket } from '@/lib/types';
+import type { UserProfile, Product, LiveSession, SupportTicket, Order } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -94,7 +95,6 @@ export function AdminSidebar() {
 
   const isAdmin = userProfile?.userRole === 'admin';
 
-  // Guarded real-time counts: Restricted collections (logs) are removed to prevent permission crashes.
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
     return query(collection(firestore, 'userProfiles'));
@@ -118,6 +118,16 @@ export function AdminSidebar() {
   }, [firestore, isAdmin]);
 
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
+
+  const paidOrdersQuery = useMemoFirebase(() => {
+    if (!isAdmin) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('orderStatus', '==', 'processing')
+    );
+  }, [firestore, isAdmin]);
+
+  const { data: paidOrders } = useCollection<Order>(paidOrdersQuery);
 
   const openTicketsQuery = useMemoFirebase(() => {
     if (!isAdmin) return null;
@@ -169,6 +179,16 @@ export function AdminSidebar() {
                 { href: 'sellers', label: 'Sellers', badge: userStats.sellers },
                 { href: 'resellers', label: 'Resellers', badge: userStats.resellers },
                 { href: 'referrals', label: 'Referrals' },
+            ]}
+        />
+
+        <NavCollapsible 
+            title="Fulfillment"
+            icon={ClipboardCheck}
+            basePath="orders"
+            items={[
+                { href: 'all', label: 'Paid Orders', badge: paidOrders?.length || 0 },
+                { href: 'tracking', label: 'In Transit' },
             ]}
         />
 
