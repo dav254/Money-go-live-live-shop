@@ -16,7 +16,9 @@ import {
   Megaphone,
   ShieldAlert,
   Zap,
-  ChevronRight
+  ChevronRight,
+  ClipboardCheck,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
@@ -24,7 +26,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { collection, query, where } from 'firebase/firestore';
-import type { LiveSession, UserProfile } from '@/lib/types';
+import type { LiveSession, UserProfile, Order } from '@/lib/types';
 
 const StatCard = ({
   title,
@@ -76,6 +78,18 @@ export default function AdminDashboardPage() {
 
   const { data: liveSessions, isLoading: areLiveSessionsLoading } = useCollection<LiveSession>(activeSessionsQuery);
 
+  const paidOrdersQuery = useMemoFirebase(() => {
+      if (!isAdmin || !firestore) return null;
+      return query(collection(firestore, 'orders'), where('orderStatus', '==', 'processing'));
+  }, [firestore, isAdmin]);
+
+  const { data: paidOrders, isLoading: areOrdersLoading } = useCollection<Order>(paidOrdersQuery);
+
+  const totalVerifiedYield = React.useMemo(() => {
+      if (!paidOrders) return 0;
+      return paidOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  }, [paidOrders]);
+
   const stats = [
     {
       title: 'Active Signal Nodes',
@@ -85,10 +99,10 @@ export default function AdminDashboardPage() {
       color: 'text-blue-500'
     },
     {
-      title: 'Network Capacity',
-      value: '100%', 
-      icon: Zap,
-      isLoading: false,
+      title: 'Verified Yield',
+      value: `$${totalVerifiedYield.toLocaleString()}`, 
+      icon: DollarSign,
+      isLoading: areOrdersLoading,
       color: 'text-primary'
     },
     {
@@ -117,23 +131,23 @@ export default function AdminDashboardPage() {
            <Card className="rounded-[2.5rem] border-white/5 bg-neutral-900 shadow-2xl overflow-hidden">
             <CardHeader className="p-8 bg-white/5 border-b border-white/5">
                 <CardTitle className="flex items-center gap-3 text-sm font-black uppercase tracking-[0.2em] text-white">
-                    <ShieldAlert className="text-primary h-5 w-5"/>
-                    SYSTEM INTEGRITY
+                    <ClipboardCheck className="text-primary h-5 w-5"/>
+                    FULFILLMENT PIPELINE
                 </CardTitle>
-                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Global network status and security</CardDescription>
+                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Coordinate delivery of paid assets</CardDescription>
             </CardHeader>
             <CardContent className="p-8 space-y-4">
                 <div className="p-6 rounded-3xl bg-black/40 border border-white/5 flex items-center justify-between">
                     <div>
-                        <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-1">HEALTH STATUS</p>
-                        <p className="text-3xl font-black text-white">OPERATIONAL</p>
+                        <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mb-1">AWAITING ACTION</p>
+                        <p className="text-3xl font-black text-white">{paidOrders?.length || 0} ORDERS</p>
                     </div>
                     <Button asChild variant="outline" className="h-12 rounded-2xl px-8 font-black uppercase tracking-widest text-[10px] border-white/10 hover:bg-white/5">
-                        <Link href="/dashboard/admin/system/server-status">TELEMETRY</Link>
+                        <Link href="/dashboard/admin/orders/all">VIEW QUEUE</Link>
                     </Button>
                 </div>
                 <p className="text-[9px] font-bold text-neutral-600 uppercase tracking-widest leading-relaxed">
-                    Vidnov core protocol is active across all global discovery nodes. Signal encryption is verified.
+                    Verify order details and establish communication with merchants to ensure 24h dispatch protocol is maintained.
                 </p>
             </CardContent>
            </Card>

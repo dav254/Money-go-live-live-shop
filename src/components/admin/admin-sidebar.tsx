@@ -130,6 +130,13 @@ export function AdminSidebar() {
 
   const { data: openTickets } = useCollection<SupportTicket>(openTicketsQuery);
 
+  const paidOrdersQuery = useMemoFirebase(() => {
+      if (!isAdmin || !firestore) return null;
+      return query(collection(firestore, 'orders'), where('orderStatus', '==', 'processing'));
+  }, [firestore, isAdmin]);
+
+  const { data: paidOrders } = useCollection<Order>(paidOrdersQuery);
+
   const userStats = useMemo(() => {
     if (!allUsers) return { buyers: 0, sellers: 0, resellers: 0 };
     return {
@@ -179,6 +186,15 @@ export function AdminSidebar() {
             basePath="products"
             items={[
                 { href: 'all', label: 'Global Catalog', badge: allProducts?.length || 0 },
+            ]}
+        />
+
+        <NavCollapsible
+            title="Fulfillment"
+            icon={ClipboardCheck}
+            basePath="orders"
+            items={[
+                { href: 'all', label: 'Paid Orders', badge: paidOrders?.length || 0 },
             ]}
         />
 
