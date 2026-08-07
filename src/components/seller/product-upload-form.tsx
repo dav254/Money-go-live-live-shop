@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -36,6 +35,7 @@ import {
   Truck,
   Layers,
   Tag,
+  AlertCircle,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -224,15 +224,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     });
   };
 
-  const onInvalid = (errors: any) => {
-    console.error("Form Validation Errors:", JSON.stringify(errors, null, 2));
-    toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: 'Ensure all required fields (including Logistics) are correctly filled.'
-    });
-  };
-
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
         toast({ variant: 'destructive', title: 'Session Error', description: 'Please log in to publish products.' });
@@ -287,22 +278,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
       if (productToEdit) {
         const productRef = doc(firestore, 'products', productToEdit.id);
-        updateDoc(productRef, productDataForDb)
-          .then(() => {
-            toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
-            onFormSubmit?.();
-          })
-          .catch(async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: productRef.path,
-                operation: 'update',
-                requestResourceData: productDataForDb,
-            }));
-          })
-          .finally(() => setIsUploading(false));
+        await updateDoc(productRef, productDataForDb);
+        toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
+        onFormSubmit?.();
       } else {
         const productsCol = collection(firestore, 'products');
-        const newDocData = {
+        await addDoc(productsCol, {
           ...productDataForDb,
           sellerId: user.uid,
           uploadDate: serverTimestamp(),
@@ -311,36 +292,36 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           salesCount: 0,
           rating: 0,
           brand: '',
-        };
-        addDoc(productsCol, newDocData)
-          .then(() => {
-            toast({ title: 'SIGNAL PUBLISHED', description: 'Vidnov asset is now live.' });
-            onFormSubmit?.();
-          })
-          .catch(async (error) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: productsCol.path,
-                operation: 'create',
-                requestResourceData: newDocData,
-            }));
-          })
-          .finally(() => setIsUploading(false));
+        });
+        toast({ title: 'SIGNAL PUBLISHED', description: 'Vidnov asset is now live.' });
+        onFormSubmit?.();
       }
     } catch (error: any) {
       console.error("Firebase error details:", error);
+      
+      let errorTitle = 'Pipeline Error';
+      let errorMsg = error.message || 'Submission failed. Please check your connection.';
+
+      // Specific handling for Quota Exceeded (HTTP 402 / storage/quota-exceeded)
+      if (error.code === 'storage/quota-exceeded') {
+          errorTitle = 'STORAGE QUOTA EXCEEDED';
+          errorMsg = 'The global storage bucket is full. Please contact the administrator or upgrade your Firebase plan to continue uploading media.';
+      }
+
       toast({ 
         variant: 'destructive', 
-        title: 'Pipeline Error', 
-        description: `Submission failed: ${error.message}.`
+        title: errorTitle, 
+        description: errorMsg
       });
+    } finally {
       setIsUploading(false);
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8 pb-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
           <div className="lg:col-span-2 space-y-8">
             {/* Media Pipeline */}
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
@@ -480,7 +461,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <FormItem>
                         <FormLabel className="text-[10px] font-black uppercase text-neutral-500 flex items-center gap-1.5">
                             <Tag className="h-3 w-3" /> Shipping (USD)
-                        </FormLabel>
+                        </Label>
                         <FormControl><Input type="number" step="0.01" className="bg-black/40 border-white/10 h-12 rounded-xl font-bold text-green-500" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
