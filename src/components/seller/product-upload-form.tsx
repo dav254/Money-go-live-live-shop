@@ -42,7 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
-import type { Product } from '@/lib/types';
+import type { Product, ProductUploadFormProps } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 
 const MAX_IMAGES = 5;
@@ -88,7 +88,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       condition: 'new',
       localCurrency: 'KES',
       localPrice: 0,
-      price: 0,
+      price: undefined,
       shippingCost: 0,
       stock: 1,
       description: '',
@@ -111,7 +111,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         condition: productToEdit.condition || 'new',
         localCurrency: productToEdit.localCurrency || 'KES',
         localPrice: productToEdit.localPrice || 0,
-        price: productToEdit.price || 0,
+        price: productToEdit.price ?? undefined,
         shippingCost: productToEdit.shippingCost || 0,
         stock: productToEdit.stock || 0,
         description: productToEdit.description || '',
@@ -249,53 +249,60 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       const finalImageUrls = uploadedImages.filter((url): url is string => !!url);
       const finalVideoUrls = [...existingVideoUrls, ...uploadedVideos];
 
-      const productData = {
-        ...values,
+      const productDataForDb = {
+        name: values.name,
+        category: values.category,
+        condition: values.condition,
+        description: values.description,
+        price: values.price,
+        localPrice: values.localPrice,
+        localCurrency: values.localCurrency,
+        stock: values.stock,
+        shippingCost: values.shippingCost,
+        deliveryOptions: values.deliveryOptions,
+        tags: values.tags || '',
+        wasPrice: values.wasPrice || null,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
         videoUrl: finalVideoUrls[0] || '',
         videoUrls: finalVideoUrls,
         hasVideo: finalVideoUrls.length > 0,
-        status: 'active',
         updatedAt: serverTimestamp(),
       };
 
       if (productToEdit) {
-        await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
+        await updateDoc(doc(firestore, 'products', productToEdit.id), productDataForDb);
         toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
       } else {
         await addDoc(collection(firestore, 'products'), {
-          ...productData,
+          ...productDataForDb,
           sellerId: user.uid,
           uploadDate: serverTimestamp(),
           likes: 0,
           viewCount: 0,
-          inCartCount: 0,
-          salesCount: 0
+          salesCount: 0,
+          rating: 0,
+          brand: '',
         });
-        toast({ title: 'SIGNAL PUBLISHED', description: 'Merchant asset is now live.' });
+        toast({ title: 'SIGNAL PUBLISHED', description: 'Vidnov asset is now live.' });
       }
       onFormSubmit?.();
     } catch (error: any) {
-      console.error(error);
-      toast({ variant: 'destructive', title: 'Pipeline Error', description: 'Media synchronization failed.' });
+      console.error("Firebase error details:", error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Pipeline Error', 
+        description: `Submission failed: ${error.message}.`
+      });
     } finally {
       setIsUploading(false);
       setUploadProgress({});
     }
   };
 
-  const onInvalid = () => {
-    toast({
-        variant: 'destructive',
-        title: 'PROTOCOL HALTED',
-        description: 'Please check for missing required fields (Name, Category, and Valuation).'
-    });
-  };
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
@@ -432,18 +439,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="stock" render={({ field }) => (
-                  <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Node Inventory</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/10 h-12 font-black rounded-xl" {...field} /></FormControl></FormItem>
-                )} />
               </CardContent>
             </Card>
 
-            <div className="space-y-4">
-                <Button type="submit" className="w-full h-20 rounded-[2.5rem] font-black uppercase text-lg shadow-2xl group relative overflow-hidden bg-primary hover:bg-primary/90 text-white border-none" disabled={isUploading}>
-                    {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <Zap className="mr-3 h-8 w-8 group-hover:scale-110 transition-transform" />}
-                    {productToEdit ? 'SYNC CHANGES' : 'PUBLISH SIGNAL'}
-                </Button>
-            </div>
+            <Button type="submit" className="w-full h-20 rounded-[2.5rem] font-black uppercase text-lg shadow-2xl bg-primary hover:bg-primary/90 text-white border-none" disabled={isUploading}>
+                {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <Zap className="mr-3 h-8 w-8" />}
+                {productToEdit ? 'SYNC CHANGES' : 'PUBLISH SIGNAL'}
+            </Button>
           </div>
         </div>
       </form>

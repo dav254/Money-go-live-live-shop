@@ -21,7 +21,7 @@ export function LandingFooter() {
                 <Logo className="h-12 w-auto" />
               </Link>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                The world's next-generation social commerce platform. Where creative motion becomes financial yield.
+                Vidnov is the world's next-generation social commerce protocol. Where creative motion becomes financial yield.
               </p>
               <div className="flex gap-3">
                 {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
@@ -65,17 +65,17 @@ export function LandingFooter() {
             <div className="space-y-6 text-left">
                 <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Global Protocol</h4>
                 <div className="p-5 rounded-3xl bg-white border border-border shadow-sm">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">NETWORK STATUS</p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">VIDNOV STATUS</p>
                     <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[11px] font-bold uppercase tracking-tighter">OPERATIONAL</span>
+                        <span className="text-[11px] font-bold uppercase tracking-tighter text-foreground">OPERATIONAL</span>
                     </div>
                 </div>
             </div>
           </div>
 
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-center">
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 Vidnov • High Velocity Social Earning</p>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 Vidnov Protocol • High Velocity Social Earning</p>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               <span>Made with</span>
               <Heart className="h-3 w-3 text-primary fill-primary" />

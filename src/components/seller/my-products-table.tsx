@@ -8,7 +8,6 @@ import {
   ChevronDownIcon,
   DotsHorizontalIcon,
 } from '@radix-ui/react-icons';
-import { differenceInDays, addDays, formatDistanceToNow } from 'date-fns';
 
 import {
   ColumnDef,
@@ -126,24 +125,28 @@ export function MyProductsTable() {
       enableHiding: false,
     },
     {
-      accessorKey: 'name',
-      header: 'Product',
-      cell: ({ row }) => {
-          const isExpired = row.original.uploadDate && differenceInDays(new Date(), row.original.uploadDate.toDate()) > 30;
-          return (
-            <div className={cn("flex items-center gap-4", isExpired && "opacity-50")}>
-                <div className="relative h-12 w-12 rounded-md overflow-hidden">
-                    <Image 
-                        src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
-                        alt={row.original.name || 'Product image'} 
-                        fill 
-                        className="object-cover" 
-                    />
-                </div>
-                <div className="font-medium capitalize">{row.getValue('name')}</div>
-            </div>
-          )
+        accessorKey: 'name',
+        header: 'Name',
+        cell: ({ row }) => {
+            return (
+              <div className="flex items-center gap-4">
+                  <div className="relative h-12 w-12 rounded-md overflow-hidden">
+                      <Image 
+                          src={row.original.imageUrl || 'https://picsum.photos/seed/product/150/150'}
+                          alt={row.original.name || 'Product image'} 
+                          fill 
+                          className="object-cover" 
+                      />
+                  </div>
+                  <div className="font-medium capitalize">{row.getValue('name')}</div>
+              </div>
+            )
+        },
       },
+    {
+        accessorKey: 'category',
+        header: 'Category',
+        cell: ({ row }) => <div className="capitalize">{row.getValue('category')}</div>,
     },
     {
       accessorKey: 'status',
@@ -176,14 +179,14 @@ export function MyProductsTable() {
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="text-right w-full justify-end"
           >
-            Price
+            Valuation
             <CaretSortIcon className="ml-2 h-4 w-4" />
           </Button>
         );
       },
       cell: ({ row }) => {
         const amount = parseFloat(row.getValue('price'));
-        const formatted = new Intl.NumberFormat('en-US').format(amount);
+        const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
         return <div className="text-right font-medium">{formatted}</div>;
       },
@@ -194,24 +197,6 @@ export function MyProductsTable() {
            <div className="text-center">Stock</div>
       ),
       cell: ({ row }) => <div className="text-center">{row.getValue('stock')}</div>,
-    },
-    {
-        accessorKey: 'uploadDate',
-        header: 'Expires',
-        cell: ({ row }) => {
-            const uploadDate = row.original.uploadDate?.toDate();
-            if (!uploadDate) return <div className="text-center">-</div>;
-
-            const expiryDate = addDays(uploadDate, 30);
-            const now = new Date();
-            const isExpired = expiryDate < now;
-            
-            if (isExpired) {
-                return <Badge variant="destructive">Expired</Badge>
-            }
-
-            return <div className="text-sm text-muted-foreground">{formatDistanceToNow(expiryDate, { addSuffix: true })}</div>;
-        }
     },
     {
       id: 'actions',
