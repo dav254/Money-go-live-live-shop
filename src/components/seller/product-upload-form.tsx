@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -35,7 +36,7 @@ import {
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useUser, useFirebaseApp } from '@/firebase';
+import { useFirestore, useUser, useFirebaseApp, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -44,6 +45,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import type { Product, ProductUploadFormProps } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const MAX_IMAGES = 5;
 const MAX_FILE_SIZE_MB = 50;
@@ -88,7 +90,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       condition: 'new',
       localCurrency: 'KES',
       localPrice: 0,
-      price: 0, // Ensure initial value is defined to prevent uncontrolled component warning
+      price: 0.01,
       shippingCost: 0,
       stock: 1,
       description: '',
@@ -111,7 +113,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         condition: productToEdit.condition || 'new',
         localCurrency: productToEdit.localCurrency || 'KES',
         localPrice: productToEdit.localPrice || 0,
-        price: productToEdit.price || 0,
+        price: productToEdit.price || 0.01,
         shippingCost: productToEdit.shippingCost || 0,
         stock: productToEdit.stock || 0,
         description: productToEdit.description || '',
@@ -218,6 +220,15 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
     });
   };
 
+  const onInvalid = (errors: any) => {
+    console.error("Form Validation Errors:", errors);
+    toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Please check the required fields and ensure values are valid.'
+    });
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
         toast({ variant: 'destructive', title: 'Session Error', description: 'Please log in to publish products.' });
@@ -271,10 +282,23 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       };
 
       if (productToEdit) {
-        await updateDoc(doc(firestore, 'products', productToEdit.id), productDataForDb);
-        toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
+        const productRef = doc(firestore, 'products', productToEdit.id);
+        updateDoc(productRef, productDataForDb)
+          .then(() => {
+            toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
+            onFormSubmit?.();
+          })
+          .catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: productRef.path,
+                operation: 'update',
+                requestResourceData: productDataForDb,
+            }));
+          })
+          .finally(() => setIsUploading(false));
       } else {
-        await addDoc(collection(firestore, 'products'), {
+        const productsCol = collection(firestore, 'products');
+        const newDocData = {
           ...productDataForDb,
           sellerId: user.uid,
           uploadDate: serverTimestamp(),
@@ -283,10 +307,21 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           salesCount: 0,
           rating: 0,
           brand: '',
-        });
-        toast({ title: 'SIGNAL PUBLISHED', description: 'Vidnov asset is now live.' });
+        };
+        addDoc(productsCol, newDocData)
+          .then(() => {
+            toast({ title: 'SIGNAL PUBLISHED', description: 'Vidnov asset is now live.' });
+            onFormSubmit?.();
+          })
+          .catch(async (error) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: productsCol.path,
+                operation: 'create',
+                requestResourceData: newDocData,
+            }));
+          })
+          .finally(() => setIsUploading(false));
       }
-      onFormSubmit?.();
     } catch (error: any) {
       console.error("Firebase error details:", error);
       toast({ 
@@ -294,15 +329,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         title: 'Pipeline Error', 
         description: `Submission failed: ${error.message}.`
       });
-    } finally {
       setIsUploading(false);
-      setUploadProgress({});
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">

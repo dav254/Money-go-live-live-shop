@@ -327,3 +327,8 @@ export interface Order {
     platformFee?: number;
     resellerCommission?: number;
 }
+
+export interface ProductUploadFormProps {
+  productToEdit?: Product;
+  onFormSubmit?: () => void;
+}
