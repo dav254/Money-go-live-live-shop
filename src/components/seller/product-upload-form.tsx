@@ -88,7 +88,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       condition: 'new',
       localCurrency: 'KES',
       localPrice: 0,
-      price: undefined,
+      price: 0, // Ensure initial value is defined to prevent uncontrolled component warning
       shippingCost: 0,
       stock: 1,
       description: '',
@@ -111,7 +111,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         condition: productToEdit.condition || 'new',
         localCurrency: productToEdit.localCurrency || 'KES',
         localPrice: productToEdit.localPrice || 0,
-        price: productToEdit.price ?? undefined,
+        price: productToEdit.price || 0,
         shippingCost: productToEdit.shippingCost || 0,
         stock: productToEdit.stock || 0,
         description: productToEdit.description || '',

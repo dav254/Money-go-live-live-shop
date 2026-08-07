@@ -269,7 +269,7 @@ export default function SellerSettingsPage() {
             <Card>
               <CardHeader><CardTitle>Store Branding</CardTitle><CardDescription>Update your shop's visual identity.</CardDescription></CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2"><Label>Shop Name</Label><Input value={shopName} onChange={(e) => setShopName(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Shop Name</Label><Input value={shopName || ''} onChange={(e) => setShopName(e.target.value)} /></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <Label>Logo (Circular Profile)</Label>
@@ -277,7 +277,7 @@ export default function SellerSettingsPage() {
                         {logoUrl ? (
                             <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-primary/20">
                                 <Image src={logoUrl} alt="Logo" fill className="object-cover" />
-                                <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setLogoUrl(null)}><X className="h-3 w-3"/></Button>
+                                <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 rounded-full" onClick={() => setLogoUrl(null)}><X className="h-3.5 w-3.5"/></Button>
                             </div>
                         ) : <Button variant="outline" className="w-full h-32 border-dashed rounded-xl" onClick={() => logoInputRef.current?.click()} disabled={!!isUploading}><UploadCloud className="mr-2" />Upload Logo</Button>}
                         {isUploading === 'logo' && <Progress value={uploadProgress} className="h-1 mt-2" />}
@@ -288,7 +288,7 @@ export default function SellerSettingsPage() {
                         {bannerUrl ? (
                             <div className="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-primary/20">
                                 <Image src={bannerUrl} alt="Banner" fill className="object-cover" />
-                                <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6" onClick={() => setBannerUrl(null)}><X className="h-3 w-3"/></Button>
+                                <Button size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6" onClick={() => setBannerUrl(null)}><X className="h-3.5 w-3.5"/></Button>
                             </div>
                         ) : <Button variant="outline" className="w-full h-32 border-dashed rounded-xl" onClick={() => bannerInputRef.current?.click()} disabled={!!isUploading}><UploadCloud className="mr-2" />Upload Banner</Button>}
                         {isUploading === 'banner' && <Progress value={uploadProgress} className="h-1 mt-2" />}
@@ -300,18 +300,18 @@ export default function SellerSettingsPage() {
             <Card>
                 <CardHeader><CardTitle>Public Contact Info</CardTitle><CardDescription>Information shown to buyers on your shop profile.</CardDescription></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Support Email</Label><Input value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="help@yourstore.com" /></div>
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> Business Phone</Label><Input value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="+254..." /></div>
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="h-4 w-4 text-green-500" /> WhatsApp Number</Label><Input value={contactWhatsapp} onChange={e => setContactWhatsapp(e.target.value)} placeholder="For direct buyer chats" /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Support Email</Label><Input value={contactEmail || ''} onChange={e => setContactEmail(e.target.value)} placeholder="help@yourstore.com" /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> Business Phone</Label><Input value={contactPhone || ''} onChange={e => setContactPhone(e.target.value)} placeholder="+254..." /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-2"><Phone className="h-4 w-4 text-green-500" /> WhatsApp Number</Label><Input value={contactWhatsapp || ''} onChange={e => setContactWhatsapp(e.target.value)} placeholder="For direct buyer chats" /></div>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader><CardTitle>Social Media Links</CardTitle></CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><Facebook className="h-4 w-4 text-blue-600" /> Facebook</Label><Input value={facebookUrl} onChange={e => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><Instagram className="h-4 w-4 text-pink-600" /> Instagram</Label><Input value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)} placeholder="@yourstore" /></div>
-                    <div className="space-y-2"><Label className="flex items-center gap-2"><Twitter className="h-4 w-4 text-sky-500" /> Twitter (X)</Label><Input value={twitterUrl} onChange={e => setTwitterUrl(e.target.value)} placeholder="@yourstore" /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-2"><Facebook className="h-4 w-4 text-blue-600" /> Facebook</Label><Input value={facebookUrl || ''} onChange={e => setFacebookUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-2"><Instagram className="h-4 w-4 text-pink-600" /> Instagram</Label><Input value={instagramUrl || ''} onChange={e => setInstagramUrl(e.target.value)} placeholder="@yourstore" /></div>
+                    <div className="space-y-2"><Label className="flex items-center gap-2"><Twitter className="h-4 w-4 text-sky-500" /> Twitter (X)</Label><Input value={twitterUrl || ''} onChange={e => setTwitterUrl(e.target.value)} placeholder="@yourstore" /></div>
                 </CardContent>
             </Card>
           </TabsContent>
@@ -325,10 +325,10 @@ export default function SellerSettingsPage() {
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <Label>Store Description / Bio</Label>
-                        <OpenTextarea 
+                        <Textarea 
                             rows={5} 
-                            value={shopDescription} 
-                            onChange={(e: any) => setShopDescription(e.target.value)} 
+                            value={shopDescription || ''} 
+                            onChange={(e) => setShopDescription(e.target.value)} 
                             placeholder="Introduce your store. What makes you unique?"
                         />
                     </div>
@@ -340,19 +340,19 @@ export default function SellerSettingsPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label>Country</Label>
-                                <Input value={country} onChange={e => setCountry(e.target.value)} placeholder="e.g. Kenya, Nigeria, USA" />
+                                <Input value={country || ''} onChange={e => setCountry(e.target.value)} placeholder="e.g. Kenya, Nigeria, USA" />
                             </div>
                             <div className="space-y-2">
                                 <Label>County / State / Province</Label>
-                                <Input value={county} onChange={e => setCounty(e.target.value)} placeholder="e.g. Nairobi, Lagos, California" />
+                                <Input value={county || ''} onChange={e => setCounty(e.target.value)} placeholder="e.g. Nairobi, Lagos, California" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Sub-County / City / Town</Label>
-                                <Input value={subCounty} onChange={e => setSubCounty(e.target.value)} placeholder="e.g. Westlands, Ikeja, Los Angeles" />
+                                <Input value={subCounty || ''} onChange={e => setSubCounty(e.target.value)} placeholder="e.g. Westlands, Ikeja, Los Angeles" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Specific Area / Street Address</Label>
-                                <Input value={area} onChange={e => setArea(e.target.value)} placeholder="e.g. 5th Avenue, CBD, Highway 101" />
+                                <Input value={area || ''} onChange={e => setArea(e.target.value)} placeholder="e.g. 5th Avenue, CBD, Highway 101" />
                             </div>
                         </div>
                     </div>
@@ -363,7 +363,7 @@ export default function SellerSettingsPage() {
                         <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2"><Target className="h-4 w-4" /> Target Markets</h3>
                         <p className="text-xs text-muted-foreground">Select the cities or countries where you want your products to be shown first. Use <span className="text-primary font-bold">10 AI points</span> to add a new target location.</p>
                         <div className="flex gap-2">
-                            <Input value={newTarget} onChange={e => setNewTarget(e.target.value)} placeholder="Add a city or country..." className="max-w-xs" />
+                            <Input value={newTarget || ''} onChange={e => setNewTarget(e.target.value)} placeholder="Add a city or country..." className="max-w-xs" />
                             <Button variant="secondary" onClick={addTarget}><Plus className="h-4 w-4 mr-2" /> Add Target</Button>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -380,9 +380,9 @@ export default function SellerSettingsPage() {
                     <Separator />
                     
                     <div className="space-y-4">
-                        <div className="space-y-2"><Label>Opening Hours</Label><Input value={storeHours} onChange={e => setStoreHours(e.target.value)} placeholder="e.g. 9 AM - 6 PM, Mon-Sat" /></div>
-                        <div className="space-y-2"><Label>Return Policy</Label><Textarea value={returnPolicy} onChange={e => setReturnPolicy(e.target.value)} placeholder="Describe your terms for returns and refunds." /></div>
-                        <div className="space-y-2"><Label>Delivery Policy</Label><Textarea value={deliveryPolicy} onChange={e => setDeliveryPolicy(e.target.value)} placeholder="How long does shipping take? Which couriers do you use?" /></div>
+                        <div className="space-y-2"><Label>Opening Hours</Label><Input value={storeHours || ''} onChange={e => setStoreHours(e.target.value)} placeholder="e.g. 9 AM - 6 PM, Mon-Sat" /></div>
+                        <div className="space-y-2"><Label>Return Policy</Label><Textarea value={returnPolicy || ''} onChange={e => setReturnPolicy(e.target.value)} placeholder="Describe your terms for returns and refunds." /></div>
+                        <div className="space-y-2"><Label>Delivery Policy</Label><Textarea value={deliveryPolicy || ''} onChange={e => setDeliveryPolicy(e.target.value)} placeholder="How long does shipping take? Which couriers do you use?" /></div>
                     </div>
                 </CardContent>
             </Card>
@@ -392,6 +392,3 @@ export default function SellerSettingsPage() {
     </SellerLayout>
   );
 }
-
-// Internal temporary helper for typing compatibility
-const OpenTextarea = Textarea as any;
