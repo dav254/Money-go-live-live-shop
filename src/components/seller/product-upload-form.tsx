@@ -32,6 +32,10 @@ import {
   Video,
   Zap,
   ShieldCheck,
+  Package,
+  Truck,
+  Layers,
+  Tag,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -62,7 +66,7 @@ const formSchema = z.object({
   stock: z.coerce.number().int().min(0, { message: 'Stock cannot be negative.' }),
   description: z.string().min(10, { message: 'Please provide a detailed description (min 10 chars).' }),
   tags: z.string().optional(),
-  deliveryOptions: z.string().min(5, { message: 'Describe your delivery process.' }),
+  deliveryOptions: z.string().min(5, { message: 'Describe your delivery process (min 5 chars).' }),
   wasPrice: z.coerce.number().optional().nullable(),
 });
 
@@ -95,7 +99,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       stock: 1,
       description: '',
       tags: '',
-      deliveryOptions: '',
+      deliveryOptions: 'Sent via local courier or pickup.',
     },
   });
 
@@ -118,7 +122,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         stock: productToEdit.stock || 0,
         description: productToEdit.description || '',
         tags: productToEdit.tags || '',
-        deliveryOptions: productToEdit.deliveryOptions || '',
+        deliveryOptions: productToEdit.deliveryOptions || 'Sent via local courier or pickup.',
         wasPrice: productToEdit.wasPrice || null,
       });
     }
@@ -221,11 +225,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
   };
 
   const onInvalid = (errors: any) => {
-    console.error("Form Validation Errors:", errors);
+    console.error("Form Validation Errors:", JSON.stringify(errors, null, 2));
     toast({
         variant: 'destructive',
         title: 'Validation Error',
-        description: 'Please check the required fields and ensure values are valid.'
+        description: 'Ensure all required fields (including Logistics) are correctly filled.'
     });
   };
 
@@ -335,13 +339,14 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8 pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
+            {/* Media Pipeline */}
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
               <CardHeader className="p-8 border-b border-white/5 bg-white/5">
-                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
-                    <UploadCloud className="text-primary h-5 w-5" /> MEDIA PIPELINE
+                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3 text-primary">
+                    <UploadCloud className="h-5 w-5" /> MEDIA PIPELINE
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-8 space-y-8">
@@ -400,8 +405,9 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
               </CardContent>
             </Card>
 
-            <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50">
-              <CardHeader className="p-8 border-b border-white/5">
+            {/* Asset Identification */}
+            <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
+              <CardHeader className="p-8 border-b border-white/5 bg-white/5">
                 <CardTitle className="text-sm font-black uppercase tracking-[0.2em]">ASSET IDENTIFICATION</CardTitle>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
@@ -437,7 +443,54 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Marketing Signal</FormLabel>
-                    <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none" {...field} /></FormControl>
+                    <FormControl><Textarea rows={6} className="bg-black/40 border-white/10 rounded-2xl resize-none text-sm leading-relaxed" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="tags" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Metadata Tags (Optional)</FormLabel>
+                    <FormControl><Input placeholder="E.g. techwear, summer, waterproof" className="bg-black/40 border-white/10 h-12 rounded-xl" {...field} /></FormControl>
+                    <FormDescription className="text-[8px] font-bold uppercase tracking-widest text-neutral-600">Separate with commas for neural discovery indexing.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </CardContent>
+            </Card>
+
+            {/* Logistics & Fulfillment */}
+            <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
+              <CardHeader className="p-8 border-b border-white/5 bg-white/5">
+                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                    <Truck className="h-5 w-5 text-primary" /> LOGISTICS & INVENTORY
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                    <FormField control={form.control} name="stock" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase text-neutral-500 flex items-center gap-1.5">
+                            <Layers className="h-3 w-3" /> Inventory Level
+                        </FormLabel>
+                        <FormControl><Input type="number" className="bg-black/40 border-white/10 h-12 rounded-xl font-bold" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                    <FormField control={form.control} name="shippingCost" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-[10px] font-black uppercase text-neutral-500 flex items-center gap-1.5">
+                            <Tag className="h-3 w-3" /> Shipping (USD)
+                        </FormLabel>
+                        <FormControl><Input type="number" step="0.01" className="bg-black/40 border-white/10 h-12 rounded-xl font-bold text-green-500" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                </div>
+                <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-black uppercase text-neutral-500">Fulfillment Workflow</FormLabel>
+                    <FormControl><Input placeholder="E.g. Dispatched via G4S within 24h of payment signal." className="bg-black/40 border-white/10 h-12 rounded-xl" {...field} /></FormControl>
+                    <FormDescription className="text-[8px] font-bold uppercase tracking-widest text-neutral-600">Explain exactly how the physical asset moves to the buyer.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -446,6 +499,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           </div>
 
           <div className="space-y-8">
+            {/* Valuation Grid */}
             <Card className="rounded-[2rem] border-white/5 bg-neutral-900/50 overflow-hidden shadow-2xl">
               <CardHeader className="p-6 border-b border-white/5 bg-white/5">
                 <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">VALUATION GRID</CardTitle>
@@ -462,26 +516,44 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Local Price</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/5 h-10 rounded-lg" {...field} /></FormControl></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-bold text-neutral-500 uppercase">Local Price</FormLabel><FormControl><Input type="number" className="bg-black/40 border-white/5 h-10 rounded-lg font-bold" {...field} /></FormControl></FormItem>
                   )} />
                 </div>
+                
                 <FormField control={form.control} name="price" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-bold text-primary uppercase tracking-widest">Protocol Valuation (USD)</FormLabel>
-                    <FormControl><Input type="number" className="bg-black/40 border-primary/20 h-14 font-black text-xl rounded-xl text-primary" {...field} /></FormControl>
+                    <FormControl><Input type="number" step="0.01" className="bg-black/40 border-primary/20 h-14 font-black text-2xl rounded-xl text-primary" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="wasPrice" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Market Reference Price (USD)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" value={field.value || ''} onChange={field.onChange} placeholder="E.g. 1000.00" className="bg-black/40 border-white/5 h-10 rounded-lg text-sm text-neutral-400 line-through" /></FormControl>
+                    <FormDescription className="text-[8px] font-bold uppercase tracking-tighter text-neutral-600">Displayed as 'original price' to highlight savings.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Button type="submit" className="w-full h-20 rounded-[2.5rem] font-black uppercase text-lg shadow-2xl bg-primary hover:bg-primary/90 text-white border-none" disabled={isUploading}>
+            <Button type="submit" className="w-full h-20 rounded-[2.5rem] font-black uppercase text-lg shadow-2xl bg-primary hover:bg-primary/90 text-white border-none transition-all active:scale-95" disabled={isUploading}>
                 {isUploading ? <Loader2 className="mr-3 h-8 w-8 animate-spin" /> : <Zap className="mr-3 h-8 w-8" />}
                 {productToEdit ? 'SYNC CHANGES' : 'PUBLISH SIGNAL'}
             </Button>
+
+            <div className="p-4 rounded-2xl bg-neutral-900 border border-white/5 flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-green-500" />
+                <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-500 leading-tight">
+                    Secure Asset Protocol • All updates are verified by the master node.
+                </p>
+            </div>
           </div>
         </div>
       </form>
+      
       {isUploading && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md text-white animate-in fade-in duration-500">
             <div className="relative mb-8">
