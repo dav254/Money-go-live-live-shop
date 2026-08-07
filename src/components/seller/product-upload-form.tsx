@@ -40,7 +40,7 @@ import {
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { useFirestore, useUser, useFirebaseApp, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser, useFirebaseApp } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -100,6 +100,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       description: '',
       tags: '',
       deliveryOptions: 'Sent via local courier or pickup.',
+      wasPrice: null,
     },
   });
 
@@ -302,7 +303,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       let errorTitle = 'Pipeline Error';
       let errorMsg = error.message || 'Submission failed. Please check your connection.';
 
-      // Specific handling for Quota Exceeded (HTTP 402 / storage/quota-exceeded)
       if (error.code === 'storage/quota-exceeded') {
           errorTitle = 'STORAGE QUOTA EXCEEDED';
           errorMsg = 'The global storage bucket is full. Please contact the administrator or upgrade your Firebase plan to continue uploading media.';

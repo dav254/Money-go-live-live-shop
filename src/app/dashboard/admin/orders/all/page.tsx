@@ -57,7 +57,6 @@ const OrdersTable = ({ firestore, isAdmin }: { firestore: any; isAdmin: boolean 
     const { toast } = useToast();
     const { user } = useUser();
 
-    // Query specifically for orders in 'processing' state (meaning payment is verified)
     const paidOrdersQuery = useMemoFirebase(() => {
         if (!isAdmin || !firestore) return null;
         return query(
@@ -103,7 +102,7 @@ const OrdersTable = ({ firestore, isAdmin }: { firestore: any; isAdmin: boolean 
     };
 
     return (
-        <div className="rounded-[2rem] border border-white/5 bg-neutral-900/50 shadow-2xl overflow-hidden">
+        <div className="rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl bg-neutral-900/50">
             <Table>
                 <TableHeader className="bg-white/5">
                     <TableRow className="border-white/5 hover:bg-transparent">
