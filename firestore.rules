@@ -13,7 +13,7 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read, write: if request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
-      allow list: if get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
+      allow list: if request.auth != null;
     }
 
     match /reviews/{reviewId} {
