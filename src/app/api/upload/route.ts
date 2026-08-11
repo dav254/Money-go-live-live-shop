@@ -12,8 +12,14 @@ export async function healthCheck() {
     });
     const config = cloudinary.config();
     if (config.cloud_name && config.api_key && config.api_secret) {
-        // You could add a ping to Cloudinary API here for a more robust check
-        return { status: 'operational' };
+        try {
+            // Ping Cloudinary to verify credentials and service availability
+            await cloudinary.api.ping();
+            return { status: 'operational' };
+        } catch (error) {
+            console.error('Cloudinary health check failed:', error);
+            return { status: 'degraded', message: 'Cloudinary service is unreachable.' };
+        }
     }
     return { status: 'outage', message: 'Cloudinary credentials are not configured.' };
 }
@@ -23,7 +29,7 @@ export async function POST(request: Request) {
   cloudinary.config({
     cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    api_secret: process.env.CLOUDINARY_API_secret,
   });
 
   try {

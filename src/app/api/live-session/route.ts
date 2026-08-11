@@ -37,6 +37,28 @@ function getInternalToken() {
 }
 
 /**
+ * GET handler to fetch all active live sessions.
+ */
+export async function GET(request: Request) {
+  try {
+    const sessionsSnapshot = await db.collection('liveSessions').where('status', '==', 'live').get();
+    
+    if (sessionsSnapshot.empty) {
+      return NextResponse.json([], { status: 200 }); // Return empty array if no live sessions
+    }
+
+    const liveSessions = sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    return NextResponse.json(liveSessions, { status: 200 });
+
+  } catch (error: any) {
+    console.error('Error fetching live sessions:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+  }
+}
+
+
+/**
  * POST handler to create a fresh live session.
  * This ensures a completely fresh start by resetting all counters and state.
  */

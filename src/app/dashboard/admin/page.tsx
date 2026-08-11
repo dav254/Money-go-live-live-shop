@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import {
   Card,
@@ -32,6 +32,7 @@ import {
 }
     from 'lucide-react';
 import { useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useLiveStreams } from '@/hooks/use-live-streams';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -106,6 +107,9 @@ export default function AdminDashboardPage() {
   const { user } = useUserProfile();
   const firestore = useFirestore();
   const [lastUpdated, setLastUpdated] = React.useState(new Date());
+  const [systemHealthData, setSystemHealthData] = useState({ services: [], lastChecked: '' });
+  const [isHealthLoading, setIsHealthLoading] = useState(true);
+  const { liveSessions, isLoading: liveSessionsLoading } = useLiveStreams();
 
   const isAdmin = user?.userRole === 'admin';
 
@@ -124,7 +128,6 @@ export default function AdminDashboardPage() {
   const suspendedSellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('status', '==', 'suspended')) : null, [firestore, isAdmin]);
   const ordersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'orders')) : null, [firestore, isAdmin]);
   const revenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded')) : null, [firestore, isAdmin]);
-  const liveSessionsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'liveSessions'), where('status', '==', 'live')) : null, [firestore, isAdmin]);
   const contentReportsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'reports'), where('reportType', '==', 'video')) : null, [firestore, isAdmin]);
   const userReportsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'reports'), where('reportType', '==', 'user')) : null, [firestore, isAdmin]);
   const flaggedVideosQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'videos'), where('isFlagged', '==', true)) : null, [firestore, isAdmin]);
@@ -150,7 +153,6 @@ export default function AdminDashboardPage() {
   const { data: suspendedSellers, isLoading: suspendedSellersLoading } = useCollection<UserProfile>(suspendedSellersQuery);
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
   const { data: payments, isLoading: revenueLoading } = useCollection<Payment>(revenueQuery);
-  const { data: liveSessions, isLoading: liveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
   const { data: contentReports, isLoading: contentReportsLoading } = useCollection<Report>(contentReportsQuery);
   const { data: userReports, isLoading: userReportsLoading } = useCollection<Report>(userReportsQuery);
   const { data: flaggedVideos, isLoading: flaggedVideosLoading } = useCollection<VideoType>(flaggedVideosQuery);
@@ -168,6 +170,44 @@ export default function AdminDashboardPage() {
 
   const { data: monthRevenue, isLoading: monthRevenueLoading } = useCollection<Payment>(monthRevenueQuery);
   const { data: prevMonthRevenue, isLoading: prevMonthRevenueLoading } = useCollection<Payment>(prevMonthRevenueQuery);
+
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        setIsHealthLoading(true);
+        const response = await fetch('/api/system-status');
+        const data = await response.json();
+
+        // Mapping from backend names to frontend names
+        const serviceNameMapping: { [key: string]: string } = {
+            'API Gateway (Vidnov)': 'Authentication',
+            'Database (Firebase Firestore)': 'Firestore',
+            'AI Core (Google Gemini)': 'AI / Neural Services',
+            'Live Stream Signals (VideoSDK)': 'Notifications',
+            'Payment Flow (Paystack/PayPal)': 'Payments',
+            'Media Storage (Cloudinary)': 'Video Processing',
+        };
+
+        const mappedServices = data.services.map((service: any) => ({
+            ...service,
+            name: serviceNameMapping[service.name] || service.name,
+        }));
+
+        setSystemHealthData({ services: mappedServices, lastChecked: new Date().toLocaleTimeString() });
+      } catch (error) {
+        console.error("Failed to fetch system health:", error);
+        // Optionally, set a default error state
+      } finally {
+        setIsHealthLoading(false);
+      }
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 60000); // Refresh every 60 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
 
   // --- DATA PROCESSING ---
   const totalRevenue = React.useMemo(() => payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0, [payments]);
@@ -231,23 +271,9 @@ export default function AdminDashboardPage() {
         thumbnailUrl: session.thumbnailUrl || '/placeholder.svg',
         sellerName: seller?.displayName || 'Unknown Seller',
         viewers: session.viewerCount || 0,
-        products: session.productCount || 0,
+        products: session.productIds?.length || 0,
     };
   }, [liveSessions, allUsers]);
-
-    const systemHealthData = {
-        // Placeholder: Requires external service health checks.
-        services: [
-            { name: 'Authentication', status: 'Operational' },
-            { name: 'Firestore', status: 'Operational' },
-            { name: 'Storage', status: 'Operational' },
-            { name: 'Video Processing', status: 'Degraded' },
-            { name: 'Notifications', status: 'Operational' },
-            { name: 'Payments', status: 'Operational' },
-            { name: 'AI / Neural Services', status: 'Operational' },
-        ],
-        lastChecked: '32 seconds ago'
-    };
 
     const trustAndSafetyData = {
         items: [
@@ -281,7 +307,28 @@ export default function AdminDashboardPage() {
   }, [newUsers, newSellers, newOrders, newRevenue, newVideos]);
 
 
-  const handleRefresh = () => setLastUpdated(new Date());
+  const handleRefresh = () => {
+      setLastUpdated(new Date());
+      // Manually trigger health fetch on refresh
+      const fetchHealth = async () => {
+        try {
+          setIsHealthLoading(true);
+          const response = await fetch('/api/system-status');
+          const data = await response.json();
+          const serviceNameMapping: { [key: string]: string } = {
+            'API Gateway (Vidnov)': 'Authentication',
+            'Database (Firebase Firestore)': 'Firestore',
+            'AI Core (Google Gemini)': 'AI / Neural Services',
+            'Live Stream Signals (VideoSDK)': 'Notifications',
+            'Payment Flow (Paystack/PayPal)': 'Payments',
+            'Media Storage (Cloudinary)': 'Video Processing',
+          };
+          const mappedServices = data.services.map((service: any) => ({ ...service, name: serviceNameMapping[service.name] || service.name }));
+          setSystemHealthData({ services: mappedServices, lastChecked: new Date().toLocaleTimeString() });
+        } catch (error) { console.error("Failed to fetch system health:", error); } finally { setIsHealthLoading(false); }
+      };
+      fetchHealth();
+  }
 
   const isLoading = usersLoading || sellersLoading || ordersLoading || revenueLoading || liveSessionsLoading || newUsersLoading || newSellersLoading || newOrdersLoading || newRevenueLoading || newVideosLoading || monthRevenueLoading || todayUsersLoading || todaySellersLoading || todayOrdersLoading || todayRevenueLoading || suspendedSellersLoading || contentReportsLoading || userReportsLoading || flaggedVideosLoading || prevMonthRevenueLoading;
 
@@ -342,13 +389,13 @@ export default function AdminDashboardPage() {
         </div>
 
          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            <LiveNow isLive={!!liveStreamData} isLoading={isLoading} stream={liveStreamData} />
+            <LiveNow isLive={!!liveStreamData} isLoading={liveSessionsLoading || usersLoading} stream={liveStreamData} />
             <RecentActivity activities={recentActivityData} isLoading={isLoading} />
         </div>
 
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
              <TrustAndSafety items={trustAndSafetyData.items} totalItems={trustAndSafetyData.totalItems} isLoading={isLoading} />
-             <SystemHealth services={systemHealthData.services} lastChecked={systemHealthData.lastChecked} isLoading={isLoading} />
+             <SystemHealth services={systemHealthData.services} lastChecked={systemHealthData.lastChecked} isLoading={isHealthLoading} />
         </div>
 
       </div>
