@@ -28,19 +28,22 @@ import {
   ShieldCheck,
   UserPlus,
   Video,
-  DollarSign
-} from 'lucide-react';
+  DollarSign,
+}
+    from 'lucide-react';
 import { useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { collection, query, where, Timestamp } from 'firebase/firestore';
-import type { UserProfile, Order, Payment, Video as VideoType, LiveSession } from '@/lib/types';
+import type { UserProfile, Order, Payment, Video as VideoType, LiveSession, Report } from '@/lib/types';
 import { PlatformActivityChart, PlatformActivityData } from '@/components/admin/platform-activity-chart';
 import { RevenueOverview } from '@/components/admin/revenue-overview';
 import { FulfillmentPipeline } from '@/components/admin/fulfillment-pipeline';
 import { LiveNow } from '@/components/admin/live-now';
 import { RecentActivity } from '@/components/admin/recent-activity';
+import { SystemHealth } from '@/components/admin/system-health';
+import { TrustAndSafety } from '@/components/admin/trust-and-safety';
 
 const DashboardKpiCard = ({
   title,
@@ -106,24 +109,31 @@ export default function AdminDashboardPage() {
 
   const isAdmin = user?.userRole === 'admin';
 
-  // --- DATA QUERIES ---
-  const { start } = lastNDays(7);
+  // --- DATE DEFINITIONS ---
+  const now = new Date();
+  const { start: sevenDaysStart } = lastNDays(7);
   const { start: todayStart } = lastNDays(0);
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0,0,0,0);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+  prevMonthEnd.setHours(23, 59, 59, 999);
 
+  // --- DATA QUERIES ---
   const usersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles')) : null, [firestore, isAdmin]);
   const sellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('role', '==', 'seller')) : null, [firestore, isAdmin]);
+  const suspendedSellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('status', '==', 'suspended')) : null, [firestore, isAdmin]);
   const ordersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'orders')) : null, [firestore, isAdmin]);
   const revenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded')) : null, [firestore, isAdmin]);
   const liveSessionsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'liveSessions'), where('status', '==', 'live')) : null, [firestore, isAdmin]);
+  const contentReportsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'reports'), where('reportType', '==', 'video')) : null, [firestore, isAdmin]);
+  const userReportsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'reports'), where('reportType', '==', 'user')) : null, [firestore, isAdmin]);
+  const flaggedVideosQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'videos'), where('isFlagged', '==', true)) : null, [firestore, isAdmin]);
 
-  const newUsersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('createdAt', '>=', Timestamp.fromDate(start))) : null, [firestore, isAdmin, start]);
-  const newSellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('role', '==', 'seller'), where('createdAt', '>=', Timestamp.fromDate(start))) : null, [firestore, isAdmin, start]);
-  const newOrdersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'orders'), where('orderDate', '>=', Timestamp.fromDate(start))) : null, [firestore, isAdmin, start]);
-  const newRevenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded'), where('paymentDate', '>=', Timestamp.fromDate(start))) : null, [firestore, isAdmin, start]);
-  const newVideosQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'videos'), where('createdAt', '>=', Timestamp.fromDate(start))) : null, [firestore, isAdmin, start]);
+  const newUsersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('createdAt', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
+  const newSellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('role', '==', 'seller'), where('createdAt', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
+  const newOrdersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'orders'), where('orderDate', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
+  const newRevenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded'), where('paymentDate', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
+  const newVideosQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'videos'), where('createdAt', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
   
   const todayUsersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('createdAt', '>=', Timestamp.fromDate(todayStart))) : null, [firestore, isAdmin, todayStart]);
   const todaySellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('role', '==', 'seller'), where('createdAt', '>=', Timestamp.fromDate(todayStart))) : null, [firestore, isAdmin, todayStart]);
@@ -131,37 +141,53 @@ export default function AdminDashboardPage() {
   const todayRevenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded'), where('paymentDate', '>=', Timestamp.fromDate(todayStart))) : null, [firestore, isAdmin, todayStart]);
 
   const monthRevenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded'), where('paymentDate', '>=', Timestamp.fromDate(monthStart))) : null, [firestore, isAdmin, monthStart]);
+  const prevMonthRevenueQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'payments'), where('paymentStatus', '==', 'succeeded'), where('paymentDate', '>=', Timestamp.fromDate(prevMonthStart)), where('paymentDate', '<=', Timestamp.fromDate(prevMonthEnd))) : null, [firestore, isAdmin, prevMonthStart, prevMonthEnd]);
 
 
   // --- DATA FETCHING ---
   const { data: allUsers, isLoading: usersLoading } = useCollection<UserProfile>(usersQuery);
   const { data: sellers, isLoading: sellersLoading } = useCollection<UserProfile>(sellersQuery);
+  const { data: suspendedSellers, isLoading: suspendedSellersLoading } = useCollection<UserProfile>(suspendedSellersQuery);
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
   const { data: payments, isLoading: revenueLoading } = useCollection<Payment>(revenueQuery);
   const { data: liveSessions, isLoading: liveSessionsLoading } = useCollection<LiveSession>(liveSessionsQuery);
+  const { data: contentReports, isLoading: contentReportsLoading } = useCollection<Report>(contentReportsQuery);
+  const { data: userReports, isLoading: userReportsLoading } = useCollection<Report>(userReportsQuery);
+  const { data: flaggedVideos, isLoading: flaggedVideosLoading } = useCollection<VideoType>(flaggedVideosQuery);
+
   const { data: newUsers, isLoading: newUsersLoading } = useCollection<UserProfile>(newUsersQuery);
   const { data: newSellers, isLoading: newSellersLoading } = useCollection<UserProfile>(newSellersQuery);
   const { data: newOrders, isLoading: newOrdersLoading } = useCollection<Order>(newOrdersQuery);
   const { data: newRevenue, isLoading: newRevenueLoading } = useCollection<Payment>(newRevenueQuery);
   const { data: newVideos, isLoading: newVideosLoading } = useCollection<VideoType>(newVideosQuery);
-  const { data: monthRevenue, isLoading: monthRevenueLoading } = useCollection<Payment>(monthRevenueQuery);
   
   const { data: todayUsers, isLoading: todayUsersLoading } = useCollection<UserProfile>(todayUsersQuery);
   const { data: todaySellers, isLoading: todaySellersLoading } = useCollection<UserProfile>(todaySellersQuery);
   const { data: todayOrders, isLoading: todayOrdersLoading } = useCollection<Order>(todayOrdersQuery);
   const { data: todayRevenue, isLoading: todayRevenueLoading } = useCollection<Payment>(todayRevenueQuery);
 
+  const { data: monthRevenue, isLoading: monthRevenueLoading } = useCollection<Payment>(monthRevenueQuery);
+  const { data: prevMonthRevenue, isLoading: prevMonthRevenueLoading } = useCollection<Payment>(prevMonthRevenueQuery);
 
   // --- DATA PROCESSING ---
-  const totalRevenue = React.useMemo(() => payments ? payments.reduce((sum, payment) => sum + payment.amount, 0) : 0, [payments]);
-  const totalMonthRevenue = React.useMemo(() => monthRevenue ? monthRevenue.reduce((sum, payment) => sum + payment.amount, 0) : 0, [monthRevenue]);
-  const totalTodayRevenue = React.useMemo(() => todayRevenue ? todayRevenue.reduce((sum, p) => p.amount + sum, 0) : 0, [todayRevenue]);
+  const totalRevenue = React.useMemo(() => payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0, [payments]);
+  const totalMonthRevenue = React.useMemo(() => monthRevenue?.reduce((sum, payment) => sum + payment.amount, 0) || 0, [monthRevenue]);
+  const totalPrevMonthRevenue = React.useMemo(() => prevMonthRevenue?.reduce((sum, payment) => sum + payment.amount, 0) || 0, [prevMonthRevenue]);
+  const totalTodayRevenue = React.useMemo(() => todayRevenue?.reduce((sum, p) => p.amount + sum, 0) || 0, [todayRevenue]);
+
+  const revenuePercentageChange = React.useMemo(() => {
+    if (totalPrevMonthRevenue === 0) {
+      return totalMonthRevenue > 0 ? '+100% this month' : '+0% this month';
+    }
+    const change = ((totalMonthRevenue - totalPrevMonthRevenue) / totalPrevMonthRevenue) * 100;
+    return `${change >= 0 ? '+' : ''}${change.toFixed(1)}% this month`;
+  }, [totalMonthRevenue, totalPrevMonthRevenue]);
 
   const kpiData = [
-    { title: 'Total Users', value: (allUsers?.length || 0).toLocaleString(), percentageChange: `+${todayUsers?.length || 0} today`, icon: Users2, isLoading: usersLoading || todayUsersLoading },
-    { title: 'Active Sellers', value: (sellers?.length || 0).toLocaleString(), percentageChange: `+${todaySellers?.length || 0} today`, icon: Store, isLoading: sellersLoading || todaySellersLoading },
-    { title: 'Orders', value: (orders?.length || 0).toLocaleString(), percentageChange: `+${todayOrders?.length || 0} today`, icon: ShoppingCart, isLoading: ordersLoading || todayOrdersLoading },
-    { title: 'Revenue', value: `$${totalRevenue.toLocaleString()}`, percentageChange: `$${totalTodayRevenue.toLocaleString()} today`, icon: Wallet, isLoading: revenueLoading || todayRevenueLoading },
+    { title: 'Total Users', value: (allUsers?.length || 0).toLocaleString(), percentageChange: `+${todayUsers?.length || 0} today`, icon: Users2 },
+    { title: 'Active Sellers', value: (sellers?.length || 0).toLocaleString(), percentageChange: `+${todaySellers?.length || 0} today`, icon: Store },
+    { title: 'Orders', value: (orders?.length || 0).toLocaleString(), percentageChange: `+${todayOrders?.length || 0} today`, icon: ShoppingCart },
+    { title: 'Revenue', value: `$${totalRevenue.toLocaleString()}`, percentageChange: `$${totalTodayRevenue.toLocaleString()} today`, icon: Wallet },
   ];
 
   const fulfillmentData = React.useMemo(() => [
@@ -173,6 +199,7 @@ export default function AdminDashboardPage() {
     ], [orders]);
 
   const revenueBreakdownData = React.useMemo(() => [
+        // Placeholder: Requires 'payments' collection to have a 'source' field.
         { source: 'Boosts', amount: 2840, fill: 'bg-blue-500' },
         { source: 'Commissions', amount: 3120, fill: 'bg-green-500' },
         { source: 'Subscriptions', amount: 1460, fill: 'bg-purple-500' },
@@ -188,6 +215,7 @@ export default function AdminDashboardPage() {
   ];
 
    const recentActivityData = [
+        // Placeholder: Requires a dedicated 'activity' collection in Firestore.
         { icon: <UserPlus className="h-4 w-4 text-blue-500" />, description: 'New seller verified', details: 'John Electronics', time: '2 min ago' },
         { icon: <CheckCircle className="h-4 w-4 text-green-500" />, description: 'Order #VN-20481 completed', details: 'KSh 4,800', time: '7 min ago' },
         { icon: <Video className="h-4 w-4 text-orange-500" />, description: 'Video flagged for review', details: 'Asset #VID-8192', time: '12 min ago' },
@@ -195,12 +223,41 @@ export default function AdminDashboardPage() {
         { icon: <UserPlus className="h-4 w-4 text-purple-500" />, description: 'New buyer registered', details: 'Nairobi', time: '24 min ago' },
     ];
 
-  const liveStreamData = {
-        thumbnailUrl: '/placeholder.svg', // Replace with actual thumbnail
-        sellerName: 'John Electronics',
-        viewers: 127,
-        products: 14
-  };
+  const liveStreamData = React.useMemo(() => {
+    if (!liveSessions || liveSessions.length === 0) return null;
+    const session = liveSessions[0];
+    const seller = allUsers?.find(u => u.id === session.sellerId);
+    return {
+        thumbnailUrl: session.thumbnailUrl || '/placeholder.svg',
+        sellerName: seller?.displayName || 'Unknown Seller',
+        viewers: session.viewerCount || 0,
+        products: session.productCount || 0,
+    };
+  }, [liveSessions, allUsers]);
+
+    const systemHealthData = {
+        // Placeholder: Requires external service health checks.
+        services: [
+            { name: 'Authentication', status: 'Operational' },
+            { name: 'Firestore', status: 'Operational' },
+            { name: 'Storage', status: 'Operational' },
+            { name: 'Video Processing', status: 'Degraded' },
+            { name: 'Notifications', status: 'Operational' },
+            { name: 'Payments', status: 'Operational' },
+            { name: 'AI / Neural Services', status: 'Operational' },
+        ],
+        lastChecked: '32 seconds ago'
+    };
+
+    const trustAndSafetyData = {
+        items: [
+            { label: 'Content Reports', count: contentReports?.length || 0 },
+            { label: 'User Reports', count: userReports?.length || 0 },
+            { label: 'Flagged Videos', count: flaggedVideos?.length || 0 },
+            { label: 'Suspended Accounts', count: suspendedSellers?.length || 0 },
+        ],
+        totalItems: (contentReports?.length || 0) + (userReports?.length || 0) + (flaggedVideos?.length || 0) + (suspendedSellers?.length || 0)
+    };
 
   const activityData: PlatformActivityData[] = React.useMemo(() => {
     const data: PlatformActivityData[] = [];
@@ -226,7 +283,7 @@ export default function AdminDashboardPage() {
 
   const handleRefresh = () => setLastUpdated(new Date());
 
-  const isLoading = usersLoading || sellersLoading || ordersLoading || revenueLoading || liveSessionsLoading || newUsersLoading || newSellersLoading || newOrdersLoading || newRevenueLoading || newVideosLoading || monthRevenueLoading || todayUsersLoading || todaySellersLoading || todayOrdersLoading || todayRevenueLoading;
+  const isLoading = usersLoading || sellersLoading || ordersLoading || revenueLoading || liveSessionsLoading || newUsersLoading || newSellersLoading || newOrdersLoading || newRevenueLoading || newVideosLoading || monthRevenueLoading || todayUsersLoading || todaySellersLoading || todayOrdersLoading || todayRevenueLoading || suspendedSellersLoading || contentReportsLoading || userReportsLoading || flaggedVideosLoading || prevMonthRevenueLoading;
 
 
   return (
@@ -278,15 +335,20 @@ export default function AdminDashboardPage() {
             <FulfillmentPipeline pipelineData={fulfillmentData} isLoading={isLoading} />
             <RevenueOverview 
                 totalRevenue={totalMonthRevenue}
-                percentageChange={'+9.4% this month'} // Placeholder
+                percentageChange={revenuePercentageChange}
                 revenueBreakdown={revenueBreakdownData}
                 isLoading={isLoading}
             />
         </div>
 
          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            <LiveNow isLive={liveSessions && liveSessions.length > 0} isLoading={isLoading} stream={liveStreamData} />
+            <LiveNow isLive={!!liveStreamData} isLoading={isLoading} stream={liveStreamData} />
             <RecentActivity activities={recentActivityData} isLoading={isLoading} />
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+             <TrustAndSafety items={trustAndSafetyData.items} totalItems={trustAndSafetyData.totalItems} isLoading={isLoading} />
+             <SystemHealth services={systemHealthData.services} lastChecked={systemHealthData.lastChecked} isLoading={isLoading} />
         </div>
 
       </div>
