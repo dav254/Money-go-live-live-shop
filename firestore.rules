@@ -1,19 +1,35 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper function to check for admin role
+    function isAdmin() {
+      // Check both possible fields for admin role for robustness
+      let userProfile = get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data;
+      return request.auth != null && ('role' in userProfile && userProfile.role == 'admin' || 'userRole' in userProfile && userProfile.userRole == 'admin');
+    }
+
     match /userProfiles/{userId} {
-      allow read, write: if request.auth.uid == userId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if request.auth.uid == userId || isAdmin();
     }
 
     match /products/{productId} {
       allow read;
-      allow write: if request.auth.uid == resource.data.sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
+      allow write: if request.auth.uid == resource.data.sellerId || isAdmin();
     }
 
     match /orders/{orderId} {
-      allow read, write: if request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
-      allow list: if request.auth != null;
+      allow read, write: if request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.sellerId || isAdmin();
+      allow list: if isAdmin();
+    }
+
+    match /payouts/{payoutId} {
+      allow read, list, write: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read, list: if isAdmin();
     }
 
     match /reviews/{reviewId} {
@@ -22,7 +38,7 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow read, write: if request.auth.uid in resource.data.participants || get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if request.auth.uid in resource.data.participantIds || isAdmin();
     }
   }
 }

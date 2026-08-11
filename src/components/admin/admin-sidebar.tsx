@@ -208,11 +208,12 @@ export function AdminSidebar() {
         />
 
         <NavCollapsible
-          title="Yield Management"
+          title="Finance"
           icon={CircleDollarSign}
           basePath="finance"
           items={[
             { href: 'payments', label: 'All Transactions' },
+            { href: 'seller-payouts', label: 'Seller Payouts' },
           ]}
         />
         

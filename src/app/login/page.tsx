@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useAuth, useFirestore, useUser, useUserProfile } from '@/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, AuthErrorCodes } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -62,7 +62,6 @@ export default function LoginPage() {
       } else if (role === 'admin') {
         router.replace('/dashboard/admin');
       } else {
-        // Redirect Buyers to the Immersive Video Feed for a professional experience
         router.replace('/buyer/live');
       }
     }
@@ -105,7 +104,6 @@ export default function LoginPage() {
       
       toast({ title: 'Login Successful!', description: "Welcome to Vidnov." });
     } catch (error: any) {
-      console.error('Google Auth Error:', error);
       toast({
         variant: 'destructive',
         title: 'Authentication Failed',
@@ -134,12 +132,17 @@ export default function LoginPage() {
         toast({ title: 'Login Successful!', description: "Welcome back to Vidnov." });
       }
     } catch (error: any) {
-      console.error('Login Error:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: 'The email or password you entered is incorrect.',
-      });
+        let description = 'An unexpected error occurred. Please try again.';
+        if (error.code === AuthErrorCodes.INVALID_LOGIN_CREDENTIALS) {
+            description = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            description = 'The email or password you entered is incorrect.';
+        }
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: description,
+        });
     }
   }
 

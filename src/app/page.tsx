@@ -15,6 +15,7 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 
 const GlobalCreatorGlobe = dynamic(() => import('@/components/home/global-creator-globe'), { 
     ssr: false,
@@ -74,7 +75,7 @@ export default function VidnovHomePage() {
               </h1>
               
               <p className="max-w-xl text-lg text-muted-foreground font-medium leading-relaxed">
-                Vidnov is the global protocol for social commerce. We transform creative motion into verified financial yield. 
+                Vidnov is the world's next-generation social commerce protocol. We transform creative motion into verified financial yield. 
               </p>
 
               {/* 2. Live Earnings and Activity Counters */}
@@ -291,6 +292,7 @@ export default function VidnovHomePage() {
         </section>
 
       </div>
+      <CookieConsentBanner />
     </LandingLayout>
   );
 }

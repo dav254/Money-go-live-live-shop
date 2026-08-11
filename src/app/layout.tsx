@@ -3,7 +3,6 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 import { SecurityShield } from '@/components/SecurityShield';
-import { CookieConsentBanner } from '@/components/cookie-consent-banner';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
@@ -42,7 +41,6 @@ export default function RootLayout({
         </Script>
         <SecurityShield />
         <Providers>{children}</Providers>
-        <CookieConsentBanner />
       </body>
     </html>
   );

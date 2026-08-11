@@ -41,7 +41,6 @@ export function BuyerHeader() {
     return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
   }, [chats, user]);
 
-  // Query for any active live sessions globally
   const activeSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
@@ -101,17 +100,6 @@ export function BuyerHeader() {
         
         <SidebarTrigger className="hidden md:flex" />
 
-        <div className="hidden lg:block min-w-0">
-            {isLoading ? (
-              <Skeleton className="h-6 w-40" />
-            ) : (
-              <Link href="/buyer/dashboard">
-                 <h1 className="text-sm font-black uppercase tracking-tight truncate hover:text-primary transition-colors">
-                    Shop Vidnov<span className="text-[10px] lowercase align-top opacity-80">.com</span>
-                </h1>
-              </Link>
-            )}
-        </div>
       </div>
 
       <div className={cn(
