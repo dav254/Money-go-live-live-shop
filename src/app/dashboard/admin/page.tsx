@@ -29,6 +29,7 @@ import {
   UserPlus,
   Video,
   DollarSign,
+  Activity
 }
     from 'lucide-react';
 import { useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -36,8 +37,8 @@ import { useLiveStreams } from '@/hooks/use-live-streams';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
-import type { UserProfile, Order, Payment, Video as VideoType, LiveSession, Report } from '@/lib/types';
+import { collection, query, where, Timestamp, orderBy, limit } from 'firebase/firestore';
+import type { UserProfile, Order, Payment, Video as VideoType, LiveSession, Report, ActivityEvent } from '@/lib/types';
 import { PlatformActivityChart, PlatformActivityData } from '@/components/admin/platform-activity-chart';
 import { RevenueOverview } from '@/components/admin/revenue-overview';
 import { FulfillmentPipeline } from '@/components/admin/fulfillment-pipeline';
@@ -45,6 +46,7 @@ import { LiveNow } from '@/components/admin/live-now';
 import { RecentActivity } from '@/components/admin/recent-activity';
 import { SystemHealth } from '@/components/admin/system-health';
 import { TrustAndSafety } from '@/components/admin/trust-and-safety';
+import { formatDistanceToNow } from 'date-fns';
 
 const DashboardKpiCard = ({
   title,
@@ -131,6 +133,7 @@ export default function AdminDashboardPage() {
   const contentReportsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'reports'), where('reportType', '==', 'video')) : null, [firestore, isAdmin]);
   const userReportsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'reports'), where('reportType', '==', 'user')) : null, [firestore, isAdmin]);
   const flaggedVideosQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'videos'), where('isFlagged', '==', true)) : null, [firestore, isAdmin]);
+  const recentActivityQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'activity'), orderBy('timestamp', 'desc'), limit(5)) : null, [firestore, isAdmin]);
 
   const newUsersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('createdAt', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
   const newSellersQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'userProfiles'), where('role', '==', 'seller'), where('createdAt', '>=', Timestamp.fromDate(sevenDaysStart))) : null, [firestore, isAdmin, sevenDaysStart]);
@@ -156,6 +159,7 @@ export default function AdminDashboardPage() {
   const { data: contentReports, isLoading: contentReportsLoading } = useCollection<Report>(contentReportsQuery);
   const { data: userReports, isLoading: userReportsLoading } = useCollection<Report>(userReportsQuery);
   const { data: flaggedVideos, isLoading: flaggedVideosLoading } = useCollection<VideoType>(flaggedVideosQuery);
+  const { data: recentActivity, isLoading: recentActivityLoading } = useCollection<ActivityEvent>(recentActivityQuery);
 
   const { data: newUsers, isLoading: newUsersLoading } = useCollection<UserProfile>(newUsersQuery);
   const { data: newSellers, isLoading: newSellersLoading } = useCollection<UserProfile>(newSellersQuery);
@@ -254,14 +258,41 @@ export default function AdminDashboardPage() {
       { href: '#', label: 'Moderate Content', icon: ShieldCheck }
   ];
 
-   const recentActivityData = [
-        // Placeholder: Requires a dedicated 'activity' collection in Firestore.
-        { icon: <UserPlus className="h-4 w-4 text-blue-500" />, description: 'New seller verified', details: 'John Electronics', time: '2 min ago' },
-        { icon: <CheckCircle className="h-4 w-4 text-green-500" />, description: 'Order #VN-20481 completed', details: 'KSh 4,800', time: '7 min ago' },
-        { icon: <Video className="h-4 w-4 text-orange-500" />, description: 'Video flagged for review', details: 'Asset #VID-8192', time: '12 min ago' },
-        { icon: <DollarSign className="h-4 w-4 text-yellow-500" />, description: 'Withdrawal requested', details: 'KSh 12,500', time: '18 min ago' },
-        { icon: <UserPlus className="h-4 w-4 text-purple-500" />, description: 'New buyer registered', details: 'Nairobi', time: '24 min ago' },
-    ];
+   const recentActivityData = React.useMemo(() => {
+        if (!recentActivity) return [];
+        return recentActivity.map(event => {
+            const { type, details, timestamp } = event;
+            const time = formatDistanceToNow(timestamp.toDate(), { addSuffix: true });
+            
+            let icon = <Activity className="h-4 w-4 text-gray-500" />;
+            let description = "New event";
+            
+            switch(type) {
+                case 'new_seller': 
+                    icon = <UserPlus className="h-4 w-4 text-blue-500" />;
+                    description = `New seller: ${details.name}`;
+                    break;
+                case 'order_completed':
+                    icon = <CheckCircle className="h-4 w-4 text-green-500" />;
+                    description = `Order ${details.orderId} completed`;
+                    break;
+                case 'video_flagged':
+                    icon = <Video className="h-4 w-4 text-orange-500" />;
+                    description = `Video ${details.assetId} flagged`;
+                    break;
+                 case 'withdrawal_request':
+                    icon = <DollarSign className="h-4 w-4 text-yellow-500" />;
+                    description = `Withdrawal by ${details.userName}`;
+                    break;
+                case 'new_buyer':
+                    icon = <UserPlus className="h-4 w-4 text-purple-500" />;
+                    description = `New buyer: ${details.name}`;
+                    break;
+            }
+
+            return { icon, description, details: details.amount || '', time };
+        });
+    }, [recentActivity]);
 
   const liveStreamData = React.useMemo(() => {
     if (!liveSessions || liveSessions.length === 0) return null;
@@ -330,7 +361,7 @@ export default function AdminDashboardPage() {
       fetchHealth();
   }
 
-  const isLoading = usersLoading || sellersLoading || ordersLoading || revenueLoading || liveSessionsLoading || newUsersLoading || newSellersLoading || newOrdersLoading || newRevenueLoading || newVideosLoading || monthRevenueLoading || todayUsersLoading || todaySellersLoading || todayOrdersLoading || todayRevenueLoading || suspendedSellersLoading || contentReportsLoading || userReportsLoading || flaggedVideosLoading || prevMonthRevenueLoading;
+  const isLoading = usersLoading || sellersLoading || ordersLoading || revenueLoading || liveSessionsLoading || newUsersLoading || newSellersLoading || newOrdersLoading || newRevenueLoading || newVideosLoading || monthRevenueLoading || todayUsersLoading || todaySellersLoading || todayOrdersLoading || todayRevenueLoading || suspendedSellersLoading || contentReportsLoading || userReportsLoading || flaggedVideosLoading || prevMonthRevenueLoading || recentActivityLoading;
 
 
   return (

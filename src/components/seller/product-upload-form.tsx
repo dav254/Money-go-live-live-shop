@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -27,13 +28,10 @@ import {
   X,
   Loader2,
   ImageIcon,
-  Video,
   Zap,
   ShieldCheck,
-  Package,
   Truck,
-  Layers,
-  Tag,
+  BadgeCent,
 } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
@@ -46,10 +44,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PRODUCT_CATEGORIES, SUPPORTED_CURRENCIES } from '@/lib/constants';
 import type { ProductUploadFormProps } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const MAX_IMAGES = 5;
-const MAX_FILE_SIZE_MB = 50;
-const MAX_VIDEO_DURATION_SECONDS = 60;
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Product name is required.' }),
@@ -75,11 +72,8 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   const [imageFiles, setImageFiles] = useState<(File | null)[]>(new Array(MAX_IMAGES).fill(null));
   const [imagePreviews, setImagePreviews] = useState<(string | null)[]>(new Array(MAX_IMAGES).fill(null));
-  const [videoFiles, setVideoFiles] = useState<File[]>([]);
-  const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
-  const [existingVideoUrls, setExistingVideoUrls] = useState<string[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const imageInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -90,7 +84,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       condition: 'new',
       localCurrency: 'KES',
       localPrice: 0,
-      price: 0.01,
+      price: 1.00,
       shippingCost: 0,
       stock: 1,
       description: '',
@@ -106,7 +100,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
       const initialPreviews = new Array(MAX_IMAGES).fill(null);
       urls.forEach((url, i) => { if (i < MAX_IMAGES) initialPreviews[i] = url; });
       setImagePreviews(initialPreviews);
-      setExistingVideoUrls(productToEdit.videoUrls || (productToEdit.videoUrl ? [productToEdit.videoUrl] : []));
       
       form.reset({
         name: productToEdit.name || '',
@@ -114,7 +107,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         condition: productToEdit.condition || 'new',
         localCurrency: productToEdit.localCurrency || 'KES',
         localPrice: productToEdit.localPrice || 0,
-        price: productToEdit.price || 0.01,
+        price: productToEdit.price || 1.00,
         shippingCost: productToEdit.shippingCost || 0,
         stock: productToEdit.stock || 0,
         description: productToEdit.description || '',
@@ -145,12 +138,11 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
-        toast({ variant: 'destructive', title: 'Session Error', description: 'Please log in to publish products.' });
+        toast({ variant: 'destructive', title: 'Session Error' });
         return;
     }
 
     setIsUploading(true);
-
     try {
       const imageUploadPromises = imageFiles.map((file, i) => {
           if (file) {
@@ -163,18 +155,10 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
           return Promise.resolve(null);
       });
 
-      const videoUploadPromises = videoFiles.map((file, i) => {
-          const path = `products/${user.uid}/${Date.now()}_vid_${i}_${file.name}`;
-          return uploadFile(file, path);
-      });
-
       const uploadedImages = await Promise.all(imageUploadPromises);
-      const uploadedVideos = await Promise.all(videoUploadPromises);
-
       const finalImageUrls = uploadedImages.filter((url): url is string => !!url);
-      const finalVideoUrls = [...existingVideoUrls, ...uploadedVideos];
 
-      const productDataForDb = {
+      const productData = {
         name: values.name,
         category: values.category,
         condition: values.condition,
@@ -189,59 +173,37 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
         wasPrice: values.wasPrice || null,
         imageUrl: finalImageUrls[0] || '',
         imageUrls: finalImageUrls,
-        videoUrl: finalVideoUrls[0] || '',
-        videoUrls: finalVideoUrls,
-        hasVideo: finalVideoUrls.length > 0,
         updatedAt: serverTimestamp(),
       };
 
       if (productToEdit) {
-        const productRef = doc(firestore, 'products', productToEdit.id);
-        await updateDoc(productRef, productDataForDb);
+        await updateDoc(doc(firestore, 'products', productToEdit.id), productData);
         toast({ title: 'SYNC SUCCESSFUL', description: 'Inventory node updated.' });
       } else {
-        const productsCol = collection(firestore, 'products');
-        await addDoc(productsCol, {
-          ...productDataForDb,
+        await addDoc(collection(firestore, 'products'), {
+          ...productData,
           sellerId: user.uid,
           uploadDate: serverTimestamp(),
           likes: 0,
           viewCount: 0,
           salesCount: 0,
-          rating: 0,
-          brand: '',
         });
-        toast({ title: 'SIGNAL PUBLISHED', description: 'Asset is now live.' });
+        toast({ title: 'SIGNAL PUBLISHED', description: 'Asset is now live on Vidnov.' });
       }
       onFormSubmit?.();
     } catch (error: any) {
-      console.error("Firebase error details:", error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Pipeline Error', 
-        description: `Submission failed: ${error.message}. Check console for details.`
-      });
+      const msg = error.code === 'storage/quota-exceeded' 
+        ? "Storage quota exceeded. Please upgrade to the Blaze plan in Firebase Console." 
+        : error.message;
+      toast({ variant: 'destructive', title: 'Pipeline Error', description: msg });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const onInvalid = (errors: any) => {
-    const errorFields = Object.keys(errors).map(field => field.charAt(0).toUpperCase() + field.slice(1)).join(', ');
-    toast({
-        variant: 'destructive',
-        title: 'VALIDATION FAILED',
-        description: `Please correct the following fields: ${errorFields}.`
-    });
-  };
-
   const handleImageChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-          toast({ variant: 'destructive', title: 'Image Too Large', description: 'Images must be under 5MB.' });
-          return;
-      }
       const newFiles = [...imageFiles];
       newFiles[index] = file;
       setImageFiles(newFiles);
@@ -263,7 +225,7 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8 pb-12">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
           <div className="lg:col-span-2 space-y-8">
             <Card className="rounded-2xl border-white/5 bg-neutral-900/50 shadow-xl">
@@ -272,16 +234,16 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                     <UploadCloud className="text-primary h-5 w-5" /> MEDIA PIPELINE
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent>
                 <div className="space-y-2">
-                  <Label>Product Images (Max 5)</Label>
+                  <Label>Images (Max 5)</Label>
                   <div className="grid grid-cols-5 gap-3">
                     {imagePreviews.map((preview, i) => (
                       <div key={i} className="relative aspect-square rounded-lg border-2 border-dashed border-white/10 flex items-center justify-center overflow-hidden bg-black/40 group hover:border-primary/40 transition-all">
                         {preview ? (
                           <>
                             <Image src={preview} alt="preview" fill className="object-cover" />
-                            <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full shadow-lg z-10 opacity-0 group-hover:opacity-100" onClick={() => removeImage(i)}><X className="h-3.5 w-3.5" /></Button>
+                            <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 rounded-full z-10 opacity-0 group-hover:opacity-100" onClick={() => removeImage(i)}><X className="h-3.5 w-3.5" /></Button>
                           </>
                         ) : (
                           <button type="button" className="w-full h-full flex flex-col items-center justify-center gap-1 text-neutral-500 hover:text-white transition-colors" onClick={() => imageInputRefs.current[i]?.click()}><ImageIcon className="h-5 w-5" /></button>
@@ -295,14 +257,12 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
             </Card>
 
             <Card className="rounded-2xl border-white/5 bg-neutral-900/50 shadow-xl">
-              <CardHeader>
-                <CardTitle>Product Details</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Product Details</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product Title</FormLabel>
-                    <FormControl><Input placeholder="e.g., Urban Tech Streetwear" {...field} /></FormControl>
+                    <FormControl><Input placeholder="e.g., Urban Techwear" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -314,7 +274,6 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                             <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent>{PRODUCT_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
                         </Select>
-                        <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="condition" render={({ field }) => (
@@ -324,22 +283,13 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
                             <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                             <SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="used">Used</SelectItem></SelectContent>
                         </Select>
-                        <FormMessage />
                     </FormItem>
                   )} />
                 </div>
                 <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Description</FormLabel>
-                    <FormControl><Textarea rows={6} className="resize-none" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="tags" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags (Optional)</FormLabel>
-                    <FormControl><Input placeholder="e.g., techwear, summer, waterproof" {...field} /></FormControl>
-                    <FormDescription>Separate with commas.</FormDescription>
+                    <FormControl><Textarea rows={6} {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -347,102 +297,56 @@ export function ProductUploadForm({ productToEdit, onFormSubmit }: ProductUpload
             </Card>
 
             <Card className="rounded-2xl border-white/5 bg-neutral-900/50 shadow-xl">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                    <Truck className="h-5 w-5 text-primary" /> LOGISTICS
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                    <FormField control={form.control} name="stock" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Stock</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Truck className="h-4 w-4" /> Logistics</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-2 gap-6">
+                        <FormField control={form.control} name="stock" render={({ field }) => (
+                        <FormItem><FormLabel>Quantity Available</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                        )} />
+                        <FormField control={form.control} name="shippingCost" render={({ field }) => (
+                        <FormItem><FormLabel>Shipping Cost (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+                        )} />
+                    </div>
+                    <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
+                    <FormItem><FormLabel>Fulfillment Details</FormLabel><FormControl><Input placeholder="Dispatched via G4S within 24h" {...field} /></FormControl></FormItem>
                     )} />
-                    <FormField control={form.control} name="shippingCost" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Shipping (USD)</FormLabel>
-                        <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )} />
-                </div>
-                <FormField control={form.control} name="deliveryOptions" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Delivery Info</FormLabel>
-                    <FormControl><Input placeholder="e.g., Dispatched within 24h" {...field} /></FormControl>
-                    <FormDescription>How you get the product to the buyer.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </CardContent>
+                </CardContent>
             </Card>
           </div>
 
           <div className="space-y-8">
             <Card className="rounded-2xl border-white/5 bg-neutral-900/50 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-primary">PRICING</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-primary">VALUATION</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="localCurrency" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                            <SelectContent>{SUPPORTED_CURRENCIES.map(curr => <SelectItem key={curr.code} value={curr.code}>{curr.code}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </FormItem>
+                    <FormItem><FormLabel>Currency</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{SUPPORTED_CURRENCIES.map(c => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}</SelectContent></Select></FormItem>
                   )} />
                   <FormField control={form.control} name="localPrice" render={({ field }) => (
                     <FormItem><FormLabel>Local Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
                   )} />
                 </div>
-                
                 <FormField control={form.control} name="price" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Valuation (USD)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                  <FormItem><FormLabel>Protocol Value (USD)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
                 )} />
-
                 <FormField control={form.control} name="wasPrice" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Original Price (USD)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" value={field.value ?? ''} onChange={field.onChange} placeholder="e.g., 1000.00" /></FormControl>
-                    <FormDescription>Optional, for showing discounts.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                  <FormItem><FormLabel>Original Value (USD)</FormLabel><FormControl><Input type="number" step="0.01" value={field.value || ''} onChange={field.onChange} placeholder="Optional for discounts" /></FormControl></FormItem>
                 )} />
               </CardContent>
             </Card>
 
-            <Button type="submit" className="w-full h-16 rounded-xl font-bold text-lg" disabled={isUploading}>
-                {isUploading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Zap className="mr-2 h-6 w-6" />}
-                {productToEdit ? 'Update Product' : 'Publish Product'}
+            <Button type="submit" className="w-full h-16 rounded-xl font-black uppercase tracking-widest text-sm shadow-2xl" disabled={isUploading}>
+                {isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Zap className="mr-2 h-5 w-5" />}
+                PUBLISH SIGNAL
             </Button>
 
-            <div className="p-3 rounded-lg bg-neutral-900 border border-white/10 flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-green-500 flex-shrink-0" />
-                <p className="text-xs text-neutral-400">
-                    All updates are securely synchronized with the network.
-                </p>
+            <div className="p-4 rounded-xl bg-neutral-950 border border-white/5 flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-green-500 shrink-0" />
+                <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest leading-relaxed">Secure data sync active. Assets are distributed globally.</p>
             </div>
           </div>
         </div>
       </form>
-      
-      {isUploading && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-            <h3 className="text-xl font-bold">Syncing...</h3>
-            <p className="text-sm text-neutral-400">Please wait while we update the product.</p>
-        </div>
-      )}
     </Form>
   );
 }

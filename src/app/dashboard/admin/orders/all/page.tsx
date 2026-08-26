@@ -1,8 +1,9 @@
+
 'use client';
 
 import * as React from 'react';
 import { AdminLayout } from '@/components/layout/admin-layout';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, useUserProfile } from '@/firebase';
 import { collection, query, where, orderBy, doc, limit, setDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import type { Order, UserProfile } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -50,20 +51,20 @@ const ParticipantCell = ({ userId, type }: { userId: string; type: 'buyer' | 'se
     );
 };
 
-const OrdersTable = ({ firestore }: { firestore: any }) => {
+const OrdersTable = ({ firestore, isAdmin }: { firestore: any, isAdmin: boolean }) => {
     const router = useRouter();
     const { toast } = useToast();
     const { user } = useUser();
 
     const paidOrdersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !isAdmin) return null;
         return query(
             collection(firestore, 'orders'),
             where('orderStatus', '==', 'processing'),
             orderBy('orderDate', 'desc'),
             limit(50)
         );
-    }, [firestore]);
+    }, [firestore, isAdmin]);
 
     const { data: orders, isLoading } = useCollection<Order>(paidOrdersQuery);
 
@@ -111,7 +112,13 @@ const OrdersTable = ({ firestore }: { firestore: any }) => {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {isLoading ? (
+                    {!isAdmin ? (
+                        <TableRow>
+                            <TableCell colSpan={4} className="h-64 text-center">
+                                <p className="text-[10px] font-black uppercase tracking-widest opacity-20">Verifying Clearance...</p>
+                            </TableCell>
+                        </TableRow>
+                    ) : isLoading ? (
                         [...Array(5)].map((_, i) => (
                             <TableRow key={i} className="border-white/5 h-20">
                                 <TableCell className="px-6"><Skeleton className="h-10 w-32 rounded-xl" /></TableCell>
@@ -173,10 +180,16 @@ const OrdersTable = ({ firestore }: { firestore: any }) => {
 };
 
 export default function AdminOrderLedgerPage() {
-    const { isLoading: isUserLoading } = useUser();
+    const { user, isLoading: isUserLoading } = useUser();
+    const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const firestore = useFirestore();
 
-    if (isUserLoading) {
+    const isAdmin = React.useMemo(() => {
+        if (!userProfile) return false;
+        return userProfile.userRole === 'admin' || userProfile.role === 'admin';
+    }, [userProfile]);
+
+    if (isUserLoading || isProfileLoading) {
         return (
             <AdminLayout>
                 <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
@@ -200,11 +213,13 @@ export default function AdminOrderLedgerPage() {
                         </p>
                     </div>
                     <div className="bg-primary/5 border border-primary/20 px-4 py-2 rounded-xl flex items-center gap-3">
-                        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">Network Sync: Active</span>
+                        <div className={cn("h-2 w-2 rounded-full", isAdmin ? "bg-primary animate-pulse" : "bg-neutral-700")} />
+                        <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+                            {isAdmin ? "Network Sync: Active" : "Verifying Signal..."}
+                        </span>
                     </div>
                 </div>
-                <OrdersTable firestore={firestore} />
+                <OrdersTable firestore={firestore} isAdmin={isAdmin} />
             </div>
         </AdminLayout>
     );
