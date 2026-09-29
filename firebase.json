@@ -11,13 +11,15 @@
   "apphosting": {
     "backendId": "live-shopping-backend",
     "rootDir": "/",
+    "alwaysDeployFromSource": true,
     "ignore": [
-      "node_modules",
-      ".git",
+      "node_modules/**",
+      ".next/**",
+      ".git/**",
+      "functions/**",
+      "webrtc-backend/**",
       "firebase-debug.log",
-      "firebase-debug.*.log",
-      "functions"
-    ],
-    "alwaysDeployFromSource": true
+      "firebase-debug.*.log"
+    ]
   }
 }
