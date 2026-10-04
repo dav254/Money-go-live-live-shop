@@ -181,7 +181,7 @@ export default function AdminAIFraudPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {alerts && alerts.length > 0 ? alerts.map(alert => (
-                                    <TableRow key={alert.id} className={alert.riskScore > 90 ? 'bg-destructive/10' : ''}>
+                                    <TableRow key={alert.id} className={(alert.riskScore ?? 0) > 90 ? 'bg-destructive/10' : ''}>
                                         <TableCell><Badge variant="destructive">{alert.riskScore}</Badge></TableCell>
                                         <TableCell className="font-medium">{alert.type}</TableCell>
                                         <TableCell>{alert.userId}</TableCell>

@@ -5,6 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductGrid } from "@/components/products/product-grid";
 import { SellerInfo } from "./seller-info";
 import type { Seller, Product, LiveSession } from "@/lib/types";
+import {
+  BusinessReviewsList,
+  type PublicBusinessPayload,
+} from "@/components/trust/business-trust-panel";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "../ui/card";
 import { Radio, Clock, Play, Video, History, ArrowRight } from "lucide-react";
 import { Badge } from "../ui/badge";
@@ -17,9 +21,17 @@ interface SellerTabsProps {
   seller: Seller;
   products: Product[];
   liveSession?: LiveSession | null;
+  /**
+   * The trust payload already fetched by the page.
+   *
+   * Passed in rather than re-fetched: the tab would otherwise ask the server
+   * twice for the same review list, and two reads of a changing number is how
+   * a score ends up disagreeing with itself on one page.
+   */
+  trust?: PublicBusinessPayload | null | undefined;
 }
 
-export function SellerTabs({ seller, products, liveSession }: SellerTabsProps) {
+export function SellerTabs({ seller, products, liveSession, trust }: SellerTabsProps) {
   const videoProducts = products.filter(p => p.videoUrl || (p.videoUrls && p.videoUrls.length > 0));
 
   const isLive = liveSession?.status === 'live';
@@ -27,7 +39,7 @@ export function SellerTabs({ seller, products, liveSession }: SellerTabsProps) {
 
   return (
     <Tabs defaultValue="products" className="w-full">
-      <TabsList className="sticky top-14 z-30 grid w-full grid-cols-4 rounded-none border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-sm md:w-fit md:rounded-lg">
+      <TabsList className="sticky top-14 z-30 grid w-full grid-cols-5 rounded-none border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-sm md:w-fit md:rounded-lg">
         <TabsTrigger value="products">Products</TabsTrigger>
         <TabsTrigger value="videos">Videos</TabsTrigger>
         <TabsTrigger value="live" className="relative">
@@ -38,6 +50,17 @@ export function SellerTabs({ seller, products, liveSession }: SellerTabsProps) {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
             )}
+        </TabsTrigger>
+        {/* The count is on the tab, not just inside it: a shopper deciding
+            whether to trust a shop should not have to open Reviews to find out
+            whether there are any. */}
+        <TabsTrigger value="reviews" className="gap-1.5">
+          Reviews
+          {trust && trust.reviews.count > 0 && (
+            <span className="text-[10px] font-bold text-amber-400">
+              {trust.reviews.count}
+            </span>
+          )}
         </TabsTrigger>
         <TabsTrigger value="about">About</TabsTrigger>
       </TabsList>
@@ -132,6 +155,10 @@ export function SellerTabs({ seller, products, liveSession }: SellerTabsProps) {
                 </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="reviews" className="max-w-3xl">
+          <BusinessReviewsList data={trust} />
         </TabsContent>
 
         <TabsContent value="about">

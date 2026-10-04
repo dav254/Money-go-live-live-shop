@@ -299,7 +299,7 @@ export default function AdminInvoiceGeneratorPage() {
                  <Card className="shadow-lg p-8">
                      <div className="flex justify-between items-start">
                         <div>
-                            <Logo className="h-12 w-auto text-primary" />
+                            <Logo className="text-4xl text-primary" />
                             <h1 className="text-3xl font-bold mt-4">INVOICE</h1>
                             <p className="text-muted-foreground"># {watchAllFields.invoiceNumber}</p>
                         </div>

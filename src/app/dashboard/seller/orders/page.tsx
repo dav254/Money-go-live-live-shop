@@ -156,7 +156,7 @@ const AllOrdersTable = ({ orders, isLoading }: { orders: Order[], isLoading: boo
                                         <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px] text-white">{productName}</span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="font-black text-primary text-sm">${order.totalAmount.toLocaleString()}</TableCell>
+                                <TableCell className="font-black text-primary text-sm">${(order.totalAmount ?? order.productPrice ?? 0).toLocaleString()}</TableCell>
                                 <TableCell className="text-[10px] font-bold text-neutral-500 uppercase tracking-tighter">
                                     {order.orderDate?.toDate ? format(order.orderDate.toDate(), 'MMM d, yyyy') : 'N/A'}
                                 </TableCell>

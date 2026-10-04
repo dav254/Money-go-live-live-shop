@@ -10,6 +10,10 @@ import { useEffect, useState, useMemo, use } from 'react';
 import { doc, query, collection, where } from 'firebase/firestore';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useParams } from 'next/navigation';
+import {
+  BusinessTrustPanel,
+  type PublicBusinessPayload,
+} from '@/components/trust/business-trust-panel';
 
 export default function SellerShopPage(props: { params: Promise<{ sellerId: string }> }) {
   const params = use(props.params);
@@ -21,6 +25,7 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
 
   const [seller, setSeller] = useState<Seller | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [trust, setTrust] = useState<PublicBusinessPayload | null>(null);
   
   // --- Data Fetching ---
   const sellerShopRef = useMemoFirebase(() => doc(firestore, 'sellerShops', sellerId), [firestore, sellerId]);
@@ -52,7 +57,11 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
         banner: { id: 'banner', imageUrl: shopData.bannerUrl || getPlaceholderImage(), description: 'Shop Banner', imageHint: 'store banner' },
         location: displayLocation,
         isVerified: profileData.verificationStatus === 'verified',
-        rating: 0, 
+        // Overwritten the moment the trust payload lands. The old code left
+        // these at 0 forever, so every business on the open web rendered as a
+        // brand-new shop — a fixed zero is worse than a blank, because it looks
+        // measured rather than missing.
+        rating: 0,
         reviewsCount: 0,
         followers: shopData.followers || 0,
         joinedDate: profileData.joinDate,
@@ -100,13 +109,40 @@ export default function SellerShopPage(props: { params: Promise<{ sellerId: stri
 
   const isBuyer = userProfile?.userRole === 'buyer';
 
+  // The real numbers, from the same source the app uses.
+  const rating = trust?.reviews.average ?? 0;
+  const reviewsCount = trust?.reviews.count ?? 0;
+  const areaLabel = trust?.business
+    ? [trust.business.areaName, trust.business.cityName].filter(Boolean).join(', ')
+    : seller?.location;
+
+  const sellerWithRealNumbers: Seller = {
+    ...seller,
+    rating,
+    reviewsCount,
+    location: areaLabel || seller.location,
+    // While the payload is still in flight we keep the value the profile
+    // already gave us. Replacing it with `false` would make the tick blink out
+    // and back on every page load, which reads as "verification was removed".
+    isVerified: trust ? trust.business?.verificationStatus === 'verified' : seller.isVerified,
+  } as any;
+
   return (
     <MainLayout>
         {isBuyer && <BuyerHeader />}
         <div className="bg-background text-foreground">
-            <PublicSellerHeader seller={seller} />
+            <PublicSellerHeader seller={sellerWithRealNumbers} />
             <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SellerTabs seller={seller} products={products} liveSession={liveSession} />
+            {/* Verification, the real rating and where this business works —
+                identical to what the app shows, because it is the same
+                component reading the same endpoint. */}
+            <BusinessTrustPanel
+              sellerId={sellerId}
+              origin={trust?.business ? undefined : null}
+              onLoaded={setTrust}
+              className="py-5"
+            />
+            <SellerTabs seller={sellerWithRealNumbers} products={products} liveSession={liveSession} trust={trust} />
             </div>
       </div>
     </MainLayout>

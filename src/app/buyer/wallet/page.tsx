@@ -36,6 +36,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
+import { inviteLinkFor, normaliseReferralCode, referralCodeFor } from '@/lib/referrals/referral-code';
 import { collection, addDoc, deleteDoc, doc, serverTimestamp, query, where, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -189,10 +190,22 @@ export default function BuyerPaymentsPage() {
     
     const isLoading = isUserLoading || areMethodsLoading || isProfileLoading;
 
+    /*
+     * The link the user sees must be the link they copy.
+     *
+     * This used to display `user.uid.substring(0,6)…` while copying the FULL
+     * uid — so the box said one thing and the clipboard got another. Worse,
+     * a raw uid is not a referral code: `referralCodes` is keyed by code, not
+     * by uid, so `?ref=<uid>` resolved to nobody and the invitee earned the
+     * referrer nothing. Now both use the same real code.
+     */
+    const referralCode =
+        normaliseReferralCode(userProfile?.referralSlug || '') || referralCodeFor(user?.uid || '');
+    const referralLink = inviteLinkFor(referralCode);
+
     const handleCopyRef = () => {
         if (!user) return;
-        const refLink = `https://goearnvid.shop/signup?ref=${user.uid}`;
-        navigator.clipboard.writeText(refLink);
+        navigator.clipboard.writeText(referralLink);
         toast({ title: "Link Copied!", description: "Share this link to earn rewards." });
     };
 
@@ -254,7 +267,7 @@ export default function BuyerPaymentsPage() {
                     <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-3 shadow-inner">
                         <p className="text-[10px] font-black uppercase text-neutral-400 tracking-widest">My Referral Link</p>
                         <div className="flex gap-2">
-                            <Input readOnly value={user ? `https://goearnvid.shop/signup?ref=${user.uid.substring(0,6)}...` : ''} className="h-10 bg-black/40 border-white/10 text-[10px] font-bold font-mono text-white" />
+                            <Input readOnly value={user ? referralLink : ''} className="h-10 bg-black/40 border-white/10 text-[10px] font-bold font-mono text-white" />
                             <Button size="icon" variant="secondary" className="h-10 w-10 shrink-0" onClick={handleCopyRef}>
                                 <Copy className="h-4 w-4" />
                             </Button>

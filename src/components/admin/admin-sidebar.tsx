@@ -21,6 +21,8 @@ import {
   BarChart,
   User,
   Bell,
+  Mail,
+  Radio,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -28,7 +30,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import React, { useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { UserProfile, Product, Complaint, Order, Payout, Payment, LiveSession, SupportTicket, ActivityLog, ErrorLog } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +48,7 @@ const NavCollapsible = ({
   basePath: string;
 }) => {
   const pathname = usePathname();
-  const isBaseActive = pathname.startsWith(`/dashboard/admin/${basePath}`);
+  const isBaseActive = !!pathname && pathname.startsWith(`/dashboard/admin/${basePath}`);
 
   return (
     <Collapsible defaultOpen={isBaseActive}>
@@ -67,10 +69,10 @@ const NavCollapsible = ({
           {items.map((item) => (
             <Link
               key={item.href}
-              href={`/dashboard/admin/${basePath}/${item.href}`}
+              href={`/dashboard/admin/${basePath}${item.href ? `/${item.href}` : ''}`}
               className={cn(
                 'flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                pathname === `/dashboard/admin/${basePath}/${item.href}` && 'bg-accent font-semibold text-accent-foreground'
+                pathname === `/dashboard/admin/${basePath}${item.href ? `/${item.href}` : ''}` && 'bg-accent font-semibold text-accent-foreground'
               )}
             >
               <span>{item.label}</span>
@@ -90,70 +92,102 @@ const NavCollapsible = ({
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const isActive = (path: string) => pathname.startsWith(path);
+  const isActive = (path: string) => !!pathname && pathname.startsWith(path);
   const firestore = useFirestore();
 
+  // Gate ALL badge subscriptions behind the verified-admin flag: subscribing
+  // to admin-only collections before auth/role resolves triggers Firestore
+  // permission denials (auth:null) and the global error boundary.
+  const { user } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const adminReady = !!user && !isProfileLoading &&
+    (userProfile?.userRole === 'admin' || userProfile?.role === 'admin');
+
   // --- Real-time User Counts ---
-  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'userProfiles')), [firestore]);
+  const usersQuery = useMemoFirebase(
+    () => (adminReady ? query(collection(firestore, 'userProfiles')) : null),
+    [firestore, adminReady],
+  );
   const { data: allUsers } = useCollection<UserProfile>(usersQuery);
 
   // --- Real-time Product Counts ---
-  const productsQuery = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
+  const productsQuery = useMemoFirebase(
+    () => (adminReady ? collection(firestore, 'products') : null),
+    [firestore, adminReady],
+  );
   const { data: allProducts } = useCollection<Product>(productsQuery);
 
-  const reportedQuery = useMemoFirebase(() => query(
-    collection(firestore, 'complaints'), 
+  const reportedQuery = useMemoFirebase(() => (
+    adminReady ? query(
+    collection(firestore, 'complaints'),
     where('targetType', '==', 'product'),
     where('status', '==', 'open')
-  ), [firestore]);
+  ) : null), [firestore, adminReady]);
   const { data: reportedProducts } = useCollection<Complaint>(reportedQuery);
 
   // --- Real-time Order Counts ---
-  const ordersQuery = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
+  const ordersQuery = useMemoFirebase(
+    () => (adminReady ? collection(firestore, 'orders') : null),
+    [firestore, adminReady],
+  );
   const { data: allOrders } = useCollection<Order>(ordersQuery);
 
   // --- Real-time Finance Counts ---
-  const payoutsQuery = useMemoFirebase(() => collection(firestore, 'payouts'), [firestore]);
+  const payoutsQuery = useMemoFirebase(
+    () => (adminReady ? collection(firestore, 'payouts') : null),
+    [firestore, adminReady],
+  );
   const { data: allPayouts } = useCollection<Payout>(payoutsQuery);
 
-  const paymentsQuery = useMemoFirebase(() => collection(firestore, 'payments'), [firestore]);
+  const paymentsQuery = useMemoFirebase(
+    () => (adminReady ? collection(firestore, 'payments') : null),
+    [firestore, adminReady],
+  );
   const { data: allPayments } = useCollection<Payment>(paymentsQuery);
 
   // --- Real-time Live Shopping Counts ---
-  const activeSessionsQuery = useMemoFirebase(() => query(
+  const activeSessionsQuery = useMemoFirebase(() => (
+    adminReady ? query(
     collection(firestore, 'liveSessions'),
     where('status', '==', 'live')
-  ), [firestore]);
+  ) : null), [firestore, adminReady]);
   const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
 
-  const flaggedStreamsQuery = useMemoFirebase(() => query(
+  const flaggedStreamsQuery = useMemoFirebase(() => (
+    adminReady ? query(
     collection(firestore, 'complaints'),
     where('targetType', '==', 'user'),
     where('status', '==', 'open')
-  ), [firestore]);
+  ) : null), [firestore, adminReady]);
   const { data: flaggedStreams } = useCollection<Complaint>(flaggedStreamsQuery);
 
   // --- Real-time Support Counts ---
-  const openTicketsQuery = useMemoFirebase(() => query(
+  const openTicketsQuery = useMemoFirebase(() => (
+    adminReady ? query(
     collection(firestore, 'supportTickets'),
     where('status', '!=', 'closed')
-  ), [firestore]);
+  ) : null), [firestore, adminReady]);
   const { data: openTickets } = useCollection<SupportTicket>(openTicketsQuery);
 
-  const unresolvedComplaintsQuery = useMemoFirebase(() => query(
+  const unresolvedComplaintsQuery = useMemoFirebase(() => (
+    adminReady ? query(
     collection(firestore, 'complaints'),
     where('status', '==', 'open')
-  ), [firestore]);
+  ) : null), [firestore, adminReady]);
   const { data: unresolvedComplaints } = useCollection<Complaint>(unresolvedComplaintsQuery);
 
   // --- Real-time Logs & Analytics Counts ---
-  const activityLogsQuery = useMemoFirebase(() => collection(firestore, 'activityLogs'), [firestore]);
+  const activityLogsQuery = useMemoFirebase(
+    () => (adminReady ? collection(firestore, 'activityLogs') : null),
+    [firestore, adminReady],
+  );
   const { data: allActivityLogs } = useCollection<ActivityLog>(activityLogsQuery);
 
-  const newErrorLogsQuery = useMemoFirebase(() => query(
+  const newErrorLogsQuery = useMemoFirebase(() => (
+    adminReady ? query(
     collection(firestore, 'errorLogs'),
     where('status', '==', 'new')
-  ), [firestore]);
+  ) : null), [firestore, adminReady]);
   const { data: newErrorLogs } = useCollection<ErrorLog>(newErrorLogsQuery);
 
   // Memoize counts for performance
@@ -219,16 +253,7 @@ export function AdminSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-         <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive('/dashboard/admin/notifications')}>
-            <Link href="/dashboard/admin/notifications">
-              <Bell />
-              <span>Notifications</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        
-        <NavCollapsible 
+         <NavCollapsible 
             title="User Management"
             icon={Users2}
             basePath="users"
@@ -239,6 +264,7 @@ export function AdminSidebar() {
                 { href: 'referrals', label: 'Referrals' },
                 { href: 'suspended', label: 'Suspended', badge: userStats.suspended },
                 { href: 'verification', label: 'Verification', badge: userStats.verification },
+                { href: 'tiers', label: 'Tiers & bonuses' },
             ]}
         />
 
@@ -278,6 +304,17 @@ export function AdminSidebar() {
         />
 
         <NavCollapsible
+          title="Vidnov Live"
+          icon={Radio}
+          basePath="live-streams"
+          items={[
+            { href: '', label: 'All Streams' },
+            { href: 'active', label: 'Active', badge: 0 },
+            { href: 'reported', label: 'Reported' },
+          ]}
+        />
+
+        <NavCollapsible
           title="Finance Management"
           icon={CircleDollarSign}
           basePath="finance"
@@ -300,7 +337,6 @@ export function AdminSidebar() {
             { href: 'boosts', label: 'TikTok Boosts' },
             { href: 'banners', label: 'Promo Banners' },
             { href: 'sliders', label: 'Homepage Sliders' },
-            { href: 'notifications', label: 'Notification Center' },
           ]}
         />
         
@@ -325,14 +361,27 @@ export function AdminSidebar() {
             { href: 'security', label: 'Security & 2FA' },
             { href: 'backup', label: 'Backup & Restore' },
             { href: 'server-status', label: 'Server Status' },
+            { href: 'media-storage', label: 'Media Storage' },
+            { href: 'email', label: 'Email Delivery' },
+            { href: 'app', label: 'App Manager' },
           ]}
         />
-        
+
+        <NavCollapsible
+          title="Communication"
+          icon={Mail}
+          basePath="communication"
+          items={[
+            { href: '', label: 'Communication Center' },
+          ]}
+        />
+
         <NavCollapsible
           title="AI Management"
           icon={BrainCircuit}
           basePath="ai"
           items={[
+            { href: 'center', label: 'AI Center' },
             { href: 'about', label: 'About Go-AI' },
             { href: 'chat', label: 'AI Chat' },
             { href: 'video-generator', label: 'AI Video Studio' },

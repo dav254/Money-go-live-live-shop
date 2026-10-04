@@ -64,7 +64,7 @@ Product Information:
 - Name: {{{productName}}}
 - Description: {{{productDescription}}}
 - Seller Location: {{{location}}}
-- Product Link: https://goearnvid.shop/products/{{{productId}}}
+- Product Link: https://www.vidnov.com/products/{{{productId}}}
 
 Generate the following:
 1.  **title**: A catchy, SEO-friendly title for the YouTube video or TikTok post.

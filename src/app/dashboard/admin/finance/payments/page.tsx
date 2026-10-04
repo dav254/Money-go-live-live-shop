@@ -128,7 +128,7 @@ const columns: ColumnDef<Payment>[] = [
   {
     accessorKey: 'paymentStatus',
     header: 'Status',
-    cell: ({ row }) => getStatusBadge(row.original.paymentStatus),
+    cell: ({ row }) => getStatusBadge(row.original.paymentStatus ?? 'pending'),
   },
   {
     accessorKey: 'paymentDate',
@@ -139,7 +139,8 @@ const columns: ColumnDef<Payment>[] = [
         </Button>
     ),
     cell: ({ row }) => {
-        const date = row.original.paymentDate?.toDate();
+        const ts = row.original.paymentDate as { toDate?: () => Date } | null | undefined;
+        const date = typeof ts?.toDate === 'function' ? ts.toDate() : null;
         return date ? date.toLocaleDateString() : 'N/A';
     },
   },

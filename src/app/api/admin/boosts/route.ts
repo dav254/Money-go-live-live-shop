@@ -83,7 +83,7 @@ export async function PUT(request: NextRequest) {
             });
             // Refund points to the seller
             const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
-            await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
+            await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid ?? 0) });
 
             return NextResponse.json({ success: true, message: 'Boost rejected and points refunded.' });
         }
@@ -117,7 +117,7 @@ export async function PUT(request: NextRequest) {
             if (!goEarnTikTokToken || !goEarnTikTokOpenId) {
                  await boostRef.update({ status: 'rejected', rejectionReason: 'Platform TikTok account not configured.', updatedAt: FieldValue.serverTimestamp() });
                  const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
-                 await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
+                 await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid ?? 0) });
                  console.error('CRITICAL: GOEARN_TIKTOK_ACCESS_TOKEN or GOEARN_TIKTOK_OPEN_ID is not set in environment variables.');
                  return NextResponse.json({ message: 'Boost rejected: Platform TikTok account not configured.' }, { status: 500 });
             }
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
             if (!uploadResult.success) {
                  await boostRef.update({ status: 'rejected', rejectionReason: `TikTok API Error: ${uploadResult.message}`, updatedAt: FieldValue.serverTimestamp() });
                  const sellerRef = db.collection('userProfiles').doc(boostData.sellerId);
-                 await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid) });
+                 await sellerRef.update({ aiPoints: FieldValue.increment(boostData.pointsPaid ?? 0) });
                 return NextResponse.json({ message: `Boost rejected due to TikTok API error: ${uploadResult.message}` }, { status: 500 });
             }
             

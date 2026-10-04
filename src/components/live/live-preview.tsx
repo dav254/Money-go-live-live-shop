@@ -182,7 +182,12 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
 
           {/* Product Info (Bottom Center) */}
           <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 pointer-events-auto w-full max-w-sm px-4">
-              {currentProduct && <ProductInfo product={currentProduct} />}
+              {currentProduct && (
+                <ProductInfo
+                  product={currentProduct}
+                  appHref={`/products/${currentProduct.id}`}
+                />
+              )}
           </div>
       </div>
       
@@ -211,6 +216,9 @@ export function LivePreview({ seller, products }: LivePreviewProps) {
               product={currentProduct} 
               isOpen={isDrawerOpen} 
               onOpenChange={setIsDrawerOpen} 
+              shopHref={`/products/${currentProduct.id}`}
+              shopLabel="Visit Shop"
+              checkoutHrefFor={(orderId) => `/checkout/${orderId}`}
           />
       )}
       <CommentDrawer

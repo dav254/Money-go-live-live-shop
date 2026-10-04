@@ -65,12 +65,13 @@ export async function POST(
 
     const newStats = videoAnalytics[0];
 
+    const priorAnalytics = boostData.analytics ?? {};
     const updatedAnalytics = {
-      views: newStats.view_count || boostData.analytics.views,
-      likes: newStats.like_count || boostData.analytics.likes,
-      shares: newStats.share_count || boostData.analytics.shares,
-      clicks: boostData.analytics.clicks,
-      conversions: boostData.analytics.conversions,
+      views: newStats.view_count || priorAnalytics.views,
+      likes: newStats.like_count || priorAnalytics.likes,
+      shares: newStats.share_count || priorAnalytics.shares,
+      clicks: priorAnalytics.clicks,
+      conversions: priorAnalytics.conversions,
     };
     
     await boostRef.update({

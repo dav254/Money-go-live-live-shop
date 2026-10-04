@@ -54,7 +54,7 @@ const ReviewCard = ({ review }: { review: Review }) => {
   return (
     <div className="flex gap-4 border-b border-neutral-800 py-4 last:border-b-0">
       <Avatar>
-        <AvatarImage src={userProfile?.profilePictureUrl} alt={userProfile?.fullName} />
+        <AvatarImage src={userProfile?.profilePictureUrl} alt={userProfile?.fullName || 'User avatar'} />
         <AvatarFallback>{userProfile?.fullName?.charAt(0) || 'A'}</AvatarFallback>
       </Avatar>
       <div className="flex-1">

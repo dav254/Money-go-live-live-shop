@@ -21,17 +21,22 @@ function ProductsPageContent() {
   return (
     <SellerLayout>
       <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between">
-            <h1 className="font-headline text-3xl font-bold tracking-tight">
-            Product Management
-            </h1>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-primary mb-1">Product Studio</p>
+            <h1 className="font-headline text-3xl font-bold tracking-tight">Listings that sell</h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xl">Every field here feeds Vidnov discovery — the stronger your listing, the further it travels.</p>
+          </div>
+          <Button asChild className="rounded-xl vn-shadow-glow font-semibold">
+            <Link href="/dashboard/products?tab=add-new"><Upload className="mr-2 h-4 w-4" /> New listing</Link>
+          </Button>
         </div>
         
         <Tabs defaultValue={defaultTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
             <TabsTrigger value="my-products" className="py-2">My Products</TabsTrigger>
             <TabsTrigger value="studio" className="py-2">Video Studio</TabsTrigger>
-            <TabsTrigger value="add-new" className="py-2">Add / Edit</TabsTrigger>
+            <TabsTrigger value="add-new" className="py-2">Create Listing</TabsTrigger>
             <TabsTrigger value="discounts" className="py-2">Discounts</TabsTrigger>
             <TabsTrigger value="logistics" className="py-2">Logistics</TabsTrigger>
           </TabsList>

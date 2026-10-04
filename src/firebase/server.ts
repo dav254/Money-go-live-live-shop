@@ -3,6 +3,49 @@ import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Resolves the service account credential for environments WITHOUT automatic ADC
+ * (e.g. a self-hosted VPS, Docker, or any non-Google host).
+ *
+ * Resolution order:
+ *  1. GOOGLE_APPLICATION_CREDENTIALS  -> path to a service account JSON file (standard ADC mechanism)
+ *  2. FIREBASE_SERVICE_ACCOUNT_JSON   -> the full service account JSON as a string (handy for VPS env vars)
+ *  3. ./service-account.json          -> local dev convenience file (gitignored — do NOT commit real keys)
+ *  4. Fall back to ADC (works on Firebase App Hosting / Cloud Run / GCE)
+ */
+function loadCredential(): { credential?: ReturnType<typeof cert>; usingAdc: boolean } {
+  // 1. Standard ADC file path
+  const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (adcPath && fs.existsSync(adcPath)) {
+    return { credential: cert(JSON.parse(fs.readFileSync(adcPath, 'utf8'))), usingAdc: false };
+  }
+
+  // 2. Inline JSON env var (recommended for VPS: paste the JSON into an env var)
+  const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (inlineJson) {
+    try {
+      return { credential: cert(JSON.parse(inlineJson)), usingAdc: false };
+    } catch {
+      console.error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON — falling back.');
+    }
+  }
+
+  // 3. Local dev / VPS file at the project root (runtime read — safe under webpack bundling)
+  try {
+    const localPath = path.join(process.cwd(), 'service-account.json');
+    if (fs.existsSync(localPath)) {
+      return { credential: cert(JSON.parse(fs.readFileSync(localPath, 'utf8'))), usingAdc: false };
+    }
+  } catch {
+    // ignore and fall through to ADC
+  }
+
+  // 4. No file anywhere — rely on Application Default Credentials (Firebase App Hosting, Cloud Run, GCE)
+  return { usingAdc: true };
+}
 
 function initializeAdminApp(): App {
   const existingApp = getApps().find(app => app.name === '[DEFAULT]');
@@ -10,27 +53,22 @@ function initializeAdminApp(): App {
     return existingApp;
   }
 
-  // Use environment's default credentials in production (App Hosting)
-  if (process.env.NODE_ENV === 'production') {
-    return initializeApp({
-      storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
-    });
-  } 
-  // Use service account key for local development
-  else {
-    let serviceAccount: any;
-    try {
-      serviceAccount = require('../../service-account.json');
-    } catch (error) {
-      console.error("Could not load service-account.json for local development:", error);
-      throw new Error("Firebase Admin SDK could not be initialized for local development. Make sure 'service-account.json' is present in the root of your project.");
-    }
-    
-    return initializeApp({
-      credential: cert(serviceAccount),
-      storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
-    });
+  const { credential, usingAdc } = loadCredential();
+  const options: Parameters<typeof initializeApp>[0] = {
+    storageBucket: "studio-1725493862-5cb95.firebasestorage.app"
+  };
+
+  if (!usingAdc && credential) {
+    options.credential = credential;
+  } else if (process.env.NODE_ENV !== 'production') {
+    // In dev, missing credentials will almost certainly break admin calls — warn loudly.
+    console.warn(
+      '[Firebase Admin] No service account found (GOOGLE_APPLICATION_CREDENTIALS, FIREBASE_SERVICE_ACCOUNT_JSON, or ./service-account.json). '
+      + 'Falling back to Application Default Credentials — admin calls will fail if none are available.'
+    );
   }
+
+  return initializeApp(options);
 }
 
 const app = initializeAdminApp();

@@ -99,7 +99,7 @@ export default function AdminVideoGeneratorPage() {
         if (!generatedVideoUrl) return;
         const link = document.createElement('a');
         link.href = generatedVideoUrl;
-        link.download = `goearnvid-ad-scene-${Date.now()}.mp4`;
+        link.download = `vidnov-ad-scene-${Date.now()}.mp4`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

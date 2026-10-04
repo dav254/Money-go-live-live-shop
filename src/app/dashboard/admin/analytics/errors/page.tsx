@@ -37,8 +37,8 @@ export default function ErrorLogsPage() {
                   <tbody className="bg-gray-900 divide-y divide-gray-700">
                     {errorLogs?.map((log) => (
                       <tr key={log.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{new Date(log.timestamp?.toDate()).toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-400">{log.errorMessage}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{(() => { const ts = log.timestamp as { toDate?: () => Date } | null | undefined; const d = typeof ts?.toDate === 'function' ? ts.toDate() : ts ? new Date(String(ts)) : null; return d ? d.toLocaleString() : '—'; })()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-400">{log.errorMessage ?? log.message}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.userId || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{log.status}</td>
                       </tr>

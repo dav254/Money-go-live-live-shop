@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UserProfile, ActivityLog } from '@/lib/types';
-import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useCollection, useUser, useUserProfile } from '@/firebase';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 
 
@@ -77,24 +77,16 @@ const columns: ColumnDef<ActivityLog>[] = [
     accessorKey: 'userId',
     header: 'User',
     cell: ({ row }) => {
-        return <UserCell userId={row.original.userId} />;
+        return <UserCell userId={row.original.userId ?? ''} />;
     },
     filterFn: (row, id, value) => {
-      // This is a placeholder for a more complex filter that would need user data
-      return row.original.userId.toLowerCase().includes(value.toLowerCase());
+      // Placeholder for a more complex filter that would need user data.
+      return (row.original.userId ?? '').toLowerCase().includes(value.toLowerCase());
     },
   },
   {
     accessorKey: 'action',
     header: 'Action',
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      return <Badge variant={status === 'Success' ? 'default' : 'destructive'} className={status === 'Success' ? 'bg-green-600/80' : ''}>{status}</Badge>;
-    },
   },
   {
     accessorKey: 'details',
@@ -104,8 +96,9 @@ const columns: ColumnDef<ActivityLog>[] = [
     accessorKey: 'timestamp',
     header: 'Timestamp',
      cell: ({ row }) => {
-        const timestamp = row.original.timestamp;
-        return timestamp ? formatDistanceToNow(timestamp.toDate(), { addSuffix: true }) : 'N/A';
+        const ts = row.original.timestamp as { toDate?: () => Date } | null | undefined;
+        const date = typeof ts?.toDate === 'function' ? ts.toDate() : ts ? new Date(String(ts)) : null;
+        return date ? formatDistanceToNow(date, { addSuffix: true }) : 'N/A';
     },
   },
 ];
@@ -114,10 +107,15 @@ const columns: ColumnDef<ActivityLog>[] = [
 export default function AdminActivityLogsPage() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
+  const adminReady = !!user && !isProfileLoading &&
+    (userProfile?.userRole === 'admin' || userProfile?.role === 'admin');
 
   const activityLogsQuery = useMemoFirebase(() => {
+    if (!firestore || !adminReady) return null;
     return query(collection(firestore, 'activityLogs'), orderBy('timestamp', 'desc'));
-  }, [firestore]);
+  }, [firestore, adminReady]);
 
   const { data: activityLogs, isLoading } = useCollection<ActivityLog>(activityLogsQuery);
 

@@ -28,44 +28,77 @@ const ReviewDialog = ({ order }: { order: Order }) => {
     const { toast } = useToast();
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
+    const [saving, setSaving] = useState(false);
     const { user } = useUser();
-    const firestore = useFirestore();
 
+    /**
+     * Goes through `/api/reviews`, NOT a direct client write.
+     *
+     * This used to `addDoc` into `products/{id}/reviews`. That was a second,
+     * parallel review system: the shop page read a different collection, so
+     * every review a buyer left from here was invisible to the business score —
+     * which is why the platform had reviews and still showed nobody a rating.
+     *
+     * The API also decides who may review by reading the order document and
+     * comparing it to the caller's token, which a client cannot be trusted to
+     * check for itself.
+     */
     const handleSubmitReview = async () => {
         if (rating === 0) {
             toast({ variant: 'destructive', title: 'Please select a rating.' });
             return;
         }
-        if (!user || !firestore) return;
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Please log in to review.' });
+            return;
+        }
+        if (comment.trim().length < 3) {
+            toast({ variant: 'destructive', title: 'Please add a few words.' });
+            return;
+        }
 
-        const reviewRef = collection(firestore, 'products', order.productId!, 'reviews');
-        
+        setSaving(true);
         try {
-            await addDoc(reviewRef, {
-                productId: order.productId,
-                sellerId: order.sellerId,
-                buyerId: user.uid,
-                rating: rating,
-                comment: comment,
-                createdAt: serverTimestamp(),
+            const token = await user.getIdToken();
+            const response = await fetch('/api/reviews', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ orderId: order.id, rating, text: comment.trim() }),
             });
-            
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Could not save your review',
+                    description: result?.error || 'Please try again.',
+                });
+                return;
+            }
+
             toast({
-                title: 'Review Submitted!',
-                description: 'Thank you for your feedback.',
+                title: 'Review submitted',
+                description: 'It now counts towards this business rating.',
             });
         } catch (error) {
             console.error("Error submitting review:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your review.' });
+            toast({ variant: 'destructive', title: 'No connection', description: 'Your review was not saved.' });
+        } finally {
+            setSaving(false);
         }
     };
 
     return (
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Leave a Review for {order.productName}</DialogTitle>
+                <DialogTitle>Review your transaction</DialogTitle>
                 <DialogDescription>
-                    Share your experience with this product to help other buyers.
+                    Your review counts towards the rating for {order.productName ? 'this order' : 'this service'}.
+                    Only buyers who actually paid can leave one.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
@@ -78,8 +111,8 @@ const ReviewDialog = ({ order }: { order: Order }) => {
                         />
                     ))}
                 </div>
-                <Textarea 
-                    placeholder="Write your review here..." 
+                <Textarea
+                    placeholder="How did it go? What should the next buyer know?"
                     rows={5}
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
@@ -89,9 +122,9 @@ const ReviewDialog = ({ order }: { order: Order }) => {
                 <DialogClose asChild>
                     <Button type="button" variant="ghost">Cancel</Button>
                 </DialogClose>
-                <DialogClose asChild>
-                    <Button onClick={handleSubmitReview}>Submit Review</Button>
-                </DialogClose>
+                <Button onClick={handleSubmitReview} disabled={saving}>
+                    {saving ? 'Saving…' : 'Submit review'}
+                </Button>
             </DialogFooter>
         </DialogContent>
     )
@@ -155,7 +188,7 @@ const DisputeDialog = ({ order }: { order: Order }) => {
     )
 }
 
-const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimisticOrders: React.Dispatch<React.SetStateAction<Order[] | undefined>> }) => {
+const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimisticOrders: React.Dispatch<React.SetStateAction<Order[] | null | undefined>> }) => {
     const firestore = useFirestore();
     const { toast } = useToast();
     const { user } = useUser();
@@ -243,7 +276,11 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
             const querySnapshot = await getDocs(q);
             let existingChatId: string | null = null;
             querySnapshot.forEach(doc => {
-                if (doc.data().participantIds.includes(order.sellerId)) {
+                // Same guard as the live and request flows: a chat document is
+                // not guaranteed to carry `participantIds`, and reading it
+                // unguarded throws on any legacy record that omits it.
+                const ids: string[] = doc.data().participantIds ?? [];
+                if (ids.includes(order.sellerId)) {
                     existingChatId = doc.id;
                 }
             });
@@ -302,7 +339,7 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
                         <div className="flex-1 min-w-0">
                             <p className="font-black text-sm uppercase tracking-tight text-white truncate">{order.productName}</p>
                             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mt-1">Qty: {order.quantity}</p>
-                            <p className="text-lg font-black text-primary tracking-tighter mt-2">${order.totalAmount.toLocaleString()}</p>
+                            <p className="text-lg font-black text-primary tracking-tighter mt-2">${(order.totalAmount ?? order.productPrice ?? 0).toLocaleString()}</p>
                         </div>
                     </div>
                     {order.orderStatus === 'shipped' && (
@@ -345,9 +382,12 @@ const OrderCard = ({ order, setOptimisticOrders }: { order: Order, setOptimistic
                         </>
                     )}
 
-                    {order.orderStatus === 'delivered' && 
+                    {order.orderStatus === 'delivered' &&
                         <DialogTrigger asChild>
-                            <Button variant="secondary" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest">Rate Product</Button>
+                            {/* Not "Rate Product" — an order can be a service, a
+                                booking or a custom job, and this dialog reviews
+                                the transaction rather than an item. */}
+                            <Button variant="secondary" className="h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest">Rate this order</Button>
                         </DialogTrigger>
                     }
                     {order.orderStatus === 'shipped' && 
@@ -419,7 +459,12 @@ const MyOrdersContent = () => {
     }, [firestore, user]);
 
     const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(ordersQuery);
-    const [optimisticOrders, setOptimisticOrders] = useState<Order[] | undefined>(orders);
+    // `useCollection` hands back `null` before there is anything to hand back,
+    // so this state is null-capable too. Declaring it `Order[] | undefined`
+    // claimed a guarantee the hook does not make, and every `filteredOrders`
+    // below already used `?.` — so the types were stricter than the runtime,
+    // which is backwards.
+    const [optimisticOrders, setOptimisticOrders] = useState<Order[] | null | undefined>(orders);
 
     useEffect(() => {
         setOptimisticOrders(orders);

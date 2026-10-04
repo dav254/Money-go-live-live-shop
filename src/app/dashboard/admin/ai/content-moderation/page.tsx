@@ -132,9 +132,9 @@ export default function AdminAIContentPage() {
                                     {queue && queue.length > 0 ? queue.map(item => (
                                         <TableRow key={item.id}>
                                             <TableCell>
-                                                <div className="font-medium">{item.contentType}</div>
+                                                <div className="font-medium">{item.contentType ?? item.targetType}</div>
                                                 <div className="text-sm text-muted-foreground">
-                                                  User: {item.userId.substring(0, 8)}... &middot; {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
+                                                  User: {(item.userId ?? '—').substring(0, 8)}... &middot; {(() => { const ts = item.createdAt as { toDate?: () => Date } | null | undefined; const d = typeof ts?.toDate === 'function' ? ts.toDate() : ts ? new Date(String(ts)) : null; return d ? formatDistanceToNow(d, { addSuffix: true }) : 'Just now'; })()}
                                                 </div>
                                                 <Accordion type="single" collapsible className="w-full">
                                                     <AccordionItem value="content" className="border-b-0">

@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
+import { publicUrl } from '@/lib/site-url';
+import { normaliseReferralCode, referralCodeFor } from '@/lib/referrals/referral-code';
 import type { Product } from '@/lib/types';
 import { Bot, Filter, Percent, Search, Share2, TrendingUp, Sparkles, Loader2, Copy, DollarSign } from 'lucide-react';
 import Image from 'next/image';
@@ -31,6 +33,7 @@ import { collection, query, where } from 'firebase/firestore';
 
 const ResellerProductCard = ({ product }: { product: Product }) => {
     const { user } = useUser();
+    const { userProfile } = useUserProfile(user?.uid);
     const { toast } = useToast();
     const [isSharing, setIsSharing] = useState(false);
     const [showCopyFallback, setShowCopyFallback] = useState(false);
@@ -53,8 +56,13 @@ const ResellerProductCard = ({ product }: { product: Product }) => {
 
         setIsSharing(true);
 
-        const baseUrl = 'https://goearnvid.shop';
-        const urlToCopy = `${baseUrl}/products/${product.id}?ref=${user.uid}`;
+        // A raw uid is not a referral code — `referralCodes` is keyed by code,
+        // so `?ref=<uid>` credited nobody. Use the real code, name-based where
+        // one has been minted.
+        const referralCode =
+            normaliseReferralCode(userProfile?.referralSlug || '') ||
+            referralCodeFor(user.uid || '');
+        const urlToCopy = `${publicUrl(`/products/${product.id}`)}?ref=${referralCode}`;
         setShareUrl(urlToCopy);
         
         try {

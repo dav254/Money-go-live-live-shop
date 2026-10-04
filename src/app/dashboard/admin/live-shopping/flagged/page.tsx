@@ -65,20 +65,24 @@ const columns: ColumnDef<Complaint>[] = [
   {
     accessorKey: 'targetId',
     header: 'Seller',
-    cell: ({ row }) => <SellerCell sellerId={row.original.targetId} />,
+    cell: ({ row }) => <SellerCell sellerId={row.original.targetId ?? ''} />,
   },
   {
     accessorKey: 'reason',
     header: 'Reason for Flag',
     cell: ({ row }) => {
-        const reason = row.original.reason;
+        const reason = row.original.reason ?? 'Other';
         return <Badge variant={reasonVariant[reason as keyof typeof reasonVariant] || 'default'}>{reason}</Badge>
     }
   },
   {
     accessorKey: 'createdAt',
     header: 'Time',
-    cell: ({ row }) => formatDistanceToNow(row.original.createdAt.toDate(), { addSuffix: true }),
+    cell: ({ row }) => {
+      const ts = row.original.createdAt as { toDate?: () => Date } | null | undefined;
+      const date = typeof ts?.toDate === 'function' ? ts.toDate() : ts ? new Date(String(ts)) : null;
+      return date ? formatDistanceToNow(date, { addSuffix: true }) : '—';
+    },
   },
   {
     id: 'actions',

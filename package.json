@@ -1,14 +1,16 @@
 {
-  "name": "nextn",
+  "name": "vidnov",
   "version": "0.1.0",
   "private": true,
   "engines": {
     "node": "20.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--max-old-space-size=1536 node scripts/dev.mjs",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
+    "pwa:icons": "node scripts/generate-pwa-icons.js",
+    "test": "tsx --test src/tests/*.test.ts",
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
@@ -63,6 +65,8 @@
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",
+    "livekit-client": "^2.22.3",
+    "livekit-server-sdk": "^2.19.1",
     "lucide-react": "^0.475.0",
     "next": "15.0.7",
     "next-auth": "^4.24.13",
@@ -76,6 +80,7 @@
     "react-hook-form": "^7.54.2",
     "react-simple-maps": "^3.0.0",
     "recharts": "^2.15.1",
+    "sharp": "^0.35.5",
     "socket.io-client": "^4.7.5",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",

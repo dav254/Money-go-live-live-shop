@@ -10,7 +10,7 @@ import { PageProgressBar } from '@/components/page-progress-bar';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const { firebaseApp, auth, firestore } = initializeFirebase();
+  const { firebaseApp, auth, firestore, surface } = initializeFirebase();
 
   return (
     <ThemeProvider
@@ -19,7 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       disableTransitionOnChange
     >
-      <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore}>
+      <FirebaseProvider firebaseApp={firebaseApp} auth={auth} firestore={firestore} surface={surface}>
           <GlobalErrorBoundary>
             <GlobalErrorListener />
              <Suspense fallback={null}>

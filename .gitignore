@@ -27,10 +27,22 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # local env files
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# firebase credentials / secrets (never commit real keys)
+service-account.json
+service-account*.json
+apphosting.yaml
+apphosting.yaml.save
+
+# Vidnov media storage (never store user uploads in the repo)
+/media
+/var
+uploads/
 
 # vercel
 .vercel
@@ -39,3 +51,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 node_modules
+functions/node_modules/

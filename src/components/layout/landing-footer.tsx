@@ -1,89 +1,97 @@
 'use client';
 
-import { Facebook, Twitter, Instagram, Youtube, Globe, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../logo';
 
+const COLUMNS = [
+  {
+    title: 'PLATFORM',
+    links: [
+      { label: 'Discover', href: '/buyer/dashboard' },
+      { label: 'Start a Business', href: '/signup?role=seller' },
+      { label: 'AI Studio', href: '/dashboard/seller/ai-studio' },
+      { label: 'Request Marketplace', href: '/requests' },
+    ],
+  },
+  {
+    title: 'COMPANY',
+    links: [
+      { label: 'How It Works', href: '/how-it-works' },
+      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms of Service', href: '/terms' },
+    ],
+  },
+];
+
 export function LandingFooter() {
-  const quickLinks = [
-    { label: "Home", href: "/" },
-    { label: "Features", href: "/features" },
-    { label: "Pricing", href: "/pricing" },
-    { label: "For Sellers", href: "/signup?role=seller" }
-  ];
-
   return (
-    <footer className="relative bg-muted/30 border-t border-border pt-20 pb-10">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-            <div className="space-y-6 text-left">
-              <Link href="/" className="block">
-                <Logo className="h-12 w-auto" />
-              </Link>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                The world's next-generation social commerce platform. Where creative motion becomes financial yield.
-              </p>
-              <div className="flex gap-3">
-                {[Facebook, Twitter, Instagram, Youtube].map((Icon, index) => (
-                  <a 
-                    key={index} 
-                    href="#" 
-                    className="w-10 h-10 rounded-xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-all duration-300"
-                  >
-                    <Icon className="w-5 h-5" />
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            <div className="text-left">
-              <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Quick Links</h4>
-              <ul className="space-y-4">
-                {quickLinks.map((link) => (
-                  <li key={link.label}>
-                    <Link href={link.href} className="text-muted-foreground hover:text-primary text-sm transition-colors font-medium">{link.label}</Link>
-                  </li>
-                ))}
+    <footer className="border-t border-border bg-background">
+      <div className="container max-w-7xl mx-auto px-4 lg:px-8 pt-16 pb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+          {/* Brand column */}
+          <div className="space-y-6">
+            <Link href="/" className="block" aria-label="Vidnov home">
+              <Logo className="text-4xl" withTagline />
+            </Link>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+              A different way to connect businesses and people. Built for speed, structure and reach.
+            </p>
+            <div className="space-y-2 pt-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">Support</p>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link href="/dashboard/account?tab=security" className="text-foreground/80 hover:text-foreground vn-transition">
+                    Account &amp; security
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/faq" className="text-foreground/80 hover:text-foreground vn-transition">
+                    Help Center
+                  </Link>
+                </li>
               </ul>
-            </div>
-
-            <div className="text-left">
-              <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Support</h4>
-              <ul className="space-y-4">
-                {[
-                  { label: "Help Center", href: "/faq" },
-                  { label: "Privacy Policy", href: "/privacy" },
-                  { label: "Terms of Service", href: "/terms" }
-                ].map((link) => (
-                  <li key={link.label}>
-                    <Link href={link.href} className="text-muted-foreground hover:text-primary text-sm transition-colors font-medium">{link.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-6 text-left">
-                <h4 className="font-cyber text-sm font-black uppercase tracking-widest mb-6">Global Protocol</h4>
-                <div className="p-5 rounded-3xl bg-white border border-border shadow-sm">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">NETWORK STATUS</p>
-                    <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[11px] font-bold uppercase tracking-tighter">OPERATIONAL</span>
-                    </div>
-                </div>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 text-center">
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">© 2026 GoEarnvid • High Velocity Social Earning</p>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              <span>Made with</span>
-              <Heart className="h-3 w-3 text-primary fill-primary" />
-              <span>for the World</span>
-              <Globe className="h-3 w-3 text-blue-500" />
+          {COLUMNS.map((col) => (
+            <div key={col.title}>
+              <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-6">
+                {col.title}
+              </h4>
+              <ul className="space-y-3.5">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <Link href={link.href} className="text-sm text-foreground/80 hover:text-foreground vn-transition">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          {/* Status column */}
+          <div>
+            <h4 className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-6">NETWORK</h4>
+            <div className="rounded-xl border border-border p-5 bg-card">
+              <div className="flex items-center gap-2.5">
+                <span className="vn-dot vn-dot-active" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">All systems operational</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3">Marketplace · Payments · AI</p>
             </div>
           </div>
         </div>
-      </footer>
-  )
+
+        <div className="mt-16 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-[11px] font-medium text-muted-foreground tracking-wide">
+            © 2026 VIDNOV
+          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+            Create · Connect · Move
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
 }

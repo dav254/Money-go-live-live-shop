@@ -141,7 +141,7 @@ export default function AdminDisputesPage() {
                         {order.disputeReason || 'No reason provided.'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        ${order.totalAmount.toLocaleString()}
+                        ${(order.totalAmount ?? order.productPrice ?? 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

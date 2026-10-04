@@ -37,6 +37,15 @@ function getInternalToken() {
 }
 
 /**
+ * Rooms can only be created with the API key + secret. When the secret is not
+ * configured we fall back to a pre-created room (VIDEOSDK_MEETING_ID) so the
+ * studio still works with a dashboard-issued token.
+ */
+function configuredMeetingId(): string | null {
+  return process.env.VIDEOSDK_MEETING_ID ?? null;
+}
+
+/**
  * POST handler to create a fresh live session.
  * This ensures a completely fresh start by resetting all counters and state.
  */
@@ -72,7 +81,8 @@ export async function POST(request: Request) {
 
     // --- CREATE VIDEOSDK ROOM ON SERVER ---
     const internalToken = getInternalToken();
-    let videosdkMeetingId = null;
+    let videosdkMeetingId: string | null = null;
+    let upstreamError: string | null = null;
 
     if (internalToken) {
         const videoSdkRes = await fetch("https://api.videosdk.live/v2/rooms", {
@@ -80,12 +90,31 @@ export async function POST(request: Request) {
             headers: { authorization: internalToken, "Content-Type": "application/json" },
             body: JSON.stringify({}),
         });
-        const videoSdkData = await videoSdkRes.json();
-        videosdkMeetingId = videoSdkData.roomId;
+        const videoSdkData = await videoSdkRes.json().catch(() => ({}));
+        videosdkMeetingId = videoSdkData.roomId ?? null;
+        if (!videosdkMeetingId) {
+            upstreamError = videoSdkData.error || videoSdkData.message || `VideoSDK returned ${videoSdkRes.status}.`;
+            console.error('[live-session] VideoSDK room creation failed:', upstreamError);
+        }
     }
 
     if (!videosdkMeetingId) {
-        return NextResponse.json({ error: 'Failed to initialize VideoSDK Room.' }, { status: 500 });
+        videosdkMeetingId = configuredMeetingId();
+    }
+
+    if (!videosdkMeetingId) {
+        // VideoSDK answers "apikey ... verify it on the dashboard" when the
+        // value in VIDEOSDK_API_KEY is not the account's API key (a dashboard
+        // *token* is often pasted there by mistake).
+        const looksLikeToken = (process.env.VIDEOSDK_API_KEY ?? '').startsWith('eyJ');
+        return NextResponse.json({
+            error: 'CONFIG_MISSING',
+            message: looksLikeToken
+                ? 'VIDEOSDK_API_KEY currently holds a dashboard token, not your API key. Copy the API Key (and its matching Secret) from VideoSDK → Authenticate, or set VIDEOSDK_MEETING_ID to an existing room so no room creation is needed.'
+                : upstreamError
+                    ? `VideoSDK could not create a room: ${upstreamError}. Check the API key + secret pair in your VideoSDK dashboard, or set VIDEOSDK_MEETING_ID to reuse an existing room.`
+                    : 'VideoSDK is not fully configured. Add VIDEOSDK_SECRET_KEY (to create rooms) or VIDEOSDK_MEETING_ID (to reuse one room).',
+        }, { status: 500 });
     }
 
     const batch = db.batch();

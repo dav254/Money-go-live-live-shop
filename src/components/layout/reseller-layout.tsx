@@ -19,21 +19,34 @@ import { ResellerHeader } from '../reseller/reseller-header';
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { ROLE_HOME, canAccessSection, resolveRole } from '@/lib/auth/roles';
 
 export function ResellerLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
 
+  // ROLE LOCK: resellers only. Everyone else goes to their own workspace
+  // instead of the public landing page.
+  const role = resolveRole(userProfile);
+  const accessDenied = !!role && !canAccessSection(role, 'reseller');
+
   useEffect(() => {
-    if (!isUserLoading && !isProfileLoading) {
-      if (!user) {
-        router.replace('/login');
-      } else if (userProfile && userProfile.userRole !== 'reseller') {
-        router.replace('/');
-      }
+    if (isUserLoading || isProfileLoading) return;
+    if (!user) {
+      router.replace('/login');
+      return;
     }
-  }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+    if (accessDenied && role) router.replace(ROLE_HOME[role]);
+  }, [user, isUserLoading, isProfileLoading, accessDenied, role, router]);
+
+  if (accessDenied) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Returning to your workspace...</p>
+      </div>
+    );
+  }
 
   // Blocking loading screen removed to open direct.
 
@@ -42,7 +55,7 @@ export function ResellerLayout({ children }: { children: React.ReactNode }) {
       <Sidebar side="left" collapsible="icon">
         <SidebarHeader className="border-b bg-card p-4">
           <Link href="/dashboard/reseller">
-            <Logo className="h-8 w-auto text-primary cursor-pointer" />
+            <Logo className="text-3xl text-primary cursor-pointer" />
           </Link>
         </SidebarHeader>
         <SidebarContent>

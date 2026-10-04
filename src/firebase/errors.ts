@@ -1,5 +1,6 @@
 'use client';
-import { getAuth, type User } from 'firebase/auth';
+import { type User } from 'firebase/auth';
+import { getSurfaceAuth } from './surface-auth';
 
 type SecurityRuleContext = {
   path: string;
@@ -78,7 +79,7 @@ function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
   try {
     // Safely attempt to get the current user.
-    const firebaseAuth = getAuth();
+    const firebaseAuth = getSurfaceAuth();
     const currentUser = firebaseAuth.currentUser;
     if (currentUser) {
       authObject = buildAuthObject(currentUser);
@@ -120,4 +121,81 @@ export class FirestorePermissionError extends Error {
     this.name = 'FirebaseError';
     this.request = requestObject;
   }
+}
+
+/**
+ * The backend could not be reached, so the read never happened.
+ *
+ * ## Why this class exists at all
+ *
+ * `FirestorePermissionError` has one message, and it says the request "was
+ * denied by Firestore Security Rules". That is only true for one failure mode.
+ * Both read hooks used to wrap EVERY `onSnapshot` error in it, so a dropped
+ * connection produced a page telling the user their rules blocked them — and
+ * chasing security rules that were already correct is a genuinely expensive
+ * waste of an afternoon. The comment in `use-collection` records that this
+ * already happened once, with a missing composite index.
+ *
+ * This class is the honest report for the other failure mode: the request never
+ * reached Firestore, the rules were never evaluated, and the SDK is already
+ * retrying on its own backoff. Callers that distinguish the two can say
+ * "reconnecting" instead of "you are not allowed", and — critically — a
+ * transient blip does not raise the global "data could not be loaded" banner,
+ * which is reserved for real rule denials.
+ */
+export class FirestoreUnavailableError extends Error {
+  /** The SDK's own error code, kept so callers can branch on it if needed. */
+  public readonly code: string;
+
+  constructor(code: string, cause?: unknown) {
+    super(
+      `Firestore could not be reached (${code}). This is a connection problem, not a ` +
+        `permissions problem — the request never reached Firestore and your security ` +
+        `rules were never evaluated. The app stays offline and retries automatically.`,
+    );
+    this.name = 'FirebaseError';
+    this.code = code;
+    if (cause !== undefined) this.cause = cause;
+  }
+}
+
+/**
+ * Failures that mean the request reached Firestore and the rules were evaluated.
+ *
+ * `permission-denied` is the only true denial. `failed-precondition` is the
+ * missing-composite-index case: it is a schema problem the developer must fix,
+ * not something a user or a rules deployment caused, and it is kept on the
+ * rules side so it keeps surfacing loudly rather than being filed as a blip.
+ */
+const RULE_FAILURE_CODES = new Set(['permission-denied', 'failed-precondition']);
+
+/**
+ * Turn an SDK error into the right report for what actually happened.
+ *
+ * Everything not in `RULE_FAILURE_CODES` — `unavailable` (backend unreachable),
+ * `unauthenticated` (the auth token could not be fetched), `deadline-exceeded`,
+ * `internal`, and any code a future SDK adds — is treated as unavailability.
+ * That default is deliberate: guessing "denied" and being wrong sends a
+ * developer off to audit working security rules, while guessing "connection"
+ * when it really was a denial costs one confusing screen, and `cause` keeps
+ * the SDK's own error attached either way.
+ *
+ * `isDenied` is false for every non-rule failure, which is what stops a
+ * transient network drop from raising the global permission banner.
+ */
+export function classifyFirestoreError(
+  sdkError: { code?: string } | null | undefined,
+  context: SecurityRuleContext,
+): { error: FirestorePermissionError | FirestoreUnavailableError; isDenied: boolean } {
+  const code = sdkError?.code ?? 'unknown';
+
+  if (RULE_FAILURE_CODES.has(code)) {
+    const permissionError = new FirestorePermissionError(context);
+    // Keep the real SDK error: the specific code (e.g. failed-precondition for
+    // a missing index) is the actionable part.
+    permissionError.cause = sdkError;
+    return { error: permissionError, isDenied: true };
+  }
+
+  return { error: new FirestoreUnavailableError(code, sdkError), isDenied: false };
 }

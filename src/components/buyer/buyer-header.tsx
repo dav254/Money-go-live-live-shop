@@ -88,7 +88,7 @@ export function BuyerHeader() {
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
                  <SheetTitle asChild>
                     <Link href="/buyer/dashboard">
-                      <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                      <Logo className="text-3xl text-primary cursor-pointer" />
                     </Link>
                  </SheetTitle>
               </SheetHeader>

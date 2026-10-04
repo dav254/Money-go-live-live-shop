@@ -13,8 +13,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Notification } from '@/lib/types';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, writeBatch, doc, orderBy, updateDoc } from 'firebase/firestore';
+import { collection, query, where, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { sortNotificationsDesc } from '@/lib/notification-sort';
 
 const notificationIcons: Record<string, React.ReactNode> = {
   commission: <Sparkles className="h-5 w-5 text-yellow-500" />,
@@ -62,16 +63,24 @@ export default function SellerNotificationsPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
+    // NOTE: no server-side orderBy here. The userId+timestamp composite index
+    // is not deployed to this Firebase project, so the ordered query failed
+    // with FAILED_PRECONDITION and surfaced as a fake "permission denied".
+    // Sorting the (small) result set client-side keeps the page working.
     const notificationsQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         return query(
-            collection(firestore, 'notifications'), 
+            collection(firestore, 'notifications'),
             where('userId', '==', user.uid),
-            orderBy('timestamp', 'desc')
         );
     }, [user, firestore]);
 
-    const { data: notifications, isLoading } = useCollection<Notification>(notificationsQuery);
+    const { data: rawNotifications, isLoading, error: notificationsError } = useCollection<Notification>(notificationsQuery);
+
+    const notifications = React.useMemo(
+        () => sortNotificationsDesc(rawNotifications ?? []),
+        [rawNotifications],
+    );
     
     const handleMarkRead = async (id: string) => {
         if (!firestore) return;
@@ -107,11 +116,15 @@ export default function SellerNotificationsPage() {
     const unreadNotifications = React.useMemo(() => notifications?.filter(n => n.status === 'unread') || [], [notifications]);
     const orderNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'order') || [], [notifications]);
     const messageNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'message') || [], [notifications]);
-    const promotionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'announcement'), [notifications]);
+    const promotionNotifications = React.useMemo(() => notifications?.filter(n => n.type === 'announcement') || [], [notifications]);
     
     const unreadCount = unreadNotifications.length;
 
-    const renderNotificationList = (notifs: Notification[]) => {
+    const renderNotificationList = (notifs: Notification[] | undefined) => {
+        const list = notifs ?? [];
+        if (notificationsError) {
+            return <p className="p-8 text-center text-muted-foreground">Notifications are unavailable right now. Please try again shortly.</p>
+        }
         if (isLoading || isUserLoading) {
             return (
                 <div className="space-y-4 p-4">
@@ -121,12 +134,12 @@ export default function SellerNotificationsPage() {
                 </div>
             )
         }
-        if (notifs.length === 0) {
+        if (list.length === 0) {
             return <p className="p-8 text-center text-muted-foreground">No notifications in this category.</p>
         }
         return (
             <div className="divide-y divide-border">
-                {notifs.map(n => <NotificationItem key={n.id} notification={n} onMarkRead={handleMarkRead} />)}
+                {list.map(n => <NotificationItem key={n.id} notification={n} onMarkRead={handleMarkRead} />)}
             </div>
         )
     }
@@ -157,7 +170,7 @@ export default function SellerNotificationsPage() {
                         <ScrollArea className="flex-1">
                             <CardContent className="p-0">
                                 <TabsContent value="all">
-                                    {renderNotificationList(notifications || [])}
+                                    {renderNotificationList(notifications)}
                                 </TabsContent>
                                  <TabsContent value="unread">
                                     {renderNotificationList(unreadNotifications)}

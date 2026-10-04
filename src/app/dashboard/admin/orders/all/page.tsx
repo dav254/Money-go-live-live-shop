@@ -146,7 +146,7 @@ const OrderDetailsDialog = ({ order, isOpen, onOpenChange }: { order: Order | nu
                          <div className="text-sm space-y-1">
                              <div className="flex justify-between"><span>Subtotal:</span><span>${(order.subtotal || order.productPrice || 0).toFixed(2)}</span></div>
                              <div className="flex justify-between"><span>Shipping:</span><span>${(order.shippingCost || 0).toFixed(2)}</span></div>
-                             <div className="flex justify-between font-bold"><span>Total:</span><span>${order.totalAmount?.toFixed(2)}</span></div>
+                             <div className="flex justify-between font-bold"><span>Total:</span><span>${(order.totalAmount ?? order.productPrice ?? 0).toFixed(2)}</span></div>
                          </div>
                     </div>
                     <div className="space-y-4">
@@ -327,7 +327,7 @@ export default function AdminAllOrdersPage() {
     {
         accessorKey: 'totalAmount',
         header: () => <div className="text-right">Amount (USD)</div>,
-        cell: ({ row }) => <div className="text-right font-medium">${row.original.totalAmount.toLocaleString()}</div>,
+        cell: ({ row }) => <div className="text-right font-medium">${(row.original.totalAmount ?? row.original.productPrice ?? 0).toLocaleString()}</div>,
     },
     {
         accessorKey: 'orderStatus',

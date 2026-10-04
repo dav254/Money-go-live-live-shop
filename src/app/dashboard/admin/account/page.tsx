@@ -28,9 +28,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useUser } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 import { useUserProfile } from '@/firebase/auth/use-user-profile';
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import React from 'react';
 
@@ -48,7 +48,7 @@ export default function AdminAccountSettingsPage() {
     const { user } = useUser();
     const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
     const { toast } = useToast();
-    const auth = getAuth();
+    const auth = useAuth();
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({

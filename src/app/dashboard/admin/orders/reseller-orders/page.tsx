@@ -84,14 +84,14 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'totalAmount',
     header: () => <div className="text-right">Amount (USD)</div>,
-    cell: ({ row }) => <div className="text-right font-medium">${row.original.totalAmount.toLocaleString()}</div>,
+    cell: ({ row }) => <div className="text-right font-medium">${(row.original.totalAmount ?? row.original.productPrice ?? 0).toLocaleString()}</div>,
   },
     {
     accessorKey: 'commission',
     header: () => <div className="text-right">Commission</div>,
     cell: ({ row }) => {
         // Assuming 10% commission for now
-        const commission = row.original.totalAmount * 0.10;
+        const commission = (row.original.totalAmount ?? row.original.productPrice ?? 0) * 0.10;
         return <div className="text-right font-medium text-green-500">${commission.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
     },
   },

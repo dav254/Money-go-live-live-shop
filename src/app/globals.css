@@ -1,52 +1,75 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Sora:wght@300;400;500;600;700;800&display=swap');
+/* Instrument Serif joins Space Grotesk and Inter as the display voice.
+   Two grotesks cannot carry a wordmark page: a high-contrast serif is the
+   cheapest way to make a headline stop looking like every other SaaS page,
+   and its italic is reserved for accent words only. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * ============================================================
+ *  VIDNOV — EMBER SYSTEM (full color)
+ *  Deep space navy · vivid coral · electric cyan
+ *  Confident, premium, alive. Type-led with expressive color.
+ * ============================================================
+ */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Light mode — warm paper with vivid ink */
+    --background: 30 40% 98%;          /* warm off-white */
+    --foreground: 222 47% 8%;          /* deep navy ink */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 47% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 0 100% 50%; /* Pure Red #ff0000 */
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 0 100% 50%;
-    --radius: 1.5rem;
+    --popover-foreground: 222 47% 8%;
+    --primary: 11 100% 59%;            /* coral #FF4D2E */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 30% 95%;
+    --secondary-foreground: 222 47% 10%;
+    --muted: 220 25% 95%;
+    --muted-foreground: 222 12% 42%;
+    --accent: 195 90% 48%;             /* cyan #0EA5E9 */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 78% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 18% 89%;
+    --input: 220 18% 86%;
+    --ring: 11 100% 59%;
+    --radius: 1rem;
+
+    /* Vidnov ember palette */
+    --vn-navy: 224 48% 9%;             /* #0A1224 */
+    --vn-navy-2: 223 44% 13%;
+    --vn-cyan: 190 95% 50%;
+    --vn-violet: 258 85% 62%;
+    --vn-amber: 38 95% 55%;
+    --vn-green: 160 84% 39%;
   }
 
   .dark {
-    --background: 240 20% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 15% 8%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 20% 4%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 100% 50%; /* Pure Red #ff0000 */
+    /* Dark mode — deep space, vivid glows */
+    --background: 224 48% 6%;          /* #070D1B-ish */
+    --foreground: 210 40% 98%;
+    --card: 223 42% 10%;
+    --card-foreground: 210 40% 98%;
+    --popover: 223 42% 10%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 11 100% 62%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 15% 15.9%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 240 15% 15.9%;
-    --muted-foreground: 0 0% 64.9%;
-    --accent: 0 100% 50%;
-    --accent-foreground: 0 0% 98%;
-    --border: 0 0% 15.9%;
-    --input: 0 0% 15.9%;
-    --ring: 0 100% 50%;
-    --radius: 1.5rem;
+    --secondary: 222 36% 16%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 222 36% 16%;
+    --muted-foreground: 218 15% 62%;
+    --accent: 190 95% 55%;
+    --accent-foreground: 224 48% 8%;
+    --destructive: 0 80% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 30% 18%;
+    --input: 222 30% 22%;
+    --ring: 11 100% 62%;
   }
 
   * {
@@ -54,55 +77,327 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Sora', sans-serif;
+    font-family: 'Inter', sans-serif;
     overflow-x: hidden;
     width: 100%;
     max-width: 100%;
   }
+
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.02em;
+  }
 }
 
 @layer utilities {
-    .font-cyber { font-family: 'Orbitron', sans-serif; }
-    .font-sora { font-family: 'Sora', sans-serif; }
-    .glow-primary {
-        box-shadow: 0 0 15px hsla(var(--primary), 0.5);
-    }
+  .font-cyber { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+  .font-display { font-family: 'Instrument Serif', 'Space Grotesk', serif; letter-spacing: -0.01em; }
+
+  /* Marquee and float already exist further down this file with tuned
+     timings; only the pieces that are genuinely new are added here.
+     `translateX(-50%)` on the marquee assumes the track holds two identical
+     halves, so the seam never shows. */
+  .vn-marquee-track { display: flex; width: max-content; }
+
+  /* Sheen that sweeps the live video area, so the homepage mockup reads as
+     motion rather than a static gradient. */
+  .vn-sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.14) 50%, transparent 65%);
+    transform: translateX(-100%);
+    animation: vn-sheen 5.5s ease-in-out infinite;
+  }
+  @keyframes vn-sheen { 0% { transform: translateX(-100%); } 55%, 100% { transform: translateX(100%); } }
+  .font-sora { font-family: 'Inter', sans-serif; }
+  .font-grotesk { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+
+  .vn-display {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+  }
+
+  .vn-shadow { box-shadow: 0 10px 40px rgba(10, 18, 36, 0.10); }
+  .dark .vn-shadow { box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); }
+  .vn-shadow-glow { box-shadow: 0 8px 40px hsl(var(--primary) / 0.28); }
+
+  .vn-transition { transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1); }
+
+  /* Expressive gradients (used sparingly, always with purpose) */
+  .vn-grad-coral { background-image: linear-gradient(120deg, hsl(11 100% 60%), hsl(345 92% 60%)); }
+  .vn-grad-ocean { background-image: linear-gradient(120deg, hsl(217 95% 55%), hsl(190 95% 50%)); }
+  .vn-grad-violet { background-image: linear-gradient(120deg, hsl(258 85% 62%), hsl(292 80% 60%)); }
+  .vn-grad-ember { background-image: linear-gradient(120deg, hsl(38 95% 55%), hsl(11 100% 58%)); }
+  .vn-grad-forest { background-image: linear-gradient(120deg, hsl(160 84% 39%), hsl(190 90% 45%)); }
+
+  .vn-text-grad {
+    background-image: linear-gradient(100deg, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Aurora mesh for hero backgrounds */
+  .vn-aurora {
+    background:
+      radial-gradient(60% 55% at 15% 20%, hsl(var(--primary) / 0.20) 0%, transparent 60%),
+      radial-gradient(50% 50% at 85% 15%, hsl(var(--accent) / 0.18) 0%, transparent 60%),
+      radial-gradient(45% 45% at 70% 80%, hsl(258 85% 62% / 0.14) 0%, transparent 60%),
+      radial-gradient(40% 40% at 25% 85%, hsl(38 95% 55% / 0.12) 0%, transparent 60%);
+  }
+
+  .glow-primary { box-shadow: 0 0 18px hsla(var(--primary), 0.45); }
 }
 
-/* High-Velocity Red Loading Bar */
+/* ===== Status dots ===== */
+.vn-dot {
+  width: 7px; height: 7px; border-radius: 9999px;
+  display: inline-block; flex-shrink: 0;
+}
+.vn-dot-active { background: hsl(var(--vn-green)); box-shadow: 0 0 8px hsl(var(--vn-green) / 0.7); }
+.vn-dot-pending { background: hsl(var(--muted-foreground)); }
+.vn-dot-processing { background: hsl(var(--accent)); animation: vn-pulse 1.6s ease-in-out infinite; }
+.vn-dot-completed { background: hsl(var(--vn-green)); }
+.vn-dot-failed { background: hsl(var(--destructive)); }
+
+@keyframes vn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ===== Skeleton shimmer ===== */
+.vn-skeleton { position: relative; overflow: hidden; background: hsl(var(--muted)); }
+.vn-skeleton::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, hsl(var(--background) / 0.65), transparent);
+  animation: vn-shimmer 1.6s infinite;
+}
+@keyframes vn-shimmer { 100% { transform: translateX(100%); } }
+
+/* ===== Motion ===== */
+.vn-page-enter { animation: vn-rise 260ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes vn-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.vn-float { animation: vn-float 7s ease-in-out infinite; }
+.vn-float-delayed { animation: vn-float 8.5s ease-in-out 1.2s infinite; }
+@keyframes vn-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-14px) rotate(1deg); }
+}
+
+.vn-marquee { animation: vn-marquee 26s linear infinite; }
+@keyframes vn-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+.vn-phase {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 0.32em; text-transform: uppercase; font-size: 11px;
+  animation: vn-blink 1.4s ease-in-out infinite;
+}
+@keyframes vn-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ===== Loading bar ===== */
 #nprogress .bar {
-  background: #ff0000 !important;
-  height: 4px !important;
-  box-shadow: 0 0 15px #ff0000 !important;
-  z-index: 99999 !important;
+  background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent))) !important;
+  height: 3px !important; box-shadow: none !important; z-index: 99999 !important;
 }
+#nprogress .peg { box-shadow: none !important; }
 
-#nprogress .peg {
-  box-shadow: 0 0 15px #ff0000, 0 0 10px #ff0000 !important;
-}
-
-/* Custom Top Bar Loading Animation */
-@keyframes loading-scan {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(0); }
-  100% { transform: translateX(100%); }
-}
-
-/* Hide default Scrollbar */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 @keyframes pop {
     0% { transform: scale(0.5); opacity: 0; }
     50% { transform: scale(1.2); opacity: 1; }
     100% { transform: scale(1); opacity: 0; margin-top: -50px; }
 }
+.animate-pop { animation: pop 1.2s ease-out forwards; }
 
-.animate-pop {
-    animation: pop 1.2s ease-out forwards;
+/* ==========================================================================
+   APP SURFACE
+   The app renders the website unchanged; only the chrome differs. These rules
+   keep the desktop sidebar/header out of the way, scoped to the app surface via
+   a data attribute set by AppSurfaceFrame. Nothing here affects the website.
+
+   There is deliberately no bottom padding here any more. The shared tab bar
+   that used to sit under every app route is gone — a signed-in seller or buyer
+   has exactly one navigation, their own section's — so reserving clearance for
+   a bar that is no longer rendered would leave a dead gap under every shared
+   screen. Each section shell still handles its own clearance.
+   ========================================================================== */
+
+/* App screens should read as one scrolling column rather than a fixed-height
+   desktop shell with its own nested scroller. `SidebarInset` renders a <main>
+   with no data attribute, so target it structurally: the sidebar provider's
+   direct child div, then the <main> inside it. */
+html[data-vidnov-surface='app'] body > div > div > div > main,
+html[data-vidnov-surface='app'] main[class*='min-h-svh'] {
+  overflow: visible;
+  height: auto;
+}
+
+html[data-vidnov-surface='app'] body > div > div > div,
+html[data-vidnov-surface='app'] div[class*='min-h-screen'] {
+  min-height: auto;
+  height: auto;
+}
+
+/* ==========================================================================
+   APP · SELLER SECTION
+   Each app section owns its own shell, its own type and its own colour. The
+   website's seller pages stay on Space Grotesk + flat coral; the app's seller
+   section sits on Inter with ember highlights and more elevated surfaces, so
+   the two never read as the same screen.
+
+   Everything is scoped under `.vn-seller-scope`, which only the seller shell
+   renders. Nothing here can leak into the website, and a future buyer section
+   gets its own scope with its own treatment — the two share no CSS, just as
+   they share no routes or layouts.
+   ========================================================================== */
+
+.vn-seller-scope {
+  /* Inter for running text; Space Grotesk is reserved for headings and
+     figures, which is the inverse of the website's usage. */
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.005em;
+
+  /* Ember accent: the amber end of the brand gradient, distinct from the
+     website's flat coral while staying inside the same palette.
+
+     Pulled down in saturation and lightness from the original 95%/58% flame.
+     On a near-black shell the hotter values read as neon and made every price,
+     label and badge compete with the content; these keep the warmth while
+     letting text stay the loudest thing on the screen. */
+  --vn-ember-a: 34 82% 50%;
+  --vn-ember-b: 14 88% 55%;
+}
+
+.vn-seller-scope .font-grotesk,
+.vn-seller-scope h1,
+.vn-seller-scope h2 {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.vn-seller-scope h1,
+.vn-seller-scope h2 {
+  letter-spacing: -0.03em;
+}
+
+/* Elevated, softer cards — the website's seller grid is a flat gap-px table. */
+.vn-seller-scope .vn-app-card {
+  border-radius: 1.25rem;
+  /* A full-strength outline on the near-black shell read as a hard grid of
+     boxes. Dropping the edge to a hairline lets the shadow do the separating,
+     which is what makes the section read as calm rather than busy. */
+  border-color: hsl(var(--border) / 0.55);
+  box-shadow:
+    0 1px 2px hsl(224 48% 9% / 0.05),
+    0 8px 24px -12px hsl(224 48% 9% / 0.18);
+}
+
+/* The seller home band — the clearest single signal that this is the app
+   section and not a reshaped website page. */
+.vn-seller-band {
+  background-image:
+    radial-gradient(120% 140% at 0% 0%, hsl(var(--vn-ember-a) / 0.95) 0%, transparent 55%),
+    radial-gradient(120% 140% at 100% 0%, hsl(var(--vn-ember-b)) 0%, hsl(var(--vn-ember-b) / 0.15) 70%),
+    linear-gradient(135deg, #0A1224 0%, #141B33 100%);
+  /* White on the band comes from INHERITANCE, not from a rule that targets
+     every descendant.
+
+     It used to be `.vn-seller-band, .vn-seller-band * { color: white }`. That
+     selector is unlayered, and unlayered declarations outrank every layered
+     one — including Tailwind's utilities — so it silently beat every
+     `text-*` class inside a band. A white button on the band came out with
+     white text: a blank slab with no label. Inheriting fixes the whole class
+     of bug at the source, because any element inside a band can now set its
+     own colour with an ordinary utility. */
+  color: hsl(0 0% 100%);
+}
+
+/* The app surface normally pads the body clear of AppSurfaceFrame's tab bar.
+   A section shell renders its own tab bar and its own clearance, so cancel the
+   global one while the shell is open — otherwise there is a double gap above
+   the bar. `:has()` is scoped to the seller shell only. */
+html[data-vidnov-surface='app']:has(.vn-seller-scope) body {
+  padding-bottom: 0;
+}
+
+/* ==========================================================================
+   APP · BUYER SECTION
+   The buyer section is the sibling of the seller section, not a variant of it.
+   It reuses none of the seller's CSS: a different base typeface, a different
+   accent family, different card geometry and a different nav shape, so a
+   seller and a buyer can sit next to each other and never see the same screen.
+
+   seller section                buyer section
+   ─────────────────────         ────────────────────────────────
+   Inter body                    Space Grotesk body (inverse)
+   amber → coral ember band      cyan → violet ocean band
+   bordered 2xl cards            borderless 3xl cards, tinted wash
+   edge-to-edge tab bar          floating pill tab bar
+   ========================================================================== */
+
+.vn-buyer-scope {
+  /* Space Grotesk runs the whole section; Inter is reserved for the micro
+     labels and figures, which is the inverse of the seller scope. */
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  letter-spacing: -0.01em;
+
+  --vn-ocean-a: 187 92% 50%;  /* cyan   #22D3EE */
+  --vn-ocean-b: 258 90% 66%;  /* violet #8B5CF6 */
+}
+
+.vn-buyer-scope .font-sans,
+.vn-buyer-scope .vn-micro {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.vn-buyer-scope h1,
+.vn-buyer-scope h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.035em;
+}
+
+/* Borderless, rounder, lifted — the seller's cards are bordered and 2xl. */
+.vn-buyer-scope .vn-buyer-card {
+  border-radius: 1.5rem;
+  border: 0;
+  background: hsl(224 48% 97%);
+  box-shadow: 0 10px 30px -18px hsl(258 90% 40% / 0.45);
+}
+
+.dark .vn-buyer-scope .vn-buyer-card {
+  background: hsl(224 48% 11%);
+}
+
+/* The buyer home band. */
+.vn-buyer-band {
+  background-image:
+    radial-gradient(130% 130% at 0% 0%, hsl(var(--vn-ocean-a) / 0.9) 0%, transparent 52%),
+    radial-gradient(120% 140% at 100% 10%, hsl(var(--vn-ocean-b)) 0%, hsl(var(--vn-ocean-b) / 0.12) 72%),
+    linear-gradient(150deg, #0A1224 0%, #131033 100%);
+}
+
+.vn-buyer-band,
+.vn-buyer-band * {
+  color: hsl(0 0% 100%);
+}
+
+/* Floating pill nav — deliberately not the seller's edge-to-edge bar. */
+.vn-buyer-scope .vn-buyer-tabbar {
+  position: fixed;
+  inset-inline: 0.75rem;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 9999px;
+  background: hsl(224 48% 10% / 0.92);
+  box-shadow: 0 18px 40px -18px hsl(224 60% 4% / 0.9), inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  backdrop-filter: blur(14px);
+}
+
+/* A section shell renders its own nav and its own clearance, so it opts out of
+   any app-surface bottom padding. The buyer shell builds its clearance into
+   the page (`pb-28`) rather than on <body>. */
+html[data-vidnov-surface='app']:has(.vn-buyer-scope) body {
+  padding-bottom: 0;
 }

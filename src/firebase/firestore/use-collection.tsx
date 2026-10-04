@@ -12,7 +12,7 @@ import {
   DocumentChange,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { classifyFirestoreError, FirestorePermissionError } from '@/firebase/errors';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -105,17 +105,26 @@ export function useCollection<T = any>(
             ? (memoizedTargetRefOrQuery as CollectionReference).path
             : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
 
-        const contextualError = new FirestorePermissionError({
+        // Report what actually happened. A dropped connection is NOT a rules
+        // denial, and saying so used to send people off to audit security rules
+        // that were already correct — once with a missing composite index, and
+        // again on every offline blip. See `classifyFirestoreError`.
+        const { error: contextualError, isDenied } = classifyFirestoreError(error, {
           operation: 'list',
           path,
-        })
+        });
 
         setError(contextualError)
         setData(null)
         setIsLoading(false)
 
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // Only genuine rule failures reach the global banner. A network blip is
+        // recoverable and the SDK is already retrying on its own backoff, so it
+        // must not paint a "data could not be loaded" warning over a page whose
+        // rules are fine.
+        if (isDenied) {
+          errorEmitter.emit('permission-error', contextualError as FirestorePermissionError)
+        }
       }
     );
 

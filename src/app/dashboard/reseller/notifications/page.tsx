@@ -14,8 +14,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Notification } from '@/lib/types';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, writeBatch, doc, orderBy } from 'firebase/firestore';
+import { collection, query, where, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { sortNotificationsDesc } from '@/lib/notification-sort';
 
 const notificationIcons: Record<string, React.ReactNode> = {
   commission: <Sparkles className="h-5 w-5 text-yellow-500" />,
@@ -60,16 +61,22 @@ export default function ResellerNotificationsPage() {
     const { user, isLoading: isUserLoading } = useUser();
     const firestore = useFirestore();
 
+    // No server-side orderBy: the userId+timestamp composite index is not
+    // deployed, so the ordered query failed with FAILED_PRECONDITION.
     const notificationsQuery = React.useMemo(() => {
         if (!user || !firestore) return null;
         return query(
-            collection(firestore, 'notifications'), 
+            collection(firestore, 'notifications'),
             where('userId', '==', user.uid),
-            orderBy('timestamp', 'desc')
         );
     }, [user, firestore]);
 
-    const { data: notifications, isLoading } = useCollection<Notification>(notificationsQuery);
+    const { data: rawNotifications, isLoading } = useCollection<Notification>(notificationsQuery);
+
+    const notifications = React.useMemo(
+        () => sortNotificationsDesc(rawNotifications ?? []),
+        [rawNotifications],
+    );
     
     const handleMarkRead = async (id: string) => {
         if (!firestore) return;

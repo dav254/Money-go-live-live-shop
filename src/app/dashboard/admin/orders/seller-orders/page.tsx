@@ -97,7 +97,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'totalAmount',
     header: () => <div className="text-right">Amount (USD)</div>,
-    cell: ({ row }) => <div className="text-right font-medium">${row.original.totalAmount.toLocaleString()}</div>,
+    cell: ({ row }) => <div className="text-right font-medium">${(row.original.totalAmount ?? row.original.productPrice ?? 0).toLocaleString()}</div>,
   },
   {
     accessorKey: 'orderStatus',

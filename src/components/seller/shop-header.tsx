@@ -89,7 +89,11 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
             const querySnapshot = await getDocs(q);
             let existingChatId: string | null = null;
             querySnapshot.forEach(doc => {
-                if (doc.data().participantIds.includes(seller.id)) {
+                // Same guard as the live and request flows: a chat document is
+                // not guaranteed to carry `participantIds`, and reading it
+                // unguarded throws on any legacy record that omits it.
+                const ids: string[] = doc.data().participantIds ?? [];
+                if (ids.includes(seller.id)) {
                     existingChatId = doc.id;
                 }
             });
@@ -146,7 +150,7 @@ export function SellerHeader({ seller }: SellerHeaderProps) {
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-20 relative z-10">
         <div className="flex flex-col items-center text-center md:flex-row md:items-end md:gap-6">
           <Avatar className="h-32 w-32 border-4 border-neutral-950 shadow-2xl">
-            <AvatarImage src={seller.avatar.imageUrl} alt={seller.name} />
+            <AvatarImage src={seller.avatar.imageUrl} alt={seller?.name || 'Seller avatar'} />
             <AvatarFallback className="bg-neutral-800 text-2xl font-black">{seller.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="mt-4 md:mt-0 md:pb-4">

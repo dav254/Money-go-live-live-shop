@@ -9,10 +9,18 @@ import {
   DocumentSnapshot,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { classifyFirestoreError, FirestorePermissionError } from '@/firebase/errors';
 
-/** Utility type to add an 'id' field to a given type T. */
-type WithId<T> = T & { id: string };
+/**
+ * Utility type to add an 'id' field to a given type T.
+ *
+ * Re-exported rather than redeclared: `firebase/index.ts` re-exports both this
+ * module and `use-collection`, so a second local definition makes the barrel's
+ * `export *` ambiguous. `use-user-profile` imports `WithId` from HERE, so it
+ * must still leave this module.
+ */
+import type { WithId } from './use-collection';
+export type { WithId };
 
 /**
  * Interface for the return value of the useDoc hook.
@@ -44,24 +52,29 @@ export function useDoc<T = any>(
   type StateDataType = WithId<T> | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  // The ref this data belongs to once a snapshot (or an error) has landed for
+  // it. `undefined` means "nothing has settled yet".
+  const [settledRef, setSettledRef] = useState<
+    DocumentReference<DocumentData> | null | undefined
+  >(undefined);
 
   useEffect(() => {
     if (!memoizedDocRef) {
       setData(null);
-      setIsLoading(false);
       setError(null);
+      setSettledRef(undefined);
       return;
     }
 
-    setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
+
+    let cancelled = false;
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
+        if (cancelled) return;
         if (snapshot.exists()) {
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
@@ -69,25 +82,48 @@ export function useDoc<T = any>(
           setData(null);
         }
         setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
-        setIsLoading(false);
+        setSettledRef(memoizedDocRef);
       },
       (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
+        if (cancelled) return;
+        // A failed fetch is only a rules denial when the request actually reached
+        // Firestore. This used to build a `FirestorePermissionError` for every
+        // error AND emit the global banner unconditionally, so losing
+        // connection briefly stamped "Firestore denied access to X" across the
+        // whole app. See `classifyFirestoreError`.
+        const { error: contextualError, isDenied } = classifyFirestoreError(error, {
           operation: 'get',
           path: memoizedDocRef.path,
         })
 
         setError(contextualError)
         setData(null)
-        setIsLoading(false)
+        setSettledRef(memoizedDocRef)
 
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // Only genuine rule failures propagate globally.
+        if (isDenied) {
+          errorEmitter.emit('permission-error', contextualError as FirestorePermissionError)
+        }
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+
+  // WHY THIS IS DERIVED INSTEAD OF STORED
+  //
+  // `isLoading` used to be its own state, initialised to `false`. That made a
+  // document which had not been read yet indistinguishable from a document
+  // that is genuinely empty — most painfully on the single render right after
+  // sign-in, where `user` arrives one render before the profile ref does.
+  // Every role gate reads "loaded, no profile" as "no role", and the surface
+  // boundary answered that by signing the user straight back out. Deriving the
+  // flag from the ref removes the window entirely: a ref that exists and has not
+  // reported yet is always loading, whatever the previous ref was doing.
+  const isLoading = memoizedDocRef != null && settledRef !== memoizedDocRef;
 
   return { data, isLoading, error };
 }

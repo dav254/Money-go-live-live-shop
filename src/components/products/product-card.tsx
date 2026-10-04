@@ -86,6 +86,15 @@ export function ProductCard({ product }: ProductCardProps) {
   
   const hasVideo = !!(product.videoUrl || (product.videoUrls && product.videoUrls.length > 0));
   const mainImage = product.imageUrl && product.imageUrl.trim() !== "" ? product.imageUrl : getPlaceholderImage();
+  // Stored media can become unreachable (e.g. the Firebase bucket is no longer
+  // served on the free plan) — swap in the neutral placeholder instead of
+  // showing a broken image.
+  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>) => {
+    const el = event.currentTarget;
+    if (el.dataset.fallbackApplied === 'true') return;
+    el.dataset.fallbackApplied = 'true';
+    el.src = getPlaceholderImage();
+  };
 
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden group text-white h-full flex flex-col shadow-lg transition-all hover:border-primary/50">
@@ -97,6 +106,7 @@ export function ProductCard({ product }: ProductCardProps) {
                         src={product.videoUrl || product.videoUrls![0]}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         poster={mainImage}
+                        onError={handleImageError}
                         muted
                         loop
                         playsInline
@@ -107,6 +117,7 @@ export function ProductCard({ product }: ProductCardProps) {
                      <img
                         src={mainImage}
                         alt={product.name || 'Product image'}
+                        onError={handleImageError}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                 )}

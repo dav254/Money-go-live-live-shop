@@ -42,7 +42,29 @@ export function ChatSystem() {
     }
 
     const unsubscribeChats = onSnapshot(chatsQuery, async (querySnapshot) => {
-      const fetchedChats = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Chat));
+      // Normalise the two array fields as the documents are read.
+      //
+      // A chat document is not guaranteed to carry `participantIds`/`deletedFor`
+      // — older records, and any chat created outside the app that only wrote
+      // the participants into the message payload, omit them. This loop used to
+      // call `chat.participantIds.forEach` directly, so the first snapshot that
+      // contained such a document threw "Cannot read properties of undefined"
+      // inside the snapshot callback. Because that callback only runs on the
+      // client once real data arrives, the server-rendered page looked perfect
+      // and the screen then crashed wholesale.
+      //
+      // Normalising at the single point where documents enter state means every
+      // consumer below — this loop, the filter in `chatsWithParticipants`, the
+      // `chatWith` lookup — can read the fields without guarding each one.
+      const fetchedChats = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          participantIds: Array.isArray(data.participantIds) ? data.participantIds : [],
+          deletedFor: Array.isArray(data.deletedFor) ? data.deletedFor : [],
+        } as Chat;
+      });
       setAllChats(fetchedChats);
 
       const participantIds = new Set<string>();
@@ -102,7 +124,8 @@ export function ChatSystem() {
   }, [allChats, participants, user, isAdmin]);
   
   useEffect(() => {
-    const chatWithId = searchParams.get('chatWith');
+    // `useSearchParams` can hand back null outside a Suspense boundary.
+    const chatWithId = searchParams?.get('chatWith');
     if (chatWithId && chatsWithParticipants.length > 0 && !selectedChat) {
       const chatToSelect = chatsWithParticipants.find(c => c.participantIds.includes(chatWithId));
       if (chatToSelect) {

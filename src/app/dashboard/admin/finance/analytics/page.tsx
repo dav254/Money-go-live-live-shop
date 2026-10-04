@@ -199,7 +199,7 @@ export default function AdminFinanceAnalyticsPage() {
                                     <TableRow key={order.id}>
                                         <TableCell className="font-mono text-xs text-muted-foreground">#{order.id}</TableCell>
                                         <TableCell>{order.productName}</TableCell>
-                                        <TableCell className="text-right font-semibold">${order.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                        <TableCell className="text-right font-semibold">${(order.totalAmount ?? order.productPrice ?? 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                         <TableCell className="text-right text-red-500">-${platformFee.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                         <TableCell className="text-right font-semibold text-green-500">${netAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                     </TableRow>

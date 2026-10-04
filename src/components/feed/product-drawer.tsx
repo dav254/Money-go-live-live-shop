@@ -2,6 +2,7 @@
 'use client';
 
 import type { Product } from '@/lib/types';
+import { isService, ListingPrice, ServiceBadge } from '@/components/listings/service-badge';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -16,9 +17,47 @@ interface ProductDrawerProps {
   product: Product;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  /**
+   * Where "Visit Shop" goes. Required, with no default, for the same reason
+   * `ProductInfo.appHref` is: the previous hard-coded `/sellers/{sellerId}` is
+   * exactly the escape this prop exists to remove.
+   *
+   * The app has no single-seller storefront, so the app feed cannot honestly
+   * supply one here. It passes the product's own screen instead, which is the
+   * closest in-app destination and keeps the tap inside the section.
+   */
+  shopHref: string;
+  /**
+   * Where "Buy now" goes once the order document has been created. Takes the
+   * new order id because the website needs it for `/checkout/[orderId]`; the
+   * app ignores it and sends the buyer to its own cart.
+   */
+  checkoutHrefFor: (orderId: string) => string;
+  /**
+   * Label for that link. It defaults to "Visit Shop", which is accurate only
+   * when `shopHref` really is the seller's storefront. The app feed sends the
+   * tap to the product's own screen, so it passes "View product" — a button
+   * that says one thing and does another is its own small lie.
+   */
+  shopLabel?: string;
+  /**
+   * Where "Ask for a quote" goes. Only used for services — a service is
+   * booked by talking to the seller, so there is nothing meaningful to add to
+   * a cart. Optional because products never render that button.
+   */
+  messageHref?: string;
 }
 
-export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerProps) {
+export function ProductDrawer({
+  product,
+  isOpen,
+  onOpenChange,
+  shopHref,
+  checkoutHrefFor,
+  shopLabel = 'Visit Shop',
+  messageHref,
+}: ProductDrawerProps) {
+  const service = isService(product);
   const imageUrl = (product.imageUrl && product.imageUrl !== "") ? product.imageUrl : getPlaceholderImage();
   const imageHint = product.image?.imageHint || 'product image';
   const { user } = useUser();
@@ -102,12 +141,14 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
     };
 
     try {
-      await setDoc(newOrderRef, newOrderData);
-      toast({
-        title: 'Order Created!',
-        description: 'Redirecting you to checkout...',
-      });
-      router.push(`/checkout/${newOrderRef.id}`);
+      await setDoc(newOrderRef, newOrderData);        toast({
+          title: 'Order Created!',
+          description: 'Redirecting you to checkout...',
+        });
+        // `checkoutHrefFor` is resolved by the caller: the website has
+        // `/checkout/[orderId]`, the app does not and sends the buyer to its own
+        // cart. Hard-coding the website path here was an app escape.
+        router.push(checkoutHrefFor(newOrderRef.id));
     } catch (error) {
        console.error("Failed to place order:", error);
        const permissionError = new FirestorePermissionError({
@@ -140,25 +181,68 @@ export function ProductDrawer({ product, isOpen, onOpenChange }: ProductDrawerPr
               </div>
               <div className="flex-1">
                 <h3 className="font-headline text-lg font-semibold">{product.name}</h3>
-                <div className="text-xl font-bold text-primary mt-1">
-                  ${product.price.toLocaleString()}
-                  {product.wasPrice && (
-                    <span className="ml-2 text-sm text-muted-foreground line-through">
-                      ${product.wasPrice.toLocaleString()}
-                    </span>
-                  )}
-                </div>
-                 <p className="text-sm text-muted-foreground mt-1">
-                  Only {product.stock} left in stock!
-                </p>
+
+                {/* A service is work, not goods: no stock line, and the price
+                    reads as a quote prompt or an hourly rate rather than a
+                    number the seller never agreed to. */}
+                {service ? (
+                  <>
+                    <div className="mt-1.5"><ServiceBadge listing={product} tone="light" /></div>
+                    <ListingPrice listing={product} className="mt-1.5 text-xl font-bold" tone="light" />
+                    {product.serviceArea && (
+                      <p className="text-sm text-muted-foreground mt-1.5">
+                        Covers {product.serviceArea}
+                      </p>
+                    )}
+                    {product.includes && (
+                      <p className="text-sm text-muted-foreground mt-1">{product.includes}</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xl font-bold text-primary mt-1">
+                      ${product.price.toLocaleString()}
+                      {product.wasPrice && (
+                        <span className="ml-2 text-sm text-muted-foreground line-through">
+                          ${product.wasPrice.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Only {product.stock} left in stock!
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div className="mt-6 flex flex-col gap-3">
-               <Button size="lg" className="w-full font-bold text-lg" onClick={handleBuyNow}>Buy Now</Button>
-               <Button size="lg" variant="secondary" className="w-full font-bold text-lg" onClick={handleAddToCart}>Add to Cart</Button>
-               <Button size="lg" variant="link" asChild>
-                  <Link href={`/sellers/${product.sellerId}`}>Visit Shop</Link>
-                </Button>
+               {/*
+                 A service cannot be added to a cart and paid for like a
+                 sofa — the price is a quote the two sides agree after a
+                 conversation. Sending a buyer to checkout for "KES 0" would be
+                 worse than offering them the obvious next step: message the
+                 seller. The order/cart flows are untouched for products.
+               */}
+               {service ? (
+                 <>
+                   <Button size="lg" variant="link" asChild>
+                     <Link href={messageHref || shopHref}>
+                       {product.priceMode === 'quote' ? 'Ask for a quote' : 'Book this service'}
+                     </Link>
+                   </Button>
+                   <Button size="lg" variant="link" asChild>
+                     <Link href={shopHref}>{shopLabel}</Link>
+                   </Button>
+                 </>
+               ) : (
+                 <>
+                   <Button size="lg" className="w-full font-bold text-lg" onClick={handleBuyNow}>Buy Now</Button>
+                   <Button size="lg" variant="secondary" className="w-full font-bold text-lg" onClick={handleAddToCart}>Add to Cart</Button>
+                   <Button size="lg" variant="link" asChild>
+                      <Link href={shopHref}>{shopLabel}</Link>
+                    </Button>
+                 </>
+               )}
             </div>
         </div>
       </SheetContent>

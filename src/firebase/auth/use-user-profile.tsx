@@ -5,7 +5,21 @@ import { doc } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '../provider';
 import { useDoc, UseDocResult, WithId } from '../firestore/use-doc';
 
-// Define the shape of the user profile data
+/**
+ * Define the shape of the user profile data.
+ *
+ * There is a SECOND, wider `UserProfile` in `@/lib/types`. This one is the one
+ * `useUserProfile` hands to every consumer, so anything a screen reads off it
+ * has to be declared here or the read is a type error — which is how
+ * `shop-header` and `buyer-sidebar` ended up unable to read `following` or
+ * `profilePictureUrl` even though `lib/types` has declared both for years.
+ *
+ * Merging the two is the real fix, and it is not a one-line change: this type is
+ * narrower in some places and wider in others, and collapsing them silently
+ * changes what every caller is allowed to assume. Until that is done
+ * deliberately, these fields are declared here and the duplication is the known
+ * cost — the alternative is a compile error on data that exists.
+ */
 export interface UserProfile {
   id: string;
   fullName: string;
@@ -13,7 +27,21 @@ export interface UserProfile {
   email: string;
   joinDate: string;
   userRole: 'buyer' | 'seller' | 'reseller' | 'admin';
+  /**
+   * The older field, still present on profiles written before `userRole` existed.
+   *
+   * `admin-layout` and `admin-sidebar` accept either, because an admin account
+   * from before the rename has no `userRole` and would otherwise be locked out
+   * of the dashboard that was always theirs. Optional, like every other legacy
+   * field here, so the compiler stops calling a real read a missing property.
+   */
+  role?: 'buyer' | 'seller' | 'reseller' | 'admin';
   wishlist?: string[]; // Array of product IDs
+  /** Sellers this user follows. Read by the shop page's follow button. */
+  following?: string[];
+  profilePictureUrl?: string;
+  bio?: string;
+  location?: string;
 }
 
 // Define the return type for the hook

@@ -1,5 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep native/node-only packages out of the server bundle — fixes
+  // "Can't resolve 'stream'" for firebase-admin in instrumentation
+  // and lets sharp/ffmpeg glue code load natively.
+  serverExternalPackages: [
+    'firebase-admin',
+    '@google-cloud/firestore',
+    'sharp',
+    'cloudinary',
+    // Genkit + OpenTelemetry: huge dynamic-require trees that bloat the
+    // server bundle and dev memory. Load them natively at runtime instead.
+    'genkit',
+    '@genkit-ai/core',
+    '@genkit-ai/googleai',
+    '@opentelemetry/exporter-jaeger',
+    '@opentelemetry/sdk-node',
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -10,16 +26,17 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
+    // Reduce webpack memory footprint (small dev containers / 2GB VPS)
+    webpackMemoryOptimizations: true,
+  },
+  async redirects() {
+    return [];
   },
   async headers() {
     return [
       {
         source: '/:path*',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
@@ -34,7 +51,7 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.videosdk.live https://apis.google.com; connect-src 'self' *; img-src 'self' * data: blob:; media-src 'self' * data: blob:; font-src 'self' data: fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; frame-src 'self' https://*.paypal.com https://*.paystack.com;",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.videosdk.live https://apis.google.com; connect-src 'self' *; img-src 'self' * data: blob:; media-src 'self' * data: blob:; font-src 'self' data: fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; frame-src 'self' https://*.paypal.com https://*.paystack.com; frame-ancestors 'self' https://freebuff.com https://*.freebuff.com https://*.e2b.app http://localhost:* https://localhost:*;",
           },
         ],
       },
@@ -47,6 +64,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'goearnvid.shop' }, // VPS-served media (relative /api/media URLs also work)
       { protocol: 'https', hostname: 'api.qrserver.com' },
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
     ],

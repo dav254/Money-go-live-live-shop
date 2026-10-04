@@ -9,8 +9,9 @@ import { SidebarTrigger } from '../ui/sidebar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { SellerSidebar } from './seller-sidebar';
 import { Logo } from '../logo';
-import { useUser, useUserProfile, useFirestore } from '@/firebase';
+import { useUser, useUserProfile, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { usePathname } from 'next/navigation';
+import { collection, query, where } from 'firebase/firestore';
 
 export function SellerHeader() {
   const { user, isLoading: isUserLoading } = useUser();
@@ -23,6 +24,16 @@ export function SellerHeader() {
   
   // Custom behavior: Hide specific UI elements in the immersive live view
   const isLiveFeed = pathname === '/dashboard/seller/live-feed';
+
+  // Live unread count for the bell badge (works with both new + legacy docs).
+  const notifQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'notifications'), where('userId', '==', user.uid));
+  }, [user, firestore]);
+  const { data: notifs } = useCollection<{ isRead?: boolean; status?: string; createdAt?: unknown; timestamp?: unknown }>(notifQuery);
+  const unreadCount = (notifs ?? []).filter(n =>
+    n.status ? n.status === 'unread' : !n.isRead,
+  ).length;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:px-6">
@@ -39,7 +50,7 @@ export function SellerHeader() {
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
                 <SheetTitle asChild>
                   <Link href="/dashboard/seller">
-                    <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                    <Logo className="text-3xl text-primary cursor-pointer" />
                   </Link>
                 </SheetTitle>
               </SheetHeader>
@@ -69,8 +80,13 @@ export function SellerHeader() {
         {!isLiveFeed && (
             <>
                 <Button variant="ghost" size="icon" asChild>
-                <Link href="/dashboard/seller/notifications">
+                <Link href="/dashboard/seller/notifications" className="relative">
                     <Bell />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                     <span className="sr-only">Notifications</span>
                 </Link>
                 </Button>

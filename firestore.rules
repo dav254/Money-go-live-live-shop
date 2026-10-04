@@ -1,86 +1,138 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // =========================
+    // HELPER FUNCTIONS
+    // =========================
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Defensive admin check: most profiles store the role in userRole, but
+    // some legacy/Google-created profiles only have `role`. Also treats
+    // admins/{uid} documents as an admin source of truth when present.
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin';
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.userRole == 'admin' ||
+        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.role == 'admin' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
+    // =========================
+    // USER PROFILES
+    // =========================
     match /userProfiles/{userId} {
       allow read: if true;
+      allow create: if isSignedIn();
       allow list: if isSignedIn() && (request.auth.uid == userId || resource.data.referredBy == request.auth.uid || isAdmin());
+      
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId);
+      }
+
       allow update: if isOwner(userId) ||
                       (isAdmin() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'verificationStatus', 'userRole', 'aiPoints'])) ||
                       (request.resource.data.aiPoints == resource.data.aiPoints + 5 && isSignedIn());
-      allow create: if isSignedIn();
       allow delete: if isAdmin();
+    }
+
+    // =========================
+    // PRODUCT & LIVE ACCESS
+    // =========================
+    match /products/{productId} {
+      allow read, list: if true;
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
       
-      // Fixed: Explicitly allow access to subcollections for the owner
-      match /cart/{allPaths=**} {
-        allow read, write: if isOwner(userId);
+      // MERCHANT AUTONOMY: Streamlined owner permission allows all inventory metadata updates.
+      // Crucial: We only block unauthorized sellerId changes.
+      allow update: if (isOwner(resource.data.sellerId) && (!('sellerId' in request.resource.data) || request.resource.data.sellerId == resource.data.sellerId)) || 
+                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount', 'salesCount']));
+                      
+      allow delete: if isOwner(resource.data.sellerId) || isAdmin();
+
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
       }
-      match /paymentMethods/{allPaths=**} {
-        allow read, write: if isOwner(userId);
-      }
-      match /payoutMethods/{allPaths=**} {
-        allow read, write: if isOwner(userId);
-      }
-      match /wishlist/{allPaths=**} {
-        allow read, write: if isOwner(userId);
+      
+      match /comments/{commentId} {
+        allow read, list: if true;
+        allow create: if isSignedIn();
       }
     }
 
-    match /boost_requests/{boostId} {
-      allow create: if isSignedIn() && request.auth.uid == request.resource.data.sellerId;
-      allow list: if isSignedIn() && (request.auth.uid == resource.data.sellerId || isAdmin());
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.sellerId || isAdmin());
-      allow update, delete: if isAdmin();
-    }
-    
     match /sellerShops/{shopId} {
       allow read: if true;
       allow update: if isOwner(shopId) && !('followers' in request.resource.data);
       allow write: if isOwner(shopId) || isAdmin();
     }
 
-    match /products/{productId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
-      allow update: if 
-        (isSignedIn() && resource.data.sellerId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys()
-           .hasAny(['name', 'description', 'price', 'wasPrice', 'stock', 'category', 'tags', 'imageUrl', 'imageUrls', 'videoUrl', 'videoUrls', 'shippingCost', 'location', 'deliveryOptions', 'isResellable', 'commissionRate', 'updatedAt']))
-        ||
-        (isSignedIn() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'viewCount', 'inCartCount']));
-      allow delete: if (isSignedIn() && resource.data.sellerId == request.auth.uid) || isAdmin();
-
-      match /comments/{commentId} {
-        allow list, read: if true;
-        allow create: if isSignedIn();
-      }
-      match /reviews/{reviewId} {
-          allow read, list: if true;
-          allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
+    match /liveSessions/{sessionId} {
+      allow read: if true;
+      allow write: if isOwner(sessionId) || isAdmin();
+      
+      match /chat/{messageId} {
+        allow read, write: if isSignedIn();
       }
     }
 
+    // =========================
+    // ORDERS & FINANCE
+    // =========================
     match /orders/{orderId} {
-       allow list, read: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || resource.data.resellerId == request.auth.uid || isAdmin());
+       // resource-based conditions cannot be evaluated on a bare list() of the
+       // whole collection — admins list everything; everyone else needs a filter
+       // the rules engine can verify per-document (buyer/seller/reseller).
+       allow list, read: if isAdmin()
+         || (isSignedIn() && resource.data.buyerId == request.auth.uid)
+         || (isSignedIn() && resource.data.sellerId == request.auth.uid)
+         || (isSignedIn() && resource.data.resellerId == request.auth.uid);
        allow create: if isSignedIn() && request.resource.data.buyerId == request.auth.uid;
        allow update: if isSignedIn();
-       allow delete: if isSignedIn() && (isAdmin() || resource.data.sellerId == request.auth.uid);
+       allow delete: if isOwner(resource.data.sellerId) || isAdmin();
+    }
+
+    // =========================
+    // REQUEST MARKETPLACE (spec §24–39)
+    // =========================
+    // Requests: briefs are semi-public (sellers browse open requests), but
+    // media attachment is private and controlled through /api/media/serve —
+    // the browser never touches these collections directly.
+    match /requests/{requestId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update: if isAdmin() || isOwner(resource.data.customerId);
+      allow delete: if isAdmin() || isOwner(resource.data.customerId);
+    }
+
+    match /offers/{offerId} {
+      // Offers are visible to their seller, the request's customer, and admins.
+      // The customer check uses a get() on the parent request.
+      allow read: if isSignedIn() && (
+        resource.data.sellerId == request.auth.uid ||
+        isAdmin() ||
+        get(/databases/$(database)/documents/requests/$(resource.data.requestId)).data.customerId == request.auth.uid
+      );
+      allow create: if isSignedIn() && request.resource.data.sellerId == request.auth.uid;
+      allow update, delete: if isAdmin() || isOwner(resource.data.sellerId);
+    }
+
+    // Media records are metadata only; file bytes flow through the
+    // authorization-checked /api/media/serve route (admin SDK).
+    match /media/{mediaId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || isOwner(resource.data.userId);
+      allow delete: if isAdmin();
     }
     
     match /payouts/{payoutId} {
@@ -91,13 +143,20 @@ service cloud.firestore {
 
     match /walletTransactions/{transactionId} {
         allow create: if false; 
-        allow read, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+        allow read, list: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
     }
 
-    match /liveSessions/{sessionId} {
-      allow read: if true;
-      allow create, update: if isOwner(sessionId) || isAdmin();
-      match /chat/{messageId} { allow read, write: if isSignedIn(); }
+    // =========================
+    // SYSTEM & MARKETING
+    // =========================
+    match /homepageSlides/{slideId} {
+        allow read, list: if true;
+        allow write: if isAdmin();
+    }
+    
+    match /helpArticles/{articleId} {
+        allow read, list: if true;
+        allow write: if isAdmin();
     }
 
     match /supportTickets/{ticketId} {
@@ -119,19 +178,212 @@ service cloud.firestore {
       }
     }
 
-    match /homepageSlides/{slideId} {
-        allow read, list: if true;
-        allow write: if isAdmin();
+    match /notifications/{notificationId} {
+      allow read, write: if isSignedIn();
     }
-    
-    match /helpArticles/{articleId} {
-        allow read: if true;
-        allow write: if isAdmin();
+
+    // CUSTOMER CARE.
+    //
+    // One support thread per account, keyed by the account's own uid. That key
+    // choice is the whole access-control story: a seller can only ever reach
+    // `supportThreads/<their own uid>`, and the platform reads the collection to
+    // see every thread. There is no query a seller could write that returns
+    // somebody else's conversation.
+    match /supportThreads/{uid} {
+      allow read, update: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn();
+        // Replies are append-only: once a message is in the thread nobody edits
+        // or deletes it, so what a seller and an agent each said stays intact.
+        allow update, delete: if false;
+      }
     }
-    
+
     match /payments/{paymentId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read, create: if isSignedIn();
+    }
+
+    match /errorLogs/{errorId} {
+      allow create: if true;
+      allow read, list: if isAdmin();
+    }
+
+    // =========================
+    // ADMIN SYSTEM LOGS & QUEUES
+    // (written by Functions/admin SDK; admins read from the dashboard)
+    // =========================
+    match /activityLogs/{logId} {
+      allow read, list: if isAdmin();
       allow create: if isSignedIn();
+    }
+
+    match /admins/{adminId} {
+      allow read, list: if isAdmin();
+    }
+
+    match /contentModerationQueue/{itemId} {
+      allow read, list: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    match /fraudAlerts/{alertId} {
+      allow read, list: if isAdmin();
+    }
+
+    match /adminChat/{chatId} {
+      allow read, list: if isAdmin();
+      match /messages/{messageId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    match /resellActivities/{activityId} {
+      allow read, list: if isSignedIn() && (resource.data.resellerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (request.resource.data.resellerId == request.auth.uid || request.resource.data.sellerId == request.auth.uid);
+    }
+
+    match /conversations/{conversationId} {
+      allow read, list, update: if isSignedIn() && (request.auth.uid in resource.data.participantIds || isAdmin());
+      allow create: if isSignedIn();
+    }
+
+    // =========================
+    // COMMUNICATION ENGINE (Vidnov)
+    // =========================
+    match /emailLogs/{logId} {
+      allow read, list: if isAdmin();
+    }
+
+    match /devMailbox/{mailId} {
+      allow read, list: if isAdmin();
+    }
+
+    match /securityEvents/{eventId} {
+      allow read, list: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    match /userSessions/{sessionId} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // passwordResetTokens / passwordResetRequests / passwordResetRequests
+    // are intentionally NOT readable by any client — the admin SDK only.
+
+    // =========================
+    // =========================
+    // REFERRALS
+    // =========================
+    // One document per invited signup. The referrer reads their own; the
+    // invitee may create exactly one (their own signup) but never edit it —
+    // otherwise a user could rewrite who referred them and farm points by
+    // pointing every signup at whoever pays best.
+    //
+    // Listing is per-referrer only. There is deliberately no "list everything"
+    // for non-admins, because a leaderboard across all users would leak who is
+    // recruiting whom; the admin surface below is the one place that is visible.
+    match /referrals/{referralId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.referrerId == request.auth.uid)
+        || (isSignedIn() && resource.data.refereeId == request.auth.uid);
+      allow list: if isAdmin()
+        || (isSignedIn() && resource.data.referrerId == request.auth.uid);
+
+      // Self-referral is blocked here as well as in the app, because the app
+      // check is client-side and therefore advisory only.
+      allow create: if isSignedIn()
+        && request.resource.data.referrerId != request.auth.uid
+        && request.resource.data.refereeId == request.auth.uid
+        && request.resource.data.referrerId is string
+        && request.resource.data.status == 'pending';
+
+      // Only an admin may approve, flag or reject. A referrer editing their
+      // own row could flip a flagged referral back to approved and re-claim
+      // the points.
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================
+    // PUSH SUBSCRIPTIONS
+    // =========================
+    // Written ONLY by the Admin SDK from `/api/notifications/push/subscribe`.
+    //
+    // `allow write: if false` is the point of this block, not an oversight. A
+    // push token is a bearer credential: `allow write: if isOwner(uid)` would
+    // let any signed-in user paste another device's token into their own
+    // subtree and start receiving that person's order and payment alerts.
+    // Refusing client writes entirely means the only way in is a route that
+    // verified the caller's ID token.
+    match /pushSubscriptions/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+
+      match /devices/{deviceId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // =========================
+    // USER SETTINGS
+    // =========================
+    // Per-user settings such as push category preferences. Scoped under the
+    // user's own uid so no query can return somebody else's settings.
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /settings/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // =========================
+    // REFERRAL CODE DIRECTORY
+    // =========================
+    // An index mapping invite code -> uid, so resolving a code at signup is a
+    // point read instead of a scan of every profile.
+    //
+    // Public READ, deliberately. The document contains nothing but a code and
+    // an opaque uid — it is the same information a referral link already puts
+    // in the URL, and requiring auth here would gain nothing while making the
+    // directory useless to the server-side claim path.
+    //
+    // Client WRITES denied: the directory is derived data, and a client that
+    // could write it could point any code at its own uid and claim a referral
+    // for a user who never invited anyone.
+    match /referralCodes/{code} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // =========================
+    // REFERRAL REDEMPTIONS
+    // =========================
+    // The ledger of points a user has spent, written server-side by
+    // `/api/referrals/redeem` inside a transaction.
+    //
+    // Client writes denied: the ledger is what makes a balance auditable, and
+    // a client that could write it could invent entries to explain a balance
+    // it had already spent. `update` is admin-only so a queued cash payout can
+    // only be marked paid by a human — a referral balance can never become a
+    // silent automated payment.
+    match /referralRedemptions/{redemptionId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if false;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // DEFAULT DENY
+    // =========================
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

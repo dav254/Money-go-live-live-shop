@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -7,9 +6,9 @@ import { ProductUploadForm } from '@/components/seller/product-upload-form';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, useUserProfile } from '@/firebase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, Heart, Eye, Wallet, Clock, Package, Truck, MoreHorizontal, X, Radio, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
-import type { SellerShop, Product, Order, Payout, LiveSession } from '@/lib/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { Package, Clock, MessageSquare, Plus, Clapperboard, Sparkles, Tag, MoreHorizontal, X } from 'lucide-react';
+import type { SellerShop, Product, Order, Payout } from '@/lib/types';
 import { collection, doc, query, where, deleteDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -33,18 +32,18 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { formatDistanceToNow, addDays } from 'date-fns';
+import { addDays } from 'date-fns';
+import { RequestsTeaser } from '@/components/seller/requests-teaser';
+import { RecentOrdersWidget } from '@/components/seller/recent-orders-widget';
+import { AnalyticsSnapshot } from '@/components/seller/analytics-snapshot';
+import { StockAlerts } from '@/components/seller/stock-alerts';
 
 const ProductRowSkeleton = () => (
-  <div className="bg-card p-4 rounded-xl shadow-md flex gap-4 items-center">
-    <Skeleton className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg" />
+  <div className="flex gap-4 items-center py-4 border-b border-border">
+    <Skeleton className="vn-skeleton w-16 h-16 rounded-lg" />
     <div className="flex-1 space-y-2">
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-4 w-1/4" />
-    </div>
-    <div className="flex flex-col gap-2">
-      <Skeleton className="h-8 w-12 sm:w-16" />
+      <Skeleton className="vn-skeleton h-4 w-3/4" />
+      <Skeleton className="vn-skeleton h-3 w-1/4" />
     </div>
   </div>
 );
@@ -60,23 +59,27 @@ export default function SellerDashboardPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
 
   const sellerShopRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return firestore ? doc(firestore, `sellerShops/${user.uid}`) : null;
+    if (!user || !firestore) return null;
+    return doc(firestore, `sellerShops/${user.uid}`);
   }, [firestore, user]);
 
   const productsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return firestore ? query(collection(firestore, 'products'), where('sellerId', '==', user.uid)) : null;
-  },[firestore, user]);
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'products'), where('sellerId', '==', user.uid));
+  }, [firestore, user]);
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !firestore) return null;
     return query(collection(firestore, 'orders'), where('sellerId', '==', user.uid));
   }, [firestore, user]);
 
   const payoutsQuery = useMemoFirebase(() => {
-    if (!user) return null;
-    return query(collection(firestore, 'payouts'), where('sellerId', '==', user.uid), where('status', '==', 'completed'));
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, 'payouts'),
+      where('sellerId', '==', user.uid),
+      where('status', '==', 'completed'),
+    );
   }, [firestore, user]);
 
   const { data: shopData, isLoading: isShopLoading } = useDoc<SellerShop>(sellerShopRef);
@@ -84,87 +87,268 @@ export default function SellerDashboardPage() {
   const { data: orders, isLoading: areOrdersLoading } = useCollection<Order>(ordersQuery);
   const { data: payouts, isLoading: arePayoutsLoading } = useCollection<Payout>(payoutsQuery);
 
-  const isLoading = isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading || isProfileLoading;
+  const isLoading =
+    isUserLoading || isShopLoading || areProductsLoading || areOrdersLoading || arePayoutsLoading || isProfileLoading;
 
-  const { totalLikes, totalViews, availableBalance } = React.useMemo(() => {
+  const { totalLikes, totalViews, availableBalance, newOrders, pendingOrdersCount } = React.useMemo(() => {
     const likes = products?.reduce((sum, product) => sum + (product.likes || 0), 0) || 0;
     const views = products?.reduce((sum, product) => sum + (product.viewCount || 0), 0) || 0;
-    const completedOrders = orders?.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'shipped') || [];
+    const completedOrders = orders?.filter((o) => o.orderStatus === 'delivered' || o.orderStatus === 'shipped') || [];
     const totalRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const balance = totalRevenue * 0.90 - (payouts?.reduce((sum, p) => sum + p.amount, 0) || 0);
-    return { totalLikes: likes, totalViews: views, availableBalance: balance };
+    const balance = totalRevenue * 0.9 - (payouts?.reduce((sum, p) => sum + p.amount, 0) || 0);
+    const newOrders = orders?.filter((o) => o.orderStatus === 'pending').length || 0;
+    const pendingOrdersCount = orders?.filter((o) => o.orderStatus === 'processing').length || 0;
+    return { totalLikes: likes, totalViews: views, availableBalance: balance, newOrders, pendingOrdersCount };
   }, [products, orders, payouts]);
-  
+
   const handleDelete = async (productId: string) => {
     if (!firestore) return;
-    try { await deleteDoc(doc(firestore, 'products', productId)); toast({ title: "Product Deleted" }); } catch (e) { toast({ variant: 'destructive', title: "Error" }); }
+    try {
+      await deleteDoc(doc(firestore, 'products', productId));
+      toast({ title: 'Product deleted' });
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Error' });
+    }
   };
 
   const welcomeBonusDaysLeft = React.useMemo(() => {
-      if (!userProfile?.freePointsAwardedAt) return null;
-      const awardedAt = new Date(userProfile.freePointsAwardedAt);
-      const expiry = addDays(awardedAt, 30);
-      const now = new Date();
-      if (now > expiry) return 0;
-      return Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 3600 * 24));
+    if (!userProfile?.freePointsAwardedAt) return null;
+    const awardedAt = new Date(userProfile.freePointsAwardedAt);
+    const expiry = addDays(awardedAt, 30);
+    const now = new Date();
+    if (now > expiry) return 0;
+    return Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 3600 * 24));
   }, [userProfile]);
+
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'GOOD MORNING' : hour < 18 ? 'GOOD AFTERNOON' : 'GOOD EVENING';
 
   return (
     <SellerLayout>
-      <div className="p-4 sm:p-6 lg:p-8 bg-background min-h-full space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Image src={shopData?.logoUrl || "https://placehold.co/100x100/111111/FFFFFF?text=Store"} width={56} height={56} alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-primary/20 shadow-lg" />
-            <div>
-              <h2 className="text-xl font-black font-headline tracking-tight uppercase">{shopData?.shopName || 'Seller Store'}</h2>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Store Dashboard</p>
-            </div>
-          </div>
+      <div className="vn-page-enter p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-12">
+        {/* Header */}
+        <div className="space-y-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+            {timeGreeting} — VIDNOV BUSINESS
+          </p>
+          <h1 className="font-grotesk text-3xl md:text-4xl font-bold text-foreground">
+            {shopData?.shopName || 'Your Business'}
+          </h1>
         </div>
 
         {welcomeBonusDaysLeft !== null && welcomeBonusDaysLeft > 0 && (
-             <Alert className="bg-primary/10 border-primary/20 rounded-2xl animate-in slide-in-from-top-4 duration-500">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <AlertTitle className="font-black uppercase tracking-tighter text-primary">Founding Seller Welcome Bonus</AlertTitle>
-                <AlertDescription className="text-xs font-bold text-white/70 uppercase tracking-widest mt-1">
-                    You have <span className="text-white">{(userProfile?.aiPoints || 0).toLocaleString()} points</span> remaining. 
-                    Your bonus expires in <span className="text-primary font-black">{welcomeBonusDaysLeft} days</span>. Use them to generate viral content!
-                </AlertDescription>
-            </Alert>
+          <div className="rounded-lg border border-accent/40 bg-accent/5 px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] inline-flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-accent" /> Welcome bonus active
+            </p>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              You have <span className="text-foreground font-semibold">{(userProfile?.aiPoints || 0).toLocaleString()} AI points</span> remaining.
+              Expires in <span className="text-foreground font-semibold">{welcomeBonusDaysLeft} days</span>. Use them to create product media in AI Studio.
+            </p>
+          </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Followers</CardTitle><Users className="h-4 w-4 text-primary" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{shopData?.followers || 0}</div>}</CardContent></Card>
-            <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Likes</CardTitle><Heart className="h-4 w-4 text-pink-500" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{totalLikes}</div>}</CardContent></Card>
-            <Card className="bg-card/50 border-white/5"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Views</CardTitle><Eye className="h-4 w-4 text-blue-500" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black">{totalViews}</div>}</CardContent></Card>
-            <Card className="bg-primary/5 border-primary/20"><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-[10px] font-black uppercase tracking-widest text-primary">Earnings</CardTitle><Wallet className="h-4 w-4 text-primary" /></CardHeader><CardContent>{isLoading ? <Skeleton className="h-8 w-1/2"/> : <div className="text-2xl font-black text-primary">${availableBalance.toFixed(2)}</div>}</CardContent></Card>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Button asChild size="lg" className="h-16 font-black rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20 text-white tracking-widest uppercase"><Link href="/dashboard/products?tab=add-new">Add Product</Link></Button>
-          <Button asChild size="lg" className="h-16 font-black rounded-2xl bg-purple-600 hover:bg-purple-700 shadow-xl shadow-purple-600/20 text-white tracking-widest uppercase"><Link href="/dashboard/products?tab=add-new">Add Video</Link></Button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between"><h3 className="font-headline text-lg font-black uppercase tracking-widest">My Products</h3><Button variant="link" className="text-[10px] font-black uppercase tracking-widest" asChild><Link href="/dashboard/products">Manage All</Link></Button></div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {isLoading ? <><ProductRowSkeleton /><ProductRowSkeleton /></> : products?.map((p) => (
-              <AlertDialog key={p.id}>
-                  <div className="bg-card/50 p-4 rounded-2xl border border-white/5 flex gap-4 items-center group hover:bg-card hover:border-primary/20 transition-all shadow-sm">
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/10"><Image src={p.imageUrl || "https://placehold.co/80x80/111111/FFFFFF?text=Product"} fill alt="product" className="object-cover" /></div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-sm sm:text-base uppercase tracking-tight truncate">{p.name}</h3>
-                      <p className="font-black text-primary text-sm">${p.price?.toLocaleString()}</p>
-                      <div className="flex items-center gap-1.5 mt-1.5"><div className={cn("h-1.5 w-1.5 rounded-full", p.stock > 0 ? "bg-green-500" : "bg-red-500")} /><p className={cn("text-[9px] font-black uppercase tracking-tighter", p.stock > 0 ? "text-green-500" : "text-red-500")}>{p.stock > 0 ? 'Active' : 'Out of Stock'}</p></div>
-                    </div>
-                    <div className="flex items-center gap-2"><Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl bg-white/5" onClick={() => { setSelectedProduct(p); setIsEditDialogOpen(true); }}><MoreHorizontal className="h-5 w-5" /></Button><AlertDialogTrigger asChild><Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl bg-red-500/10 text-red-500"><X className="h-5 w-5" /></Button></AlertDialogTrigger></div>
-                  </div>
-                  <AlertDialogContent className="rounded-2xl border-white/10"><AlertDialogHeader><AlertDialogTitle className="font-black uppercase tracking-tighter">Delete Product?</AlertDialogTitle><AlertDialogDescription className="text-xs font-bold text-muted-foreground uppercase">This will permanently delete "{p.name}".</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px]">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(p.id)} className="bg-red-600 rounded-xl font-black uppercase text-[10px]">Delete Forever</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-              </AlertDialog>
-          ))}
+        {/* Business overview — oversized numbers */}
+        <section>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-6">
+            BUSINESS OVERVIEW
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-lg overflow-hidden">
+            {[
+              { label: 'SALES', value: `$${availableBalance.toFixed(0)}`, accent: true },
+              { label: 'ORDERS', value: String(orders?.length ?? '—') },
+              { label: 'CUSTOMERS', value: String(shopData?.followers ?? '—') },
+              { label: 'PRODUCT VIEWS', value: String(totalViews) },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-card p-6 lg:p-8">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">{stat.label}</p>
+                {isLoading ? (
+                  <Skeleton className="vn-skeleton h-10 w-24 mt-3" />
+                ) : (
+                  <p className={cn(
+                    'font-grotesk text-3xl lg:text-4xl font-bold mt-3 tabular-nums',
+                    stat.accent ? 'text-foreground' : 'text-foreground',
+                  )}>
+                    {stat.value}
+                  </p>
+                )}
+                {stat.accent && !isLoading && (
+                  <span className="inline-block h-1 w-8 bg-accent mt-3" aria-hidden />
+                )}
+              </div>
+            ))}
           </div>
-        </div>
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}><DialogContent className="sm:max-w-3xl p-0 max-h-[90vh] rounded-3xl overflow-hidden border-white/10"><DialogHeader className="p-6 pb-0 border-b border-white/5 bg-neutral-900/50 backdrop-blur-xl"><DialogTitle className="font-black uppercase tracking-tighter">Edit Product Listing</DialogTitle></DialogHeader><ScrollArea className="h-full"><div className="p-4 sm:p-6 pt-0"><ProductUploadForm productToEdit={selectedProduct} onFormSubmit={() => setIsEditDialogOpen(false)} /></div></ScrollArea></DialogContent></Dialog>
+        </section>
+
+        {/* Inventory attention — hidden when every product is healthy */}
+        <StockAlerts products={products} isLoading={areProductsLoading} />
+
+        {/* Today */}
+        <section>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-5">TODAY</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { icon: Package, label: 'New orders', value: newOrders, href: '/dashboard/seller/orders' },
+              { icon: Clock, label: 'Processing', value: pendingOrdersCount, href: '/dashboard/seller/orders' },
+              { icon: MessageSquare, label: 'Messages', value: null, href: '/messages' },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="group rounded-lg border border-border bg-card px-5 py-4 flex items-center justify-between vn-transition hover:border-foreground/35"
+              >
+                <span className="flex items-center gap-3 text-sm font-medium text-foreground">
+                  <item.icon className="h-4 w-4 text-muted-foreground" />
+                  {item.label}
+                </span>
+                {item.value !== null ? (
+                  <span className="font-grotesk text-lg font-bold tabular-nums">{item.value}</span>
+                ) : (
+                  <span className="vn-dot vn-dot-pending" />
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Quick actions */}
+        <section>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-5">QUICK ACTIONS</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { icon: Plus, label: 'Add Product', href: '/dashboard/products?tab=add-new' },
+              { icon: Clapperboard, label: 'Create AI Ad', href: '/dashboard/seller/ai-studio' },
+              { icon: Tag, label: 'Create Offer', href: '/dashboard/seller/marketing' },
+              { icon: Sparkles, label: 'AI Studio', href: '/dashboard/seller/ai-studio' },
+            ].map((action) => (
+              <Link
+                key={action.label}
+                href={action.href}
+                className="group rounded-lg border border-border bg-card p-5 flex flex-col items-start gap-6 vn-transition hover:border-foreground/40 hover:bg-secondary"
+              >
+                <action.icon className="h-5 w-5 text-foreground" />
+                <span className="text-[12px] font-semibold uppercase tracking-[0.15em] text-foreground">
+                  {action.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Performance — revenue trend, orders, average order value, conversion */}
+        <AnalyticsSnapshot orders={orders} products={products} isLoading={areOrdersLoading || areProductsLoading} />
+
+        {/* Recent orders with inline status actions */}
+        <RecentOrdersWidget orders={orders} isLoading={areOrdersLoading} />
+
+        {/* Customer requests — the matching-engine inbox */}
+        <RequestsTeaser />
+        
+
+        {/* Products */}
+
+        {/* Products */}
+        <section>
+          <div className="flex items-baseline justify-between border-b border-border pb-4 mb-2">
+            <h2 className="font-grotesk text-xl font-bold text-foreground">My Products</h2>
+            <Link
+              href="/dashboard/products"
+              className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground hover:text-foreground vn-transition"
+            >
+              Manage all
+            </Link>
+          </div>
+
+          {isLoading ? (
+            <ProductRowSkeleton />
+          ) : products && products.length > 0 ? (
+            <div>
+              {products.slice(0, 6).map((p) => (
+                <AlertDialog key={p.id}>
+                  <div className="flex gap-4 items-center py-4 border-b border-border group">
+                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden flex-shrink-0 border border-border">
+                      <Image
+                        src={p.imageUrl || 'https://placehold.co/80x80/141414/FFFFFF?text=—'}
+                        fill
+                        alt={p.name || 'Product image'}
+                        className="object-cover vn-mono-img"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{p.name}</p>
+                      <p className="font-grotesk text-sm font-bold text-foreground mt-0.5">${p.price?.toLocaleString()}</p>
+                      <p className="mt-1.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                        <span className={cn('vn-dot', p.stock > 0 ? 'vn-dot-completed' : 'vn-dot-failed')} />
+                        <span className={p.stock > 0 ? 'text-muted-foreground' : 'text-destructive'}>
+                          {p.stock > 0 ? 'Active' : 'Out of stock'}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-9 rounded-lg"
+                        onClick={() => {
+                          setSelectedProduct(p);
+                          setIsEditDialogOpen(true);
+                        }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-9 w-9 rounded-lg text-destructive hover:text-destructive">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                    </div>
+                  </div>
+                  <AlertDialogContent className="rounded-xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="font-grotesk">Delete product?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete &ldquo;{p.name}&rdquo;. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(p.id)}
+                        className="rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ))}
+            </div>
+          ) : (
+            <div className="py-14 text-center">
+              <p className="font-grotesk text-lg font-semibold text-foreground">No products yet</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+                Add your first product to start selling on Vidnov. Video listings sell faster.
+              </p>
+              <Button asChild className="mt-7 h-12 px-8 rounded-lg text-[11px] font-semibold uppercase tracking-[0.18em]">
+                <Link href="/dashboard/products?tab=add-new">Add product</Link>
+              </Button>
+            </div>
+          )}
+        </section>
+
+        {/* Edit dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-3xl p-0 max-h-[90vh] rounded-xl overflow-hidden border-border">
+            <DialogHeader className="p-6 pb-4 border-b border-border">
+              <DialogTitle className="font-grotesk text-lg">Edit product</DialogTitle>
+            </DialogHeader>
+            <ScrollArea className="h-full">
+              <div className="p-4 sm:p-6 pt-0">
+                <ProductUploadForm productToEdit={selectedProduct} onFormSubmit={() => setIsEditDialogOpen(false)} />
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       </div>
     </SellerLayout>
   );

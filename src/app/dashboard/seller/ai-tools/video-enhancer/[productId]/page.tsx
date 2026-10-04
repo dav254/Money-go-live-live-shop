@@ -86,7 +86,7 @@ export default function EnhanceVideoPage() {
         if (!generatedVideoUrl) return;
         const link = document.createElement('a');
         link.href = generatedVideoUrl;
-        link.download = `goearnvid-enhanced-${product?.name || 'video'}-${Date.now()}.mp4`;
+        link.download = `vidnov-enhanced-${product?.name || 'video'}-${Date.now()}.mp4`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

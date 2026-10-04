@@ -87,6 +87,9 @@ export function ProductCard({ product }: ProductCardProps) {
   
   const hasVideo = product.videoUrl || (product.videoUrls && product.videoUrls.length > 0);
   const mediaUrl = hasVideo ? (product.videoUrl || product.videoUrls![0]) : product.imageUrl;
+  // Vidnov feed optimization: cards/thumbnails use the lightweight 400px
+  // preview; the full video is only fetched when the user actually plays it.
+  const thumbnailUrl = product.thumbnailUrls?.[0] || product.imageUrl;
 
 
   return (
@@ -97,8 +100,9 @@ export function ProductCard({ product }: ProductCardProps) {
                 {hasVideo ? (
                     <video
                         src={mediaUrl}
+                        poster={product.videoThumbnailUrls?.[0] || thumbnailUrl}
+                        preload="none"
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        poster={product.imageUrl}
                         muted
                         loop
                         playsInline
@@ -107,7 +111,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     />
                 ) : (
                      <Image
-                        src={mediaUrl || '/placeholder.svg'}
+                        src={thumbnailUrl || '/placeholder.svg'}
                         alt={product.name || 'Product image'}
                         fill
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"

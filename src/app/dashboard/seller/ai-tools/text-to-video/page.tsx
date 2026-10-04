@@ -79,15 +79,15 @@ export default function TextToVideoPage() {
 
         setIsGenerating(true);
         setGeneratedVideoUrl(null);
-        toast({ title: '🤖 Initializing Veo AI...', description: 'Generating slow-motion 4K video. This can take up to 2 minutes.' });
+        toast({ title: '🎬 Generating your video…', description: 'This takes 1–2 minutes. Keep this tab open — the result saves straight to your Vidnov media library.' });
 
         try {
             const result = await generateVideoFromText({ prompt });
             setGeneratedVideoUrl(result.videoUrl);
-            toast({ title: '✅ Video Generated!', description: 'Preview your AI creation below.' });
+            toast({ title: '✅ Video ready!', description: 'Saved to your Vidnov media library — preview it below.' });
         } catch (error: any) {
             console.error("Error generating video:", error);
-            toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'The AI model is busy. Please try again in a moment.' });
+            toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'The AI engine is busy. Please try again in a moment.' });
         } finally {
             setIsGenerating(false);
         }
@@ -97,7 +97,7 @@ export default function TextToVideoPage() {
         if (!generatedVideoUrl) return;
         const link = document.createElement('a');
         link.href = generatedVideoUrl;
-        link.download = `goearnvid-ai-showcase-${Date.now()}.mp4`;
+        link.download = `vidnov-ai-showcase-${Date.now()}.mp4`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

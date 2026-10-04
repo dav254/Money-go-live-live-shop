@@ -132,17 +132,17 @@ export default function AdminReportedProductsPage() {
                 complaints.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>
-                      <ProductCell productId={c.targetId} />
+                      <ProductCell productId={c.targetId ?? ''} />
                     </TableCell>
                     <TableCell>
-                        <p className="font-medium">{c.reason}</p>
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.description}</p>
+                        <p className="font-medium">{c.reason ?? '—'}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{c.description ?? c.details}</p>
                     </TableCell>
                     <TableCell>
                       <UserCell userId={c.complainantId} label="Complainant" />
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                        {c.createdAt ? formatDistanceToNow(c.createdAt.toDate(), { addSuffix: true }) : 'N/A'}
+                        {(() => { const ts = c.createdAt as { toDate?: () => Date } | null | undefined; const d = typeof ts?.toDate === 'function' ? ts.toDate() : ts ? new Date(String(ts)) : null; return d ? formatDistanceToNow(d, { addSuffix: true }) : 'N/A'; })()}
                     </TableCell>
                     <TableCell>
                       <Badge variant={c.status === 'open' ? 'secondary' : 'default'} className="capitalize">{c.status}</Badge>

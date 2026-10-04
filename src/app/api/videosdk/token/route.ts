@@ -2,43 +2,64 @@ import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
 /**
- * Securely generates a VideoSDK access token.
- * Optimized for speed to prevent handshake timeouts.
+ * VideoSDK access token (server-side only — the browser never sees the secret).
+ *
+ * Two modes:
+ *  1. VIDEOSDK_API_KEY + VIDEOSDK_SECRET_KEY → mint a fresh 2-hour token
+ *     server-side (the normal, recommended setup).
+ *  2. VIDEOSDK_TOKEN only → serve the pre-issued token from the VideoSDK
+ *     dashboard. Works for joining, expires when the dashboard token expires.
  */
 export async function GET() {
   const API_KEY = process.env.VIDEOSDK_API_KEY;
   const SECRET_KEY = process.env.VIDEOSDK_SECRET_KEY;
+  const STATIC_TOKEN = process.env.VIDEOSDK_TOKEN;
 
-  if (!API_KEY || !SECRET_KEY) {
-    console.warn("[VideoSDK] API keys missing in environment variables.");
-    return NextResponse.json({ 
-        error: 'CONFIG_MISSING',
-        message: 'VideoSDK API keys are not configured on this server.' 
-    }, { status: 500 });
+  if (API_KEY && SECRET_KEY) {
+    try {
+      const token = jwt.sign(
+        { apikey: API_KEY, permissions: ['allow_join', 'allow_mod'], version: 2 },
+        SECRET_KEY,
+        { expiresIn: '120m', algorithm: 'HS256' },
+      );
+      return NextResponse.json(
+        { token, source: 'minted' },
+        { headers: { 'Cache-Control': 'private, max-age=3600', 'X-Signal-Version': '2.0' } },
+      );
+    } catch (error) {
+      console.error('[VideoSDK] token signing failed:', error);
+      return NextResponse.json(
+        { error: 'SERVER_ERROR', message: 'Failed to generate access token.' },
+        { status: 500 },
+      );
+    }
   }
 
-  try {
-    const options = { expiresIn: '120m', algorithm: 'HS256' };
-    const payload = {
-      apikey: API_KEY,
-      permissions: ['allow_join', 'allow_mod'], 
-      version: 2, 
-    };
-
-    // @ts-ignore
-    const token = jwt.sign(payload, SECRET_KEY, options);
-
-    return NextResponse.json({ token }, {
-        headers: {
-            'Cache-Control': 'private, max-age=3600',
-            'X-Signal-Version': '2.0'
-        }
-    });
-  } catch (error: any) {
-    console.error('Error generating VideoSDK token:', error);
+  if (STATIC_TOKEN) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: 'Failed to generate access token.' },
-      { status: 500 }
+      { token: STATIC_TOKEN, source: 'static', expiresAt: staticTokenExpiry(STATIC_TOKEN) },
+      { headers: { 'Cache-Control': 'private, max-age=300', 'X-Signal-Version': '2.0' } },
     );
+  }
+
+  console.warn('[VideoSDK] API keys missing in environment variables.');
+  return NextResponse.json(
+    {
+      error: 'CONFIG_MISSING',
+      message: 'VideoSDK API keys are not configured on this server.',
+    },
+    { status: 500 },
+  );
+}
+
+/** Reads the `exp` claim so the UI can warn before the token dies. */
+function staticTokenExpiry(token: string): number | null {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64').toString('utf8'),
+    ) as { exp?: number };
+    return payload.exp ?? null;
+  } catch {
+    return null;
   }
 }

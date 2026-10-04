@@ -56,7 +56,7 @@ export default function StandaloneImageGeneratorPage() {
         
         const link = document.createElement('a');
         link.href = generatedImageUrl;
-        link.download = `goearnvid-ai-promo-${Date.now()}.png`;
+        link.download = `vidnov-ai-promo-${Date.now()}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

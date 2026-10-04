@@ -180,7 +180,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
                             <Dialog>
                                 <DialogTrigger asChild>
                                     <div className="cursor-zoom-in relative w-full h-full">
-                                        <Image src={selectedMedia.url} alt={product.name} fill className="object-contain" priority />
+                                        <Image src={selectedMedia.url} alt={product?.name || 'Product media'} fill className="object-contain" priority />
                                         <div className="absolute bottom-4 right-4 bg-black/50 p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Maximize2 className="h-5 w-5 text-white" />
                                         </div>
@@ -196,7 +196,7 @@ export default function BuyerProductPage(props: { params: Promise<{ productId: s
                                             <X className="h-8 w-8" />
                                         </DialogClose>
                                         <div className="relative w-full h-full">
-                                            <Image src={selectedMedia.url} alt={product.name} fill className="object-contain" />
+                                            <Image src={selectedMedia.url} alt={product?.name || 'Product media'} fill className="object-contain" />
                                         </div>
                                     </div>
                                 </DialogContent>

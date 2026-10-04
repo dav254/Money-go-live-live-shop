@@ -167,6 +167,17 @@ export default function AdminReferralsPage() {
         <p className="text-muted-foreground">
             This table shows all new users who have signed up using a reseller's referral link.
         </p>
+        <p className="text-sm text-muted-foreground">
+          Looking for totals per referrer, or the ability to approve a signup and pay it out?{' '}
+          <Link
+            href="/dashboard/admin/referrals"
+            className="font-medium text-primary underline underline-offset-4"
+          >
+            Referrals &amp; Rewards
+          </Link>{' '}
+          has the leaderboard, the approval queue and reward granting. This page remains as the
+          flat per-signup log.
+        </p>
          <div className="w-full">
           {isLoading ? <DataTableSkeleton /> : (
           <div className="rounded-md border">

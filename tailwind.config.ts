@@ -18,8 +18,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sora: ['Sora', 'sans-serif'],
-        cyber: ['Orbitron', 'sans-serif'],
+        sora: ['Inter', 'sans-serif'],
+        cyber: ['Space Grotesk', 'sans-serif'],
+        grotesk: ['Space Grotesk', 'sans-serif'],
+        inter: ['Inter', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',
@@ -47,6 +49,20 @@ export default {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
         },
+        lime: {
+          DEFAULT: '#C8FF00',
+        },
+        coral: {
+          DEFAULT: '#FF4D2E',
+          soft: '#FF7A5C',
+        },
+        ember: {
+          cyan: '#22D3EE',
+          navy: '#0A1224',
+          violet: '#8B5CF6',
+          amber: '#F59E0B',
+          green: '#10B981',
+        },
         popover: {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
@@ -65,8 +81,8 @@ export default {
       },
       borderRadius: {
         lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        md: 'calc(var(--radius) - 6px)',
+        sm: 'calc(var(--radius) - 10px)',
       },
       keyframes: {
         'accordion-down': {

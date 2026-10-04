@@ -127,7 +127,7 @@ export default function AdminLoginPage() {
                     <FormItem>
                       <FormLabel className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Admin Identifier</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@goearnvid.shop" className="h-12 bg-black/40 border-white/5 rounded-xl px-4" {...field} />
+                        <Input type="email" placeholder="admin@vidnov.com" className="h-12 bg-black/40 border-white/5 rounded-xl px-4" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

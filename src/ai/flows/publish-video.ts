@@ -1,53 +1,46 @@
 'use server';
 
 /**
- * @fileOverview An AI flow to publish a video to a product.
- * This flow takes a video URL (potentially a data URI) and a product ID,
- * uploads the video to Firebase Storage, and saves the permanent URL to the product.
+ * Publishes a video to a product.
+ *
+ * Vidnov media system: AI-generated videos are already stored on the
+ * VPS (via storeGeneratedVideo) and referenced by /api/media/file/...
+ * URLs — those attach directly. Data URIs or external URLs are stored
+ * through the media pipeline first. Nothing goes to Firebase Storage.
  */
 
 import { z } from 'genkit';
-import { db, bucket } from '@/firebase/server';
+import { db } from '@/firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { storeGeneratedVideo } from '@/lib/media/service';
 
 const PublishVideoToProductInputSchema = z.object({
   productId: z.string().describe('The ID of the product to associate the video with.'),
-  videoUrl: z.string().describe("The video data URI or source URL to be uploaded."),
+  videoUrl: z.string().describe('Vidnov media URL, data URI, or external URL of the video.'),
 });
 export type PublishVideoToProductInput = z.infer<typeof PublishVideoToProductInputSchema>;
 
-async function uploadToFirebase(sourceUrl: string, productId: string): Promise<string> {
-    const filename = `products/${productId}/video_${Date.now()}.mp4`;
-    const file = bucket.file(filename);
-
-    if (sourceUrl.startsWith('data:')) {
-        const base64Data = sourceUrl.split(',')[1];
-        const buffer = Buffer.from(base64Data, 'base64');
-        await file.save(buffer, {
-            contentType: 'video/mp4',
-            metadata: { firebaseStorageDownloadTokens: crypto.randomUUID() }
-        });
-    } else {
-        // Simple copy if it's already a URL
-        const response = await fetch(sourceUrl);
-        const buffer = Buffer.from(await response.arrayBuffer());
-        await file.save(buffer, {
-            contentType: 'video/mp4'
-        });
-    }
-
-    // Make the file public or get a signed URL (for simplicity using public-like access via direct link)
-    // In production, use getDownloadURL equivalent or make the bucket public read.
-    return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filename)}?alt=media`;
-}
-
-
 export async function publishVideoToProduct(input: PublishVideoToProductInput): Promise<{ success: boolean; permanentUrl?: string; error?: string }> {
   try {
-    // 1. Upload the video to Firebase Storage
-    const permanentVideoUrl = await uploadToFirebase(input.videoUrl, input.productId);
-    
-    // 2. Update the product document in Firestore
+    let permanentVideoUrl = input.videoUrl;
+
+    // Already stored on the VPS media system — attach as-is.
+    if (input.videoUrl.startsWith('/api/media/')) {
+      // no-op: the media record exists and is served by /api/media/file
+    } else if (input.videoUrl.startsWith('data:')) {
+      const base64Data = input.videoUrl.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      const stored = await storeGeneratedVideo(buffer, 'publish-flow');
+      permanentVideoUrl = stored.url;
+    } else {
+      // External URL — fetch and store a copy on the VPS.
+      const res = await fetch(input.videoUrl);
+      if (!res.ok) throw new Error('Could not retrieve the video for publishing.');
+      const buffer = Buffer.from(await res.arrayBuffer());
+      const stored = await storeGeneratedVideo(buffer, 'publish-flow');
+      permanentVideoUrl = stored.url;
+    }
+
     const productRef = db.collection('products').doc(input.productId);
     await productRef.update({
       videoUrls: FieldValue.arrayUnion(permanentVideoUrl),
@@ -57,8 +50,9 @@ export async function publishVideoToProduct(input: PublishVideoToProductInput): 
     });
 
     return { success: true, permanentUrl: permanentVideoUrl };
-  } catch (error: any) {
-    console.error("Failed to publish video:", error);
-    return { success: false, error: error.message };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Publishing failed.';
+    console.error('Failed to publish video:', message);
+    return { success: false, error: message };
   }
 }

@@ -16,6 +16,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const tools = [
   {
+    title: 'AI Studio — Create with AI',
+    description: 'Text → Video, Image → Video, Text → Image and Image → Image, all in one creation studio.',
+    icon: ImageGeneratorIcon,
+    href: '/dashboard/seller/ai-studio',
+    cta: 'Open AI Studio',
+    points: 100,
+  },
+  {
     title: 'AI Product Description',
     description: 'Generate compelling, SEO-friendly descriptions for your products.',
     icon: Sparkles,

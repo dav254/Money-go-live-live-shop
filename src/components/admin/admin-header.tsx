@@ -37,7 +37,7 @@ export function AdminHeader() {
               <SheetHeader className="sticky top-0 z-10 border-b bg-card p-4">
                 <SheetTitle asChild>
                   <Link href="/dashboard/admin">
-                    <Logo className="h-8 w-auto text-primary cursor-pointer" />
+                    <Logo className="text-3xl text-primary cursor-pointer" />
                   </Link>
                 </SheetTitle>
               </SheetHeader>

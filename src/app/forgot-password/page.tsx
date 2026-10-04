@@ -1,120 +1,112 @@
-
 'use client';
 
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { AuthLayout } from '@/components/layout/auth-layout';
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { KeyRound } from 'lucide-react';
-
-const formSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-});
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, MailCheck, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { VidnovLogo } from '@/components/logo';
 
 export default function ForgotPasswordPage() {
-  const auth = useAuth();
-  const { toast } = useToast();
-  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: '',
-    },
-  });
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setIsSubmitting(true);
+    setError(null);
     try {
-      await sendPasswordResetEmail(auth, values.email);
-      toast({
-        title: 'Password Reset Email Sent',
-        description: 'Please check your inbox (and spam folder) for instructions to reset your password.',
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
       });
-      router.push('/login');
-    } catch (error: any) {
-      console.error('Password Reset Error:', error);
-      let description = 'Could not send password reset email. Please try again.';
-      if (error.code === 'auth/user-not-found') {
-        description = 'No account found with this email address.';
-      }
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: description,
-      });
+      // The API always answers ok:true with a generic message.
+      setSubmitted(true);
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <AuthLayout>
-      <div className="flex items-center justify-center py-12 px-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-2 text-center">
-            <div className="flex justify-center">
-                <div className="p-3 bg-primary/10 rounded-full">
-                    <KeyRound className="h-8 w-8 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 vn-page-enter">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-8">
+          <Link href="/" aria-label="Vidnov home">
+            <VidnovLogo className="h-12 w-12" color="var(--foreground)" />
+          </Link>
+        </div>
+
+        <Card className="rounded-2xl border-border vn-shadow">
+          <CardHeader className="text-center">
+            {submitted ? (
+              <>
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+                  <MailCheck className="h-6 w-6 text-emerald-500" />
                 </div>
-            </div>
-            <CardTitle className="font-headline text-2xl">Forgot Password</CardTitle>
-            <CardDescription>
-              Enter your email and we&apos;ll send you a link to reset your password.
-            </CardDescription>
+                <CardTitle className="font-grotesk text-2xl">Check your inbox</CardTitle>
+                <CardDescription className="text-sm leading-relaxed">
+                  If an account exists for this email, we have sent instructions to reset your password.
+                </CardDescription>
+              </>
+            ) : (
+              <>
+                <CardTitle className="font-grotesk text-2xl">Forgot your password?</CardTitle>
+                <CardDescription className="text-sm">
+                  Enter your email and we’ll send you a secure reset link. It expires in 60 minutes.
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <CardContent className="grid gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Sending...' : 'Send Reset Link'}
+
+          <CardContent>
+            {submitted ? (
+              <div className="space-y-5">
+                <div className="flex items-start gap-2.5 rounded-xl bg-muted/60 p-4 text-[13px] text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                  The link works once and can only be used by whoever has access to this inbox.
+                </div>
+                <Button asChild className="w-full h-12 rounded-xl font-semibold">
+                  <Link href="/login"><ArrowLeft className="mr-2 h-4 w-4" /> Back to login</Link>
                 </Button>
-                <p className="text-center text-sm text-muted-foreground">
-                  Remember your password?{' '}
-                  <Link href="/login" className="font-semibold text-primary hover:underline">
-                    Back to Login
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    autoFocus
+                    placeholder="you@example.com"
+                    className="h-12 rounded-xl"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Button type="submit" disabled={isSubmitting} className="w-full h-12 rounded-xl font-semibold vn-shadow-glow">
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send reset link
+                </Button>
+                <div className="text-center">
+                  <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground vn-transition">
+                    <ArrowLeft className="mr-1 inline h-3.5 w-3.5" /> Back to login
                   </Link>
-                </p>
-              </CardFooter>
-            </form>
-          </Form>
+                </div>
+              </form>
+            )}
+          </CardContent>
         </Card>
       </div>
-    </AuthLayout>
+    </div>
   );
 }

@@ -63,6 +63,7 @@ const PaystackIcon = ({ isKenya }: { isKenya: boolean }) => (
 export default function CheckoutPage(props: { params: Promise<{ orderId: string }> }) {
     const params = use(props.params);
     const orderId = params.orderId;
+    const router = useRouter();
     const firestore = useFirestore();
     const { user, isLoading: isUserLoading } = useUser();
     const { toast } = useToast();
@@ -75,14 +76,24 @@ export default function CheckoutPage(props: { params: Promise<{ orderId: string 
         setUserLocation(getLocationFromStorage());
     }, []);
 
+    // Signed-out visitors cannot read their order — send them to sign in
+    // with a return path so checkout resumes after auth.
+    useEffect(() => {
+        if (!isUserLoading && !user) {
+            router.replace(`/login?returnTo=/checkout/${orderId}`);
+        }
+    }, [isUserLoading, user, orderId, router]);
+
     const isKenya = useMemo(() => {
         return userLocation?.country?.toUpperCase() === 'KENYA' || userLocation?.city?.toUpperCase() === 'NAIROBI';
     }, [userLocation]);
 
     const orderRef = useMemoFirebase(() => {
-        if (!orderId || !firestore) return null;
+        // Do not query until auth is resolved — otherwise Firestore fires a
+        // rules-denied GET with auth:null (Missing or insufficient permissions).
+        if (!orderId || !firestore || !user) return null;
         return doc(firestore, 'orders', orderId);
-    }, [firestore, orderId]);
+    }, [firestore, orderId, user]);
 
     const { data: order, isLoading: isLoadingOrder } = useDoc<Order>(orderRef);
     
@@ -127,7 +138,7 @@ export default function CheckoutPage(props: { params: Promise<{ orderId: string 
         }
     };
 
-    if (!isMounted || isLoadingOrder || isUserLoading) {
+    if (!isMounted || isUserLoading || isLoadingOrder || !user) {
         return (
             <BuyerLayout>
                 <div className="container py-12">

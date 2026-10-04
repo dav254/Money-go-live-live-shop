@@ -29,7 +29,7 @@ export function ShopStoryHighlights({ highlights = defaultHighlights }: ShopStor
                     <div className="bg-neutral-900 p-0.5 rounded-full h-full w-full">
                          <img 
                             src={highlight.imageUrl} 
-                            alt={highlight.title} 
+                            alt={highlight?.title || 'Story highlight'} 
                             className="h-full w-full object-cover rounded-full transition-transform duration-300 group-hover:scale-90"
                         />
                     </div>

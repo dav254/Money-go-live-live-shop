@@ -29,7 +29,7 @@ import Link from 'next/link';
 import { useAuth, useFirestore, useUser, useUserProfile } from '@/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
@@ -46,6 +46,7 @@ export default function LoginPage() {
   const { user, isLoading: isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
@@ -54,19 +55,30 @@ export default function LoginPage() {
         toast({ variant: 'destructive', title: 'Access Denied', description: 'Your account is suspended.' });
         return;
       }
-      
+
+      // ROLE-ROUTED SIGN-IN (security): every user lands in THEIR section —
+      // a buyer can never arrive in the seller workspace or admin console.
       const role = userProfile.userRole || userProfile.role;
-      if (role === 'seller') {
-        router.replace('/dashboard/seller');
-      } else if (role === 'reseller') {
-        router.replace('/dashboard/reseller');
-      } else if (role === 'admin') {
-        router.replace('/dashboard/admin');
-      } else {
-        router.replace('/buyer/dashboard');
-      }
+      const roleHome =
+        role === 'seller' ? '/dashboard/seller'
+        : role === 'reseller' ? '/dashboard/reseller'
+        : role === 'admin' ? '/dashboard/admin'
+        : '/buyer/dashboard';
+
+      // Honor ?returnTo= ONLY when it stays inside the user's own area.
+      const requested = searchParams?.get('returnTo');
+      const safeReturn =
+        requested && requested.startsWith('/') && !requested.startsWith('//')
+          ? (role === 'admin' && requested.startsWith('/dashboard/admin')) ||
+            (role === 'seller' && (requested.startsWith('/dashboard') || !requested.startsWith('/buyer'))) ||
+            ((role === 'buyer' || role === 'reseller') && !requested.startsWith('/dashboard/admin'))
+            ? requested
+            : null
+          : null;
+
+      router.replace(safeReturn ?? roleHome);
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast]);
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast, searchParams]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -103,7 +115,7 @@ export default function LoginPage() {
         await setDoc(userDocRef, profile);
       }
       
-      toast({ title: 'Login Successful!', description: "Welcome to GoEarn." });
+      toast({ title: 'Login Successful!', description: "Welcome to Vidnov." });
     } catch (error: any) {
       console.error('Google Auth Error:', error);
       toast({
@@ -131,14 +143,14 @@ export default function LoginPage() {
             toast({ variant: 'destructive', title: 'Account Suspended', description: 'Your account has been suspended.' });
             return;
         }
-        toast({ title: 'Login Successful!', description: "Welcome back to GoEarn." });
+        toast({ title: 'Login Successful!', description: "Welcome back to Vidnov." });
       }
     } catch (error: any) {
       console.error('Login Error:', error);
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: 'The email or password you entered is incorrect.',
+        description: 'Invalid password.',
       });
     }
   }
@@ -149,7 +161,7 @@ export default function LoginPage() {
         <Card className="w-full max-w-md border-primary/20 shadow-2xl">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="font-headline text-2xl uppercase tracking-tighter">Welcome Back</CardTitle>
-            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your GoEarn account</CardDescription>
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sign in to your Vidnov account</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <Button 

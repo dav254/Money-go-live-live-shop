@@ -1,7 +1,7 @@
 'use client';
 
-import { useUser, useFirestore } from '@/firebase';
-import { getAuth, signOut } from 'firebase/auth';
+import { useUser, useFirestore, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -16,7 +16,9 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 export function UserNav() {
   const { user, isLoading: isUserLoading } = useUser();
   const firestore = useFirestore();
-  const auth = getAuth();
+  // The active surface's Auth instance — the website and the installed app each
+  // have their own session, so never use the no-argument getAuth() here.
+  const auth = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -36,8 +38,11 @@ export function UserNav() {
     try {
       await signOut(auth);
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
-      // Immediate redirect to login to ensure session is cleared from UI
-      router.push('/login'); 
+      // Home, not /login. `/login` is a dead end for someone who did not come
+      // here to sign in, and `push` rather than `replace` meant Back walked
+      // straight back onto a private screen with no session. This follows the
+      // single rule in `src/lib/auth/sign-out-to-home.ts`.
+      router.replace('/'); 
     } catch (error) {
       console.error("Sign out error", error);
       toast({ variant: "destructive", title: "Error signing out" });

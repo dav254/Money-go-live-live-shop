@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Loader2, Sparkles } from 'lucide-react';
+import { claimSignupReferral, claimFailureMessage } from '@/lib/referrals/claim';
 
 const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -58,7 +59,7 @@ function SignupFormContent() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const defaultRole = (searchParams.get('role') as 'buyer' | 'seller') || 'buyer';
+  const defaultRole = ((searchParams?.get('role') as 'buyer' | 'seller') ?? 'buyer') || 'buyer';
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -106,7 +107,28 @@ function SignupFormContent() {
           freePointsAwardedAt: selectedRole === 'seller' ? new Date().toISOString() : null
         };
         await setDoc(userDocRef, profile);
+        // Fire the welcome flow (in-app notification + welcome email) without blocking signup.
+        fetch('/api/auth/welcome', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: profile.fullName, role: selectedRole }),
+        }).catch(() => {});
         toast({ title: selectedRole === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!' });
+
+        // Referral capture. Fire-and-forget: the account already exists, so a
+        // failed claim must not undo it. Only a code that was PRESENT but not
+        // recorded is worth telling the user about — otherwise they believe
+        // their referrer earned points that never arrived.
+        void claimSignupReferral({
+          code: searchParams?.get('ref'),
+          name: profile.fullName,
+          email: signedUpUser.email || undefined,
+        }).then((result) => {
+          const message = claimFailureMessage(result.reason ?? undefined);
+          if (message) {
+            toast({ variant: 'destructive', title: 'Invite code not applied', description: message });
+          }
+        });
       }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Authentication Failed' });
@@ -134,7 +156,26 @@ function SignupFormContent() {
         freePointsAwardedAt: values.role === 'seller' ? new Date().toISOString() : null
       };
       await setDoc(userDocRef, profile);
+      // Fire the welcome flow (in-app notification + welcome email) without blocking signup.
+      fetch('/api/auth/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: values.fullName, role: values.role }),
+      }).catch(() => {});
       toast({ title: values.role === 'seller' ? 'Welcome Bonus Awarded! 🎁' : 'Account Created!' });
+
+      // Same referral capture as the Google path above — see the comment there
+      // for why it cannot block signup.
+      void claimSignupReferral({
+        code: searchParams?.get('ref'),
+        name: values.fullName,
+        email: values.email,
+      }).then((result) => {
+        const message = claimFailureMessage(result.reason ?? undefined);
+        if (message) {
+          toast({ variant: 'destructive', title: 'Invite code not applied', description: message });
+        }
+      });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Signup Failed', description: error.message });
     }

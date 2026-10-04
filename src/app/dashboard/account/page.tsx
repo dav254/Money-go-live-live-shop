@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useSearchParams } from 'next/navigation';
 import { SellerLayout } from '@/components/layout/seller-layout';
 import { BuyerLayout } from '@/components/layout/buyer-layout';
 import {
@@ -19,10 +20,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X, MapPin, RefreshCw, Palette, Sun, Moon, Monitor } from 'lucide-react';
+import { Camera, Lock, User, Loader2, ShieldCheck, UploadCloud, File as FileIcon, X, MapPin, RefreshCw, Palette, Sun, Moon, Monitor, LifeBuoy, Store } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -35,15 +35,9 @@ import { detectLocation, saveLocationToStorage, getLocationFromStorage, type Use
 import { cn } from '@/lib/utils';
 import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useTheme } from 'next-themes';
-
-const passwordFormSchema = z.object({
-  oldPassword: z.string().min(1, { message: "Old password is required." }),
-  newPassword: z.string().min(6, { message: "New password must be at least 6 characters." }),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+import { SecurityAndSessions } from '@/components/account/security-and-sessions';
+import { AccountSupport } from '@/components/account/account-support';
+import { AccountShopProfile } from '@/components/account/account-shop-profile';
 
 const profileFormSchema = z.object({
     fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
@@ -165,7 +159,6 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
     const { toast } = useToast();
     const firestore = useFirestore();
     const { theme, setTheme } = useTheme();
-    const [isPasswordSaving, setIsPasswordSaving] = useState(false);
     const [isProfileSaving, setIsProfileSaving] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -173,6 +166,15 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
     const avatarInputRef = useRef<HTMLInputElement>(null);
     
     const [isDetecting, setIsDetecting] = useState(false);
+
+    // Deep-linkable tab: /dashboard/account?tab=security|shop|support…
+    const searchParams = useSearchParams();
+    const initialTab = searchParams?.get('tab');
+    const [tab, setTab] = useState<string>(
+        initialTab && ['profile', 'appearance', 'verification', 'shop', 'security', 'support'].includes(initialTab)
+            ? initialTab
+            : 'profile',
+    );
 
     const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
@@ -183,15 +185,6 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             bio: userProfile?.bio || '',
             location: userProfile?.location || '',
         }
-    });
-
-    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
-        resolver: zodResolver(passwordFormSchema),
-        defaultValues: {
-            oldPassword: '',
-            newPassword: '',
-            confirmPassword: '',
-        },
     });
 
     useEffect(() => {
@@ -262,32 +255,17 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
         }
     };
 
-    const onPasswordSubmit = async (values: z.infer<typeof passwordFormSchema>) => {
-        if (!user || !user.email) return;
-        setIsPasswordSaving(true);
-        const auth = getAuth();
-        const credential = EmailAuthProvider.credential(user.email, values.oldPassword);
-        try {
-            await reauthenticateWithCredential(user, credential);
-            await updatePassword(user, values.newPassword);
-            toast({ title: 'Password Updated' });
-            passwordForm.reset();
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Update Failed', description: 'Your old password might be incorrect.' });
-        } finally {
-            setIsPasswordSaving(false);
-        }
-    };
-
     return (
       <div className="flex-1 space-y-4 p-8 pt-6">
         <h1 className="font-headline text-3xl font-bold tracking-tight">Account & Preferences</h1>
-        <Tabs defaultValue="profile" className="space-y-4">
+        <Tabs defaultValue="profile" value={tab} onValueChange={(v) => setTab(v)} className="space-y-4">
           <TabsList className="bg-muted/50 p-1">
             <TabsTrigger value="profile"><User className="mr-2 h-4 w-4" /> My Profile</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4" /> Appearance</TabsTrigger>
             {userProfile?.userRole === 'seller' && <TabsTrigger value="verification"><ShieldCheck className="mr-2 h-4 w-4" /> Verification</TabsTrigger>}
-            <TabsTrigger value="security"><Lock className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+            {userProfile?.userRole === 'seller' && <TabsTrigger value="shop"><Store className="mr-2 h-4 w-4" /> Shop</TabsTrigger>}
+            <TabsTrigger value="security"><Lock className="mr-2 h-4 w-4" /> Security &amp; Sessions</TabsTrigger>
+            <TabsTrigger value="support"><LifeBuoy className="mr-2 h-4 w-4" /> Support</TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile">
@@ -430,28 +408,18 @@ const AccountSettingsContent = ({ user, userProfile, isLoading: isProfileLoading
             </Card>
           </TabsContent>
 
+          {userProfile?.userRole === 'seller' && (
+            <TabsContent value="shop">
+              <AccountShopProfile />
+            </TabsContent>
+          )}
+
           <TabsContent value="security">
-            <Card>
-              <CardHeader><CardTitle>Security Settings</CardTitle><CardDescription>Manage your password and account security settings.</CardDescription></CardHeader>
-              <CardContent className="space-y-6">
-                 <Form {...passwordForm}>
-                    <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
-                        <FormField control={passwordForm.control} name="oldPassword" render={({ field }) => (
-                            <FormItem><FormLabel>Current Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormField control={passwordForm.control} name="newPassword" render={({ field }) => (
-                                <FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={passwordForm.control} name="confirmPassword" render={({ field }) => (
-                                <FormItem><FormLabel>Confirm New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                        </div>
-                        <Button type="submit" disabled={isPasswordSaving}>{isPasswordSaving && <Loader2 className="animate-spin mr-2" />}Update Password</Button>
-                    </form>
-                 </Form>
-              </CardContent>
-            </Card>
+            <SecurityAndSessions />
+          </TabsContent>
+
+          <TabsContent value="support">
+            <AccountSupport />
           </TabsContent>
         </Tabs>
       </div>

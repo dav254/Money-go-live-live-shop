@@ -174,7 +174,7 @@ export default function AdminSellersPage() {
       id: profile.id,
       businessName: profile.shopName || profile.username,
       ownerName: profile.fullName,
-      email: profile.email,
+      email: profile.email ?? '',
       phone: profile.phoneNumber,
       totalSales: 0, // Placeholder
       productCount: 0, // Placeholder

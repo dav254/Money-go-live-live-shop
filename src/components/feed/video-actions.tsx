@@ -1,7 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Share2, ShoppingBag, Volume2, VolumeX, ChevronUp, ChevronDown, Heart, Bookmark } from 'lucide-react';
+import Link from 'next/link';
+import { MessageCircle, Share2, ShoppingBag, Heart, Bookmark, Send } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useUserProfile } from '@/firebase';
@@ -16,9 +17,22 @@ interface VideoActionsProps {
   commentCount?: number;
   onProductClick?: () => void;
   onCommentClick?: () => void;
-  onScroll?: (direction: 'up' | 'down') => void;
-  isMuted: boolean;
-  onMuteToggle: () => void;
+  /** Removed with the scroll arrows; kept out of the rail entirely. */
+  /**
+   * No mute control. The feed is watched on phones, where volume is a hardware
+   * button, and an on-screen toggle competed with the device's own. Sound now
+   * plays at 50% — see `video-card.tsx`.
+   */
+  /**
+   * Where the CHAT rail button goes — the conversation with this product's
+   * seller. Resolved by the caller for the same reason `productHref` is: the
+   * app and the website have different messages routes.
+   *
+   * This is deliberately NOT the comment bubble. That one opens public
+   * comments on the video; overwriting it would delete a working feature to
+   * add another, so chat gets its own button instead.
+   */
+  messageHref?: string;
 }
 
 export function VideoActions({
@@ -26,9 +40,7 @@ export function VideoActions({
   commentCount = 0,
   onProductClick,
   onCommentClick,
-  onScroll,
-  isMuted,
-  onMuteToggle,
+  messageHref,
 }: VideoActionsProps) {
   const { toast } = useToast();
   const { user } = useUser();
@@ -125,20 +137,16 @@ export function VideoActions({
     });
   };
 
-  const handleScrollClick = (direction: 'up' | 'down') => {
-    if (typeof onScroll === 'function') {
-      onScroll(direction);
-    }
-  };
-
+  /*
+   * No up/down scroll arrows.
+   *
+   * The feed is a snapping vertical pager, so a swipe already does exactly what
+   * these did, and a full-tap jump skips the product you were reading. Two more
+   * unlabelled circles in the rail also pushed the real actions — like, save,
+   * comment, chat, shop — out of comfortable thumb reach.
+   */
   return (
     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4 z-20">
-      <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('up')}>
-          <ChevronUp className="h-6 w-6 text-white" />
-        </Button>
-      </div>
-      
       <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleLike}>
           <Heart className={cn("h-6 w-6 text-white transition-colors", isLiked && "fill-red-500 text-red-500")} />
@@ -146,11 +154,23 @@ export function VideoActions({
         <span className="text-[10px] font-black text-white uppercase drop-shadow-md mt-1">{likeCount.toLocaleString()}</span>
       </div>
 
+      {/*
+        Icon only, no word underneath. The bookmark fills and turns primary
+        when saved, so the state is already legible — and the label was the
+        widest element in the rail, which is what made the column read as a
+        stack of captions rather than a set of controls.
+      */}
       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={handleSave}>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={isSaved ? 'Remove from saved' : 'Save'}
+          aria-pressed={isSaved}
+          className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70"
+          onClick={handleSave}
+        >
           <Bookmark className={cn("h-6 w-6 text-white transition-colors", isSaved && "fill-primary text-primary")} />
         </Button>
-        <span className="text-[10px] font-black text-white uppercase drop-shadow-md mt-1">{isSaved ? 'SAVED' : 'SAVE'}</span>
       </div>
 
       <div className="flex flex-col items-center">
@@ -166,23 +186,25 @@ export function VideoActions({
         </Button>
       </div>
 
+      {/* Talk to the seller about THIS product. Sits directly above the SHOP
+          button so the two product-level actions read as a pair. */}
+      {messageHref && (
+        <div className="flex flex-col items-center">
+          <Button asChild size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70">
+            <Link href={messageHref} aria-label={`Message the seller about ${product.name || 'this product'}`}>
+              <Send className="h-6 w-6 text-white" />
+            </Link>
+          </Button>
+          <span className="text-[10px] font-black text-white uppercase drop-shadow-md mt-1">CHAT</span>
+        </div>
+      )}
+
        <div className="flex flex-col items-center">
         <Button size="icon" variant="ghost" className="rounded-full bg-primary h-12 w-12 hover:bg-primary/80 shadow-xl shadow-primary/20" onClick={onProductClick}>
           <ShoppingBag className="h-6 w-6 text-primary-foreground" />
         </Button>
       </div>
 
-      <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={onMuteToggle}>
-          {isMuted ? <VolumeX className="h-6 w-6 text-white" /> : <Volume2 className="h-6 w-6 text-white" />}
-        </Button>
-      </div>
-
-       <div className="flex flex-col items-center">
-        <Button size="icon" variant="ghost" className="rounded-full bg-black/50 h-12 w-12 hover:bg-black/70" onClick={() => handleScrollClick('down')}>
-          <ChevronDown className="h-6 w-6 text-white" />
-        </Button>
-      </div>
     </div>
   );
 }

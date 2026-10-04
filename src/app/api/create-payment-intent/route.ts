@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import paypal from '@paypal/checkout-server-sdk';
 import { randomBytes } from 'crypto';
+import { publicUrl } from '@/lib/site-url';
 
 function getPayPalClient() {
     const clientId = process.env.PAYPAL_CLIENT_ID;
@@ -17,7 +18,7 @@ function getPayPalClient() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { amount, email, gateway, metadata, transactionType, orderId } = body;
+        const { amount, email, gateway, metadata, transactionType, orderId, channel } = body;
 
         if (!amount || !email || !gateway) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
 
         const reference = `${orderId || 'PTS'}-${randomBytes(8).toString('hex')}`;
         let checkoutUrl;
+        let fallbackNotice: string | undefined;
 
         if (gateway === 'paystack') {
             const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
@@ -36,28 +38,82 @@ export async function POST(request: Request) {
             // We convert the USD amount to KES (using 130 as a standard rate)
             const kesAmount = Math.round(amount * 130 * 100); // Amount in cents (shillings)
 
-            const response = await fetch('https://api.paystack.co/transaction/initialize', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${paystackSecret}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email: email,
-                    amount: kesAmount, 
-                    currency: 'KES',
-                    channels: ['card', 'mobile_money', 'bank', 'ussd'],
-                    reference: reference,
-                    metadata: {
-                        ...metadata,
-                        orderId: orderId,
-                        transactionType: transactionType || 'product-purchase'
-                    }
-                })
-            });
+            /*
+             * Channels.
+             *
+             * When the client names one (the app checkout lets a buyer pick
+             * M-PESA / card / bank explicitly) we forward that ONE so Paystack
+             * opens already on the method they chose, instead of making them
+             * pick again from a list.
+             *
+             * Without a choice we send all four. Note this only ever NARROWS
+             * what Paystack may offer: Paystack intersects the list with the
+             * channels actually enabled on the merchant account. So a card
+             * missing at the real Paystack page is a dashboard setting, not
+             * something this array can fix — send all of them and let the
+             * account decide.
+             */
+            const ALL_CHANNELS = ['card', 'mobile_money', 'bank', 'ussd'];
+            const requested = typeof channel === 'string' ? channel.trim() : '';
+            const channels = ALL_CHANNELS.includes(requested) ? [requested] : ALL_CHANNELS;
 
-            const data = await response.json();
-            
+            const initialize = async (channelList: string[]) => {
+                const response = await fetch('https://api.paystack.co/transaction/initialize', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${paystackSecret}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        amount: kesAmount,
+                        currency: 'KES',
+                        channels: channelList,
+                        reference: reference,
+                        metadata: {
+                            ...metadata,
+                            orderId: orderId,
+                            transactionType: transactionType || 'product-purchase',
+                            requestedChannel: requested || 'any'
+                        }
+                    })
+                });
+                return response.json();
+            };
+
+            let data = await initialize(channels);
+
+            /*
+             * A channel can be a valid Paystack name and still be switched off
+             * on the merchant account. Paystack answers that with "No active
+             * channel to process transaction" instead of an authorization URL.
+             *
+             * Without this the buyer who picked "Credit or debit card" on an
+             * account without Cards enabled gets a raw 400 and no way to pay.
+             * So we retry once with every channel and let Paystack offer
+             * whatever IS active, telling the client we had to widen the
+             * choice so the screen can say so rather than silently swapping
+             * the method under them.
+             */
+            const narrowed = channels.length < ALL_CHANNELS.length;
+            if (narrowed && !data.data?.authorization_url) {
+                const widened = await initialize(ALL_CHANNELS);
+                if (widened.data?.authorization_url) {
+                    data = widened;
+                    // Name only the method they actually asked for. We have
+                    // proven that one is off; we have not probed the others, so
+                    // claiming more than that would be a guess.
+                    const CHANNEL_LABELS: Record<string, string> = {
+                        card: 'Card payment',
+                        bank: 'Bank transfer',
+                        ussd: 'USSD payment',
+                        mobile_money: 'Mobile money',
+                    };
+                    const label = CHANNEL_LABELS[requested] || 'That payment method';
+                    fallbackNotice = `${label} is not enabled on our Paystack account yet, so Paystack will show the other methods available.`;
+                }
+            }
+
             if (!data.status || !data.data?.authorization_url) {
                 return NextResponse.json({ error: data.message || 'Paystack initialization failed' }, { status: 400 });
             }
@@ -86,8 +142,13 @@ export async function POST(request: Request) {
                     }),
                 }],
                 application_context: {
-                    return_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || 'points'}?status=success`,
-                    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/checkout/${orderId || 'points'}?status=cancelled`,
+                    // `publicUrl` rather than a bare `process.env` read: with
+                    // NEXT_PUBLIC_BASE_URL unset this used to send PayPal the
+                    // literal string "undefined/checkout/…", and PayPal
+                    // validates return URLs — so the buyer was returned to a
+                    // dead link after paying.
+                    return_url: publicUrl(`/checkout/${orderId || 'points'}?status=success`),
+                    cancel_url: publicUrl(`/checkout/${orderId || 'points'}?status=cancelled`),
                 },
             });
             
@@ -104,7 +165,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid payment gateway' }, { status: 400 });
         }
 
-        return NextResponse.json({ checkoutUrl });
+        return NextResponse.json({ checkoutUrl, fallbackNotice });
 
     } catch (error: any) {
         console.error('Payment intent error:', error);

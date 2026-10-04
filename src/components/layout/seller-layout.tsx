@@ -16,6 +16,7 @@ import { useUserProfile } from '@/firebase/auth/use-user-profile';
 import { SellerHeader } from '../seller/seller-header';
 import { FirebaseErrorListener } from '../FirebaseErrorListener';
 import { cn } from '@/lib/utils';
+import { ROLE_HOME, canAccessSection, resolveRole } from '@/lib/auth/roles';
 import Link from 'next/link';
 
 export function SellerLayout({ children, fullWidth = false }: { children: React.ReactNode, fullWidth?: boolean }) {
@@ -23,19 +24,24 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isUserLoading && !isProfileLoading) {
-      if (!user) {
-        // Not logged in, redirect to login page
-        router.replace('/login');
-      } else if (userProfile && userProfile.userRole !== 'seller') {
-        // Logged in, but not a seller, redirect to homepage for role-based routing
-        router.replace('/');
-      }
-    }
-  }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+  // ROLE LOCK: the merchant workspace belongs to sellers (admins keep oversight
+  // access). Buyers and resellers are pushed back to their own section — the
+  // same redirect the global RoleBoundary performs.
+  const role = resolveRole(userProfile);
 
-  if (isUserLoading || isProfileLoading || !user || (userProfile && userProfile.userRole !== 'seller')) {
+  useEffect(() => {
+    if (isUserLoading || isProfileLoading) return;
+    if (!user) {
+      // Not logged in, redirect to login page
+      router.replace('/login');
+      return;
+    }
+    if (role && !canAccessSection(role, 'seller')) router.replace(ROLE_HOME[role]);
+  }, [user, isUserLoading, isProfileLoading, role, router]);
+
+  const accessDenied = !!role && !canAccessSection(role, 'seller');
+
+  if (isUserLoading || isProfileLoading || !user || accessDenied) {
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <p className="text-[10px] font-black uppercase tracking-widest animate-pulse">Syncing Merchant Node...</p>
@@ -49,7 +55,7 @@ export function SellerLayout({ children, fullWidth = false }: { children: React.
         <Sidebar side="left" collapsible="icon">
           <SidebarHeader className="border-b bg-card p-4">
             <Link href="/dashboard/seller">
-              <Logo className="h-8 w-auto text-primary cursor-pointer" />
+              <Logo className="text-3xl text-primary cursor-pointer" />
             </Link>
           </SidebarHeader>
           <SidebarContent>

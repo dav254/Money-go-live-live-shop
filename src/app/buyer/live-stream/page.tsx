@@ -84,7 +84,15 @@ function RealtimeVideoCard({ product, isIntersecting, onScroll }: { product: Pro
 
     return (
         <div className="h-full w-full snap-start flex-shrink-0">
-          <VideoCard item={feedItem} isIntersecting={isIntersecting} onScroll={onScroll} />
+          <VideoCard
+            item={feedItem}
+            isIntersecting={isIntersecting}
+            onScroll={onScroll}
+            productHref={`/products/${product.id}`}
+            shopLinkLabel="Visit Shop"
+            checkoutHrefFor={(orderId) => `/checkout/${orderId}`}
+            messageHref={`/messages?chatWith=${encodeURIComponent(product.sellerId || '')}`}
+          />
         </div>
     );
 }

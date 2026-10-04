@@ -14,22 +14,28 @@ import {
   ShoppingCart,
   CreditCard,
   Radio,
-  Video,
   Heart,
+  Inbox,
+  Compass,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useUserProfile } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import type { Chat, LiveSession, Order } from '@/lib/types';
+import type { Chat, Order } from '@/lib/types';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { InstallAppButton } from '@/components/install-app-button';
+import { SectionNavItem } from '@/components/layout/section-nav-item';
 
 export function BuyerSidebar() {
   const pathname = usePathname();
-  const isActive = (path: string) => pathname.startsWith(path);
+  const isActive = (path: string) => !!pathname && pathname.startsWith(path);
   
   const { user } = useUser();
+  const { userProfile } = useUserProfile(user?.uid);
   const firestore = useFirestore();
 
   // Query for unread messages
@@ -44,15 +50,6 @@ export function BuyerSidebar() {
     if (!chats || !user) return 0;
     return chats.reduce((acc, chat) => acc + (chat.unreadCounts?.[user.uid] || 0), 0);
   }, [chats, user]);
-
-  // Query for any active live sessions globally
-  const activeSessionsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'liveSessions'), where('status', '==', 'live'));
-  }, [firestore]);
-
-  const { data: activeSessions } = useCollection<LiveSession>(activeSessionsQuery);
-  const liveCount = useMemo(() => activeSessions?.length || 0, [activeSessions]);
 
   // Query for cart items to display count
   const cartQuery = useMemoFirebase(() => {
@@ -89,29 +86,49 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        {/* ONE live surface only — VIDNOV LIVE (VideoSDK transport). The old
+            "Live Feed" / "Live Now" product feeds were removed. */}
+        <SectionNavItem href="/live">
         <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live')} tooltip="Live Feed">
-            <Link href="/buyer/live">
-              <Video />
-              <span>Live Feed</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/live-now')} tooltip="Live Shows">
-            <Link href="/buyer/live-now" className="relative flex items-center justify-between w-full">
+          <SidebarMenuButton asChild size="sm" isActive={!!pathname && (pathname === '/live' || pathname.startsWith('/live/'))} tooltip="Vidnov Live">
+            <Link href="/live" className="relative flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
-                <Radio className={liveCount > 0 ? "text-red-600" : ""} />
-                <span>Live Now</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-red-600 to-orange-500 shadow-md shadow-red-600/25">
+                  <Radio className="h-3.5 w-3.5 text-white" />
+                </span>
+                <span className="font-semibold">LIVE</span>
               </div>
-              {liveCount > 0 && (
-                <Badge className="h-5 min-w-[1.25rem] px-1 bg-red-600 text-white border-none text-[10px] font-black shrink-0 flex items-center justify-center shadow-lg shadow-red-600/20">
-                  {liveCount}
-                </Badge>
-              )}
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" aria-hidden />
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        </SectionNavItem>
+        {/* Discovery — the vertical feed of sellers' media. It is its own route
+            (`/buyer/discovery`) and NOT a link to `/dashboard/seller/live-feed`:
+            that page wraps itself in `SellerLayout`, so following it would drop a
+            buyer into the seller workspace with a back button pointing at a
+            seller dashboard. Both surfaces render one shared feed component. */}
+        <SectionNavItem href="/buyer/discovery">
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/discovery')} tooltip="Discovery">
+            <Link href="/buyer/discovery">
+              <Compass className="text-violet-500" />
+              <span>Discovery</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        </SectionNavItem>
+        <SectionNavItem href="/buyer/requests">
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/requests')} tooltip="Requests">
+            <Link href="/buyer/requests">
+              <Inbox className="text-cyan-500" />
+              <span>Requests</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        </SectionNavItem>
+        <SectionNavItem href="/buyer/wishlist">
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wishlist')} tooltip="Wishlist">
             <Link href="/buyer/wishlist">
@@ -120,6 +137,10 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        </SectionNavItem>
+        {/* "My Media" removed from the buyer sidebar for now — the media
+            library is still reachable from the dashboard and /my-media. */}
+         <SectionNavItem href="/cart">
          <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/cart')} tooltip="My Cart">
             <Link href="/cart" className="relative flex items-center justify-between w-full">
@@ -135,6 +156,8 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        </SectionNavItem>
+        <SectionNavItem href="/messages">
         <SidebarMenuItem>
           <SidebarMenuButton asChild size="sm" isActive={isActive('/messages')} tooltip="Messages">
             <Link href="/messages" className="relative flex items-center justify-between w-full">
@@ -150,12 +173,14 @@ export function BuyerSidebar() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        </SectionNavItem>
       </SidebarMenu>
     </SidebarGroup>
 
      <SidebarGroup>
         <SidebarGroupLabel>My Account</SidebarGroupLabel>
         <SidebarMenu>
+             <SectionNavItem href="/buyer/my-orders">
              <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/my-orders')} tooltip="My Orders">
                 <Link href="/buyer/my-orders" className="relative flex items-center justify-between w-full">
@@ -171,6 +196,8 @@ export function BuyerSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            </SectionNavItem>
+            <SectionNavItem href="/buyer/wallet">
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="sm" isActive={isActive('/buyer/wallet')} tooltip="Payments">
                 <Link href="/buyer/wallet">
@@ -179,8 +206,30 @@ export function BuyerSidebar() {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            </SectionNavItem>
         </SidebarMenu>
       </SidebarGroup>
+
+      {/* Install the updated app — same affordance sellers have. */}
+      <SidebarMenu className="mt-auto">
+        <Separator className="my-2" />
+        <SidebarMenuItem className="px-2 pb-1">
+          <InstallAppButton className="w-full justify-center border-primary/30 text-xs font-bold uppercase tracking-widest" />
+        </SidebarMenuItem>
+        <SectionNavItem href="/dashboard/account">
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild size="sm" isActive={isActive('/dashboard/account')}>
+            <Link href="/dashboard/account">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={userProfile?.profilePictureUrl} />
+                <AvatarFallback>{userProfile?.fullName?.[0]}</AvatarFallback>
+              </Avatar>
+              <span className="truncate">{userProfile?.fullName || 'My Account'}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        </SectionNavItem>
+      </SidebarMenu>
     </>
   );
 }
