@@ -26,7 +26,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
-import { useAuth, useFirestore, useUser, useUserProfile } from '@/firebase';
+import { useAuth, useFirestore, useSurface, useUser, useUserProfile } from '@/firebase';
+import { roleHomeFor, type AppRole } from '@/lib/auth/roles';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -47,8 +48,16 @@ export default function LoginPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile(user?.uid);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const searchParams = useSearchParams();
+  // Which application this sign-in belongs to. Null until the client has mounted
+  // (it is latched in sessionStorage), so the redirect waits for it rather than
+  // guessing — guessing here is what sent app users to the website.
+  const surface = useSurface();
 
   useEffect(() => {
+    // Wait for the surface. It is latched in sessionStorage and is null through
+    // SSR and the first client render; redirecting on that null would send an
+    // app user to the website, which is the exact bug being fixed here.
+    if (surface === null) return;
     if (!isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.status === 'suspended') {
         auth.signOut();
@@ -59,11 +68,10 @@ export default function LoginPage() {
       // ROLE-ROUTED SIGN-IN (security): every user lands in THEIR section —
       // a buyer can never arrive in the seller workspace or admin console.
       const role = userProfile.userRole || userProfile.role;
-      const roleHome =
-        role === 'seller' ? '/dashboard/seller'
-        : role === 'reseller' ? '/dashboard/reseller'
-        : role === 'admin' ? '/dashboard/admin'
-        : '/buyer/dashboard';
+      // Surface-routed on top of that: signing in on the installed app opens the
+      // app's own section, signing in on the website opens the website. Hard
+      // coding the web paths sent app users out to a website they were not in.
+      const roleHome = roleHomeFor(role as AppRole, surface);
 
       // Honor ?returnTo= ONLY when it stays inside the user's own area.
       const requested = searchParams?.get('returnTo');
@@ -78,7 +86,7 @@ export default function LoginPage() {
 
       router.replace(safeReturn ?? roleHome);
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast, searchParams]);
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, auth, toast, searchParams, surface]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

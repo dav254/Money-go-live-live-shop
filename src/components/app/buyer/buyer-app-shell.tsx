@@ -5,20 +5,17 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
-  Bell, ChevronLeft, Home, Search, ShoppingCart, Package, User, LogOut,
-  Loader2, Menu, ShoppingBag,
+  Bell, ChevronLeft, Home, Search, ShoppingCart, Package, User,
+  Loader2, Menu,
 } from 'lucide-react';
 import {
-  useAuth, useCollection, useFirestore, useUser, useUserProfile,
+  useCollection, useFirestore, useUser, useUserProfile,
 } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import type { CartItem } from '@/lib/types';
 import { Logo } from '@/components/logo';
-import { AppSignIn } from '@/components/app/app-sign-in';
 import { BuyerNavDrawer } from '@/components/app/buyer/buyer-nav-drawer';
-import { openWebSurface } from '@/lib/auth/surface';
 import { resolveRole } from '@/lib/auth/roles';
-import { useSignOutToHome } from '@/lib/auth/sign-out-to-home';
 import { cn } from '@/lib/utils';
 
 /**
@@ -202,8 +199,6 @@ function BuyerTopBarInner({
   immersive?: boolean;
 }) {
   const router = useRouter();
-  const auth = useAuth();
-  const signOutAndGoHome = useSignOutToHome(auth);
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const profile = (userProfile ?? null) as { fullName?: string } | null;
@@ -253,21 +248,9 @@ function BuyerTopBarInner({
           <Menu className="h-5 w-5" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Go back"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 transition hover:bg-white/10"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-
-        <Logo className="text-xl" />
-
-        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-widest text-cyan-300">
-          <ShoppingBag className="h-3 w-3" />
-          Buyer
-        </span>
+        {/* `ml-auto` was on the section pill; with the pill gone the logo takes
+            over pushing the actions right, so the bar keeps its shape. */}
+        <Logo className="ml-auto text-xl" />
 
         <Link
           href="/app/buyer/notifications"
@@ -284,16 +267,6 @@ function BuyerTopBarInner({
         >
           {initials}
         </Link>
-
-        <button
-          type="button"
-          onClick={signOutAndGoHome}
-          aria-label="Sign out of the app"
-          title="Sign out of the app"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 transition hover:bg-white/10"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
       </div>
     </header>
   );
@@ -329,6 +302,22 @@ export function BuyerAppShell({ children }: { children: React.ReactNode }) {
   // drawer, and on immersive routes it is the only navigation left.
   const [navOpen, setNavOpen] = React.useState(false);
   const immersive = useImmersiveRoute();
+  const router = useRouter();
+  const pathname = usePathname() ?? '';
+
+  // Signed out: hand off to the real sign-in page. This section used to render
+  // the shared `AppSignIn` panel (now deleted) — a second copy of the same job
+  // that could only ever disagree with the actual one. The gate itself stays:
+  // `allowed` already folds in `!!user`, so dropping the branch without
+  // redirecting would render the buyer shell to anonymous visitors.
+  //
+  // All hooks sit above the early returns so the hook order does not change
+  // when `known` flips from false to true.
+  React.useEffect(() => {
+    if (known && !signedIn) {
+      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
+    }
+  }, [known, signedIn, pathname, router]);
 
   // Still resolving the profile: match the page's first paint exactly rather
   // than flashing a shell the user may not be entitled to (hydration).
@@ -340,13 +329,13 @@ export function BuyerAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Signed out: this is still the buyer section, so offer the section's own
-  // sign-in — the same screen the seller section shows, because the app has one
-  // account system shared with the website.
+  // Signed out: the redirect above is in flight. Hold the same neutral spinner
+  // as the unresolved state so the section never flashes its chrome at a
+  // visitor who cannot use it.
   if (!signedIn) {
     return (
-      <div className="vn-buyer-scope">
-        <AppSignIn />
+      <div className="flex min-h-screen items-center justify-center bg-[#0A1224]">
+        <Loader2 className="h-7 w-7 animate-spin text-cyan-400" />
       </div>
     );
   }
@@ -364,13 +353,6 @@ export function BuyerAppShell({ children }: { children: React.ReactNode }) {
             and admin never share a screen. Sign in with a buyer account to enter this one.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openWebSurface('/')}
-          className="rounded-xl border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-        >
-          Back to the website
-        </button>
       </div>
     );
   }

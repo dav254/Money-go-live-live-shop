@@ -14,13 +14,56 @@
 
 export type AppRole = 'buyer' | 'seller' | 'reseller' | 'admin';
 
-/** Where each role belongs when it is pushed out of a foreign section. */
+/** Where each role belongs on the WEBSITE when it is pushed out of a foreign section. */
 export const ROLE_HOME: Record<AppRole, string> = {
   seller: '/dashboard/seller',
   reseller: '/dashboard/reseller',
   admin: '/dashboard/admin',
   buyer: '/buyer/dashboard',
 };
+
+/**
+ * Where each role belongs inside the INSTALLED APP.
+ *
+ * The app is not a smaller website — it has its own route tree, its own layouts
+ * and its own sections — so a role's app home is a different path from its web
+ * home. Signing in from the app used to land on `/dashboard/seller` or
+ * `/buyer/dashboard`, which threw an app user out of the application into the
+ * website they were not using.
+ *
+ * Two roles have no app section of their own:
+ *
+ *   • reseller — there is no reseller section, and the seller section admits
+ *     resellers (`useSellerSectionAccess` allows `seller | reseller`), so that
+ *     is their app home.
+ *   • admin — admins are not on the app's role list at all; `SurfaceBoundary`
+ *     signs them out of it and sends them to their own console.
+ */
+export const APP_ROLE_HOME: Record<AppRole, string> = {
+  seller: '/app/seller',
+  reseller: '/app/seller',
+  admin: '/admin',
+  buyer: '/app/buyer',
+};
+
+/**
+ * The home for `role` on the surface the user is actually in.
+ *
+ * A surface always answers with its own route: signing in on the website opens
+ * the website, signing in on the app opens the app. Sending someone to the other
+ * one is the bug this exists to prevent — it reads as the app not knowing where
+ * it is.
+ */
+export function roleHomeFor(
+  role: AppRole,
+  surface: 'web' | 'app' | 'admin' | null,
+): string {
+  if (surface === 'app') return APP_ROLE_HOME[role];
+  if (surface === 'admin') return role === 'admin' ? '/admin' : ROLE_HOME[role];
+  // `null` means the surface is not resolved yet (SSR / first paint). The
+  // website home is the safe default: it renders without a session.
+  return ROLE_HOME[role];
+}
 
 /** Roles allowed to see a given section. Admins keep oversight everywhere. */
 export const ALLOWED_ROLES: Record<AppRole, AppRole[]> = {

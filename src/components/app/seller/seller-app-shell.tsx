@@ -5,20 +5,17 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
-  Bell, ChevronLeft, Home, Boxes, Plus, Package, LogOut,
-  Loader2, Menu, MessageSquare, Store,
+  Bell, ChevronLeft, Home, Boxes, Plus, Package,
+  Loader2, Menu, MessageSquare,
 } from 'lucide-react';
 import {
-  useAuth, useFirestore, useUser, useUserProfile, useMemoFirebase, useCollection,
+  useFirestore, useUser, useUserProfile, useMemoFirebase, useCollection,
 } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 import { Logo } from '@/components/logo';
-import { AppSignIn } from '@/components/app/app-sign-in';
 import { SellerNavDrawer } from '@/components/app/seller/seller-nav-drawer';
-import { openWebSurface } from '@/lib/auth/surface';
 import { resolveRole } from '@/lib/auth/roles';
-import { useSignOutToHome } from '@/lib/auth/sign-out-to-home';
 import { cn } from '@/lib/utils';
 
 /**
@@ -202,8 +199,6 @@ function useImmersiveRoute(): boolean {
 
 function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void; immersive?: boolean }) {
   const router = useRouter();
-  const auth = useAuth();
-  const signOutAndGoHome = useSignOutToHome(auth);
   const { user } = useUser();
   const { userProfile } = useUserProfile(user?.uid);
   const profile = (userProfile ?? null) as { fullName?: string } | null;
@@ -255,21 +250,9 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
           <Menu className="h-5 w-5" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Go back"
-          className="-ml-1 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-
-        <Logo className="text-xl" />
-
-        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
-          <Store className="h-3 w-3" />
-          Seller
-        </span>
+        {/* `ml-auto` was on the section pill; with the pill gone the logo takes
+            over pushing the actions right, so the bar keeps its shape. */}
+        <Logo className="ml-auto text-xl" />
 
         <Link
           href="/app/seller/notifications"
@@ -286,16 +269,6 @@ function SellerTopBar({ onOpenNav, immersive = false }: { onOpenNav: () => void;
         >
           {initials}
         </Link>
-
-        <button
-          type="button"
-          onClick={signOutAndGoHome}
-          aria-label="Sign out of the app"
-          title="Sign out of the app"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-secondary"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
       </div>
     </header>
   );
@@ -329,6 +302,22 @@ export function SellerAppShell({ children }: { children: React.ReactNode }) {
   // section lives in this drawer instead of being squeezed into it.
   const [navOpen, setNavOpen] = React.useState(false);
   const immersive = useImmersiveRoute();
+  const router = useRouter();
+  const pathname = usePathname() ?? '';
+
+  // Signed out: hand off to the real sign-in page. This section used to render
+  // its own sign-in panel (the `AppSignIn` screen, now deleted) — a second copy
+  // of the same job that could only ever disagree with the actual one. The gate
+  // itself stays: `allowed` already folds in `!!user`, so dropping the branch
+  // without redirecting would render the seller shell to anonymous visitors.
+  //
+  // All hooks sit above the early returns so the hook order does not change
+  // when `known` flips from false to true.
+  React.useEffect(() => {
+    if (known && !signedIn) {
+      router.replace(`/login?returnTo=${encodeURIComponent(pathname)}`);
+    }
+  }, [known, signedIn, pathname, router]);
 
   // Still resolving the profile: match the page's first paint exactly rather
   // than flashing a shell the user may not be entitled to (hydration).
@@ -340,12 +329,13 @@ export function SellerAppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Signed out: this is still the seller section, so offer the section's own
-  // sign-in rather than the "wrong role" screen — nobody has been rejected yet.
+  // Signed out: the redirect above is in flight. Hold the same neutral spinner
+  // as the unresolved state so the section never flashes its chrome at a
+  // visitor who cannot use it.
   if (!signedIn) {
     return (
-      <div className="vn-seller-scope">
-        <AppSignIn />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -366,13 +356,6 @@ export function SellerAppShell({ children }: { children: React.ReactNode }) {
             account to enter this one.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => openWebSurface('/')}
-          className="rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-secondary"
-        >
-          Back to the website
-        </button>
       </div>
     );
   }

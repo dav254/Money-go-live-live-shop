@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import {
-  Bell, ChevronRight, Globe, Heart, HelpCircle, LogOut, Mail,
+  Bell, ChevronRight, Heart, HelpCircle, LogOut, Mail,
   Sparkles, Store, Wallet,
 } from 'lucide-react';
 
@@ -12,7 +12,6 @@ import {
   useAuth, useCollection, useFirestore, useMemoFirebase, useUser, useUserProfile,
 } from '@/firebase';
 import type { Order } from '@/lib/types';
-import { openWebSurface } from '@/lib/auth/surface';
 import { useSignOutToHome } from '@/lib/auth/sign-out-to-home';
 import { BuyerSectionTitle } from '@/components/app/buyer/buyer-app-shell';
 
@@ -136,25 +135,13 @@ export default function BuyerSectionAccount() {
         </div>
       </section>
 
-      {/* Exits */}
+      {/* Exits.
+          "Use the website" used to sit here above sign out. It is gone for the
+          same reason it is gone on the seller account screen: an app that
+          offers to leave itself is telling the user it cannot do what the
+          website does. The app is the app. Signing out stays — that one is about
+          the device, not about which application is open. */}
       <section className="space-y-2 px-4">
-        <button
-          type="button"
-          onClick={() => openWebSurface('/')}
-          className="vn-buyer-card flex w-full items-center gap-3 p-3.5 text-left transition"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-card ring-1 ring-border">
-            <Globe className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-foreground">Use the website</span>
-            <span className="block font-sans text-[11px] text-muted-foreground">
-              Separate session — your sign-in here stays
-            </span>
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
-
         <button
           type="button"
           onClick={signOutAndGoHome}

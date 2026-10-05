@@ -36,6 +36,16 @@ export interface UserProfile {
    * field here, so the compiler stops calling a real read a missing property.
    */
   role?: 'buyer' | 'seller' | 'reseller' | 'admin';
+  /**
+   * Account standing, written by moderation. Absent on every profile that has
+   * never been suspended, which is why it is optional.
+   *
+   * Declared here because three call sites already read it — twice in the login
+   * flow and once in signup — and the compiler was calling those real reads a
+   * missing property. Optional rather than a union of `'active' | 'suspended'`
+   * with a default, so no profile has to be rewritten to satisfy the type.
+   */
+  status?: 'active' | 'suspended';
   wishlist?: string[]; // Array of product IDs
   /** Sellers this user follows. Read by the shop page's follow button. */
   following?: string[];

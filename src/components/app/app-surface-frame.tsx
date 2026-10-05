@@ -8,7 +8,7 @@ import { ChevronLeft, LogOut } from 'lucide-react';
 import { useAuth, useSurface } from '@/firebase';
 import { AdminAppTabBar } from '@/components/admin/admin-app-tab-bar';
 import { openAdminSurface } from '@/lib/auth/surface';
-import { ROLE_HOME, resolveRole } from '@/lib/auth/roles';
+import { roleHomeFor, resolveRole } from '@/lib/auth/roles';
 import { useSignOutToHome } from '@/lib/auth/sign-out-to-home';
 import { useUser, useUserProfile } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -122,11 +122,14 @@ export function AppSurfaceFrame({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Back always leads to *this user's own* workspace. Deriving it from the
-  // path instead would send a seller browsing a shared route back to the wrong
-  // workspace, because several routes are reachable from more than one section.
+  // Back always leads to *this user's own* workspace, on THIS surface. Deriving
+  // it from the path instead would send a seller browsing a shared route back to
+  // the wrong workspace, because several routes are reachable from more than one
+  // section. Resolving it per-surface matters for the same reason sign-in does:
+  // `ROLE_HOME` alone is the WEBSITE home, so back would have walked out of the
+  // app and into the site.
   const role = resolveRole(userProfile);
-  const home = ROLE_HOME[role ?? 'seller'];
+  const home = roleHomeFor(role ?? 'seller', surface);
   const isRoot = pathname === home || ROOT_PATHS.includes(pathname);
 
   return (

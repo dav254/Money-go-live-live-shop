@@ -30,6 +30,7 @@
 
 import { getMessaging, getToken, deleteToken, isSupported } from 'firebase/messaging';
 import type { User } from 'firebase/auth';
+import { getSurfaceApp } from '@/firebase/surface-auth';
 
 /** Result of an opt-in attempt. Never throws. */
 export type PushOptInResult =
@@ -93,7 +94,11 @@ export async function enablePush(user: User): Promise<PushOptInResult> {
     // FCM has nowhere to attach the subscription.
     const registration = await navigator.serviceWorker.ready;
 
-    const token = await getToken(getMessaging(), {
+    // Scoped to THIS surface's app. The no-argument `getMessaging()` resolves
+    // against `[DEFAULT]` — the website's app — which inside the installed app
+    // either throws outright or mints the token under the wrong session. See
+    // `getSurfaceApp`.
+    const token = await getToken(getMessaging(getSurfaceApp()), {
       vapidKey: key,
       serviceWorkerRegistration: registration,
     });
@@ -144,7 +149,7 @@ export async function disablePush(user: User): Promise<boolean> {
   try {
     if (typeof window === 'undefined') return false;
     if (await isSupported()) {
-      await deleteToken(getMessaging());
+      await deleteToken(getMessaging(getSurfaceApp()));
     }
 
     const idToken = await user.getIdToken();

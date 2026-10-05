@@ -147,10 +147,22 @@ export function SurfaceBoundary({ children }: { children: React.ReactNode }) {
         </p>
       </div>
 
-      <Button onClick={() => openWebSurface('/')} disabled={!!blocked}>
-        {onAdmin || !blocked ? 'Go to the website' : 'Back to the website'}
-        <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
+      {/* Only the admin console keeps a way out to the website.
+
+          On the app this button offered the one route out of the application to
+          someone who had just been signed out of it — saying out loud that the
+          app cannot do what the website does, which is the opposite of what the
+          split into per-role sections is for. The app explains the refusal and
+          stops there.
+
+          The admin console is a different application with its own sign-in, so
+          its users are not "in the app" and their escape is their business. */}
+      {onAdmin && (
+        <Button onClick={() => openWebSurface('/')} disabled={!!blocked}>
+          Go to the website
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

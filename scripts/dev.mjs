@@ -63,6 +63,43 @@ const MAX_RESPAWNS = Number(process.env.DEV_MAX_RESPAWNS || 8);
 const RESPAWN_WINDOW_MS = Number(process.env.DEV_RESPAWN_WINDOW_MS || 120_000);
 const RESPAWN_DELAY_MS = Number(process.env.DEV_RESPAWN_DELAY_MS || 1500);
 
+/**
+ * Memory watchdog.
+ *
+ * `next dev` never releases a compiled route, so its RSS climbs for the life of
+ * the process. On a ~2 GB box that ends in a hard V8 OOM:
+ *
+ *     FATAL ERROR: Ineffective mark-compacts near heap limit
+ *
+ * which the supervisor above respawns from — but the process still *died* first,
+ * and the platform saw a dev server that exited and reported the preview as
+ * failed to start. The symptom the user gets is "the dev server failed to
+ * start", for a condition that is really "the server got old".
+ *
+ * So the same restart is done deliberately, early: once the worker sits above
+ * the ceiling for two consecutive samples, recycle it while it is still healthy.
+ * A restart the launcher asked for is not a crash, and must not spend the
+ * crash-loop budget (see the exit handler) or a long session would eventually
+ * give up on a server behaving exactly as designed.
+ *
+ * The default ceiling is tuned to this box, not guessed: the original hard OOM
+ * landed with RSS around 1.5-1.6 GB, and the machine has ~1983 MB total with a
+ * few hundred MB already spoken for. 1450 MB sits under the point where V8 dies
+ * while leaving headroom for the kernel.
+ *
+ * It is deliberately NOT set lower. Too tight a ceiling does not prevent the
+ * crash, it just replaces it: every recycle costs a full recompile of every
+ * route (~15-20s each here), so a limit that trips a minute after boot makes the
+ * dev server slower than the OOM it was meant to avoid.
+ */
+const RSS_LIMIT_MB = Number(process.env.DEV_RSS_LIMIT_MB || 1450);
+const RSS_POLL_MS = Number(process.env.DEV_RSS_POLL_MS || 5_000);
+const RSS_STRIKES = Number(process.env.DEV_RSS_STRIKES || 2);
+/** Ignore a worker that just started: its cache is still warming, so RSS falls. */
+const MIN_UPTIME_MS = Number(process.env.DEV_MIN_UPTIME_MS || 45_000);
+/** How long to wait for our own dying worker to release the port on a recycle. */
+const PORT_FREE_WAIT_MS = Number(process.env.DEV_PORT_FREE_WAIT_MS || 15_000);
+
 const launcherHeapMb = () => Math.round(process.memoryUsage().rss / (1024 * 1024));
 
 /** RSS of the `next-server` worker (the process that actually holds memory). */
@@ -88,6 +125,29 @@ function serverRssMb() {
 
 /** True once we have asked the child to stop, so its exit is not "unexpected". */
 let stopping = false;
+/** True while we are deliberately recycling the worker (memory watchdog). */
+let recycling = false;
+/**
+ * True only for the child that replaced a recycled one.
+ *
+ * That one child is racing our own dying worker for port 3000. The
+ * EADDRINUSE guard below assumes a busy port belongs to somebody else and will
+ * not clear — true in general, false here, since the holder is exiting on its
+ * own within milliseconds. Treating that as fatal tore the whole preview down
+ * the first time the watchdog fired.
+ */
+let pendingRecycle = false;
+/**
+ * True from the moment a child exits until its replacement is spawned.
+ *
+ * Without this the watchdog keeps ticking while the launcher is waiting for the
+ * port to free: `child` still points at the dead process, `serverRssMb()` still
+ * reports the draining one, and the watchdog kills the same worker twice. The
+ * second kill then lands mid-respawn and the replacement loses the port race.
+ */
+let respawning = false;
+/** When the current child was spawned, so the watchdog can ignore a warming one. */
+let childStartedAt = 0;
 /** Timestamps of recent respawns, used to detect a crash loop. */
 const respawns = [];
 let child = null;
@@ -111,6 +171,13 @@ function noteStderr(chunk) {
 
   stderrTail = (stderrTail + chunk.toString()).slice(-4000);
   if (stderrTail.includes('EADDRINUSE')) {
+    if (pendingRecycle) {
+      console.error(
+        '[dev] port still held by the worker we just recycled — tolerating it; ' +
+          'the exit handler retries once the socket is released.',
+      );
+      return;
+    }
     console.error(
       '[dev] port ' + PORT + ' is already in use. Not retrying — another process ' +
         'holds it, so every further attempt would fail identically.',
@@ -119,8 +186,24 @@ function noteStderr(chunk) {
     // Hard stop. Do NOT respawn, and do not kill the holder: it may be a
     // healthy server the platform intends to keep.
     stopping = true;
-    if (child) child.kill('SIGTERM');
+    killChildTree('SIGTERM');
     process.exit(1);
+  }
+}
+
+/**
+ * Waits until our own dying worker has released the port.
+ *
+ * Only used after a planned recycle. A crashed child is gone immediately; a
+ * SIGTERMed one keeps its listening socket until it finishes shutting down,
+ * which on this box takes long enough to collide with its own replacement.
+ */
+async function waitForPortFree(maxMs) {
+  const deadline = Date.now() + maxMs;
+  for (;;) {
+    if (!(await portInUse())) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, 300));
   }
 }
 
@@ -139,14 +222,41 @@ function portInUse() {
   });
 }
 
+/**
+ * Kills the worker AND the server it spawned.
+ *
+ * `npx next dev` does not run the dev server itself — it shells out to
+ * `next-server` as a grandchild. Signalling only the wrapper leaves that
+ * grandchild alive and still holding port 3000, which is why a recycle
+ * followed by a respawn kept losing the port race: the log even shows requests
+ * served *after* the SIGTERM. `detached: true` puts the child in its own
+ * process group, and a negative pid signals the whole group.
+ */
+function killChildTree(signal) {
+  if (!child || !child.pid) return;
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    try {
+      child.kill(signal);
+    } catch {
+      /* already gone */
+    }
+  }
+}
+
 function startChild() {
   child = spawn(
     process.platform === 'win32' ? 'npx.cmd' : 'npx',
     ['next', 'dev', '--hostname', '0.0.0.0'],
     // stderr is piped rather than inherited so it can be inspected, then
     // written straight through — output and ordering are unchanged.
-    { stdio: ['inherit', 'inherit', 'pipe'], env: process.env },
+    // `detached` gives the child its own process group so the whole tree can be
+    // signalled; see `killChildTree`.
+    { stdio: ['inherit', 'inherit', 'pipe'], env: process.env, detached: true },
   );
+
+  childStartedAt = Date.now();
 
   child.stderr?.on('data', noteStderr);
 
@@ -160,12 +270,20 @@ function startChild() {
 
     // Next.js restarts its own worker on the 80% memory threshold; the exit
     // code is still 0 in that case, so it never reaches here. Anything that
-    // does is a hard failure (most often the V8 OOM above).
+    // does is a hard failure (most often the V8 OOM above) — or a recycle we
+    // asked for, which must NOT count against the crash-loop budget.
+const planned = recycling;
+    recycling = false;
+    pendingRecycle = planned;
+    respawning = true;
+
     stderrTail = '';
     const now = Date.now();
-    respawns.push(now);
-    while (respawns.length && now - respawns[0] > RESPAWN_WINDOW_MS) {
-      respawns.shift();
+    if (!planned) {
+      respawns.push(now);
+      while (respawns.length && now - respawns[0] > RESPAWN_WINDOW_MS) {
+        respawns.shift();
+      }
     }
 
     if (respawns.length > MAX_RESPAWNS) {
@@ -179,14 +297,67 @@ function startChild() {
     }
 
     console.warn(
-      `[dev] next dev exited unexpectedly (code=${code} signal=${signal ?? 'none'}) — ` +
+      `[dev] ${planned ? 'recycling next dev' : 'next dev exited unexpectedly'} ` +
+        `(code=${code} signal=${signal ?? 'none'}) — ` +
         `restarting in ${RESPAWN_DELAY_MS}ms ` +
         `(attempt ${respawns.length}/${MAX_RESPAWNS}, launcher ${launcherHeapMb()} MB)`,
     );
-    setTimeout(() => {
-      if (!stopping) startChild();
-    }, RESPAWN_DELAY_MS);
+    const spawnAgain = () => {
+      if (stopping) return;
+      startChild();
+      respawning = false;
+    };
+
+    if (planned) {
+      void waitForPortFree(PORT_FREE_WAIT_MS).then(spawnAgain);
+    } else {
+      // Still wait for the port. A crashed child frees it instantly so this is
+      // a no-op, but the case that matters — a wrapper that exited while its
+      // grandchild kept the socket — is exactly what this catches.
+      setTimeout(() => void waitForPortFree(PORT_FREE_WAIT_MS).then(spawnAgain), RESPAWN_DELAY_MS);
+    }
   });
+}
+
+/**
+ * Recycle the worker before V8 runs out of heap.
+ *
+ * Two consecutive samples above the ceiling are required so a single spike
+ * during one heavy compile does not cost a restart, and the uptime floor stops
+ * the loop from restarting a server that has only just booted.
+ */
+function startMemoryWatchdog() {
+  if (!(RSS_LIMIT_MB > 0)) return;
+  let strikes = 0;
+
+  const timer = setInterval(() => {
+    if (stopping || recycling || respawning || !child) return;
+    // The EADDRINUSE tolerance is only for the port-release window. Once this
+    // child has outlived it, a busy port is somebody else's again.
+    if (pendingRecycle && Date.now() - childStartedAt > PORT_FREE_WAIT_MS) {
+      pendingRecycle = false;
+    }
+    if (Date.now() - childStartedAt < MIN_UPTIME_MS) {
+      strikes = 0;
+      return;
+    }
+    const rss = serverRssMb();
+    if (rss === null) return;
+    strikes = rss >= RSS_LIMIT_MB ? strikes + 1 : 0;
+    if (strikes < RSS_STRIKES) return;
+
+    strikes = 0;
+    recycling = true;
+    console.warn(
+      `[dev] next-server rss ${rss} MB is at the ${RSS_LIMIT_MB} MB ceiling — ` +
+        `recycling it while it is still healthy (free RAM would otherwise be ` +
+        `what finally fails). Set DEV_RSS_LIMIT_MB=0 to disable.`,
+    );
+    killChildTree('SIGTERM');
+  }, RSS_POLL_MS);
+
+  // Never hold the launcher open on the timer alone.
+  timer.unref?.();
 }
 
 /** Waits for the port to accept connections, then pre-compiles key routes. */
@@ -236,6 +407,7 @@ async function main() {
     return;
   }
   startChild();
+  startMemoryWatchdog();
   void warmUp();
 }
 
@@ -244,6 +416,8 @@ void main();
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     stopping = true;
-    if (child) child.kill(signal);
+    // The whole tree, not just the `npx` wrapper — otherwise `next-server`
+    // survives the launcher and keeps port 3000 bound.
+    killChildTree(signal);
   });
 }
