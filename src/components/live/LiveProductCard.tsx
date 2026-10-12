@@ -1,6 +1,3 @@
-
-'use client';
-
 import Image from "next/image";
 import { Button } from "../ui/button";
 import type { Product } from "@/lib/types";
@@ -11,7 +8,7 @@ import { useRouter } from "next/navigation";
 
 
 export function LiveProductCard({ product }: { product: Product }) {
-  const imageUrl = product.imageUrl || 'https://picsum.photos/seed/placeholder/200';
+  const imageUrl = product.imageUrl || 'https://placehold.co/200x200/111111/ffffff?text=product';
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();

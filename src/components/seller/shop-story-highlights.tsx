@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { StoryHighlight } from '@/lib/types';
@@ -8,11 +7,11 @@ interface ShopStoryHighlightsProps {
 }
 
 const defaultHighlights: StoryHighlight[] = [
-  { id: '1', title: 'New Arrivals', imageUrl: 'https://picsum.photos/seed/hl1/200' },
-  { id: '2', title: 'Offers', imageUrl: 'https://picsum.photos/seed/hl2/200' },
-  { id: '3', title: 'Trending', imageUrl: 'https://picsum.photos/seed/hl3/200' },
-  { id: '4', title: 'Best Sellers', imageUrl: 'https://picsum.photos/seed/hl4/200' },
-  { id: '5', title: 'Live Replay', imageUrl: 'https://picsum.photos/seed/hl5/200' },
+  { id: '1', title: 'New Arrivals', imageUrl: 'https://placehold.co/200x200/111111/ffffff?text=hl1' },
+  { id: '2', title: 'Offers', imageUrl: 'https://placehold.co/200x200/111111/ffffff?text=hl2' },
+  { id: '3', title: 'Trending', imageUrl: 'https://placehold.co/200x200/111111/ffffff?text=hl3' },
+  { id: '4', title: 'Best Sellers', imageUrl: 'https://placehold.co/200x200/111111/ffffff?text=hl4' },
+  { id: '5', title: 'Live Replay', imageUrl: 'https://placehold.co/200x200/111111/ffffff?text=hl5' },
 ];
 
 export function ShopStoryHighlights({ highlights = defaultHighlights }: ShopStoryHighlightsProps) {
@@ -29,7 +28,7 @@ export function ShopStoryHighlights({ highlights = defaultHighlights }: ShopStor
                     <div className="bg-neutral-900 p-0.5 rounded-full h-full w-full">
                          <img 
                             src={highlight.imageUrl} 
-                            alt={highlight?.title || 'Story highlight'} 
+                            alt={highlight.title} 
                             className="h-full w-full object-cover rounded-full transition-transform duration-300 group-hover:scale-90"
                         />
                     </div>

@@ -1,10 +1,10 @@
 {
   "placeholderImages": [
-    "https://picsum.photos/seed/1/600/400",
-    "https://picsum.photos/seed/2/600/400",
-    "https://picsum.photos/seed/3/600/400",
-    "https://picsum.photos/seed/4/600/400",
-    "https://picsum.photos/seed/5/600/400"
+    "https://placehold.co/600x400/111111/ffffff?text=1",
+    "https://placehold.co/600x400/111111/ffffff?text=2",
+    "https://placehold.co/600x400/111111/ffffff?text=3",
+    "https://placehold.co/600x400/111111/ffffff?text=4",
+    "https://placehold.co/600x400/111111/ffffff?text=5"
   ],
   "exchangeRates": {
     "USD": 1,
