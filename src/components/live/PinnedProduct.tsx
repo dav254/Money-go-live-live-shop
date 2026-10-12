@@ -1,6 +1,7 @@
 'use client';
 
 import type { Product } from '@/lib/types';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { ShoppingBag, LogIn } from 'lucide-react';
@@ -46,7 +47,7 @@ export function PinnedProduct({ product }: { product: Product }) {
     >
       <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 border border-white/5 bg-black">
         <Image
-          src={product.imageUrl || 'https://picsum.photos/seed/pinned/150'}
+          src={product.imageUrl?.trim() || getPlaceholderImage()}
           alt={product.name || 'Pinned Product'}
           fill
           className="object-cover"
