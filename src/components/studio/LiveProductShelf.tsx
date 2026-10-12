@@ -5,6 +5,7 @@ import React from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { ScrollArea } from '../ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
 import Image from 'next/image';
@@ -28,7 +29,7 @@ const ProductRow = ({ product, onPin, onUnpin, isPinned }: { product: Product; o
             <div className="flex p-2 gap-3 items-center">
                 <div className="relative h-14 w-14 rounded-lg overflow-hidden shrink-0 border border-white/10">
                     <Image 
-                        src={product.imageUrl || 'https://picsum.photos/seed/placeholder/150'} 
+                        src={product.imageUrl?.trim() || getPlaceholderImage()} 
                         alt={product.name || 'product'} 
                         fill 
                         className="object-cover" 
