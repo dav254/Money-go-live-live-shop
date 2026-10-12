@@ -4,6 +4,7 @@
 import Image from "next/image";
 import { Button } from "../ui/button";
 import type { Product } from "@/lib/types";
+import { getPlaceholderImage } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, setDoc, increment, serverTimestamp } from 'firebase/firestore';
@@ -11,7 +12,7 @@ import { useRouter } from "next/navigation";
 
 
 export function LiveProductCard({ product }: { product: Product }) {
-  const imageUrl = product.imageUrl || 'https://picsum.photos/seed/placeholder/200';
+  const imageUrl = product.imageUrl?.trim() || getPlaceholderImage();
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
